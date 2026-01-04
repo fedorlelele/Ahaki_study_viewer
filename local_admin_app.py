@@ -21,6 +21,7 @@ HTML_PAGE = """<!doctype html>
       .row { margin-top: 16px; }
       .result { margin-top: 20px; }
       .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 20px; }
+      .preview-card { margin-bottom: 12px; }
       .tab { padding: 8px 12px; border: 1px solid #bbb; background: #fff; cursor: pointer; border-radius: 8px; }
       .tab.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
       .section[hidden] { display: none; }
@@ -137,7 +138,7 @@ HTML_PAGE = """<!doctype html>
     <div class="section" data-section="progress" hidden>
       <h2>進捗レポート</h2>
       <button id="loadProgress">進捗を表示</button>
-      <pre id="progressResult"></pre>
+      <div id="progressResult"></div>
     </div>
 
     <div class="section" data-section="build" hidden>
@@ -151,7 +152,7 @@ HTML_PAGE = """<!doctype html>
     <div class="section" data-section="history" hidden>
       <h2>履歴（最新20件）</h2>
       <button id="loadHistory">履歴を表示</button>
-      <pre id="historyResult"></pre>
+      <div id="historyResult"></div>
     </div>
 
     <div class="section" data-section="preview" hidden>
@@ -159,7 +160,7 @@ HTML_PAGE = """<!doctype html>
       <label>シリアルまたはキーワード</label>
       <input id="previewQuery" type="text" placeholder="A09-001 / キーワード" />
       <button id="runPreview">検索</button>
-      <pre id="previewResult"></pre>
+      <div id="previewResult"></div>
     </div>
 
     <div class="section" data-section="missing" hidden>
@@ -169,7 +170,7 @@ HTML_PAGE = """<!doctype html>
       <label><input type="checkbox" id="missingSubtopics" checked /> 小項目なし</label>
       <button id="loadMissing">一覧表示</button>
       <button id="downloadMissingCsv">CSVダウンロード</button>
-      <pre id="missingResult"></pre>
+      <div id="missingResult"></div>
     </div>
 
     <div class="section" data-section="reports" hidden>
@@ -178,7 +179,7 @@ HTML_PAGE = """<!doctype html>
       <button id="loadReports">報告を表示</button>
       <button id="useReports">報告をプロンプト対象にセット</button>
       <button id="clearReports">報告フラグを消去</button>
-      <pre id="reportResult"></pre>
+      <div id="reportResult"></div>
     </div>
 
     <script>
@@ -214,7 +215,7 @@ HTML_PAGE = """<!doctype html>
 
         const result = document.getElementById("result");
         result.textContent = "生成中...";
-        const resp = await fetch(`/api/prompts?${params.toString()}`);
+        const resp = await fetch("/api/prompts?" + params.toString());
         if (!resp.ok) {
           result.textContent = "エラー: " + resp.status;
           return;
@@ -228,7 +229,7 @@ HTML_PAGE = """<!doctype html>
         result.innerHTML = "";
 
         const info = document.createElement("div");
-        info.textContent = `対象問題数: ${data.count}`;
+        info.textContent = "対象問題数: " + data.count;
         result.appendChild(info);
 
         const btns = document.createElement("div");
@@ -280,7 +281,7 @@ HTML_PAGE = """<!doctype html>
         form.append("file", file);
         const resp = await fetch(endpoint, { method: "POST", body: form });
         if (!resp.ok) {
-          throw new Error(`エラー: ${resp.status}`);
+          throw new Error("エラー: " + resp.status);
         }
         return resp.json();
       }
@@ -300,16 +301,16 @@ HTML_PAGE = """<!doctype html>
       document.getElementById("importExplanations").addEventListener("click", () => {
         const mode = document.getElementById("explanationMode").value;
         const version = document.getElementById("explanationVersion").value;
-        const versionParam = version ? `&version=${version}` : "&version=auto";
-        importFile(`/api/import/explanations?mode=${mode}${versionParam}`, "explanationsFile");
+        const versionParam = version ? "&version=" + version : "&version=auto";
+        importFile("/api/import/explanations?mode=" + mode + versionParam, "explanationsFile");
       });
       document.getElementById("importTags").addEventListener("click", () => {
         const mode = document.getElementById("tagMode").value;
-        importFile(`/api/import/tags?mode=${mode}`, "tagsFile");
+        importFile("/api/import/tags?mode=" + mode, "tagsFile");
       });
       document.getElementById("importSubtopics").addEventListener("click", () => {
         const mode = document.getElementById("subtopicMode").value;
-        importFile(`/api/import/subtopics?mode=${mode}`, "subtopicsFile");
+        importFile("/api/import/subtopics?mode=" + mode, "subtopicsFile");
       });
 
       document.getElementById("bulkImport").addEventListener("click", async () => {
@@ -332,18 +333,18 @@ HTML_PAGE = """<!doctype html>
         if (!tagFile) missing.push("tags_batch_filled.jsonl");
         if (!subFile) missing.push("subtopics_batch_filled.jsonl");
         if (missing.length) {
-          result.textContent = `不足ファイル: ${missing.join(", ")}`;
+        result.textContent = "不足ファイル: " + missing.join(", ");
           return;
         }
         result.textContent = "一括インポート中...";
         const modeExp = document.getElementById("explanationMode").value;
         const version = document.getElementById("explanationVersion").value;
-        const versionParam = version ? `&version=${version}` : "&version=auto";
+        const versionParam = version ? "&version=" + version : "&version=auto";
         const modeTag = document.getElementById("tagMode").value;
         const modeSub = document.getElementById("subtopicMode").value;
-        const expRes = await uploadFile(`/api/import/explanations?mode=${modeExp}${versionParam}`, expFile);
-        const tagRes = await uploadFile(`/api/import/tags?mode=${modeTag}`, tagFile);
-        const subRes = await uploadFile(`/api/import/subtopics?mode=${modeSub}`, subFile);
+        const expRes = await uploadFile("/api/import/explanations?mode=" + modeExp + versionParam, expFile);
+        const tagRes = await uploadFile("/api/import/tags?mode=" + modeTag, tagFile);
+        const subRes = await uploadFile("/api/import/subtopics?mode=" + modeSub, subFile);
         result.textContent = [expRes.message, tagRes.message, subRes.message].join(" / ");
       });
 
@@ -352,11 +353,11 @@ HTML_PAGE = """<!doctype html>
         result.textContent = "ダウンロードフォルダからインポート中...";
         const modeExp = document.getElementById("explanationMode").value;
         const version = document.getElementById("explanationVersion").value;
-        const versionParam = version ? `&version=${version}` : "&version=auto";
+        const versionParam = version ? "&version=" + version : "&version=auto";
         const modeTag = document.getElementById("tagMode").value;
         const modeSub = document.getElementById("subtopicMode").value;
         const resp = await fetch(
-          `/api/import/downloads?modeExp=${modeExp}${versionParam}&modeTag=${modeTag}&modeSub=${modeSub}`,
+          "/api/import/downloads?modeExp=" + modeExp + versionParam + "&modeTag=" + modeTag + "&modeSub=" + modeSub,
           { method: "POST" }
         );
         const data = await resp.json();
@@ -380,7 +381,7 @@ HTML_PAGE = """<!doctype html>
       document.getElementById("loadProgress").addEventListener("click", async () => {
         const resp = await fetch("/api/progress");
         const data = await resp.json();
-        document.getElementById("progressResult").textContent = JSON.stringify(data, null, 2);
+        document.getElementById("progressResult").innerHTML = renderProgress(data);
       });
 
       document.getElementById("buildWeb").addEventListener("click", async () => {
@@ -402,7 +403,7 @@ HTML_PAGE = """<!doctype html>
       document.getElementById("loadHistory").addEventListener("click", async () => {
         const resp = await fetch("/api/history");
         const data = await resp.json();
-        document.getElementById("historyResult").textContent = JSON.stringify(data, null, 2);
+        document.getElementById("historyResult").innerHTML = renderHistory(data);
       });
 
       function copyToClipboard(text) {
@@ -424,9 +425,9 @@ HTML_PAGE = """<!doctype html>
           document.getElementById("previewResult").textContent = "検索語を入力してください。";
           return;
         }
-        const resp = await fetch(`/api/preview?q=${encodeURIComponent(query)}`);
+        const resp = await fetch("/api/preview?q=" + encodeURIComponent(query));
         const data = await resp.json();
-        document.getElementById("previewResult").textContent = JSON.stringify(data, null, 2);
+        document.getElementById("previewResult").innerHTML = renderPreview(data);
       });
 
       function getMissingParams() {
@@ -439,14 +440,14 @@ HTML_PAGE = """<!doctype html>
 
       document.getElementById("loadMissing").addEventListener("click", async () => {
         const params = getMissingParams();
-        const resp = await fetch(`/api/missing?${params.toString()}`);
+        const resp = await fetch("/api/missing?" + params.toString());
         const data = await resp.json();
-        document.getElementById("missingResult").textContent = JSON.stringify(data, null, 2);
+        document.getElementById("missingResult").innerHTML = renderMissing(data);
       });
 
       document.getElementById("downloadMissingCsv").addEventListener("click", async () => {
         const params = getMissingParams();
-        const resp = await fetch(`/api/missing.csv?${params.toString()}`);
+        const resp = await fetch("/api/missing.csv?" + params.toString());
         const text = await resp.text();
         const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
@@ -464,7 +465,7 @@ HTML_PAGE = """<!doctype html>
       function refreshCurrentSerials() {
         const value = document.getElementById("serials").value.trim();
         document.getElementById("currentSerials").textContent =
-          value ? `対象シリアル: ${value}` : "対象シリアル: （未指定）";
+          value ? "対象シリアル: " + value : "対象シリアル: （未指定）";
       }
 
       document.getElementById("serials").addEventListener("input", () => {
@@ -475,7 +476,7 @@ HTML_PAGE = """<!doctype html>
         const resp = await fetch("/api/reports");
         const data = await resp.json();
         reportSerials = data.serials || [];
-        document.getElementById("reportResult").textContent = JSON.stringify(data, null, 2);
+        document.getElementById("reportResult").innerHTML = renderReports(data);
       });
 
       document.getElementById("useReports").addEventListener("click", () => {
@@ -494,6 +495,103 @@ HTML_PAGE = """<!doctype html>
         reportSerials = [];
         document.getElementById("reportResult").textContent = data.message || "消去しました。";
       });
+
+      function renderProgress(data) {
+        if (!data || !data.total_questions) return "<div>データがありません。</div>";
+        var rows = "";
+        (data.by_subject || []).forEach(function(item) {
+          rows += "<tr>" +
+            "<td>" + item.subject + "</td>" +
+            "<td>" + item.total_questions + "</td>" +
+            "<td>" + item.explained + "</td>" +
+            "<td>" + item.tagged + "</td>" +
+            "<td>" + item.subtopic_assigned + "</td>" +
+            "</tr>";
+        });
+        return "<div>全体: " + data.total_questions +
+          " / 解説 " + data.explained +
+          " / タグ " + data.tagged +
+          " / 小項目 " + data.subtopic_assigned + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4'>" +
+            "<thead><tr><th>科目</th><th>総数</th><th>解説</th><th>タグ</th><th>小項目</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function renderHistory(data) {
+        if (!data || !data.length) return "<div>履歴がありません。</div>";
+        var rows = "";
+        data.forEach(function(item) {
+          rows += "<tr>" +
+            "<td>" + item.type + "</td>" +
+            "<td>" + item.serial + "</td>" +
+            "<td><details><summary>" + escapeHtml(item.text).slice(0, 120) + "</summary>" +
+            "<div>" + escapeHtml(item.text) + "</div></details></td>" +
+            "</tr>";
+        });
+        return "<table border='1' cellspacing='0' cellpadding='4'>" +
+          "<thead><tr><th>種別</th><th>シリアル</th><th>内容</th></tr></thead>" +
+          "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function renderPreview(data) {
+        if (!data || !data.length) return "<div>該当なし</div>";
+        var out = "";
+        data.forEach(function(item) {
+          out += "<div class='preview-card'>" +
+            "<div><strong>" + item.serial + "</strong> / " + item.subject + "</div>" +
+            "<div>" + escapeHtml(item.stem) + "</div>" +
+            "<div>解説: " + item.explanations.length + "</div>" +
+            "<div>タグ: " + (item.tags.join(", ") || "(なし)") + "</div>" +
+            "<div>小項目: " + (item.subtopics.join(", ") || "(なし)") + "</div>" +
+          "</div>";
+        });
+        return out;
+      }
+
+      function renderMissing(data) {
+        if (!data || !data.length) return "<div>該当なし</div>";
+        var rows = "";
+        data.forEach(function(item) {
+          rows += "<tr>" +
+            "<td>" + item.serial + "</td>" +
+            "<td>" + (item.subject || "") + "</td>" +
+            "<td>" + escapeHtml(item.stem).slice(0, 120) + "</td>" +
+            "</tr>";
+        });
+        return "<table border='1' cellspacing='0' cellpadding='4'>" +
+          "<thead><tr><th>シリアル</th><th>科目</th><th>問題文</th></tr></thead>" +
+          "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function renderReports(data) {
+        if (!data || !data.items || !data.items.length) return "<div>報告がありません。</div>";
+        var rows = "";
+        data.items.forEach(function(item) {
+          rows += "<tr>" +
+            "<td>" + item.serial + "</td>" +
+            "<td>" + (item.explanation ? "◯" : "") + "</td>" +
+            "<td>" + (item.tag ? "◯" : "") + "</td>" +
+            "<td>" + (item.subtopic ? "◯" : "") + "</td>" +
+            "<td>" + item.reported_at + "</td>" +
+            "</tr>";
+        });
+        return "<div>件数: " + data.count + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4'>" +
+            "<thead><tr><th>シリアル</th><th>解説</th><th>タグ</th><th>小項目</th><th>日時</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function escapeHtml(text) {
+        return String(text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;");
+      }
 
       document.querySelectorAll(".tab").forEach(tab => {
         tab.addEventListener("click", () => {
