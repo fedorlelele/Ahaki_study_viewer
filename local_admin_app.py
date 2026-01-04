@@ -52,7 +52,7 @@ HTML_PAGE = """<!doctype html>
     <input id="serials" type="text" placeholder="A09-001,A09-002 / B33-131..B33-180" />
     <div class="row">
       <label>件数（未指定時の上限）</label>
-      <input id="limit" type="number" value="10" min="1" />
+      <input id="limit" type="number" value="50" min="1" />
       <label><input id="unannotated" type="checkbox" checked /> 未設定のみ（解説・タグ・小項目が空）</label>
     </div>
 
