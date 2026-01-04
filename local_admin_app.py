@@ -26,6 +26,7 @@ HTML_PAGE = """<!doctype html>
       .tab.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
       .section[hidden] { display: none; }
       .section { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; }
+      .report-panel { margin-top: 16px; padding-top: 8px; border-top: 1px dashed #ccc; }
       .download { margin-right: 12px; }
       .note { color: #555; font-size: 0.9em; }
       pre { background: #f6f6f6; padding: 8px; white-space: pre-wrap; }
@@ -181,19 +182,26 @@ HTML_PAGE = """<!doctype html>
 
     <div class="section" data-section="reports" hidden>
       <h2>報告一覧</h2>
-      <div class="note" id="currentSerials">対象シリアル: （未指定）</div>
       <button id="loadReports">報告を表示</button>
-      <div class="row">
-        <label><input type="checkbox" id="reportExplain" checked /> 解説</label>
-        <label><input type="checkbox" id="reportTag" checked /> タグ</label>
-        <label><input type="checkbox" id="reportSubtopic" checked /> 小項目</label>
+      <div class="report-panel">
+        <strong>プロンプト対象にセットする条件</strong>
+        <div class="note">ここで選んだ種別の報告だけが「プロンプト対象にセット」に反映されます。</div>
+        <div class="row">
+          <label><input type="checkbox" id="reportExplain" checked /> 解説</label>
+          <label><input type="checkbox" id="reportTag" checked /> タグ</label>
+          <label><input type="checkbox" id="reportSubtopic" checked /> 小項目</label>
+        </div>
+        <button id="useReports">報告をプロンプト対象にセット</button>
       </div>
+      <div class="report-panel">
+        <strong>消去する報告フラグ</strong>
+        <div class="note">表のチェックボックスを選択してから消去します。</div>
       <div class="row">
         <button id="checkAllReports">全てチェック</button>
         <button id="uncheckAllReports">全て解除</button>
       </div>
-      <button id="useReports">報告をプロンプト対象にセット</button>
-      <button id="clearReports">報告フラグを消去</button>
+      <button id="clearReports">チェックした報告フラグを消去</button>
+      </div>
       <div id="reportResult"></div>
     </div>
 
@@ -503,16 +511,6 @@ HTML_PAGE = """<!doctype html>
 
       let reportItems = [];
 
-      function refreshCurrentSerials() {
-        const value = document.getElementById("serials").value.trim();
-        document.getElementById("currentSerials").textContent =
-          value ? "対象シリアル: " + value : "対象シリアル: （未指定）";
-      }
-
-      document.getElementById("serials").addEventListener("input", () => {
-        refreshCurrentSerials();
-      });
-
       document.getElementById("loadReports").addEventListener("click", async () => {
         const resp = await fetch("/api/reports");
         const data = await resp.json();
@@ -554,7 +552,6 @@ HTML_PAGE = """<!doctype html>
         document.getElementById("promptExplain").checked = kinds.includes("explanation");
         document.getElementById("promptTag").checked = kinds.includes("tag");
         document.getElementById("promptSubtopic").checked = kinds.includes("subtopic");
-        refreshCurrentSerials();
       });
 
       document.getElementById("clearReports").addEventListener("click", async () => {
@@ -685,15 +682,15 @@ HTML_PAGE = """<!doctype html>
           var explainBox = item.explanation
             ? "<input type='checkbox' data-report='1' data-serial='" + item.serial +
               "' data-kind='explanation' checked />"
-            : "";
+            : "-";
           var tagBox = item.tag
             ? "<input type='checkbox' data-report='1' data-serial='" + item.serial +
               "' data-kind='tag' checked />"
-            : "";
+            : "-";
           var subBox = item.subtopic
             ? "<input type='checkbox' data-report='1' data-serial='" + item.serial +
               "' data-kind='subtopic' checked />"
-            : "";
+            : "-";
           rows += "<tr>" +
             "<td>" + item.serial + "</td>" +
             "<td>" + explainBox + "</td>" +
@@ -729,9 +726,6 @@ HTML_PAGE = """<!doctype html>
           document.querySelectorAll(".section").forEach(section => {
             section.hidden = section.getAttribute("data-section") !== target;
           });
-          if (target === "reports") {
-            refreshCurrentSerials();
-          }
         });
       });
     </script>
