@@ -19,6 +19,7 @@
 - `generate_subtopic_catalog.py` : 科目ごとの小項目カタログ雛形生成
 - `generate_subtopic_assignment_template.py` : 小項目割当用JSONL生成
 - `import_subtopics.py` : 小項目JSONLのSQLite取り込み
+- `config/subtopics_catalog.json` : 小項目カタログ（管理対象）
 - `generate_web_json.py` : WebUI用JSON生成
 - `local_admin_app.py` : ローカル管理画面
 - `web_app/` : WebUI
@@ -68,14 +69,14 @@ python import_tags.py --infile kokushitxt/output/tags_batch_filled.jsonl
 ## 4. 小項目（サブトピック）
 ### 4-1. 科目ごとの候補リスト作成
 ```
-python generate_subtopic_catalog.py --out kokushitxt/output/subtopics_catalog.json
+python generate_subtopic_catalog.py --out config/subtopics_catalog.json
 ```
-`subtopics_catalog.json` を編集して、科目ごとに候補リストを記入します。
+`config/subtopics_catalog.json` を編集して、科目ごとに候補リストを記入します。
 
 ### 4-2. 割り当て用JSONL生成
 ```
 python generate_subtopic_assignment_template.py --limit 10 \
-  --catalog kokushitxt/output/subtopics_catalog.json \
+  --catalog config/subtopics_catalog.json \
   --out kokushitxt/output/subtopics_batch.jsonl \
   --prompt-out kokushitxt/output/subtopics_batch_prompt.txt
 ```

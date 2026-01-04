@@ -24,7 +24,7 @@ def parse_args():
     )
     parser.add_argument(
         "--out",
-        default="kokushitxt/output/subtopics_catalog.json",
+        default="config/subtopics_catalog.json",
         help="Output JSON path.",
     )
     return parser.parse_args()

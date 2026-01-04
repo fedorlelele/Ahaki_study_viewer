@@ -852,7 +852,7 @@ def parse_args():
     )
     parser.add_argument(
         "--subtopics",
-        default="kokushitxt/output/subtopics_catalog.json",
+        default="config/subtopics_catalog.json",
         help="Path to subtopics catalog JSON.",
     )
     parser.add_argument(
