@@ -539,10 +539,22 @@ HTML_PAGE = """<!doctype html>
         if (!data || !data.length) return "<div>該当なし</div>";
         var out = "";
         data.forEach(function(item) {
+          var expHtml = "";
+          if (item.explanations && item.explanations.length) {
+            item.explanations.forEach(function(exp) {
+              var label = exp.version ? "v" + exp.version : "";
+              expHtml += "<div><strong>" + label + "</strong> " +
+                escapeHtml(exp.body || "") + "</div>";
+            });
+          } else {
+            expHtml = "<div>(未登録)</div>";
+          }
+
           out += "<div class='preview-card'>" +
             "<div><strong>" + item.serial + "</strong> / " + item.subject + "</div>" +
             "<div>" + escapeHtml(item.stem) + "</div>" +
-            "<div>解説: " + item.explanations.length + "</div>" +
+            "<div>解説:</div>" +
+            "<div>" + expHtml + "</div>" +
             "<div>タグ: " + (item.tags.join(", ") || "(なし)") + "</div>" +
             "<div>小項目: " + (item.subtopics.join(", ") || "(なし)") + "</div>" +
           "</div>";
@@ -1355,7 +1367,13 @@ def build_preview(db_path, query):
     for row in rows:
         qid, serial, subject, stem, choices_json, answer_index = row
         explanations = cursor.execute(
-            "SELECT body FROM explanations WHERE question_id = ? ORDER BY id",
+            """
+            SELECT body, version
+            FROM explanations
+            WHERE question_id = ?
+            ORDER BY version DESC, id DESC
+            LIMIT 3
+            """,
             (qid,),
         ).fetchall()
         tags = cursor.execute(
@@ -1386,7 +1404,7 @@ def build_preview(db_path, query):
                 "stem": stem,
                 "choices": json.loads(choices_json),
                 "answer_index": answer_index,
-                "explanations": [e[0] for e in explanations],
+                "explanations": [{"body": e[0], "version": e[1]} for e in explanations],
                 "tags": [t[0] for t in tags],
                 "subtopics": [s[0] for s in subtopics],
             }
