@@ -102,13 +102,11 @@ HTML_PAGE = """<!doctype html>
       </div>
 
       <h3>クリップボード貼り付け</h3>
-      <p class="note">出力を貼り付けてインポートできます。</p>
+      <p class="note">出力を貼り付けてインポートできます（内容を自動判別）。</p>
       <label>JSONLを貼り付け</label>
       <textarea id="jsonlPaste" rows="8" style="width: 100%;"></textarea>
       <div class="row">
-        <button id="importExplanationsPaste">貼り付けを解説としてインポート</button>
-        <button id="importTagsPaste">貼り付けをタグとしてインポート</button>
-        <button id="importSubtopicsPaste">貼り付けを小項目としてインポート</button>
+        <button id="importPaste">貼り付けをインポート</button>
       </div>
 
       <label>解説JSONL</label>
@@ -384,44 +382,82 @@ HTML_PAGE = """<!doctype html>
         importFile("/api/import/subtopics?mode=" + mode, "subtopicsFile");
       });
 
-      document.getElementById("importExplanationsPaste").addEventListener("click", async () => {
-        const text = document.getElementById("jsonlPaste").value.trim();
-        if (!text) {
-          document.getElementById("importResult").textContent = "貼り付け内容が空です。";
-          return;
+      function detectJsonlKind(text) {
+        const lines = text.split("\\n").map(line => line.trim()).filter(line => line);
+        let kind = "";
+        for (const line of lines) {
+          let obj = null;
+          try {
+            obj = JSON.parse(line);
+          } catch (err) {
+            return { kind: "", error: "JSONLの形式が正しくありません。" };
+          }
+          if (!obj || typeof obj !== "object") {
+            return { kind: "", error: "JSONLの形式が正しくありません。" };
+          }
+          if ("explanation" in obj) {
+            if (kind && kind !== "explanation") {
+              return { kind: "", error: "複数種別が混在しています。" };
+            }
+            kind = "explanation";
+            continue;
+          }
+          if ("tags" in obj) {
+            if (kind && kind !== "tag") {
+              return { kind: "", error: "複数種別が混在しています。" };
+            }
+            kind = "tag";
+            continue;
+          }
+          if ("subtopics" in obj) {
+            if (kind && kind !== "subtopic") {
+              return { kind: "", error: "複数種別が混在しています。" };
+            }
+            kind = "subtopic";
+            continue;
+          }
+          return { kind: "", error: "種別を判別できませんでした。" };
         }
-        const mode = document.getElementById("explanationMode").value;
-        const version = document.getElementById("explanationVersion").value;
-        const payload = { text: text, mode: mode, version: version || "auto" };
-        document.getElementById("importResult").textContent = "インポート中...";
-        const data = await uploadText("/api/import/explanations_text", payload);
-        document.getElementById("importResult").textContent = data.message || "完了しました。";
-      });
+        return { kind: kind, error: "" };
+      }
 
-      document.getElementById("importTagsPaste").addEventListener("click", async () => {
-        const text = document.getElementById("jsonlPaste").value.trim();
+      document.getElementById("importPaste").addEventListener("click", async () => {
+        const textArea = document.getElementById("jsonlPaste");
+        const text = textArea.value.trim();
         if (!text) {
           document.getElementById("importResult").textContent = "貼り付け内容が空です。";
           return;
         }
-        const mode = document.getElementById("tagMode").value;
-        const payload = { text: text, mode: mode };
-        document.getElementById("importResult").textContent = "インポート中...";
-        const data = await uploadText("/api/import/tags_text", payload);
-        document.getElementById("importResult").textContent = data.message || "完了しました。";
-      });
-
-      document.getElementById("importSubtopicsPaste").addEventListener("click", async () => {
-        const text = document.getElementById("jsonlPaste").value.trim();
-        if (!text) {
-          document.getElementById("importResult").textContent = "貼り付け内容が空です。";
+        const detected = detectJsonlKind(text);
+        if (!detected.kind) {
+          document.getElementById("importResult").textContent = detected.error;
           return;
         }
-        const mode = document.getElementById("subtopicMode").value;
-        const payload = { text: text, mode: mode };
         document.getElementById("importResult").textContent = "インポート中...";
-        const data = await uploadText("/api/import/subtopics_text", payload);
-        document.getElementById("importResult").textContent = data.message || "完了しました。";
+        if (detected.kind === "explanation") {
+          const mode = document.getElementById("explanationMode").value;
+          const version = document.getElementById("explanationVersion").value;
+          const payload = { text: text, mode: mode, version: version || "auto" };
+          const data = await uploadText("/api/import/explanations_text", payload);
+          document.getElementById("importResult").textContent = data.message || "完了しました。";
+          textArea.value = "";
+          return;
+        }
+        if (detected.kind === "tag") {
+          const mode = document.getElementById("tagMode").value;
+          const payload = { text: text, mode: mode };
+          const data = await uploadText("/api/import/tags_text", payload);
+          document.getElementById("importResult").textContent = data.message || "完了しました。";
+          textArea.value = "";
+          return;
+        }
+        if (detected.kind === "subtopic") {
+          const mode = document.getElementById("subtopicMode").value;
+          const payload = { text: text, mode: mode };
+          const data = await uploadText("/api/import/subtopics_text", payload);
+          document.getElementById("importResult").textContent = data.message || "完了しました。";
+          textArea.value = "";
+        }
       });
 
       document.getElementById("bulkImport").addEventListener("click", async () => {
