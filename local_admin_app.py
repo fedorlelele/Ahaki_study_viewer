@@ -20,6 +20,10 @@ HTML_PAGE = """<!doctype html>
       button { padding: 8px 16px; margin-top: 12px; }
       .row { margin-top: 16px; }
       .result { margin-top: 20px; }
+      .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 20px; }
+      .tab { padding: 8px 12px; border: 1px solid #bbb; background: #fff; cursor: pointer; border-radius: 8px; }
+      .tab.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+      .section[hidden] { display: none; }
       .section { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; }
       .download { margin-right: 12px; }
       .note { color: #555; font-size: 0.9em; }
@@ -28,11 +32,22 @@ HTML_PAGE = """<!doctype html>
   </head>
   <body>
     <h1>ローカル管理画面</h1>
-    <p class="note">解説・タグ・小項目のプロンプトを一括で生成します。</p>
+    <p class="note">解説・タグ・小項目のプロンプト生成/インポート/進捗確認をまとめて行います。</p>
 
+    <div class="tabs" role="tablist" aria-label="管理タブ">
+      <button class="tab active" data-target="prompts" role="tab" aria-selected="true">プロンプト</button>
+      <button class="tab" data-target="imports" role="tab">インポート</button>
+      <button class="tab" data-target="reports" role="tab">報告一覧</button>
+      <button class="tab" data-target="preview" role="tab">検索・プレビュー</button>
+      <button class="tab" data-target="missing" role="tab">未設定一覧</button>
+      <button class="tab" data-target="build" role="tab">ファイル生成</button>
+      <button class="tab" data-target="progress" role="tab">進捗</button>
+      <button class="tab" data-target="history" role="tab">履歴</button>
+    </div>
+
+    <div class="section" data-section="prompts">
     <label>対象シリアル（カンマ区切り / 範囲: B33-131..B33-180）</label>
     <input id="serials" type="text" placeholder="A09-001,A09-002 / B33-131..B33-180" />
-
     <div class="row">
       <label>件数（未指定時の上限）</label>
       <input id="limit" type="number" value="10" min="1" />
@@ -58,15 +73,16 @@ HTML_PAGE = """<!doctype html>
     </div>
 
     <div class="row">
-      <label><input type="radio" name="outputMode" value="download" checked /> ダウンロード</label>
-      <label><input type="radio" name="outputMode" value="clipboard" /> クリップボード</label>
+      <label><input type="radio" name="outputMode" value="download" /> ダウンロード</label>
+      <label><input type="radio" name="outputMode" value="clipboard" checked /> クリップボード</label>
     </div>
 
     <button id="generate">プロンプト生成</button>
 
     <div class="result" id="result"></div>
+    </div>
 
-    <div class="section">
+    <div class="section" data-section="imports" hidden>
       <h2>インポート</h2>
       <p class="note">解説・タグ・小項目のJSONLをアップロードしてSQLiteに取り込みます。</p>
 
@@ -118,13 +134,13 @@ HTML_PAGE = """<!doctype html>
       <div class="result" id="importResult"></div>
     </div>
 
-    <div class="section">
+    <div class="section" data-section="progress" hidden>
       <h2>進捗レポート</h2>
       <button id="loadProgress">進捗を表示</button>
       <pre id="progressResult"></pre>
     </div>
 
-    <div class="section">
+    <div class="section" data-section="build" hidden>
       <h2>ファイル生成</h2>
       <p class="note">WebUI表示用のJSONや学習用セットをまとめて生成します。</p>
       <button id="buildWeb">Web表示用ファイルを生成</button>
@@ -132,13 +148,13 @@ HTML_PAGE = """<!doctype html>
       <pre id="buildResult"></pre>
     </div>
 
-    <div class="section">
+    <div class="section" data-section="history" hidden>
       <h2>履歴（最新20件）</h2>
       <button id="loadHistory">履歴を表示</button>
       <pre id="historyResult"></pre>
     </div>
 
-    <div class="section">
+    <div class="section" data-section="preview" hidden>
       <h2>検索・プレビュー</h2>
       <label>シリアルまたはキーワード</label>
       <input id="previewQuery" type="text" placeholder="A09-001 / キーワード" />
@@ -146,7 +162,7 @@ HTML_PAGE = """<!doctype html>
       <pre id="previewResult"></pre>
     </div>
 
-    <div class="section">
+    <div class="section" data-section="missing" hidden>
       <h2>未設定一覧</h2>
       <label><input type="checkbox" id="missingExplanations" checked /> 解説なし</label>
       <label><input type="checkbox" id="missingTags" checked /> タグなし</label>
@@ -154,6 +170,15 @@ HTML_PAGE = """<!doctype html>
       <button id="loadMissing">一覧表示</button>
       <button id="downloadMissingCsv">CSVダウンロード</button>
       <pre id="missingResult"></pre>
+    </div>
+
+    <div class="section" data-section="reports" hidden>
+      <h2>報告一覧</h2>
+      <div class="note" id="currentSerials">対象シリアル: （未指定）</div>
+      <button id="loadReports">報告を表示</button>
+      <button id="useReports">報告をプロンプト対象にセット</button>
+      <button id="clearReports">報告フラグを消去</button>
+      <pre id="reportResult"></pre>
     </div>
 
     <script>
@@ -433,6 +458,60 @@ HTML_PAGE = """<!doctype html>
         a.remove();
         URL.revokeObjectURL(url);
       });
+
+      let reportSerials = [];
+
+      function refreshCurrentSerials() {
+        const value = document.getElementById("serials").value.trim();
+        document.getElementById("currentSerials").textContent =
+          value ? `対象シリアル: ${value}` : "対象シリアル: （未指定）";
+      }
+
+      document.getElementById("serials").addEventListener("input", () => {
+        refreshCurrentSerials();
+      });
+
+      document.getElementById("loadReports").addEventListener("click", async () => {
+        const resp = await fetch("/api/reports");
+        const data = await resp.json();
+        reportSerials = data.serials || [];
+        document.getElementById("reportResult").textContent = JSON.stringify(data, null, 2);
+      });
+
+      document.getElementById("useReports").addEventListener("click", () => {
+        if (!reportSerials.length) {
+          document.getElementById("reportResult").textContent = "報告がありません。";
+          return;
+        }
+        document.getElementById("serials").value = reportSerials.join(",");
+        document.getElementById("unannotated").checked = false;
+        refreshCurrentSerials();
+      });
+
+      document.getElementById("clearReports").addEventListener("click", async () => {
+        const resp = await fetch("/api/reports/clear", { method: "POST" });
+        const data = await resp.json();
+        reportSerials = [];
+        document.getElementById("reportResult").textContent = data.message || "消去しました。";
+      });
+
+      document.querySelectorAll(".tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach(t => {
+            t.classList.remove("active");
+            t.setAttribute("aria-selected", "false");
+          });
+          tab.classList.add("active");
+          tab.setAttribute("aria-selected", "true");
+          const target = tab.getAttribute("data-target");
+          document.querySelectorAll(".section").forEach(section => {
+            section.hidden = section.getAttribute("data-section") !== target;
+          });
+          if (target === "reports") {
+            refreshCurrentSerials();
+          }
+        });
+      });
     </script>
   </body>
 </html>
@@ -651,9 +730,15 @@ def build_jsonl(records, subtopic_catalog):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def _set_cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
     def _send_json(self, payload, status=200):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self._set_cors()
         self.end_headers()
         self.wfile.write(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
 
@@ -686,6 +771,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self._set_cors()
             self.end_headers()
             self.wfile.write(HTML_PAGE.encode("utf-8"))
             return
@@ -767,8 +853,20 @@ class Handler(BaseHTTPRequestHandler):
             csv_text = build_missing_csv(self.server.db_path, params)
             self.send_response(200)
             self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self._set_cors()
             self.end_headers()
             self.wfile.write(csv_text.encode("utf-8"))
+            return
+        if parsed.path == "/api/report":
+            params = parse_qs(parsed.query)
+            serial = params.get("serial", [""])[0]
+            kind = params.get("kind", [""])[0]
+            message = add_report(self.server.db_path, serial, kind)
+            self._send_json({"message": message})
+            return
+        if parsed.path == "/api/reports":
+            payload = list_reports(self.server.db_path)
+            self._send_json(payload)
             return
 
         self.send_response(404)
@@ -848,8 +946,20 @@ class Handler(BaseHTTPRequestHandler):
             web_message = run_build_web(self.server.repo_root)
             self._send_json({"message": f"{message} / {web_message}"})
             return
+        if parsed.path == "/api/reports/clear":
+            params = parse_qs(parsed.query)
+            serial = params.get("serial", [""])[0]
+            kind = params.get("kind", [""])[0]
+            message = clear_reports(self.server.db_path, serial, kind)
+            self._send_json({"message": message})
+            return
 
         self.send_response(404)
+        self.end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._set_cors()
         self.end_headers()
 
 
@@ -1273,6 +1383,126 @@ def import_from_downloads(db_path, downloads_dir, mode_exp, version, mode_tag, m
     return " / ".join(messages)
 
 
+def ensure_feedback_table(db_path):
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS feedback_reports (
+            serial TEXT PRIMARY KEY,
+            explain INTEGER DEFAULT 0,
+            tag INTEGER DEFAULT 0,
+            subtopic INTEGER DEFAULT 0,
+            reported_at TEXT NOT NULL
+        )
+        """
+    )
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(feedback_reports)").fetchall()]
+    if "explain" not in cols:
+        conn.execute("ALTER TABLE feedback_reports ADD COLUMN explain INTEGER DEFAULT 0")
+    if "tag" not in cols:
+        conn.execute("ALTER TABLE feedback_reports ADD COLUMN tag INTEGER DEFAULT 0")
+    if "subtopic" not in cols:
+        conn.execute("ALTER TABLE feedback_reports ADD COLUMN subtopic INTEGER DEFAULT 0")
+    conn.commit()
+    conn.close()
+
+
+def add_report(db_path, serial, kind):
+    if not serial:
+        return "シリアルが指定されていません。"
+    if kind not in {"explanation", "tag", "subtopic"}:
+        return "種別が指定されていません。"
+    conn = sqlite3.connect(db_path)
+    row = conn.execute(
+        "SELECT explain, tag, subtopic FROM feedback_reports WHERE serial = ?",
+        (serial,),
+    ).fetchone()
+    explain, tag, subtopic = row if row else (0, 0, 0)
+    if kind == "explanation":
+        explain = 1
+    elif kind == "tag":
+        tag = 1
+    elif kind == "subtopic":
+        subtopic = 1
+    conn.execute(
+        """
+        INSERT INTO feedback_reports(serial, explain, tag, subtopic, reported_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(serial) DO UPDATE SET
+            explain = excluded.explain,
+            tag = excluded.tag,
+            subtopic = excluded.subtopic,
+            reported_at = excluded.reported_at
+        """,
+        (serial, explain, tag, subtopic),
+    )
+    conn.commit()
+    conn.close()
+    return f"報告しました: {serial} ({kind})"
+
+
+def list_reports(db_path):
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute(
+        """
+        SELECT serial, explain, tag, subtopic, reported_at
+        FROM feedback_reports
+        ORDER BY reported_at DESC
+        """
+    ).fetchall()
+    conn.close()
+    return {
+        "count": len(rows),
+        "serials": [row[0] for row in rows],
+        "items": [
+            {
+                "serial": row[0],
+                "explanation": row[1],
+                "tag": row[2],
+                "subtopic": row[3],
+                "reported_at": row[4],
+            }
+            for row in rows
+        ],
+    }
+
+
+def clear_reports(db_path, serial, kind):
+    conn = sqlite3.connect(db_path)
+    if serial:
+        if kind:
+            if kind == "explanation":
+                conn.execute(
+                    "UPDATE feedback_reports SET explain = 0 WHERE serial = ?",
+                    (serial,),
+                )
+            elif kind == "tag":
+                conn.execute(
+                    "UPDATE feedback_reports SET tag = 0 WHERE serial = ?",
+                    (serial,),
+                )
+            elif kind == "subtopic":
+                conn.execute(
+                    "UPDATE feedback_reports SET subtopic = 0 WHERE serial = ?",
+                    (serial,),
+                )
+            conn.execute(
+                "DELETE FROM feedback_reports WHERE serial = ? AND explain = 0 AND tag = 0 AND subtopic = 0",
+                (serial,),
+            )
+            conn.commit()
+            conn.close()
+            return f"消去しました: {serial} ({kind})"
+        conn.execute("DELETE FROM feedback_reports WHERE serial = ?", (serial,))
+        conn.commit()
+        conn.close()
+        return f"消去しました: {serial}"
+    conn.execute("DELETE FROM feedback_reports")
+    conn.commit()
+    conn.close()
+    return "報告フラグを全て消去しました。"
+
+
 def run_command(repo_root, args):
     import subprocess
     import sys
@@ -1348,6 +1578,7 @@ def main():
     server.prompt_sample = prompt_sample
     server.repo_root = Path(__file__).resolve().parent
     server.downloads_dir = args.downloads
+    ensure_feedback_table(db_path)
 
     print(f"Server running: http://{args.host}:{args.port}")
     try:

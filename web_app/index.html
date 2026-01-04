@@ -129,6 +129,11 @@
         color: var(--ink);
         border-color: var(--accent);
       }
+      .report-btn.reported {
+        background: #ffe7ea;
+        border-color: #b00020;
+        color: #7a0015;
+      }
       .answer {
         margin-top: 10px;
         padding: 8px 10px;
@@ -211,6 +216,9 @@
     </main>
 
     <script>
+      const API_BASE =
+        localStorage.getItem("reportApiBase") ||
+        (location.port === "8001" ? "" : "http://127.0.0.1:8001");
       const state = {
         questions: [],
         indexBySubject: {},
@@ -470,6 +478,22 @@
           });
           actions.appendChild(copyBtn);
 
+          const reportKinds = [
+            { key: "explanation", label: "解説要修正" },
+            { key: "tag", label: "タグ要修正" },
+            { key: "subtopic", label: "小項目要修正" }
+          ];
+          reportKinds.forEach(item => {
+            const reportBtn = document.createElement("button");
+            reportBtn.textContent = item.label;
+            reportBtn.className = "report-btn";
+            reportBtn.setAttribute("aria-label", `${item.label}を報告`);
+            reportBtn.addEventListener("click", () => {
+              sendReport(q.serial, item.key, reportBtn);
+            });
+            actions.appendChild(reportBtn);
+          });
+
           if (q.explanations && q.explanations.length > 1) {
             const select = document.createElement("select");
             select.setAttribute("aria-label", "解説バージョンを選択");
@@ -595,6 +619,26 @@
       }
 
       init();
+
+      function sendReport(serial, kind, button) {
+        fetch(
+          `${API_BASE}/api/report?serial=${encodeURIComponent(serial)}&kind=${encodeURIComponent(kind)}`,
+          { mode: "cors" }
+        )
+          .then(resp => resp.json())
+          .then(data => {
+            if (data.message && data.message.startsWith("報告しました")) {
+              button.classList.add("reported");
+            } else {
+              button.classList.remove("reported");
+              console.warn(data.message || "報告に失敗しました。");
+            }
+          })
+          .catch(err => {
+            button.classList.remove("reported");
+            console.warn("報告に失敗しました。", err);
+          });
+      }
 
       function buildFilterHeader() {
         const keyword = document.getElementById("keyword").value.trim();
