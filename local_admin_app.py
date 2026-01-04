@@ -11,7 +11,7 @@ HTML_PAGE = """<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <title>Hikkei Admin</title>
+    <title>Ahaki Admin</title>
     <style>
       body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; margin: 24px; }
       label { display: block; margin: 12px 0 6px; }
