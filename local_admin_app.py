@@ -188,6 +188,10 @@ HTML_PAGE = """<!doctype html>
         <label><input type="checkbox" id="reportTag" checked /> タグ</label>
         <label><input type="checkbox" id="reportSubtopic" checked /> 小項目</label>
       </div>
+      <div class="row">
+        <button id="checkAllReports">全てチェック</button>
+        <button id="uncheckAllReports">全て解除</button>
+      </div>
       <button id="useReports">報告をプロンプト対象にセット</button>
       <button id="clearReports">報告フラグを消去</button>
       <div id="reportResult"></div>
@@ -580,6 +584,18 @@ HTML_PAGE = """<!doctype html>
         document.getElementById("reportResult").textContent = data.message || "消去しました。";
       });
 
+      document.getElementById("checkAllReports").addEventListener("click", () => {
+        document.querySelectorAll("input[data-report]").forEach(input => {
+          input.checked = true;
+        });
+      });
+
+      document.getElementById("uncheckAllReports").addEventListener("click", () => {
+        document.querySelectorAll("input[data-report]").forEach(input => {
+          input.checked = false;
+        });
+      });
+
       function renderProgress(data) {
         if (!data || !data.total_questions) return "<div>データがありません。</div>";
         var rows = "";
@@ -666,17 +682,23 @@ HTML_PAGE = """<!doctype html>
         if (!data || !data.items || !data.items.length) return "<div>報告がありません。</div>";
         var rows = "";
         data.items.forEach(function(item) {
-          var explainChecked = item.explanation ? " checked" : "";
-          var tagChecked = item.tag ? " checked" : "";
-          var subChecked = item.subtopic ? " checked" : "";
+          var explainBox = item.explanation
+            ? "<input type='checkbox' data-report='1' data-serial='" + item.serial +
+              "' data-kind='explanation' checked />"
+            : "";
+          var tagBox = item.tag
+            ? "<input type='checkbox' data-report='1' data-serial='" + item.serial +
+              "' data-kind='tag' checked />"
+            : "";
+          var subBox = item.subtopic
+            ? "<input type='checkbox' data-report='1' data-serial='" + item.serial +
+              "' data-kind='subtopic' checked />"
+            : "";
           rows += "<tr>" +
             "<td>" + item.serial + "</td>" +
-            "<td><input type='checkbox' data-report='1' data-serial='" + item.serial +
-              "' data-kind='explanation'" + explainChecked + " /></td>" +
-            "<td><input type='checkbox' data-report='1' data-serial='" + item.serial +
-              "' data-kind='tag'" + tagChecked + " /></td>" +
-            "<td><input type='checkbox' data-report='1' data-serial='" + item.serial +
-              "' data-kind='subtopic'" + subChecked + " /></td>" +
+            "<td>" + explainBox + "</td>" +
+            "<td>" + tagBox + "</td>" +
+            "<td>" + subBox + "</td>" +
             "<td>" + item.reported_at + "</td>" +
             "</tr>";
         });
