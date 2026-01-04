@@ -159,7 +159,6 @@ HTML_PAGE = """<!doctype html>
       <label>シリアルまたはキーワード</label>
       <input id="previewQuery" type="text" placeholder="A09-001 / キーワード" />
       <button id="runPreview">検索</button>
-      <button id="appendPreviewSerials">該当シリアルを追加</button>
       <div id="previewResult"></div>
     </div>
 
@@ -169,7 +168,6 @@ HTML_PAGE = """<!doctype html>
       <label><input type="checkbox" id="missingTags" checked /> タグなし</label>
       <label><input type="checkbox" id="missingSubtopics" checked /> 小項目なし</label>
       <button id="loadMissing">一覧表示</button>
-      <button id="copyMissing">一覧をコピー</button>
       <button id="downloadMissingCsv">CSVダウンロード</button>
       <div id="missingResult"></div>
     </div>
@@ -180,12 +178,6 @@ HTML_PAGE = """<!doctype html>
       <button id="loadReports">報告を表示</button>
       <button id="useReports">報告をプロンプト対象にセット</button>
       <button id="clearReports">報告フラグを消去</button>
-      <div class="row">
-        <label><input type="checkbox" id="filterReportExplain" checked /> 解説</label>
-        <label><input type="checkbox" id="filterReportTag" checked /> タグ</label>
-        <label><input type="checkbox" id="filterReportSubtopic" checked /> 小項目</label>
-        <button id="applyReportFilter">フィルタ適用</button>
-      </div>
       <div id="reportResult"></div>
     </div>
 
@@ -434,24 +426,7 @@ HTML_PAGE = """<!doctype html>
         }
         const resp = await fetch(`/api/preview?q=${encodeURIComponent(query)}`);
         const data = await resp.json();
-        window.__previewCache = data;
         document.getElementById("previewResult").innerHTML = renderPreview(data);
-      });
-
-      document.getElementById("appendPreviewSerials").addEventListener("click", () => {
-        const data = window.__previewCache || [];
-        if (!data.length) {
-          document.getElementById("previewResult").textContent = "該当データがありません。";
-          return;
-        }
-        const serials = data.map(item => item.serial);
-        const input = document.getElementById("serials");
-        const current = input.value.trim();
-        const merged = current ? current.split(",").map(s => s.trim()).filter(Boolean) : [];
-        serials.forEach(s => {
-          if (!merged.includes(s)) merged.push(s);
-        });
-        input.value = merged.join(",");
       });
 
       function getMissingParams() {
@@ -466,18 +441,7 @@ HTML_PAGE = """<!doctype html>
         const params = getMissingParams();
         const resp = await fetch(`/api/missing?${params.toString()}`);
         const data = await resp.json();
-        window.__missingCache = data;
         document.getElementById("missingResult").innerHTML = renderMissing(data);
-      });
-
-      document.getElementById("copyMissing").addEventListener("click", () => {
-        const data = window.__missingCache || [];
-        if (!data.length) {
-          document.getElementById("missingResult").textContent = "該当なし";
-          return;
-        }
-        const lines = data.map(item => `${item.serial}\t${item.subject || ""}\t${item.stem || ""}`);
-        copyToClipboard(lines.join("\n"));
       });
 
       document.getElementById("downloadMissingCsv").addEventListener("click", async () => {
@@ -511,7 +475,6 @@ HTML_PAGE = """<!doctype html>
         const resp = await fetch("/api/reports");
         const data = await resp.json();
         reportSerials = data.serials || [];
-        window.__reportCache = data;
         document.getElementById("reportResult").innerHTML = renderReports(data);
       });
 
@@ -530,11 +493,6 @@ HTML_PAGE = """<!doctype html>
         const data = await resp.json();
         reportSerials = [];
         document.getElementById("reportResult").textContent = data.message || "消去しました。";
-      });
-
-      document.getElementById("applyReportFilter").addEventListener("click", () => {
-        const data = window.__reportCache || { items: [] };
-        document.getElementById("reportResult").innerHTML = renderReports(data);
       });
 
       function renderProgress(data) {
@@ -571,12 +529,7 @@ HTML_PAGE = """<!doctype html>
           <tr>
             <td>${item.type}</td>
             <td>${item.serial}</td>
-            <td>
-              <details>
-                <summary>${escapeHtml(item.text).slice(0, 120)}</summary>
-                <div>${escapeHtml(item.text)}</div>
-              </details>
-            </td>
+            <td>${escapeHtml(item.text).slice(0, 120)}</td>
           </tr>
         `).join("");
         return `
@@ -623,17 +576,7 @@ HTML_PAGE = """<!doctype html>
 
       function renderReports(data) {
         if (!data || !data.items || !data.items.length) return "<div>報告がありません。</div>";
-        const showExplain = document.getElementById("filterReportExplain").checked;
-        const showTag = document.getElementById("filterReportTag").checked;
-        const showSubtopic = document.getElementById("filterReportSubtopic").checked;
-        const filtered = data.items.filter(item => {
-          if (showExplain && item.explanation) return true;
-          if (showTag && item.tag) return true;
-          if (showSubtopic && item.subtopic) return true;
-          return false;
-        });
-        if (!filtered.length) return "<div>報告がありません。</div>";
-        const rows = filtered.map(item => `
+        const rows = data.items.map(item => `
           <tr>
             <td>${item.serial}</td>
             <td>${item.explanation ? "◯" : ""}</td>
@@ -643,7 +586,7 @@ HTML_PAGE = """<!doctype html>
           </tr>
         `).join("");
         return `
-          <div>件数: ${filtered.length}</div>
+          <div>件数: ${data.count}</div>
           <table border="1" cellspacing="0" cellpadding="4">
             <thead>
               <tr><th>シリアル</th><th>解説</th><th>タグ</th><th>小項目</th><th>日時</th></tr>
