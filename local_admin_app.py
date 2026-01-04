@@ -137,7 +137,7 @@ HTML_PAGE = """<!doctype html>
     <div class="section" data-section="progress" hidden>
       <h2>進捗レポート</h2>
       <button id="loadProgress">進捗を表示</button>
-      <div id="progressResult"></div>
+      <pre id="progressResult"></pre>
     </div>
 
     <div class="section" data-section="build" hidden>
@@ -151,7 +151,7 @@ HTML_PAGE = """<!doctype html>
     <div class="section" data-section="history" hidden>
       <h2>履歴（最新20件）</h2>
       <button id="loadHistory">履歴を表示</button>
-      <div id="historyResult"></div>
+      <pre id="historyResult"></pre>
     </div>
 
     <div class="section" data-section="preview" hidden>
@@ -159,7 +159,7 @@ HTML_PAGE = """<!doctype html>
       <label>シリアルまたはキーワード</label>
       <input id="previewQuery" type="text" placeholder="A09-001 / キーワード" />
       <button id="runPreview">検索</button>
-      <div id="previewResult"></div>
+      <pre id="previewResult"></pre>
     </div>
 
     <div class="section" data-section="missing" hidden>
@@ -169,7 +169,7 @@ HTML_PAGE = """<!doctype html>
       <label><input type="checkbox" id="missingSubtopics" checked /> 小項目なし</label>
       <button id="loadMissing">一覧表示</button>
       <button id="downloadMissingCsv">CSVダウンロード</button>
-      <div id="missingResult"></div>
+      <pre id="missingResult"></pre>
     </div>
 
     <div class="section" data-section="reports" hidden>
@@ -178,7 +178,7 @@ HTML_PAGE = """<!doctype html>
       <button id="loadReports">報告を表示</button>
       <button id="useReports">報告をプロンプト対象にセット</button>
       <button id="clearReports">報告フラグを消去</button>
-      <div id="reportResult"></div>
+      <pre id="reportResult"></pre>
     </div>
 
     <script>
@@ -380,7 +380,7 @@ HTML_PAGE = """<!doctype html>
       document.getElementById("loadProgress").addEventListener("click", async () => {
         const resp = await fetch("/api/progress");
         const data = await resp.json();
-        document.getElementById("progressResult").innerHTML = renderProgress(data);
+        document.getElementById("progressResult").textContent = JSON.stringify(data, null, 2);
       });
 
       document.getElementById("buildWeb").addEventListener("click", async () => {
@@ -402,7 +402,7 @@ HTML_PAGE = """<!doctype html>
       document.getElementById("loadHistory").addEventListener("click", async () => {
         const resp = await fetch("/api/history");
         const data = await resp.json();
-        document.getElementById("historyResult").innerHTML = renderHistory(data);
+        document.getElementById("historyResult").textContent = JSON.stringify(data, null, 2);
       });
 
       function copyToClipboard(text) {
@@ -426,7 +426,7 @@ HTML_PAGE = """<!doctype html>
         }
         const resp = await fetch(`/api/preview?q=${encodeURIComponent(query)}`);
         const data = await resp.json();
-        document.getElementById("previewResult").innerHTML = renderPreview(data);
+        document.getElementById("previewResult").textContent = JSON.stringify(data, null, 2);
       });
 
       function getMissingParams() {
@@ -441,7 +441,7 @@ HTML_PAGE = """<!doctype html>
         const params = getMissingParams();
         const resp = await fetch(`/api/missing?${params.toString()}`);
         const data = await resp.json();
-        document.getElementById("missingResult").innerHTML = renderMissing(data);
+        document.getElementById("missingResult").textContent = JSON.stringify(data, null, 2);
       });
 
       document.getElementById("downloadMissingCsv").addEventListener("click", async () => {
@@ -475,7 +475,7 @@ HTML_PAGE = """<!doctype html>
         const resp = await fetch("/api/reports");
         const data = await resp.json();
         reportSerials = data.serials || [];
-        document.getElementById("reportResult").innerHTML = renderReports(data);
+        document.getElementById("reportResult").textContent = JSON.stringify(data, null, 2);
       });
 
       document.getElementById("useReports").addEventListener("click", () => {
@@ -494,115 +494,6 @@ HTML_PAGE = """<!doctype html>
         reportSerials = [];
         document.getElementById("reportResult").textContent = data.message || "消去しました。";
       });
-
-      function renderProgress(data) {
-        if (!data || !data.total_questions) return "<div>データがありません。</div>";
-        const rows = (data.by_subject || []).map(item => `
-          <tr>
-            <td>${item.subject}</td>
-            <td>${item.total_questions}</td>
-            <td>${item.explained}</td>
-            <td>${item.tagged}</td>
-            <td>${item.subtopic_assigned}</td>
-          </tr>
-        `).join("");
-        return `
-          <div>全体: ${data.total_questions} / 解説 ${data.explained} / タグ ${data.tagged} / 小項目 ${data.subtopic_assigned}</div>
-          <table border="1" cellspacing="0" cellpadding="4">
-            <thead>
-              <tr>
-                <th>科目</th>
-                <th>総数</th>
-                <th>解説</th>
-                <th>タグ</th>
-                <th>小項目</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        `;
-      }
-
-      function renderHistory(data) {
-        if (!data || !data.length) return "<div>履歴がありません。</div>";
-        const rows = data.map(item => `
-          <tr>
-            <td>${item.type}</td>
-            <td>${item.serial}</td>
-            <td>${escapeHtml(item.text).slice(0, 120)}</td>
-          </tr>
-        `).join("");
-        return `
-          <table border="1" cellspacing="0" cellpadding="4">
-            <thead>
-              <tr><th>種別</th><th>シリアル</th><th>内容</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        `;
-      }
-
-      function renderPreview(data) {
-        if (!data || !data.length) return "<div>該当なし</div>";
-        return data.map(item => `
-          <div style="margin-bottom: 12px;">
-            <div><strong>${item.serial}</strong> / ${item.subject}</div>
-            <div>${escapeHtml(item.stem)}</div>
-            <div>解説: ${item.explanations.length}</div>
-            <div>タグ: ${item.tags.join(", ") || "(なし)"}</div>
-            <div>小項目: ${item.subtopics.join(", ") || "(なし)"}</div>
-          </div>
-        `).join("");
-      }
-
-      function renderMissing(data) {
-        if (!data || !data.length) return "<div>該当なし</div>";
-        const rows = data.map(item => `
-          <tr>
-            <td>${item.serial}</td>
-            <td>${item.subject || ""}</td>
-            <td>${escapeHtml(item.stem).slice(0, 120)}</td>
-          </tr>
-        `).join("");
-        return `
-          <table border="1" cellspacing="0" cellpadding="4">
-            <thead>
-              <tr><th>シリアル</th><th>科目</th><th>問題文</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        `;
-      }
-
-      function renderReports(data) {
-        if (!data || !data.items || !data.items.length) return "<div>報告がありません。</div>";
-        const rows = data.items.map(item => `
-          <tr>
-            <td>${item.serial}</td>
-            <td>${item.explanation ? "◯" : ""}</td>
-            <td>${item.tag ? "◯" : ""}</td>
-            <td>${item.subtopic ? "◯" : ""}</td>
-            <td>${item.reported_at}</td>
-          </tr>
-        `).join("");
-        return `
-          <div>件数: ${data.count}</div>
-          <table border="1" cellspacing="0" cellpadding="4">
-            <thead>
-              <tr><th>シリアル</th><th>解説</th><th>タグ</th><th>小項目</th><th>日時</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        `;
-      }
-
-      function escapeHtml(text) {
-        return String(text || "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\"/g, "&quot;");
-      }
 
       document.querySelectorAll(".tab").forEach(tab => {
         tab.addEventListener("click", () => {
