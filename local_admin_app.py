@@ -1254,6 +1254,7 @@ def import_explanations(db_path, jsonl_text, mode, version):
             """,
             (question_id, explanation, next_version, source),
         )
+        clear_feedback_flag(conn, serial, "explanation")
         inserted += 1
     conn.commit()
     conn.close()
@@ -1289,6 +1290,7 @@ def import_tags(db_path, jsonl_text, mode):
                 continue
         if mode == "replace":
             cursor.execute("DELETE FROM question_tags WHERE question_id = ?", (question_id,))
+        updated = False
         for tag in tags:
             tag_label = " ".join(str(tag).split()).strip()
             if not tag_label:
@@ -1309,6 +1311,9 @@ def import_tags(db_path, jsonl_text, mode):
                 (question_id, tag_id, "llm"),
             )
             inserted += 1
+            updated = True
+        if updated or mode == "replace":
+            clear_feedback_flag(conn, serial, "tag")
     conn.commit()
     conn.close()
     return inserted
@@ -1343,6 +1348,7 @@ def import_subtopics(db_path, jsonl_text, mode):
                 continue
         if mode == "replace":
             cursor.execute("DELETE FROM question_subtopics WHERE question_id = ?", (question_id,))
+        updated = False
         for item in subtopics:
             name = " ".join(str(item).split()).strip()
             if not name:
@@ -1363,6 +1369,9 @@ def import_subtopics(db_path, jsonl_text, mode):
                 (question_id, subtopic_id),
             )
             inserted += 1
+            updated = True
+        if updated or mode == "replace":
+            clear_feedback_flag(conn, serial, "subtopic")
     conn.commit()
     conn.close()
     return inserted
@@ -1749,6 +1758,20 @@ def clear_reports(db_path, items):
     conn.commit()
     conn.close()
     return "選択した報告フラグを消去しました。"
+
+
+def clear_feedback_flag(conn, serial, kind):
+    field = {"explanation": "explain", "tag": "tag", "subtopic": "subtopic"}.get(kind)
+    if not field:
+        return
+    conn.execute(
+        f"UPDATE feedback_reports SET {field} = 0 WHERE serial = ?",
+        (serial,),
+    )
+    conn.execute(
+        "DELETE FROM feedback_reports WHERE serial = ? AND explain = 0 AND tag = 0 AND subtopic = 0",
+        (serial,),
+    )
 
 
 def run_command(repo_root, args):
