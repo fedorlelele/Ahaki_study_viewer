@@ -1,1 +1,154 @@
 # Ahaki_study_viewer
+
+国試テキスト（UTF-16のTXT）から、問題データを整理して SQLite / JSON へ保存し、
+解説・タグ・小項目（サブトピック）を追加していくためのスクリプト群です。
+
+## 前提
+- Python 3
+- pandas
+
+## ディレクトリ構成
+- `kokushitxt/` : 元のTXTファイル
+- `kokushitxt/output/` : 生成物（SQLite / JSON など）
+- `convert_hikkei_to_json.py` : 既存のTXT -> Excel/JS 変換
+- `build_hikkei_sqlite.py` : TXT -> SQLite + 1問1JSON 生成
+- `generate_explanation_template.py` : 解説用JSONLテンプレ生成
+- `import_explanations.py` : 解説JSONLのSQLite取り込み
+- `generate_tag_template.py` : タグ用JSONLテンプレ生成
+- `import_tags.py` : タグJSONLのSQLite取り込み
+- `generate_subtopic_catalog.py` : 科目ごとの小項目カタログ雛形生成
+- `generate_subtopic_assignment_template.py` : 小項目割当用JSONL生成
+- `import_subtopics.py` : 小項目JSONLのSQLite取り込み
+
+## 1. SQLite生成（元TXTから）
+```
+python build_hikkei_sqlite.py
+```
+出力:
+- `kokushitxt/output/hikkei.sqlite`
+- `kokushitxt/output/questions_json/`（1問1JSON）
+
+## 2. 解説の追加（JSONL）
+### 2-1. テンプレ生成（10問）
+```
+python generate_explanation_template.py --limit 10 \
+  --out kokushitxt/output/explanations_batch.jsonl \
+  --prompt-out kokushitxt/output/explanations_batch_prompt.txt
+```
+
+### 2-2. LLMで解説を埋める
+- `explanations_batch_prompt.txt` をWeb版に貼り付け
+- `explanations_batch_filled.jsonl` として保存
+
+### 2-3. SQLiteに取り込み
+```
+python import_explanations.py --infile kokushitxt/output/explanations_batch_filled.jsonl
+```
+
+## 3. タグ付け（JSONL）
+### 3-1. テンプレ生成（10問）
+```
+python generate_tag_template.py --limit 10 \
+  --out kokushitxt/output/tags_batch.jsonl \
+  --prompt-out kokushitxt/output/tags_batch_prompt.txt
+```
+
+### 3-2. LLMでタグを埋める
+- `tags_batch_prompt.txt` をWeb版に貼り付け
+- `tags_batch_filled.jsonl` として保存
+
+### 3-3. SQLiteに取り込み
+```
+python import_tags.py --infile kokushitxt/output/tags_batch_filled.jsonl
+```
+
+## 4. 小項目（サブトピック）
+### 4-1. 科目ごとの候補リスト作成
+```
+python generate_subtopic_catalog.py --out kokushitxt/output/subtopics_catalog.json
+```
+`subtopics_catalog.json` を編集して、科目ごとに候補リストを記入します。
+
+### 4-2. 割り当て用JSONL生成
+```
+python generate_subtopic_assignment_template.py --limit 10 \
+  --catalog kokushitxt/output/subtopics_catalog.json \
+  --out kokushitxt/output/subtopics_batch.jsonl \
+  --prompt-out kokushitxt/output/subtopics_batch_prompt.txt
+```
+
+### 4-3. LLMで小項目を割り当て
+- `subtopics_batch_prompt.txt` をWeb版に貼り付け
+- `subtopics_batch_filled.jsonl` として保存
+
+### 4-4. SQLiteに取り込み
+```
+python import_subtopics.py --infile kokushitxt/output/subtopics_batch_filled.jsonl
+```
+
+## SQLite確認（例）
+```
+sqlite3 kokushitxt/output/hikkei.sqlite
+.tables
+SELECT q.serial, s.name, q.stem
+FROM questions q
+LEFT JOIN subjects s ON q.subject_id = s.id
+LIMIT 5;
+```
+
+## 補足
+- LLMの出力は「JSONLファイルとして保存して返す」指定になっています。
+- 既存データを壊さず、追記型で解説・タグ・小項目を蓄積します。
+
+## 5. Webアプリ簡易ビュー
+`web_app/index.html` に検索・絞り込み・コピー機能を備えた簡易ビューがあります。
+
+### 起動方法
+```
+python -m http.server 8000
+```
+ブラウザで `http://127.0.0.1:8000/web_app/` を開いてください。
+※ 事前に `generate_web_json.py` を実行し、`kokushitxt/output/web/` にJSONを生成しておく必要があります。
+
+### 機能
+- キーワード検索（空白区切りのAND検索）
+- タグ検索はキーワードに `#タグ名` を指定
+- 科目/小項目/試験種別/回数の絞り込み、回数ソート
+- 正答表示 / 正答・解説表示の切り替え
+- 検索結果全体のコピー（検索条件付き）
+- 各問題の個別コピー
+- タグ/小項目をクリックして関連問題にジャンプ
+
+### ショートカットキー
+- `/` キーワード入力へ移動
+- `s` 科目セレクトへ移動
+- `u` 小項目セレクトへ移動
+- `f` 検索実行
+- `r` リセット
+- `a` 正答表示の切替
+- `e` 正答・解説表示の切替
+
+## 6. ローカル管理画面（local_admin_app.py）
+解説・タグ・小項目のプロンプト生成/インポート/進捗確認などを行うローカルUIです。
+
+### 起動
+```
+python local_admin_app.py --port 8000
+```
+
+### 主な機能
+- プロンプト一括生成（ダウンロード or クリップボード）
+- 解説/タグ/小項目の個別インポート
+- フォルダ指定の一括インポート
+  - `explanations_batch_filled.jsonl`
+  - `tags_batch_filled.jsonl`
+  - `subtopics_batch_filled.jsonl`
+- 進捗レポート表示
+- 履歴表示（最新20件）
+- 検索・プレビュー
+- 未設定一覧（JSON表示/CSVダウンロード）
+- WebUI用ファイル生成 / 一括生成
+
+### WebUI反映について
+管理画面からのインポート時に、WebUI用ファイル（`kokushitxt/output/web/`）を
+自動で再生成します。WebUIの表示が古い場合はブラウザを強制リロードしてください。

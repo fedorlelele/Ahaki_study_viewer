@@ -1,0 +1,1360 @@
+import argparse
+import json
+import re
+import sqlite3
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+
+HTML_PAGE = """<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hikkei Admin</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; margin: 24px; }
+      label { display: block; margin: 12px 0 6px; }
+      input[type="text"] { width: 100%; padding: 8px; }
+      input[type="number"] { width: 120px; padding: 6px; }
+      button { padding: 8px 16px; margin-top: 12px; }
+      .row { margin-top: 16px; }
+      .result { margin-top: 20px; }
+      .section { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; }
+      .download { margin-right: 12px; }
+      .note { color: #555; font-size: 0.9em; }
+      pre { background: #f6f6f6; padding: 8px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>ローカル管理画面</h1>
+    <p class="note">解説・タグ・小項目のプロンプトを一括で生成します。</p>
+
+    <label>対象シリアル（カンマ区切り / 範囲: B33-131..B33-180）</label>
+    <input id="serials" type="text" placeholder="A09-001,A09-002 / B33-131..B33-180" />
+
+    <div class="row">
+      <label>件数（未指定時の上限）</label>
+      <input id="limit" type="number" value="10" min="1" />
+      <label><input id="unannotated" type="checkbox" checked /> 未設定のみ（解説・タグ・小項目が空）</label>
+    </div>
+
+    <div class="row">
+      <label>試験種別</label>
+      <select id="examType">
+        <option value="">指定なし</option>
+        <option value="A">A（あん摩マッサージ指圧師）</option>
+        <option value="B">B（はり師・きゆう師）</option>
+      </select>
+      <label>回数</label>
+      <input id="examSession" type="number" min="1" placeholder="例: 33" />
+      <label>科目</label>
+      <select id="subjectFilter"><option value="">指定なし</option></select>
+    </div>
+
+    <div class="row">
+      <label><input type="radio" name="orderMode" value="new" checked /> 新しい順（A33/B33 → A01/B01）</label>
+      <label><input type="radio" name="orderMode" value="old" /> 古い順（A01/B01 → A33/B33）</label>
+    </div>
+
+    <div class="row">
+      <label><input type="radio" name="outputMode" value="download" checked /> ダウンロード</label>
+      <label><input type="radio" name="outputMode" value="clipboard" /> クリップボード</label>
+    </div>
+
+    <button id="generate">プロンプト生成</button>
+
+    <div class="result" id="result"></div>
+
+    <div class="section">
+      <h2>インポート</h2>
+      <p class="note">解説・タグ・小項目のJSONLをアップロードしてSQLiteに取り込みます。</p>
+
+      <label>一括インポート（フォルダ指定）</label>
+      <input id="bulkFolder" type="file" webkitdirectory directory multiple />
+      <button id="bulkImport">フォルダ内を一括インポート</button>
+      <div class="row">
+        <button id="importDownloads">ダウンロードフォルダから一括インポート</button>
+      </div>
+
+      <label>解説JSONL</label>
+      <input id="explanationsFile" type="file" accept=".jsonl" />
+      <div>
+        <label>解説バージョン（空欄で自動）</label>
+        <input id="explanationVersion" type="number" min="1" placeholder="auto" />
+        <label>解説インポート方式</label>
+        <select id="explanationMode">
+          <option value="append">追記</option>
+          <option value="skip">既存があればスキップ</option>
+          <option value="replace">既存を置き換え</option>
+        </select>
+      </div>
+      <button id="importExplanations">解説をインポート</button>
+
+      <label>タグJSONL</label>
+      <input id="tagsFile" type="file" accept=".jsonl" />
+      <div>
+        <label>タグインポート方式</label>
+        <select id="tagMode">
+          <option value="append">追記</option>
+          <option value="skip">既存があればスキップ</option>
+          <option value="replace">既存を置き換え</option>
+        </select>
+      </div>
+      <button id="importTags">タグをインポート</button>
+
+      <label>小項目JSONL</label>
+      <input id="subtopicsFile" type="file" accept=".jsonl" />
+      <div>
+        <label>小項目インポート方式</label>
+        <select id="subtopicMode">
+          <option value="append">追記</option>
+          <option value="skip">既存があればスキップ</option>
+          <option value="replace">既存を置き換え</option>
+        </select>
+      </div>
+      <button id="importSubtopics">小項目をインポート</button>
+
+      <div class="result" id="importResult"></div>
+    </div>
+
+    <div class="section">
+      <h2>進捗レポート</h2>
+      <button id="loadProgress">進捗を表示</button>
+      <pre id="progressResult"></pre>
+    </div>
+
+    <div class="section">
+      <h2>ファイル生成</h2>
+      <p class="note">WebUI表示用のJSONや学習用セットをまとめて生成します。</p>
+      <button id="buildWeb">Web表示用ファイルを生成</button>
+      <button id="buildAll">一括生成（Web/学習/進捗）</button>
+      <pre id="buildResult"></pre>
+    </div>
+
+    <div class="section">
+      <h2>履歴（最新20件）</h2>
+      <button id="loadHistory">履歴を表示</button>
+      <pre id="historyResult"></pre>
+    </div>
+
+    <div class="section">
+      <h2>検索・プレビュー</h2>
+      <label>シリアルまたはキーワード</label>
+      <input id="previewQuery" type="text" placeholder="A09-001 / キーワード" />
+      <button id="runPreview">検索</button>
+      <pre id="previewResult"></pre>
+    </div>
+
+    <div class="section">
+      <h2>未設定一覧</h2>
+      <label><input type="checkbox" id="missingExplanations" checked /> 解説なし</label>
+      <label><input type="checkbox" id="missingTags" checked /> タグなし</label>
+      <label><input type="checkbox" id="missingSubtopics" checked /> 小項目なし</label>
+      <button id="loadMissing">一覧表示</button>
+      <button id="downloadMissingCsv">CSVダウンロード</button>
+      <pre id="missingResult"></pre>
+    </div>
+
+    <script>
+      function downloadText(filename, text) {
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      document.getElementById("generate").addEventListener("click", async () => {
+        const serials = document.getElementById("serials").value.trim();
+        const limit = document.getElementById("limit").value;
+        const unannotated = document.getElementById("unannotated").checked ? "1" : "0";
+        const orderMode = document.querySelector("input[name='orderMode']:checked").value;
+        const outputMode = document.querySelector("input[name='outputMode']:checked").value;
+        const examType = document.getElementById("examType").value;
+        const examSession = document.getElementById("examSession").value;
+        const subjectFilter = document.getElementById("subjectFilter").value.trim();
+        const params = new URLSearchParams();
+        if (serials) params.set("serials", serials);
+        params.set("limit", limit);
+        params.set("unannotated", unannotated);
+        params.set("order", orderMode);
+        if (examType) params.set("exam_type", examType);
+        if (examSession) params.set("exam_session", examSession);
+        if (subjectFilter) params.set("subject", subjectFilter);
+
+        const result = document.getElementById("result");
+        result.textContent = "生成中...";
+        const resp = await fetch(`/api/prompts?${params.toString()}`);
+        if (!resp.ok) {
+          result.textContent = "エラー: " + resp.status;
+          return;
+        }
+        const data = await resp.json();
+        if (!data.count) {
+          result.textContent = "対象の問題が見つかりませんでした。";
+          return;
+        }
+
+        result.innerHTML = "";
+
+        const info = document.createElement("div");
+        info.textContent = `対象問題数: ${data.count}`;
+        result.appendChild(info);
+
+        const btns = document.createElement("div");
+        btns.className = "row";
+
+        if (outputMode === "download") {
+          const explainBtn = document.createElement("button");
+          explainBtn.textContent = "解説プロンプトをダウンロード";
+          explainBtn.className = "download";
+          explainBtn.onclick = () => downloadText(data.explanations.filename, data.explanations.text);
+          btns.appendChild(explainBtn);
+
+          const tagBtn = document.createElement("button");
+          tagBtn.textContent = "タグプロンプトをダウンロード";
+          tagBtn.className = "download";
+          tagBtn.onclick = () => downloadText(data.tags.filename, data.tags.text);
+          btns.appendChild(tagBtn);
+
+          const subBtn = document.createElement("button");
+          subBtn.textContent = "小項目プロンプトをダウンロード";
+          subBtn.className = "download";
+          subBtn.onclick = () => downloadText(data.subtopics.filename, data.subtopics.text);
+          btns.appendChild(subBtn);
+        } else {
+          const explainBtn = document.createElement("button");
+          explainBtn.textContent = "解説プロンプトをコピー";
+          explainBtn.className = "download";
+          explainBtn.onclick = () => copyToClipboard(data.explanations.text);
+          btns.appendChild(explainBtn);
+
+          const tagBtn = document.createElement("button");
+          tagBtn.textContent = "タグプロンプトをコピー";
+          tagBtn.className = "download";
+          tagBtn.onclick = () => copyToClipboard(data.tags.text);
+          btns.appendChild(tagBtn);
+
+          const subBtn = document.createElement("button");
+          subBtn.textContent = "小項目プロンプトをコピー";
+          subBtn.className = "download";
+          subBtn.onclick = () => copyToClipboard(data.subtopics.text);
+          btns.appendChild(subBtn);
+        }
+
+        result.appendChild(btns);
+      });
+
+      async function uploadFile(endpoint, file) {
+        const form = new FormData();
+        form.append("file", file);
+        const resp = await fetch(endpoint, { method: "POST", body: form });
+        if (!resp.ok) {
+          throw new Error(`エラー: ${resp.status}`);
+        }
+        return resp.json();
+      }
+
+      async function importFile(endpoint, fileInputId) {
+        const fileInput = document.getElementById(fileInputId);
+        const result = document.getElementById("importResult");
+        if (!fileInput.files.length) {
+          result.textContent = "ファイルを選択してください。";
+          return;
+        }
+        result.textContent = "インポート中...";
+        const data = await uploadFile(endpoint, fileInput.files[0]);
+        result.textContent = data.message || "完了しました。";
+      }
+
+      document.getElementById("importExplanations").addEventListener("click", () => {
+        const mode = document.getElementById("explanationMode").value;
+        const version = document.getElementById("explanationVersion").value;
+        const versionParam = version ? `&version=${version}` : "&version=auto";
+        importFile(`/api/import/explanations?mode=${mode}${versionParam}`, "explanationsFile");
+      });
+      document.getElementById("importTags").addEventListener("click", () => {
+        const mode = document.getElementById("tagMode").value;
+        importFile(`/api/import/tags?mode=${mode}`, "tagsFile");
+      });
+      document.getElementById("importSubtopics").addEventListener("click", () => {
+        const mode = document.getElementById("subtopicMode").value;
+        importFile(`/api/import/subtopics?mode=${mode}`, "subtopicsFile");
+      });
+
+      document.getElementById("bulkImport").addEventListener("click", async () => {
+        const folderInput = document.getElementById("bulkFolder");
+        const result = document.getElementById("importResult");
+        if (!folderInput.files.length) {
+          result.textContent = "フォルダを選択してください。";
+          return;
+        }
+        const files = Array.from(folderInput.files);
+        const fileMap = {};
+        files.forEach(file => {
+          fileMap[file.name] = file;
+        });
+        const expFile = fileMap["explanations_batch_filled.jsonl"];
+        const tagFile = fileMap["tags_batch_filled.jsonl"];
+        const subFile = fileMap["subtopics_batch_filled.jsonl"];
+        const missing = [];
+        if (!expFile) missing.push("explanations_batch_filled.jsonl");
+        if (!tagFile) missing.push("tags_batch_filled.jsonl");
+        if (!subFile) missing.push("subtopics_batch_filled.jsonl");
+        if (missing.length) {
+          result.textContent = `不足ファイル: ${missing.join(", ")}`;
+          return;
+        }
+        result.textContent = "一括インポート中...";
+        const modeExp = document.getElementById("explanationMode").value;
+        const version = document.getElementById("explanationVersion").value;
+        const versionParam = version ? `&version=${version}` : "&version=auto";
+        const modeTag = document.getElementById("tagMode").value;
+        const modeSub = document.getElementById("subtopicMode").value;
+        const expRes = await uploadFile(`/api/import/explanations?mode=${modeExp}${versionParam}`, expFile);
+        const tagRes = await uploadFile(`/api/import/tags?mode=${modeTag}`, tagFile);
+        const subRes = await uploadFile(`/api/import/subtopics?mode=${modeSub}`, subFile);
+        result.textContent = [expRes.message, tagRes.message, subRes.message].join(" / ");
+      });
+
+      document.getElementById("importDownloads").addEventListener("click", async () => {
+        const result = document.getElementById("importResult");
+        result.textContent = "ダウンロードフォルダからインポート中...";
+        const modeExp = document.getElementById("explanationMode").value;
+        const version = document.getElementById("explanationVersion").value;
+        const versionParam = version ? `&version=${version}` : "&version=auto";
+        const modeTag = document.getElementById("tagMode").value;
+        const modeSub = document.getElementById("subtopicMode").value;
+        const resp = await fetch(
+          `/api/import/downloads?modeExp=${modeExp}${versionParam}&modeTag=${modeTag}&modeSub=${modeSub}`,
+          { method: "POST" }
+        );
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      async function loadSubjects() {
+        const resp = await fetch("/api/subjects");
+        const data = await resp.json();
+        const select = document.getElementById("subjectFilter");
+        data.forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+      }
+
+      loadSubjects();
+
+      document.getElementById("loadProgress").addEventListener("click", async () => {
+        const resp = await fetch("/api/progress");
+        const data = await resp.json();
+        document.getElementById("progressResult").textContent = JSON.stringify(data, null, 2);
+      });
+
+      document.getElementById("buildWeb").addEventListener("click", async () => {
+        const result = document.getElementById("buildResult");
+        result.textContent = "生成中...";
+        const resp = await fetch("/api/build/web", { method: "POST" });
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("buildAll").addEventListener("click", async () => {
+        const result = document.getElementById("buildResult");
+        result.textContent = "生成中...";
+        const resp = await fetch("/api/build/all", { method: "POST" });
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("loadHistory").addEventListener("click", async () => {
+        const resp = await fetch("/api/history");
+        const data = await resp.json();
+        document.getElementById("historyResult").textContent = JSON.stringify(data, null, 2);
+      });
+
+      function copyToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text);
+          return;
+        }
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+      }
+
+      document.getElementById("runPreview").addEventListener("click", async () => {
+        const query = document.getElementById("previewQuery").value.trim();
+        if (!query) {
+          document.getElementById("previewResult").textContent = "検索語を入力してください。";
+          return;
+        }
+        const resp = await fetch(`/api/preview?q=${encodeURIComponent(query)}`);
+        const data = await resp.json();
+        document.getElementById("previewResult").textContent = JSON.stringify(data, null, 2);
+      });
+
+      function getMissingParams() {
+        const params = new URLSearchParams();
+        if (document.getElementById("missingExplanations").checked) params.set("explanations", "1");
+        if (document.getElementById("missingTags").checked) params.set("tags", "1");
+        if (document.getElementById("missingSubtopics").checked) params.set("subtopics", "1");
+        return params;
+      }
+
+      document.getElementById("loadMissing").addEventListener("click", async () => {
+        const params = getMissingParams();
+        const resp = await fetch(`/api/missing?${params.toString()}`);
+        const data = await resp.json();
+        document.getElementById("missingResult").textContent = JSON.stringify(data, null, 2);
+      });
+
+      document.getElementById("downloadMissingCsv").addEventListener("click", async () => {
+        const params = getMissingParams();
+        const resp = await fetch(`/api/missing.csv?${params.toString()}`);
+        const text = await resp.text();
+        const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "missing_items.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+    </script>
+  </body>
+</html>
+"""
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Local admin server.")
+    parser.add_argument(
+        "--db",
+        default="kokushitxt/output/hikkei.sqlite",
+        help="Path to SQLite database.",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind.",
+    )
+    parser.add_argument(
+        "--subtopics",
+        default="kokushitxt/output/subtopics_catalog.json",
+        help="Path to subtopics catalog JSON.",
+    )
+    parser.add_argument(
+        "--prompt-sample",
+        default="custum_prompt_sample.txt",
+        help="Path to explanation prompt sample text.",
+    )
+    parser.add_argument(
+        "--downloads",
+        default="/Users/nishitani/Downloads",
+        help="Downloads directory for batch import.",
+    )
+    return parser.parse_args()
+
+
+def build_explanation_prompt(sample_text, jsonl_text):
+    return (
+        f"{sample_text.strip()}\n\n"
+        "【指示】\n"
+        "以下は【国家試験問題】のデータである。質問は不要で、そのまま解説を作成する。\n"
+        "出力はJSONLのみとし、各行のexplanationを埋め、他のキーは変更しない。\n"
+        "回答は画面表示ではなく、JSONLファイルとして保存して返す。\n"
+        "ファイル名は explanations_batch_filled.jsonl とする。\n"
+        "だ・である調で簡潔に、長くなりすぎない説明にする。\n\n"
+        "【国家試験問題(JSONL)】\n"
+        f"{jsonl_text}\n"
+    )
+
+
+def build_tag_prompt(jsonl_text):
+    return (
+        "以下のJSONLを読み取り、各行のtagsに重要語句の配列を入れてください。\n"
+        "対象は問題文と選択肢から抽出される医学・制度・概念・疾患・検査・解剖・症候など。\n"
+        "1問につき3〜7個、重複や表記ゆれを避け、短い名詞で出力する。\n"
+        "出力はJSONLのみで、tags以外のキーは変更しない。\n"
+        "回答は画面表示ではなく、JSONLファイルとして保存して返す。\n"
+        "ファイル名は tags_batch_filled.jsonl とする。\n\n"
+        "【国家試験問題(JSONL)】\n"
+        f"{jsonl_text}\n"
+    )
+
+
+def build_subtopic_prompt(jsonl_text):
+    return (
+        "以下のJSONLを読み取り、各行のsubtopicsに該当する小項目を配列で入れてください。\n"
+        "候補はcandidate_subtopicsから選び、1問につき1〜3個に絞る。\n"
+        "出力はJSONLのみで、subtopics以外のキーは変更しない。\n"
+        "回答は画面表示ではなく、JSONLファイルとして保存して返す。\n"
+        "ファイル名は subtopics_batch_filled.jsonl とする。\n\n"
+        "【国家試験問題(JSONL)】\n"
+        f"{jsonl_text}\n"
+    )
+
+
+def expand_serials(serials_text):
+    serials = []
+    for chunk in [s.strip() for s in serials_text.split(",") if s.strip()]:
+        if ".." in chunk:
+            start, end = [p.strip() for p in chunk.split("..", 1)]
+            match_start = re.match(r"^([AB])(\d{2})-(\d{3})$", start)
+            match_end = re.match(r"^([AB])(\d{2})-(\d{3})$", end)
+            if not match_start or not match_end:
+                continue
+            if match_start.group(1) != match_end.group(1) or match_start.group(2) != match_end.group(2):
+                continue
+            prefix = f"{match_start.group(1)}{match_start.group(2)}-"
+            start_num = int(match_start.group(3))
+            end_num = int(match_end.group(3))
+            if start_num > end_num:
+                start_num, end_num = end_num, start_num
+            for num in range(start_num, end_num + 1):
+                serials.append(f"{prefix}{num:03}")
+        else:
+            serials.append(chunk)
+    return serials
+
+
+def select_questions(
+    conn,
+    serials,
+    limit,
+    unannotated,
+    order_mode,
+    exam_type,
+    exam_session,
+    subject,
+):
+    order_sql = "ORDER BY q.serial"
+    if order_mode == "new":
+        order_sql = "ORDER BY q.exam_session DESC, q.serial DESC"
+    where = []
+    params = []
+    if serials:
+        serial_list = expand_serials(serials)
+        placeholders = ",".join("?" for _ in serial_list)
+        where.append(f"q.serial IN ({placeholders})")
+        params.extend(serial_list)
+    if exam_type:
+        where.append("q.exam_type_code = ?")
+        params.append(exam_type)
+    if exam_session:
+        where.append("q.exam_session = ?")
+        params.append(int(exam_session))
+    if subject:
+        where.append("s.name = ?")
+        params.append(subject)
+
+    if unannotated:
+        where.append(
+            "NOT EXISTS (SELECT 1 FROM explanations e WHERE e.question_id = q.id)"
+        )
+        where.append(
+            "NOT EXISTS (SELECT 1 FROM question_tags qt WHERE qt.question_id = q.id)"
+        )
+        where.append(
+            "NOT EXISTS (SELECT 1 FROM question_subtopics qs WHERE qs.question_id = q.id)"
+        )
+    where_sql = " AND ".join(where) if where else "1=1"
+    query = f"""
+            SELECT
+                q.id,
+                q.serial,
+                s.name AS subject,
+                q.case_text,
+                q.stem,
+                q.choices_json,
+                q.answer_index,
+                q.answer_text
+            FROM questions q
+            LEFT JOIN subjects s ON q.subject_id = s.id
+            WHERE {where_sql}
+            {order_sql}
+            LIMIT ?
+        """
+    params.append(limit)
+    return conn.execute(query, params).fetchall()
+
+
+def build_jsonl(records, subtopic_catalog):
+    explanation_rows = []
+    tag_rows = []
+    subtopic_rows = []
+
+    for row in records:
+        _, serial, subject, case_text, stem, choices_json, answer_index, answer_text = row
+        choices = json.loads(choices_json)
+
+        explanation_rows.append(
+            {
+                "serial": serial,
+                "subject": subject,
+                "case_text": case_text,
+                "stem": stem,
+                "choices": choices,
+                "answer_index": answer_index,
+                "answer_text": answer_text,
+                "explanation": "",
+                "source": "llm",
+            }
+        )
+        tag_rows.append(
+            {
+                "serial": serial,
+                "subject": subject,
+                "case_text": case_text,
+                "stem": stem,
+                "choices": choices,
+                "tags": [],
+                "source": "llm",
+            }
+        )
+        subtopic_rows.append(
+            {
+                "serial": serial,
+                "subject": subject,
+                "case_text": case_text,
+                "stem": stem,
+                "choices": choices,
+                "candidate_subtopics": subtopic_catalog.get(subject, []),
+                "subtopics": [],
+                "source": "llm",
+            }
+        )
+
+    def to_jsonl(rows):
+        return "\n".join(json.dumps(r, ensure_ascii=False) for r in rows)
+
+    return to_jsonl(explanation_rows), to_jsonl(tag_rows), to_jsonl(subtopic_rows)
+
+
+class Handler(BaseHTTPRequestHandler):
+    def _send_json(self, payload, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+
+    def _read_multipart_file(self):
+        content_type = self.headers.get("Content-Type", "")
+        if "multipart/form-data" not in content_type:
+            return None
+        boundary = content_type.split("boundary=")[-1]
+        if not boundary:
+            return None
+        boundary_bytes = ("--" + boundary).encode("utf-8")
+        data = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        parts = data.split(boundary_bytes)
+        for part in parts:
+            if b"Content-Disposition" not in part:
+                continue
+            if b'name=\"file\"' not in part:
+                continue
+            header_end = part.find(b"\r\n\r\n")
+            if header_end == -1:
+                continue
+            body = part[header_end + 4 :]
+            if body.endswith(b"\r\n"):
+                body = body[:-2]
+            return body.decode("utf-8", errors="replace")
+        return None
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            return
+
+        if parsed.path == "/api/prompts":
+            params = parse_qs(parsed.query)
+            serials = params.get("serials", [""])[0]
+            limit = int(params.get("limit", ["10"])[0])
+            unannotated = params.get("unannotated", ["1"])[0] == "1"
+            order_mode = params.get("order", ["new"])[0]
+            exam_type = params.get("exam_type", [""])[0]
+            exam_session = params.get("exam_session", [""])[0]
+            subject = params.get("subject", [""])[0]
+
+            conn = sqlite3.connect(self.server.db_path)
+            records = select_questions(
+                conn,
+                serials,
+                limit,
+                unannotated,
+                order_mode,
+                exam_type,
+                exam_session,
+                subject,
+            )
+            conn.close()
+
+            if not records:
+                self._send_json({"count": 0})
+                return
+
+            exp_jsonl, tag_jsonl, sub_jsonl = build_jsonl(
+                records, self.server.subtopic_catalog
+            )
+
+            exp_prompt = build_explanation_prompt(self.server.prompt_sample, exp_jsonl)
+            tag_prompt = build_tag_prompt(tag_jsonl)
+            sub_prompt = build_subtopic_prompt(sub_jsonl)
+
+            payload = {
+                "count": len(records),
+                "explanations": {
+                    "filename": "explanations_batch_prompt.txt",
+                    "text": exp_prompt,
+                },
+                "tags": {"filename": "tags_batch_prompt.txt", "text": tag_prompt},
+                "subtopics": {
+                    "filename": "subtopics_batch_prompt.txt",
+                    "text": sub_prompt,
+                },
+            }
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/progress":
+            payload = build_progress(self.server.db_path)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/history":
+            payload = build_history(self.server.db_path)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/preview":
+            params = parse_qs(parsed.query)
+            query = params.get("q", [""])[0]
+            payload = build_preview(self.server.db_path, query)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/subjects":
+            payload = load_subjects(self.server.db_path)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/missing":
+            params = parse_qs(parsed.query)
+            payload = build_missing(self.server.db_path, params)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/missing.csv":
+            params = parse_qs(parsed.query)
+            csv_text = build_missing_csv(self.server.db_path, params)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(csv_text.encode("utf-8"))
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/import/explanations":
+            content = self._read_multipart_file()
+            if not content:
+                self._send_json({"message": "ファイルを読み取れませんでした。"}, status=400)
+                return
+            params = parse_qs(parsed.query)
+            mode = params.get("mode", ["append"])[0]
+            version_raw = params.get("version", ["auto"])[0]
+            version = None if version_raw == "auto" else int(version_raw)
+            inserted = import_explanations(self.server.db_path, content, mode, version)
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {"message": f"解説を {inserted} 件インポートしました。 / {web_message}"}
+            )
+            return
+
+        if parsed.path == "/api/import/tags":
+            content = self._read_multipart_file()
+            if not content:
+                self._send_json({"message": "ファイルを読み取れませんでした。"}, status=400)
+                return
+            params = parse_qs(parsed.query)
+            mode = params.get("mode", ["append"])[0]
+            inserted = import_tags(self.server.db_path, content, mode)
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {"message": f"タグを {inserted} 件インポートしました。 / {web_message}"}
+            )
+            return
+
+        if parsed.path == "/api/import/subtopics":
+            content = self._read_multipart_file()
+            if not content:
+                self._send_json({"message": "ファイルを読み取れませんでした。"}, status=400)
+                return
+            params = parse_qs(parsed.query)
+            mode = params.get("mode", ["append"])[0]
+            inserted = import_subtopics(self.server.db_path, content, mode)
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {"message": f"小項目を {inserted} 件インポートしました。 / {web_message}"}
+            )
+            return
+
+        if parsed.path == "/api/build/web":
+            message = run_build_web(self.server.repo_root)
+            self._send_json({"message": message})
+            return
+
+        if parsed.path == "/api/build/all":
+            message = run_build_all(self.server.repo_root)
+            self._send_json({"message": message})
+            return
+
+        if parsed.path == "/api/import/downloads":
+            params = parse_qs(parsed.query)
+            mode_exp = params.get("modeExp", ["append"])[0]
+            version_raw = params.get("version", ["auto"])[0]
+            version = None if version_raw == "auto" else int(version_raw)
+            mode_tag = params.get("modeTag", ["append"])[0]
+            mode_sub = params.get("modeSub", ["append"])[0]
+            message = import_from_downloads(
+                self.server.db_path,
+                self.server.downloads_dir,
+                mode_exp,
+                version,
+                mode_tag,
+                mode_sub,
+            )
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json({"message": f"{message} / {web_message}"})
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+
+def import_explanations(db_path, jsonl_text, mode, version):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    inserted = 0
+    for line in jsonl_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        serial = record.get("serial")
+        explanation = record.get("explanation", "").strip()
+        source = record.get("source") or "llm"
+        if not serial or not explanation:
+            continue
+        row = cursor.execute(
+            "SELECT id FROM questions WHERE serial = ?",
+            (serial,),
+        ).fetchone()
+        if not row:
+            continue
+        question_id = row[0]
+        if mode == "skip":
+            exists = cursor.execute(
+                "SELECT 1 FROM explanations WHERE question_id = ? LIMIT 1",
+                (question_id,),
+            ).fetchone()
+            if exists:
+                continue
+        if mode == "replace":
+            cursor.execute("DELETE FROM explanations WHERE question_id = ?", (question_id,))
+        if version is None:
+            row = cursor.execute(
+                "SELECT MAX(version) FROM explanations WHERE question_id = ?",
+                (question_id,),
+            ).fetchone()
+            next_version = (row[0] or 0) + 1
+        else:
+            next_version = version
+        cursor.execute(
+            """
+            INSERT INTO explanations(question_id, body, version, source)
+            VALUES (?, ?, ?, ?)
+            """,
+            (question_id, explanation, next_version, source),
+        )
+        inserted += 1
+    conn.commit()
+    conn.close()
+    return inserted
+
+
+def import_tags(db_path, jsonl_text, mode):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    inserted = 0
+    for line in jsonl_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        serial = record.get("serial")
+        tags = record.get("tags", [])
+        if not serial or not tags:
+            continue
+        row = cursor.execute(
+            "SELECT id FROM questions WHERE serial = ?",
+            (serial,),
+        ).fetchone()
+        if not row:
+            continue
+        question_id = row[0]
+        if mode == "skip":
+            exists = cursor.execute(
+                "SELECT 1 FROM question_tags WHERE question_id = ? LIMIT 1",
+                (question_id,),
+            ).fetchone()
+            if exists:
+                continue
+        if mode == "replace":
+            cursor.execute("DELETE FROM question_tags WHERE question_id = ?", (question_id,))
+        for tag in tags:
+            tag_label = " ".join(str(tag).split()).strip()
+            if not tag_label:
+                continue
+            cursor.execute(
+                "INSERT OR IGNORE INTO tags(label) VALUES (?)",
+                (tag_label,),
+            )
+            tag_id = cursor.execute(
+                "SELECT id FROM tags WHERE label = ?",
+                (tag_label,),
+            ).fetchone()[0]
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO question_tags(question_id, tag_id, source)
+                VALUES (?, ?, ?)
+                """,
+                (question_id, tag_id, "llm"),
+            )
+            inserted += 1
+    conn.commit()
+    conn.close()
+    return inserted
+
+
+def import_subtopics(db_path, jsonl_text, mode):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    inserted = 0
+    for line in jsonl_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        serial = record.get("serial")
+        subtopics = record.get("subtopics", [])
+        if not serial or not subtopics:
+            continue
+        row = cursor.execute(
+            "SELECT id FROM questions WHERE serial = ?",
+            (serial,),
+        ).fetchone()
+        if not row:
+            continue
+        question_id = row[0]
+        if mode == "skip":
+            exists = cursor.execute(
+                "SELECT 1 FROM question_subtopics WHERE question_id = ? LIMIT 1",
+                (question_id,),
+            ).fetchone()
+            if exists:
+                continue
+        if mode == "replace":
+            cursor.execute("DELETE FROM question_subtopics WHERE question_id = ?", (question_id,))
+        for item in subtopics:
+            name = " ".join(str(item).split()).strip()
+            if not name:
+                continue
+            cursor.execute(
+                "INSERT OR IGNORE INTO subtopics(name) VALUES (?)",
+                (name,),
+            )
+            subtopic_id = cursor.execute(
+                "SELECT id FROM subtopics WHERE name = ?",
+                (name,),
+            ).fetchone()[0]
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO question_subtopics(question_id, subtopic_id)
+                VALUES (?, ?)
+                """,
+                (question_id, subtopic_id),
+            )
+            inserted += 1
+    conn.commit()
+    conn.close()
+    return inserted
+
+
+def build_progress(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    total_questions = cursor.execute("SELECT COUNT(*) FROM questions").fetchone()[0]
+    explained = cursor.execute(
+        "SELECT COUNT(DISTINCT question_id) FROM explanations"
+    ).fetchone()[0]
+    tagged = cursor.execute(
+        "SELECT COUNT(DISTINCT question_id) FROM question_tags"
+    ).fetchone()[0]
+    subtopic_assigned = cursor.execute(
+        "SELECT COUNT(DISTINCT question_id) FROM question_subtopics"
+    ).fetchone()[0]
+
+    subjects = cursor.execute("SELECT id, name FROM subjects ORDER BY name").fetchall()
+    subject_rows = []
+    for subject_id, name in subjects:
+        subject_total = cursor.execute(
+            "SELECT COUNT(*) FROM questions WHERE subject_id = ?",
+            (subject_id,),
+        ).fetchone()[0]
+        subject_explained = cursor.execute(
+            """
+            SELECT COUNT(DISTINCT q.id)
+            FROM questions q
+            JOIN explanations e ON e.question_id = q.id
+            WHERE q.subject_id = ?
+            """,
+            (subject_id,),
+        ).fetchone()[0]
+        subject_tagged = cursor.execute(
+            """
+            SELECT COUNT(DISTINCT q.id)
+            FROM questions q
+            JOIN question_tags qt ON qt.question_id = q.id
+            WHERE q.subject_id = ?
+            """,
+            (subject_id,),
+        ).fetchone()[0]
+        subject_subtopics = cursor.execute(
+            """
+            SELECT COUNT(DISTINCT q.id)
+            FROM questions q
+            JOIN question_subtopics qs ON qs.question_id = q.id
+            WHERE q.subject_id = ?
+            """,
+            (subject_id,),
+        ).fetchone()[0]
+        subject_rows.append(
+            {
+                "subject": name,
+                "total_questions": subject_total,
+                "explained": subject_explained,
+                "tagged": subject_tagged,
+                "subtopic_assigned": subject_subtopics,
+            }
+        )
+    conn.close()
+    return {
+        "total_questions": total_questions,
+        "explained": explained,
+        "tagged": tagged,
+        "subtopic_assigned": subtopic_assigned,
+        "by_subject": subject_rows,
+    }
+
+
+def build_history(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    history = []
+    expl = cursor.execute(
+        """
+        SELECT e.id, q.serial, e.body
+        FROM explanations e
+        JOIN questions q ON q.id = e.question_id
+        ORDER BY e.id DESC
+        LIMIT 20
+        """
+    ).fetchall()
+    for row in expl:
+        history.append({"type": "explanation", "id": row[0], "serial": row[1], "text": row[2]})
+    tags = cursor.execute(
+        """
+        SELECT qt.question_id, q.serial, t.label
+        FROM question_tags qt
+        JOIN questions q ON q.id = qt.question_id
+        JOIN tags t ON t.id = qt.tag_id
+        ORDER BY qt.rowid DESC
+        LIMIT 20
+        """
+    ).fetchall()
+    for row in tags:
+        history.append({"type": "tag", "serial": row[1], "text": row[2]})
+    subs = cursor.execute(
+        """
+        SELECT qs.question_id, q.serial, st.name
+        FROM question_subtopics qs
+        JOIN questions q ON q.id = qs.question_id
+        JOIN subtopics st ON st.id = qs.subtopic_id
+        ORDER BY qs.rowid DESC
+        LIMIT 20
+        """
+    ).fetchall()
+    for row in subs:
+        history.append({"type": "subtopic", "serial": row[1], "text": row[2]})
+    conn.close()
+    return history[:20]
+
+
+def build_preview(db_path, query):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    if not query:
+        conn.close()
+        return []
+
+    rows = cursor.execute(
+        """
+        SELECT q.id, q.serial, s.name, q.stem, q.choices_json, q.answer_index
+        FROM questions q
+        LEFT JOIN subjects s ON s.id = q.subject_id
+        WHERE q.serial = ?
+           OR q.stem LIKE ?
+        ORDER BY q.serial
+        LIMIT 20
+        """,
+        (query, f"%{query}%"),
+    ).fetchall()
+
+    results = []
+    for row in rows:
+        qid, serial, subject, stem, choices_json, answer_index = row
+        explanations = cursor.execute(
+            "SELECT body FROM explanations WHERE question_id = ? ORDER BY id",
+            (qid,),
+        ).fetchall()
+        tags = cursor.execute(
+            """
+            SELECT t.label
+            FROM question_tags qt
+            JOIN tags t ON t.id = qt.tag_id
+            WHERE qt.question_id = ?
+            ORDER BY t.label
+            """,
+            (qid,),
+        ).fetchall()
+        subtopics = cursor.execute(
+            """
+            SELECT st.name
+            FROM question_subtopics qs
+            JOIN subtopics st ON st.id = qs.subtopic_id
+            WHERE qs.question_id = ?
+            ORDER BY st.name
+            """,
+            (qid,),
+        ).fetchall()
+
+        results.append(
+            {
+                "serial": serial,
+                "subject": subject,
+                "stem": stem,
+                "choices": json.loads(choices_json),
+                "answer_index": answer_index,
+                "explanations": [e[0] for e in explanations],
+                "tags": [t[0] for t in tags],
+                "subtopics": [s[0] for s in subtopics],
+            }
+        )
+
+    conn.close()
+    return results
+
+
+def build_missing(db_path, params):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    where_clauses = []
+    if params.get("explanations"):
+        where_clauses.append("NOT EXISTS (SELECT 1 FROM explanations e WHERE e.question_id = q.id)")
+    if params.get("tags"):
+        where_clauses.append("NOT EXISTS (SELECT 1 FROM question_tags qt WHERE qt.question_id = q.id)")
+    if params.get("subtopics"):
+        where_clauses.append("NOT EXISTS (SELECT 1 FROM question_subtopics qs WHERE qs.question_id = q.id)")
+    if not where_clauses:
+        conn.close()
+        return []
+    where_sql = " AND ".join(where_clauses)
+    rows = cursor.execute(
+        f"""
+        SELECT q.serial, s.name, q.stem
+        FROM questions q
+        LEFT JOIN subjects s ON s.id = q.subject_id
+        WHERE {where_sql}
+        ORDER BY q.serial
+        LIMIT 200
+        """
+    ).fetchall()
+    conn.close()
+    return [
+        {"serial": row[0], "subject": row[1], "stem": row[2]}
+        for row in rows
+    ]
+
+
+def build_missing_csv(db_path, params):
+    rows = build_missing(db_path, params)
+    lines = ["serial,subject,stem"]
+    for row in rows:
+        serial = row["serial"]
+        subject = (row["subject"] or "").replace("\"", "\"\"")
+        stem = (row["stem"] or "").replace("\"", "\"\"")
+        lines.append(f"\"{serial}\",\"{subject}\",\"{stem}\"")
+    return "\n".join(lines)
+
+
+def load_subjects(db_path):
+    conn = sqlite3.connect(db_path)
+    rows = conn.execute("SELECT name FROM subjects ORDER BY name").fetchall()
+    conn.close()
+    return [row[0] for row in rows]
+
+
+def import_from_downloads(db_path, downloads_dir, mode_exp, version, mode_tag, mode_sub):
+    from pathlib import Path
+
+    downloads = Path(downloads_dir)
+    if not downloads.exists():
+        return f"ダウンロードフォルダが見つかりません: {downloads_dir}"
+
+    exp_files = sorted(downloads.glob("explanations_batch_filled*.jsonl"))
+    tag_files = sorted(downloads.glob("tags_batch_filled*.jsonl"))
+    sub_files = sorted(downloads.glob("subtopics_batch_filled*.jsonl"))
+
+    messages = []
+    if exp_files:
+        for path in exp_files:
+            text = path.read_text(encoding="utf-8")
+            inserted = import_explanations(db_path, text, mode_exp, version)
+            messages.append(f"{path.name}: 解説 {inserted} 件")
+            path.unlink()
+    if tag_files:
+        for path in tag_files:
+            text = path.read_text(encoding="utf-8")
+            inserted = import_tags(db_path, text, mode_tag)
+            messages.append(f"{path.name}: タグ {inserted} 件")
+            path.unlink()
+    if sub_files:
+        for path in sub_files:
+            text = path.read_text(encoding="utf-8")
+            inserted = import_subtopics(db_path, text, mode_sub)
+            messages.append(f"{path.name}: 小項目 {inserted} 件")
+            path.unlink()
+
+    if not messages:
+        return "対象ファイルが見つかりませんでした。"
+    return " / ".join(messages)
+
+
+def run_command(repo_root, args):
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, *args],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return f"失敗: {' '.join(args)}\n{result.stderr.strip()}"
+    return f"完了: {' '.join(args)}"
+
+
+def run_build_web(repo_root):
+    message = run_command(
+        repo_root,
+        [
+            "generate_web_json.py",
+            "--out",
+            "kokushitxt/output/web/questions.json",
+            "--index-dir",
+            "kokushitxt/output/web/index",
+        ],
+    )
+    return message
+
+
+def run_build_all(repo_root):
+    messages = []
+    messages.append(run_build_web(repo_root))
+    messages.append(
+        run_command(
+            repo_root,
+            [
+                "generate_study_sets.py",
+                "--out",
+                "kokushitxt/output/study_sets.json",
+            ],
+        )
+    )
+    messages.append(
+        run_command(
+            repo_root,
+            [
+                "generate_progress_report.py",
+                "--out",
+                "kokushitxt/output/progress_report.json",
+            ],
+        )
+    )
+    return " / ".join(messages)
+
+
+def main():
+    args = parse_args()
+    db_path = Path(args.db)
+    catalog_path = Path(args.subtopics)
+    prompt_sample_path = Path(args.prompt_sample)
+
+    subtopic_catalog = {}
+    if catalog_path.exists():
+        subtopic_catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+
+    prompt_sample = ""
+    if prompt_sample_path.exists():
+        prompt_sample = prompt_sample_path.read_text(encoding="utf-8")
+
+    server = HTTPServer((args.host, args.port), Handler)
+    server.db_path = db_path
+    server.subtopic_catalog = subtopic_catalog
+    server.prompt_sample = prompt_sample
+    server.repo_root = Path(__file__).resolve().parent
+    server.downloads_dir = args.downloads
+
+    print(f"Server running: http://{args.host}:{args.port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("Shutting down.")
+
+
+if __name__ == "__main__":
+    main()
