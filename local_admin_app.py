@@ -101,6 +101,16 @@ HTML_PAGE = """<!doctype html>
         <button id="importDownloads">ダウンロードフォルダから一括インポート</button>
       </div>
 
+      <h3>クリップボード貼り付け</h3>
+      <p class="note">出力を貼り付けてインポートできます。</p>
+      <label>JSONLを貼り付け</label>
+      <textarea id="jsonlPaste" rows="8" style="width: 100%;"></textarea>
+      <div class="row">
+        <button id="importExplanationsPaste">貼り付けを解説としてインポート</button>
+        <button id="importTagsPaste">貼り付けをタグとしてインポート</button>
+        <button id="importSubtopicsPaste">貼り付けを小項目としてインポート</button>
+      </div>
+
       <label>解説JSONL</label>
       <input id="explanationsFile" type="file" accept=".jsonl" />
       <div>
@@ -335,6 +345,18 @@ HTML_PAGE = """<!doctype html>
         return resp.json();
       }
 
+      async function uploadText(endpoint, payload) {
+        const resp = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+          throw new Error("エラー: " + resp.status);
+        }
+        return resp.json();
+      }
+
       async function importFile(endpoint, fileInputId) {
         const fileInput = document.getElementById(fileInputId);
         const result = document.getElementById("importResult");
@@ -360,6 +382,46 @@ HTML_PAGE = """<!doctype html>
       document.getElementById("importSubtopics").addEventListener("click", () => {
         const mode = document.getElementById("subtopicMode").value;
         importFile("/api/import/subtopics?mode=" + mode, "subtopicsFile");
+      });
+
+      document.getElementById("importExplanationsPaste").addEventListener("click", async () => {
+        const text = document.getElementById("jsonlPaste").value.trim();
+        if (!text) {
+          document.getElementById("importResult").textContent = "貼り付け内容が空です。";
+          return;
+        }
+        const mode = document.getElementById("explanationMode").value;
+        const version = document.getElementById("explanationVersion").value;
+        const payload = { text: text, mode: mode, version: version || "auto" };
+        document.getElementById("importResult").textContent = "インポート中...";
+        const data = await uploadText("/api/import/explanations_text", payload);
+        document.getElementById("importResult").textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("importTagsPaste").addEventListener("click", async () => {
+        const text = document.getElementById("jsonlPaste").value.trim();
+        if (!text) {
+          document.getElementById("importResult").textContent = "貼り付け内容が空です。";
+          return;
+        }
+        const mode = document.getElementById("tagMode").value;
+        const payload = { text: text, mode: mode };
+        document.getElementById("importResult").textContent = "インポート中...";
+        const data = await uploadText("/api/import/tags_text", payload);
+        document.getElementById("importResult").textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("importSubtopicsPaste").addEventListener("click", async () => {
+        const text = document.getElementById("jsonlPaste").value.trim();
+        if (!text) {
+          document.getElementById("importResult").textContent = "貼り付け内容が空です。";
+          return;
+        }
+        const mode = document.getElementById("subtopicMode").value;
+        const payload = { text: text, mode: mode };
+        document.getElementById("importResult").textContent = "インポート中...";
+        const data = await uploadText("/api/import/subtopics_text", payload);
+        document.getElementById("importResult").textContent = data.message || "完了しました。";
       });
 
       document.getElementById("bulkImport").addEventListener("click", async () => {
@@ -963,6 +1025,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
 
+    def _read_json(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(length).decode("utf-8", errors="replace")
+        if not body:
+            return {}
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError:
+            return {}
+
     def _read_multipart_file(self):
         content_type = self.headers.get("Content-Type", "")
         if "multipart/form-data" not in content_type:
@@ -1117,17 +1189,53 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         if parsed.path == "/api/reports/clear":
-            length = int(self.headers.get("Content-Length", "0"))
-            body = self.rfile.read(length).decode("utf-8", errors="replace")
-            try:
-                payload = json.loads(body) if body else {}
-            except json.JSONDecodeError:
-                payload = {}
+            payload = self._read_json()
             items = payload.get("items", [])
             message = clear_reports(self.server.db_path, items)
             self._send_json({"message": message})
             return
         parsed = urlparse(self.path)
+        if parsed.path == "/api/import/explanations_text":
+            payload = self._read_json()
+            text = (payload.get("text") or "").strip()
+            if not text:
+                self._send_json({"message": "貼り付け内容が空です。"}, status=400)
+                return
+            mode = payload.get("mode") or "append"
+            version_raw = payload.get("version") or "auto"
+            version = None if version_raw == "auto" else int(version_raw)
+            inserted = import_explanations(self.server.db_path, text, mode, version)
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {"message": f"解説を {inserted} 件インポートしました。 / {web_message}"}
+            )
+            return
+        if parsed.path == "/api/import/tags_text":
+            payload = self._read_json()
+            text = (payload.get("text") or "").strip()
+            if not text:
+                self._send_json({"message": "貼り付け内容が空です。"}, status=400)
+                return
+            mode = payload.get("mode") or "append"
+            inserted = import_tags(self.server.db_path, text, mode)
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {"message": f"タグを {inserted} 件インポートしました。 / {web_message}"}
+            )
+            return
+        if parsed.path == "/api/import/subtopics_text":
+            payload = self._read_json()
+            text = (payload.get("text") or "").strip()
+            if not text:
+                self._send_json({"message": "貼り付け内容が空です。"}, status=400)
+                return
+            mode = payload.get("mode") or "append"
+            inserted = import_subtopics(self.server.db_path, text, mode)
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {"message": f"小項目を {inserted} 件インポートしました。 / {web_message}"}
+            )
+            return
         if parsed.path == "/api/import/explanations":
             content = self._read_multipart_file()
             if not content:
