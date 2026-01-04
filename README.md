@@ -19,6 +19,9 @@
 - `generate_subtopic_catalog.py` : 科目ごとの小項目カタログ雛形生成
 - `generate_subtopic_assignment_template.py` : 小項目割当用JSONL生成
 - `import_subtopics.py` : 小項目JSONLのSQLite取り込み
+- `generate_web_json.py` : WebUI用JSON生成
+- `local_admin_app.py` : ローカル管理画面
+- `web_app/` : WebUI
 
 ## 1. SQLite生成（元TXTから）
 ```
@@ -99,6 +102,7 @@ LIMIT 5;
 ## 補足
 - LLMの出力は「JSONLファイルとして保存して返す」指定になっています。
 - 既存データを壊さず、追記型で解説・タグ・小項目を蓄積します。
+- `kokushitxt/output/` は生成物のため `.gitignore` で除外しています。
 
 ## 5. Webアプリ簡易ビュー
 `web_app/index.html` に検索・絞り込み・コピー機能を備えた簡易ビューがあります。
@@ -115,6 +119,9 @@ python -m http.server 8000
 - タグ検索はキーワードに `#タグ名` を指定
 - 科目/小項目/試験種別/回数の絞り込み、回数ソート
 - 正答表示 / 正答・解説表示の切り替え
+- 解説は最新版を表示し、バージョン選択で切り替え可能
+- 症例文（case_text）の表示に対応
+- 解説・タグ・小項目の要修正報告ボタン
 - 検索結果全体のコピー（検索条件付き）
 - 各問題の個別コピー
 - タグ/小項目をクリックして関連問題にジャンプ
@@ -133,20 +140,26 @@ python -m http.server 8000
 
 ### 起動
 ```
-python local_admin_app.py --port 8000
+python local_admin_app.py --port 8001
 ```
 
 ### 主な機能
 - プロンプト一括生成（ダウンロード or クリップボード）
+- 解説/タグ/小項目の生成対象を個別に選択
+- 新しい順/古い順、試験種別/回数/科目のフィルタ
 - 解説/タグ/小項目の個別インポート
 - フォルダ指定の一括インポート
   - `explanations_batch_filled.jsonl`
   - `tags_batch_filled.jsonl`
   - `subtopics_batch_filled.jsonl`
+- ダウンロードフォルダ一括インポート（`*_batch_filled*.jsonl`）
+- クリップボード貼り付けインポート
 - 進捗レポート表示
 - 履歴表示（最新20件）
 - 検索・プレビュー
 - 未設定一覧（JSON表示/CSVダウンロード）
+- 報告一覧の確認、プロンプト対象へのセット、報告フラグ消去
+- 解説/タグ/小項目のインポート時に該当報告フラグを自動消去
 - WebUI用ファイル生成 / 一括生成
 
 ### WebUI反映について
