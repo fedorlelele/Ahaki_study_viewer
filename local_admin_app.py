@@ -78,6 +78,12 @@ HTML_PAGE = """<!doctype html>
       <label><input type="radio" name="outputMode" value="clipboard" checked /> クリップボード</label>
     </div>
 
+    <div class="row">
+      <label><input type="checkbox" id="promptExplain" checked /> 解説</label>
+      <label><input type="checkbox" id="promptTag" checked /> タグ</label>
+      <label><input type="checkbox" id="promptSubtopic" checked /> 小項目</label>
+    </div>
+
     <button id="generate">プロンプト生成</button>
 
     <div class="result" id="result"></div>
@@ -177,6 +183,11 @@ HTML_PAGE = """<!doctype html>
       <h2>報告一覧</h2>
       <div class="note" id="currentSerials">対象シリアル: （未指定）</div>
       <button id="loadReports">報告を表示</button>
+      <div class="row">
+        <label><input type="checkbox" id="reportExplain" checked /> 解説</label>
+        <label><input type="checkbox" id="reportTag" checked /> タグ</label>
+        <label><input type="checkbox" id="reportSubtopic" checked /> 小項目</label>
+      </div>
       <button id="useReports">報告をプロンプト対象にセット</button>
       <button id="clearReports">報告フラグを消去</button>
       <div id="reportResult"></div>
@@ -195,6 +206,14 @@ HTML_PAGE = """<!doctype html>
         URL.revokeObjectURL(url);
       }
 
+      function getSelectedPromptKinds() {
+        const kinds = [];
+        if (document.getElementById("promptExplain").checked) kinds.push("explanation");
+        if (document.getElementById("promptTag").checked) kinds.push("tag");
+        if (document.getElementById("promptSubtopic").checked) kinds.push("subtopic");
+        return kinds;
+      }
+
       document.getElementById("generate").addEventListener("click", async () => {
         const serials = document.getElementById("serials").value.trim();
         const limit = document.getElementById("limit").value;
@@ -204,6 +223,11 @@ HTML_PAGE = """<!doctype html>
         const examType = document.getElementById("examType").value;
         const examSession = document.getElementById("examSession").value;
         const subjectFilter = document.getElementById("subjectFilter").value.trim();
+        const promptKinds = getSelectedPromptKinds();
+        if (!promptKinds.length) {
+          document.getElementById("result").textContent = "プロンプト種別を選択してください。";
+          return;
+        }
         const params = new URLSearchParams();
         if (serials) params.set("serials", serials);
         params.set("limit", limit);
@@ -212,6 +236,7 @@ HTML_PAGE = """<!doctype html>
         if (examType) params.set("exam_type", examType);
         if (examSession) params.set("exam_session", examSession);
         if (subjectFilter) params.set("subject", subjectFilter);
+        params.set("kinds", promptKinds.join(","));
 
         const result = document.getElementById("result");
         result.textContent = "生成中...";
@@ -236,41 +261,53 @@ HTML_PAGE = """<!doctype html>
         btns.className = "row";
 
         if (outputMode === "download") {
-          const explainBtn = document.createElement("button");
-          explainBtn.textContent = "解説プロンプトをダウンロード";
-          explainBtn.className = "download";
-          explainBtn.onclick = () => downloadText(data.explanations.filename, data.explanations.text);
-          btns.appendChild(explainBtn);
+          if (data.explanations.enabled) {
+            const explainBtn = document.createElement("button");
+            explainBtn.textContent = "解説プロンプトをダウンロード";
+            explainBtn.className = "download";
+            explainBtn.onclick = () => downloadText(data.explanations.filename, data.explanations.text);
+            btns.appendChild(explainBtn);
+          }
 
-          const tagBtn = document.createElement("button");
-          tagBtn.textContent = "タグプロンプトをダウンロード";
-          tagBtn.className = "download";
-          tagBtn.onclick = () => downloadText(data.tags.filename, data.tags.text);
-          btns.appendChild(tagBtn);
+          if (data.tags.enabled) {
+            const tagBtn = document.createElement("button");
+            tagBtn.textContent = "タグプロンプトをダウンロード";
+            tagBtn.className = "download";
+            tagBtn.onclick = () => downloadText(data.tags.filename, data.tags.text);
+            btns.appendChild(tagBtn);
+          }
 
-          const subBtn = document.createElement("button");
-          subBtn.textContent = "小項目プロンプトをダウンロード";
-          subBtn.className = "download";
-          subBtn.onclick = () => downloadText(data.subtopics.filename, data.subtopics.text);
-          btns.appendChild(subBtn);
+          if (data.subtopics.enabled) {
+            const subBtn = document.createElement("button");
+            subBtn.textContent = "小項目プロンプトをダウンロード";
+            subBtn.className = "download";
+            subBtn.onclick = () => downloadText(data.subtopics.filename, data.subtopics.text);
+            btns.appendChild(subBtn);
+          }
         } else {
-          const explainBtn = document.createElement("button");
-          explainBtn.textContent = "解説プロンプトをコピー";
-          explainBtn.className = "download";
-          explainBtn.onclick = () => copyToClipboard(data.explanations.text);
-          btns.appendChild(explainBtn);
+          if (data.explanations.enabled) {
+            const explainBtn = document.createElement("button");
+            explainBtn.textContent = "解説プロンプトをコピー";
+            explainBtn.className = "download";
+            explainBtn.onclick = () => copyToClipboard(data.explanations.text);
+            btns.appendChild(explainBtn);
+          }
 
-          const tagBtn = document.createElement("button");
-          tagBtn.textContent = "タグプロンプトをコピー";
-          tagBtn.className = "download";
-          tagBtn.onclick = () => copyToClipboard(data.tags.text);
-          btns.appendChild(tagBtn);
+          if (data.tags.enabled) {
+            const tagBtn = document.createElement("button");
+            tagBtn.textContent = "タグプロンプトをコピー";
+            tagBtn.className = "download";
+            tagBtn.onclick = () => copyToClipboard(data.tags.text);
+            btns.appendChild(tagBtn);
+          }
 
-          const subBtn = document.createElement("button");
-          subBtn.textContent = "小項目プロンプトをコピー";
-          subBtn.className = "download";
-          subBtn.onclick = () => copyToClipboard(data.subtopics.text);
-          btns.appendChild(subBtn);
+          if (data.subtopics.enabled) {
+            const subBtn = document.createElement("button");
+            subBtn.textContent = "小項目プロンプトをコピー";
+            subBtn.className = "download";
+            subBtn.onclick = () => copyToClipboard(data.subtopics.text);
+            btns.appendChild(subBtn);
+          }
         }
 
         result.appendChild(btns);
@@ -460,7 +497,7 @@ HTML_PAGE = """<!doctype html>
         URL.revokeObjectURL(url);
       });
 
-      let reportSerials = [];
+      let reportItems = [];
 
       function refreshCurrentSerials() {
         const value = document.getElementById("serials").value.trim();
@@ -475,24 +512,71 @@ HTML_PAGE = """<!doctype html>
       document.getElementById("loadReports").addEventListener("click", async () => {
         const resp = await fetch("/api/reports");
         const data = await resp.json();
-        reportSerials = data.serials || [];
+        reportItems = data.items || [];
         document.getElementById("reportResult").innerHTML = renderReports(data);
       });
 
+      function getSelectedReportKinds() {
+        const kinds = [];
+        if (document.getElementById("reportExplain").checked) kinds.push("explanation");
+        if (document.getElementById("reportTag").checked) kinds.push("tag");
+        if (document.getElementById("reportSubtopic").checked) kinds.push("subtopic");
+        return kinds;
+      }
+
       document.getElementById("useReports").addEventListener("click", () => {
-        if (!reportSerials.length) {
+        if (!reportItems.length) {
           document.getElementById("reportResult").textContent = "報告がありません。";
           return;
         }
-        document.getElementById("serials").value = reportSerials.join(",");
+        const kinds = getSelectedReportKinds();
+        if (!kinds.length) {
+          document.getElementById("reportResult").textContent = "対象種別を選択してください。";
+          return;
+        }
+        const serialSet = new Set();
+        reportItems.forEach(item => {
+          if (kinds.includes("explanation") && item.explanation) serialSet.add(item.serial);
+          if (kinds.includes("tag") && item.tag) serialSet.add(item.serial);
+          if (kinds.includes("subtopic") && item.subtopic) serialSet.add(item.serial);
+        });
+        const serials = Array.from(serialSet);
+        if (!serials.length) {
+          document.getElementById("reportResult").textContent = "対象の報告がありません。";
+          return;
+        }
+        document.getElementById("serials").value = serials.join(",");
         document.getElementById("unannotated").checked = false;
+        document.getElementById("promptExplain").checked = kinds.includes("explanation");
+        document.getElementById("promptTag").checked = kinds.includes("tag");
+        document.getElementById("promptSubtopic").checked = kinds.includes("subtopic");
         refreshCurrentSerials();
       });
 
       document.getElementById("clearReports").addEventListener("click", async () => {
-        const resp = await fetch("/api/reports/clear", { method: "POST" });
+        const selected = {};
+        document.querySelectorAll("input[data-report]").forEach(input => {
+          if (!input.checked) return;
+          const serial = input.getAttribute("data-serial");
+          const kind = input.getAttribute("data-kind");
+          if (!selected[serial]) selected[serial] = [];
+          selected[serial].push(kind);
+        });
+        const items = Object.keys(selected).map(serial => ({
+          serial: serial,
+          kinds: selected[serial],
+        }));
+        if (!items.length) {
+          document.getElementById("reportResult").textContent = "消去するフラグを選択してください。";
+          return;
+        }
+        const resp = await fetch("/api/reports/clear", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: items }),
+        });
         const data = await resp.json();
-        reportSerials = [];
+        reportItems = [];
         document.getElementById("reportResult").textContent = data.message || "消去しました。";
       });
 
@@ -582,11 +666,17 @@ HTML_PAGE = """<!doctype html>
         if (!data || !data.items || !data.items.length) return "<div>報告がありません。</div>";
         var rows = "";
         data.items.forEach(function(item) {
+          var explainChecked = item.explanation ? " checked" : "";
+          var tagChecked = item.tag ? " checked" : "";
+          var subChecked = item.subtopic ? " checked" : "";
           rows += "<tr>" +
             "<td>" + item.serial + "</td>" +
-            "<td>" + (item.explanation ? "◯" : "") + "</td>" +
-            "<td>" + (item.tag ? "◯" : "") + "</td>" +
-            "<td>" + (item.subtopic ? "◯" : "") + "</td>" +
+            "<td><input type='checkbox' data-report='1' data-serial='" + item.serial +
+              "' data-kind='explanation'" + explainChecked + " /></td>" +
+            "<td><input type='checkbox' data-report='1' data-serial='" + item.serial +
+              "' data-kind='tag'" + tagChecked + " /></td>" +
+            "<td><input type='checkbox' data-report='1' data-serial='" + item.serial +
+              "' data-kind='subtopic'" + subChecked + " /></td>" +
             "<td>" + item.reported_at + "</td>" +
             "</tr>";
         });
@@ -735,6 +825,7 @@ def select_questions(
     exam_type,
     exam_session,
     subject,
+    kinds,
 ):
     order_sql = "ORDER BY q.serial"
     if order_mode == "new":
@@ -757,15 +848,19 @@ def select_questions(
         params.append(subject)
 
     if unannotated:
-        where.append(
-            "NOT EXISTS (SELECT 1 FROM explanations e WHERE e.question_id = q.id)"
-        )
-        where.append(
-            "NOT EXISTS (SELECT 1 FROM question_tags qt WHERE qt.question_id = q.id)"
-        )
-        where.append(
-            "NOT EXISTS (SELECT 1 FROM question_subtopics qs WHERE qs.question_id = q.id)"
-        )
+        kinds_set = set(kinds or ["explanation", "tag", "subtopic"])
+        if "explanation" in kinds_set:
+            where.append(
+                "NOT EXISTS (SELECT 1 FROM explanations e WHERE e.question_id = q.id)"
+            )
+        if "tag" in kinds_set:
+            where.append(
+                "NOT EXISTS (SELECT 1 FROM question_tags qt WHERE qt.question_id = q.id)"
+            )
+        if "subtopic" in kinds_set:
+            where.append(
+                "NOT EXISTS (SELECT 1 FROM question_subtopics qs WHERE qs.question_id = q.id)"
+            )
     where_sql = " AND ".join(where) if where else "1=1"
     query = f"""
             SELECT
@@ -895,6 +990,12 @@ class Handler(BaseHTTPRequestHandler):
             exam_type = params.get("exam_type", [""])[0]
             exam_session = params.get("exam_session", [""])[0]
             subject = params.get("subject", [""])[0]
+            kinds_raw = params.get("kinds", [""])[0]
+            kinds = [k.strip() for k in kinds_raw.split(",") if k.strip()] or [
+                "explanation",
+                "tag",
+                "subtopic",
+            ]
 
             conn = sqlite3.connect(self.server.db_path)
             records = select_questions(
@@ -906,6 +1007,7 @@ class Handler(BaseHTTPRequestHandler):
                 exam_type,
                 exam_session,
                 subject,
+                kinds,
             )
             conn.close()
 
@@ -917,20 +1019,34 @@ class Handler(BaseHTTPRequestHandler):
                 records, self.server.subtopic_catalog
             )
 
-            exp_prompt = build_explanation_prompt(self.server.prompt_sample, exp_jsonl)
-            tag_prompt = build_tag_prompt(tag_jsonl)
-            sub_prompt = build_subtopic_prompt(sub_jsonl)
+            exp_enabled = "explanation" in kinds
+            tag_enabled = "tag" in kinds
+            sub_enabled = "subtopic" in kinds
+
+            exp_prompt = (
+                build_explanation_prompt(self.server.prompt_sample, exp_jsonl)
+                if exp_enabled
+                else ""
+            )
+            tag_prompt = build_tag_prompt(tag_jsonl) if tag_enabled else ""
+            sub_prompt = build_subtopic_prompt(sub_jsonl) if sub_enabled else ""
 
             payload = {
                 "count": len(records),
                 "explanations": {
                     "filename": "explanations_batch_prompt.txt",
                     "text": exp_prompt,
+                    "enabled": exp_enabled,
                 },
-                "tags": {"filename": "tags_batch_prompt.txt", "text": tag_prompt},
+                "tags": {
+                    "filename": "tags_batch_prompt.txt",
+                    "text": tag_prompt,
+                    "enabled": tag_enabled,
+                },
                 "subtopics": {
                     "filename": "subtopics_batch_prompt.txt",
                     "text": sub_prompt,
+                    "enabled": sub_enabled,
                 },
             }
             self._send_json(payload)
@@ -983,6 +1099,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/reports/clear":
+            length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(length).decode("utf-8", errors="replace")
+            try:
+                payload = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                payload = {}
+            items = payload.get("items", [])
+            message = clear_reports(self.server.db_path, items)
+            self._send_json({"message": message})
+            return
         parsed = urlparse(self.path)
         if parsed.path == "/api/import/explanations":
             content = self._read_multipart_file()
@@ -1056,14 +1184,6 @@ class Handler(BaseHTTPRequestHandler):
             web_message = run_build_web(self.server.repo_root)
             self._send_json({"message": f"{message} / {web_message}"})
             return
-        if parsed.path == "/api/reports/clear":
-            params = parse_qs(parsed.query)
-            serial = params.get("serial", [""])[0]
-            kind = params.get("kind", [""])[0]
-            message = clear_reports(self.server.db_path, serial, kind)
-            self._send_json({"message": message})
-            return
-
         self.send_response(404)
         self.end_headers()
 
@@ -1583,40 +1703,36 @@ def list_reports(db_path):
     }
 
 
-def clear_reports(db_path, serial, kind):
+def clear_reports(db_path, items):
     conn = sqlite3.connect(db_path)
-    if serial:
-        if kind:
-            if kind == "explanation":
-                conn.execute(
-                    "UPDATE feedback_reports SET explain = 0 WHERE serial = ?",
-                    (serial,),
-                )
-            elif kind == "tag":
-                conn.execute(
-                    "UPDATE feedback_reports SET tag = 0 WHERE serial = ?",
-                    (serial,),
-                )
-            elif kind == "subtopic":
-                conn.execute(
-                    "UPDATE feedback_reports SET subtopic = 0 WHERE serial = ?",
-                    (serial,),
-                )
-            conn.execute(
-                "DELETE FROM feedback_reports WHERE serial = ? AND explain = 0 AND tag = 0 AND subtopic = 0",
-                (serial,),
-            )
-            conn.commit()
-            conn.close()
-            return f"消去しました: {serial} ({kind})"
-        conn.execute("DELETE FROM feedback_reports WHERE serial = ?", (serial,))
-        conn.commit()
+    if not items:
         conn.close()
-        return f"消去しました: {serial}"
-    conn.execute("DELETE FROM feedback_reports")
+        return "消去対象がありません。"
+    for item in items:
+        serial = item.get("serial")
+        kinds = item.get("kinds", [])
+        if not serial or not kinds:
+            continue
+        updates = []
+        if "explanation" in kinds:
+            updates.append("explain = 0")
+        if "tag" in kinds:
+            updates.append("tag = 0")
+        if "subtopic" in kinds:
+            updates.append("subtopic = 0")
+        if not updates:
+            continue
+        conn.execute(
+            f"UPDATE feedback_reports SET {', '.join(updates)} WHERE serial = ?",
+            (serial,),
+        )
+        conn.execute(
+            "DELETE FROM feedback_reports WHERE serial = ? AND explain = 0 AND tag = 0 AND subtopic = 0",
+            (serial,),
+        )
     conn.commit()
     conn.close()
-    return "報告フラグを全て消去しました。"
+    return "選択した報告フラグを消去しました。"
 
 
 def run_command(repo_root, args):
