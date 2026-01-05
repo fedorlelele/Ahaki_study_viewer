@@ -40,7 +40,9 @@ HTML_PAGE = """<!doctype html>
     <p class="note">解説・タグ・小項目のプロンプト生成/インポート/進捗確認をまとめて行います。</p>
     <div class="row">
       <button id="importClipboard">クリップボードからインポート</button>
+      <button id="runBackup">SQLiteをバックアップ</button>
       <span id="clipboardImportResult" class="note"></span>
+      <span id="backupResult" class="note"></span>
     </div>
 
     <div class="tabs" role="tablist" aria-label="管理タブ">
@@ -556,6 +558,18 @@ HTML_PAGE = """<!doctype html>
           await importJsonlText(text, result);
         } catch (err) {
           result.textContent = "クリップボードを読み取れませんでした。";
+        }
+      });
+
+      document.getElementById("runBackup").addEventListener("click", async () => {
+        const result = document.getElementById("backupResult");
+        result.textContent = "バックアップ中...";
+        try {
+          const resp = await fetch("/api/backup", { method: "POST" });
+          const data = await resp.json();
+          result.textContent = data.message || "完了しました。";
+        } catch (err) {
+          result.textContent = "バックアップに失敗しました。";
         }
       });
 
@@ -1402,6 +1416,10 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._read_json()
             items = payload.get("items", [])
             message = clear_reports(self.server.db_path, items)
+            self._send_json({"message": message})
+            return
+        if parsed.path == "/api/backup":
+            message = run_backup(self.server.repo_root)
             self._send_json({"message": message})
             return
         parsed = urlparse(self.path)
@@ -2366,6 +2384,24 @@ def run_command(repo_root, args):
     if result.returncode != 0:
         return f"失敗: {' '.join(args)}\n{result.stderr.strip()}"
     return f"完了: {' '.join(args)}"
+
+
+def run_backup(repo_root):
+    import subprocess
+
+    script_path = Path(repo_root) / "scripts" / "backup_sqlite.sh"
+    if not script_path.exists():
+        return "失敗: scripts/backup_sqlite.sh が見つかりません。"
+    result = subprocess.run(
+        ["bash", str(script_path)],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return f"失敗: {result.stderr.strip()}"
+    output = result.stdout.strip()
+    return output or "完了しました。"
 
 
 def run_build_web(repo_root):
