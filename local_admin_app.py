@@ -38,6 +38,10 @@ HTML_PAGE = """<!doctype html>
   <body>
     <h1>ローカル管理画面</h1>
     <p class="note">解説・タグ・小項目のプロンプト生成/インポート/進捗確認をまとめて行います。</p>
+    <div class="row">
+      <button id="importClipboard">クリップボードからインポート</button>
+      <span id="clipboardImportResult" class="note"></span>
+    </div>
 
     <div class="tabs" role="tablist" aria-label="管理タブ">
       <button class="tab active" data-target="prompts" role="tab" aria-selected="true">プロンプト</button>
@@ -476,42 +480,36 @@ HTML_PAGE = """<!doctype html>
         return { kind: kind, error: "" };
       }
 
-      document.getElementById("importPaste").addEventListener("click", async () => {
-        const textArea = document.getElementById("jsonlPaste");
-        const text = textArea.value.trim();
-        if (!text) {
-          document.getElementById("importResult").textContent = "貼り付け内容が空です。";
-          return;
-        }
+      async function importJsonlText(text, resultElement, onDone) {
         const detected = detectJsonlKind(text);
         if (!detected.kind) {
-          document.getElementById("importResult").textContent = detected.error;
+          resultElement.textContent = detected.error;
           return;
         }
-        document.getElementById("importResult").textContent = "インポート中...";
+        resultElement.textContent = "インポート中...";
         if (detected.kind === "explanation") {
           const mode = document.getElementById("explanationMode").value;
           const version = document.getElementById("explanationVersion").value;
           const payload = { text: text, mode: mode, version: version || "auto" };
           const data = await uploadText("/api/import/explanations_text", payload);
-          document.getElementById("importResult").textContent = data.message || "完了しました。";
-          textArea.value = "";
+          resultElement.textContent = data.message || "完了しました。";
+          if (onDone) onDone();
           return;
         }
         if (detected.kind === "tag") {
           const mode = document.getElementById("tagMode").value;
           const payload = { text: text, mode: mode };
           const data = await uploadText("/api/import/tags_text", payload);
-          document.getElementById("importResult").textContent = data.message || "完了しました。";
-          textArea.value = "";
+          resultElement.textContent = data.message || "完了しました。";
+          if (onDone) onDone();
           return;
         }
         if (detected.kind === "subtopic") {
           const mode = document.getElementById("subtopicMode").value;
           const payload = { text: text, mode: mode };
           const data = await uploadText("/api/import/subtopics_text", payload);
-          document.getElementById("importResult").textContent = data.message || "完了しました。";
-          textArea.value = "";
+          resultElement.textContent = data.message || "完了しました。";
+          if (onDone) onDone();
           return;
         }
         if (detected.kind === "combined") {
@@ -527,9 +525,37 @@ HTML_PAGE = """<!doctype html>
             version: version || "auto",
           };
           const data = await uploadText("/api/import/combined_text", payload);
-          document.getElementById("importResult").textContent = data.message || "完了しました。";
-          textArea.value = "";
+          resultElement.textContent = data.message || "完了しました。";
+          if (onDone) onDone();
           return;
+        }
+        resultElement.textContent = "種別を判別できませんでした。";
+      }
+
+      document.getElementById("importPaste").addEventListener("click", async () => {
+        const textArea = document.getElementById("jsonlPaste");
+        const text = textArea.value.trim();
+        if (!text) {
+          document.getElementById("importResult").textContent = "貼り付け内容が空です。";
+          return;
+        }
+        await importJsonlText(text, document.getElementById("importResult"), () => {
+          textArea.value = "";
+        });
+      });
+
+      document.getElementById("importClipboard").addEventListener("click", async () => {
+        const result = document.getElementById("clipboardImportResult");
+        result.textContent = "クリップボードを読み取り中...";
+        try {
+          const text = await navigator.clipboard.readText();
+          if (!text.trim()) {
+            result.textContent = "クリップボードが空です。";
+            return;
+          }
+          await importJsonlText(text, result);
+        } catch (err) {
+          result.textContent = "クリップボードを読み取れませんでした。";
         }
       });
 
