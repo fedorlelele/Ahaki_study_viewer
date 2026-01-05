@@ -142,6 +142,11 @@ HTML_PAGE = """<!doctype html>
           </select>
         </div>
         <button id="importSubtopics">小項目をインポート</button>
+
+        <label>解説・タグ・小項目 同時JSONL</label>
+        <input id="combinedFile" type="file" accept=".jsonl" />
+        <p class="note">上記のインポート方式が適用されます。</p>
+        <button id="importCombined">同時JSONLをインポート</button>
       </div>
 
       <div class="section" data-import-section="import-bulk" hidden>
@@ -320,6 +325,12 @@ HTML_PAGE = """<!doctype html>
             subBtn.onclick = () => downloadText(data.subtopics.filename, data.subtopics.text);
             btns.appendChild(subBtn);
           }
+
+          const combinedBtn = document.createElement("button");
+          combinedBtn.textContent = "解説・タグ・小項目プロンプトをダウンロード";
+          combinedBtn.className = "download";
+          combinedBtn.onclick = () => downloadText(data.combined.filename, data.combined.text);
+          btns.appendChild(combinedBtn);
         } else {
           if (data.explanations.enabled) {
             const explainBtn = document.createElement("button");
@@ -344,6 +355,12 @@ HTML_PAGE = """<!doctype html>
             subBtn.onclick = () => copyToClipboard(data.subtopics.text);
             btns.appendChild(subBtn);
           }
+
+          const combinedBtn = document.createElement("button");
+          combinedBtn.textContent = "解説・タグ・小項目プロンプトをコピー";
+          combinedBtn.className = "download";
+          combinedBtn.onclick = () => copyToClipboard(data.combined.text);
+          btns.appendChild(combinedBtn);
         }
 
         result.appendChild(btns);
@@ -398,6 +415,18 @@ HTML_PAGE = """<!doctype html>
         importFile("/api/import/subtopics?mode=" + mode, "subtopicsFile");
       });
 
+      document.getElementById("importCombined").addEventListener("click", () => {
+        const modeExp = document.getElementById("explanationMode").value;
+        const modeTag = document.getElementById("tagMode").value;
+        const modeSub = document.getElementById("subtopicMode").value;
+        const version = document.getElementById("explanationVersion").value;
+        const versionParam = version ? "&version=" + version : "&version=auto";
+        importFile(
+          "/api/import/combined?modeExp=" + modeExp + versionParam + "&modeTag=" + modeTag + "&modeSub=" + modeSub,
+          "combinedFile"
+        );
+      });
+
       function detectJsonlKind(text) {
         const lines = text.split("\\n").map(line => line.trim()).filter(line => line);
         let kind = "";
@@ -411,21 +440,31 @@ HTML_PAGE = """<!doctype html>
           if (!obj || typeof obj !== "object") {
             return { kind: "", error: "JSONLの形式が正しくありません。" };
           }
-          if ("explanation" in obj) {
+          const hasExplanation = "explanation" in obj;
+          const hasTags = "tags" in obj;
+          const hasSubtopics = "subtopics" in obj;
+          if (hasExplanation && hasTags && hasSubtopics) {
+            if (kind && kind !== "combined") {
+              return { kind: "", error: "複数種別が混在しています。" };
+            }
+            kind = "combined";
+            continue;
+          }
+          if (hasExplanation && !hasTags && !hasSubtopics) {
             if (kind && kind !== "explanation") {
               return { kind: "", error: "複数種別が混在しています。" };
             }
             kind = "explanation";
             continue;
           }
-          if ("tags" in obj) {
+          if (hasTags && !hasExplanation && !hasSubtopics) {
             if (kind && kind !== "tag") {
               return { kind: "", error: "複数種別が混在しています。" };
             }
             kind = "tag";
             continue;
           }
-          if ("subtopics" in obj) {
+          if (hasSubtopics && !hasExplanation && !hasTags) {
             if (kind && kind !== "subtopic") {
               return { kind: "", error: "複数種別が混在しています。" };
             }
@@ -473,6 +512,24 @@ HTML_PAGE = """<!doctype html>
           const data = await uploadText("/api/import/subtopics_text", payload);
           document.getElementById("importResult").textContent = data.message || "完了しました。";
           textArea.value = "";
+          return;
+        }
+        if (detected.kind === "combined") {
+          const modeExp = document.getElementById("explanationMode").value;
+          const modeTag = document.getElementById("tagMode").value;
+          const modeSub = document.getElementById("subtopicMode").value;
+          const version = document.getElementById("explanationVersion").value;
+          const payload = {
+            text: text,
+            modeExp: modeExp,
+            modeTag: modeTag,
+            modeSub: modeSub,
+            version: version || "auto",
+          };
+          const data = await uploadText("/api/import/combined_text", payload);
+          document.getElementById("importResult").textContent = data.message || "完了しました。";
+          textArea.value = "";
+          return;
         }
       });
 
@@ -488,6 +545,21 @@ HTML_PAGE = """<!doctype html>
         files.forEach(file => {
           fileMap[file.name] = file;
         });
+        result.textContent = "一括インポート中...";
+        const modeExp = document.getElementById("explanationMode").value;
+        const version = document.getElementById("explanationVersion").value;
+        const versionParam = version ? "&version=" + version : "&version=auto";
+        const modeTag = document.getElementById("tagMode").value;
+        const modeSub = document.getElementById("subtopicMode").value;
+        const combinedFile = fileMap["explanations_tags_subtopics_batch_filled.jsonl"];
+        if (combinedFile) {
+          const combinedRes = await uploadFile(
+            "/api/import/combined?modeExp=" + modeExp + versionParam + "&modeTag=" + modeTag + "&modeSub=" + modeSub,
+            combinedFile
+          );
+          result.textContent = combinedRes.message || "完了しました。";
+          return;
+        }
         const expFile = fileMap["explanations_batch_filled.jsonl"];
         const tagFile = fileMap["tags_batch_filled.jsonl"];
         const subFile = fileMap["subtopics_batch_filled.jsonl"];
@@ -496,15 +568,9 @@ HTML_PAGE = """<!doctype html>
         if (!tagFile) missing.push("tags_batch_filled.jsonl");
         if (!subFile) missing.push("subtopics_batch_filled.jsonl");
         if (missing.length) {
-        result.textContent = "不足ファイル: " + missing.join(", ");
+          result.textContent = "不足ファイル: " + missing.join(", ");
           return;
         }
-        result.textContent = "一括インポート中...";
-        const modeExp = document.getElementById("explanationMode").value;
-        const version = document.getElementById("explanationVersion").value;
-        const versionParam = version ? "&version=" + version : "&version=auto";
-        const modeTag = document.getElementById("tagMode").value;
-        const modeSub = document.getElementById("subtopicMode").value;
         const expRes = await uploadFile("/api/import/explanations?mode=" + modeExp + versionParam, expFile);
         const tagRes = await uploadFile("/api/import/tags?mode=" + modeTag, tagFile);
         const subRes = await uploadFile("/api/import/subtopics?mode=" + modeSub, subFile);
@@ -907,7 +973,10 @@ def build_explanation_prompt(sample_text, jsonl_text):
         "出力はJSONLのみとし、各行のexplanationを埋め、他のキーは変更しない。\n"
         "回答は画面表示ではなく、JSONLファイルとして保存して返す。\n"
         "ファイル名は explanations_batch_filled.jsonl とする。\n"
-        "だ・である調で簡潔に、長くなりすぎない説明にする。\n\n"
+        "だ・である調で簡潔に、長くなりすぎない説明にする。\n"
+        "書き方・文章量は【サンプルJSONL】に合わせる。\n"
+        "解説は、対象の問題とその問題から考えられる類題に回答できる知識を端的に説明する。\n"
+        "ただし、【国家試験問題】の科目内の文脈で必要とされる解説を行う。\n\n"
         "【国家試験問題(JSONL)】\n"
         f"{jsonl_text}\n"
     )
@@ -937,6 +1006,24 @@ def build_subtopic_prompt(jsonl_text):
         f"{jsonl_text}\n"
     )
 
+def build_combined_prompt(sample_text, jsonl_text):
+    return (
+        f"{sample_text.strip()}\n\n"
+        "【指示】\n"
+        "以下は【国家試験問題】のデータである。質問は不要で、そのまま解説・タグ・小項目を作成する。\n"
+        "出力はJSONLのみとし、各行のexplanation/tags/subtopicsを埋め、他のキーは変更しない。\n"
+        "回答は画面表示ではなく、JSONLファイルとして保存して返す。\n"
+        "ファイル名は explanations_tags_subtopics_batch_filled.jsonl とする。\n"
+        "解説はだ・である調で簡潔に、長くなりすぎない説明にする。\n"
+        "書き方・文章量は【サンプルJSONL】に合わせる。\n"
+        "解説は、対象の問題とその問題から考えられる類題に回答できる知識を端的に説明する。\n"
+        "ただし、【国家試験問題】の科目内の文脈で必要とされる解説を行う。\n"
+        "tagsは問題文と選択肢から抽出される医学・制度・概念・疾患・検査・解剖・症候など。\n"
+        "1問につき3〜7個、重複や表記ゆれを避け、短い名詞で出力する。\n"
+        "subtopicsはcandidate_subtopicsから選び、1問につき1〜3個に絞る。\n\n"
+        "【国家試験問題(JSONL)】\n"
+        f"{jsonl_text}\n"
+    )
 
 def expand_serials(serials_text):
     serials = []
@@ -1031,6 +1118,7 @@ def build_jsonl(records, subtopic_catalog):
     explanation_rows = []
     tag_rows = []
     subtopic_rows = []
+    combined_rows = []
 
     for row in records:
         _, serial, subject, case_text, stem, choices_json, answer_index, answer_text = row
@@ -1072,11 +1160,32 @@ def build_jsonl(records, subtopic_catalog):
                 "source": "llm",
             }
         )
+        combined_rows.append(
+            {
+                "serial": serial,
+                "subject": subject,
+                "case_text": case_text,
+                "stem": stem,
+                "choices": choices,
+                "answer_index": answer_index,
+                "answer_text": answer_text,
+                "explanation": "",
+                "tags": [],
+                "candidate_subtopics": subtopic_catalog.get(subject, []),
+                "subtopics": [],
+                "source": "llm",
+            }
+        )
 
     def to_jsonl(rows):
         return "\n".join(json.dumps(r, ensure_ascii=False) for r in rows)
 
-    return to_jsonl(explanation_rows), to_jsonl(tag_rows), to_jsonl(subtopic_rows)
+    return (
+        to_jsonl(explanation_rows),
+        to_jsonl(tag_rows),
+        to_jsonl(subtopic_rows),
+        to_jsonl(combined_rows),
+    )
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1170,7 +1279,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"count": 0})
                 return
 
-            exp_jsonl, tag_jsonl, sub_jsonl = build_jsonl(
+            exp_jsonl, tag_jsonl, sub_jsonl, combined_jsonl = build_jsonl(
                 records, self.server.subtopic_catalog
             )
 
@@ -1185,6 +1294,9 @@ class Handler(BaseHTTPRequestHandler):
             )
             tag_prompt = build_tag_prompt(tag_jsonl) if tag_enabled else ""
             sub_prompt = build_subtopic_prompt(sub_jsonl) if sub_enabled else ""
+            combined_prompt = build_combined_prompt(
+                self.server.prompt_sample, combined_jsonl
+            )
 
             payload = {
                 "count": len(records),
@@ -1202,6 +1314,11 @@ class Handler(BaseHTTPRequestHandler):
                     "filename": "subtopics_batch_prompt.txt",
                     "text": sub_prompt,
                     "enabled": sub_enabled,
+                },
+                "combined": {
+                    "filename": "explanations_tags_subtopics_batch_prompt.txt",
+                    "text": combined_prompt,
+                    "enabled": True,
                 },
             }
             self._send_json(payload)
@@ -1303,6 +1420,35 @@ class Handler(BaseHTTPRequestHandler):
                 {"message": f"小項目を {inserted} 件インポートしました。 / {web_message}"}
             )
             return
+        if parsed.path == "/api/import/combined_text":
+            payload = self._read_json()
+            text = (payload.get("text") or "").strip()
+            if not text:
+                self._send_json({"message": "貼り付け内容が空です。"}, status=400)
+                return
+            mode_exp = payload.get("modeExp") or "append"
+            mode_tag = payload.get("modeTag") or "append"
+            mode_sub = payload.get("modeSub") or "append"
+            version_raw = payload.get("version") or "auto"
+            version = None if version_raw == "auto" else int(version_raw)
+            counts = import_combined(
+                self.server.db_path, text, mode_exp, version, mode_tag, mode_sub
+            )
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {
+                    "message": (
+                        "同時インポート: 解説 {explanations} 件 / タグ {tags} 件 / 小項目 {subtopics} 件"
+                        " / {web}"
+                    ).format(
+                        explanations=counts["explanations"],
+                        tags=counts["tags"],
+                        subtopics=counts["subtopics"],
+                        web=web_message,
+                    )
+                }
+            )
+            return
         if parsed.path == "/api/import/explanations":
             content = self._read_multipart_file()
             if not content:
@@ -1344,6 +1490,35 @@ class Handler(BaseHTTPRequestHandler):
             web_message = run_build_web(self.server.repo_root)
             self._send_json(
                 {"message": f"小項目を {inserted} 件インポートしました。 / {web_message}"}
+            )
+            return
+        if parsed.path == "/api/import/combined":
+            content = self._read_multipart_file()
+            if not content:
+                self._send_json({"message": "ファイルを読み取れませんでした。"}, status=400)
+                return
+            params = parse_qs(parsed.query)
+            mode_exp = params.get("modeExp", ["append"])[0]
+            mode_tag = params.get("modeTag", ["append"])[0]
+            mode_sub = params.get("modeSub", ["append"])[0]
+            version_raw = params.get("version", ["auto"])[0]
+            version = None if version_raw == "auto" else int(version_raw)
+            counts = import_combined(
+                self.server.db_path, content, mode_exp, version, mode_tag, mode_sub
+            )
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json(
+                {
+                    "message": (
+                        "同時インポート: 解説 {explanations} 件 / タグ {tags} 件 / 小項目 {subtopics} 件"
+                        " / {web}"
+                    ).format(
+                        explanations=counts["explanations"],
+                        tags=counts["tags"],
+                        subtopics=counts["subtopics"],
+                        web=web_message,
+                    )
+                }
             )
             return
 
@@ -1550,6 +1725,198 @@ def import_subtopics(db_path, jsonl_text, mode):
     conn.commit()
     conn.close()
     return inserted
+
+
+def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    counts = {"explanations": 0, "tags": 0, "subtopics": 0}
+    for line in jsonl_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        serial = record.get("serial")
+        if not serial:
+            continue
+        row = cursor.execute(
+            "SELECT id FROM questions WHERE serial = ?",
+            (serial,),
+        ).fetchone()
+        if not row:
+            continue
+        question_id = row[0]
+
+        explanation = str(record.get("explanation", "")).strip()
+        if explanation:
+            if mode_exp == "skip":
+                exists = cursor.execute(
+                    "SELECT 1 FROM explanations WHERE question_id = ? LIMIT 1",
+                    (question_id,),
+                ).fetchone()
+                if not exists:
+                    next_version = version
+                    if version is None:
+                        row = cursor.execute(
+                            "SELECT MAX(version) FROM explanations WHERE question_id = ?",
+                            (question_id,),
+                        ).fetchone()
+                        next_version = (row[0] or 0) + 1
+                    cursor.execute(
+                        """
+                        INSERT INTO explanations(question_id, body, version, source)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (question_id, explanation, next_version, "llm"),
+                    )
+                    counts["explanations"] += 1
+                    clear_feedback_flag(conn, serial, "explanation")
+            else:
+                if mode_exp == "replace":
+                    cursor.execute(
+                        "DELETE FROM explanations WHERE question_id = ?",
+                        (question_id,),
+                    )
+                next_version = version
+                if version is None:
+                    row = cursor.execute(
+                        "SELECT MAX(version) FROM explanations WHERE question_id = ?",
+                        (question_id,),
+                    ).fetchone()
+                    next_version = (row[0] or 0) + 1
+                cursor.execute(
+                    """
+                    INSERT INTO explanations(question_id, body, version, source)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (question_id, explanation, next_version, "llm"),
+                )
+                counts["explanations"] += 1
+                clear_feedback_flag(conn, serial, "explanation")
+
+        tags = record.get("tags", [])
+        if tags:
+            if mode_tag == "skip":
+                exists = cursor.execute(
+                    "SELECT 1 FROM question_tags WHERE question_id = ? LIMIT 1",
+                    (question_id,),
+                ).fetchone()
+                if not exists:
+                    for tag in tags:
+                        tag_label = " ".join(str(tag).split()).strip()
+                        if not tag_label:
+                            continue
+                        cursor.execute(
+                            "INSERT OR IGNORE INTO tags(label) VALUES (?)",
+                            (tag_label,),
+                        )
+                        tag_id = cursor.execute(
+                            "SELECT id FROM tags WHERE label = ?",
+                            (tag_label,),
+                        ).fetchone()[0]
+                        cursor.execute(
+                            """
+                            INSERT OR IGNORE INTO question_tags(question_id, tag_id, source)
+                            VALUES (?, ?, ?)
+                            """,
+                            (question_id, tag_id, "llm"),
+                        )
+                        counts["tags"] += 1
+                    clear_feedback_flag(conn, serial, "tag")
+            else:
+                if mode_tag == "replace":
+                    cursor.execute(
+                        "DELETE FROM question_tags WHERE question_id = ?",
+                        (question_id,),
+                    )
+                updated = False
+                for tag in tags:
+                    tag_label = " ".join(str(tag).split()).strip()
+                    if not tag_label:
+                        continue
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO tags(label) VALUES (?)",
+                        (tag_label,),
+                    )
+                    tag_id = cursor.execute(
+                        "SELECT id FROM tags WHERE label = ?",
+                        (tag_label,),
+                    ).fetchone()[0]
+                    cursor.execute(
+                        """
+                        INSERT OR IGNORE INTO question_tags(question_id, tag_id, source)
+                        VALUES (?, ?, ?)
+                        """,
+                        (question_id, tag_id, "llm"),
+                    )
+                    counts["tags"] += 1
+                    updated = True
+                if updated or mode_tag == "replace":
+                    clear_feedback_flag(conn, serial, "tag")
+
+        subtopics = record.get("subtopics", [])
+        if subtopics:
+            if mode_sub == "skip":
+                exists = cursor.execute(
+                    "SELECT 1 FROM question_subtopics WHERE question_id = ? LIMIT 1",
+                    (question_id,),
+                ).fetchone()
+                if not exists:
+                    for item in subtopics:
+                        name = " ".join(str(item).split()).strip()
+                        if not name:
+                            continue
+                        cursor.execute(
+                            "INSERT OR IGNORE INTO subtopics(name) VALUES (?)",
+                            (name,),
+                        )
+                        subtopic_id = cursor.execute(
+                            "SELECT id FROM subtopics WHERE name = ?",
+                            (name,),
+                        ).fetchone()[0]
+                        cursor.execute(
+                            """
+                            INSERT OR IGNORE INTO question_subtopics(question_id, subtopic_id)
+                            VALUES (?, ?)
+                            """,
+                            (question_id, subtopic_id),
+                        )
+                        counts["subtopics"] += 1
+                    clear_feedback_flag(conn, serial, "subtopic")
+            else:
+                if mode_sub == "replace":
+                    cursor.execute(
+                        "DELETE FROM question_subtopics WHERE question_id = ?",
+                        (question_id,),
+                    )
+                updated = False
+                for item in subtopics:
+                    name = " ".join(str(item).split()).strip()
+                    if not name:
+                        continue
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO subtopics(name) VALUES (?)",
+                        (name,),
+                    )
+                    subtopic_id = cursor.execute(
+                        "SELECT id FROM subtopics WHERE name = ?",
+                        (name,),
+                    ).fetchone()[0]
+                    cursor.execute(
+                        """
+                        INSERT OR IGNORE INTO question_subtopics(question_id, subtopic_id)
+                        VALUES (?, ?)
+                        """,
+                        (question_id, subtopic_id),
+                    )
+                    counts["subtopics"] += 1
+                    updated = True
+                if updated or mode_sub == "replace":
+                    clear_feedback_flag(conn, serial, "subtopic")
+
+    conn.commit()
+    conn.close()
+    return counts
 
 
 def build_progress(db_path):
@@ -1790,11 +2157,22 @@ def import_from_downloads(db_path, downloads_dir, mode_exp, version, mode_tag, m
     if not downloads.exists():
         return f"ダウンロードフォルダが見つかりません: {downloads_dir}"
 
+    combined_files = sorted(
+        downloads.glob("explanations_tags_subtopics_batch_filled*.jsonl")
+    )
     exp_files = sorted(downloads.glob("explanations_batch_filled*.jsonl"))
     tag_files = sorted(downloads.glob("tags_batch_filled*.jsonl"))
     sub_files = sorted(downloads.glob("subtopics_batch_filled*.jsonl"))
 
     messages = []
+    if combined_files:
+        for path in combined_files:
+            text = path.read_text(encoding="utf-8")
+            counts = import_combined(db_path, text, mode_exp, version, mode_tag, mode_sub)
+            messages.append(
+                f"{path.name}: 解説 {counts['explanations']} 件 / タグ {counts['tags']} 件 / 小項目 {counts['subtopics']} 件"
+            )
+            path.unlink()
     if exp_files:
         for path in exp_files:
             text = path.read_text(encoding="utf-8")
