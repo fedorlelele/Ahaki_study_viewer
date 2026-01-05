@@ -196,9 +196,12 @@
       <select id="sessionSelect" aria-label="試験回数の選択"><option value="">回数</option></select>
       <select id="sortSession" aria-label="試験回数でソート">
         <option value="">回数ソート</option>
-        <option value="desc">新しい順</option>
+        <option value="desc" selected>新しい順</option>
         <option value="asc">古い順</option>
       </select>
+      <label><input type="checkbox" id="hasExplanation" /> 解説あり</label>
+      <label><input type="checkbox" id="hasTags" /> タグあり</label>
+      <label><input type="checkbox" id="hasSubtopics" /> 小項目あり</label>
       <button id="searchBtn" aria-label="検索を実行">検索</button>
       <button id="resetBtn" aria-label="検索条件をリセット">リセット</button>
     </div>
@@ -314,6 +317,9 @@
         const examType = document.getElementById("examTypeSelect").value;
         const session = document.getElementById("sessionSelect").value;
         const sortSession = document.getElementById("sortSession").value;
+        const needExplanation = document.getElementById("hasExplanation").checked;
+        const needTags = document.getElementById("hasTags").checked;
+        const needSubtopics = document.getElementById("hasSubtopics").checked;
 
         const terms = keyword
           .split(/\s+/)
@@ -334,6 +340,9 @@
           if (serialSet && !serialSet.has(q.serial)) return false;
           if (examType && !q.serial.startsWith(examType)) return false;
           if (session && String(q.exam_session) !== session) return false;
+          if (needExplanation && !(q.explanation_latest || "").trim()) return false;
+          if (needTags && !(q.tags || []).length) return false;
+          if (needSubtopics && !(q.subtopics || []).length) return false;
           if (!terms.length) return true;
           const hay = [
             q.stem || "",
@@ -545,7 +554,10 @@
           document.getElementById("subjectSelect").value = "";
           document.getElementById("examTypeSelect").value = "";
           document.getElementById("sessionSelect").value = "";
-          document.getElementById("sortSession").value = "";
+          document.getElementById("sortSession").value = "desc";
+          document.getElementById("hasExplanation").checked = false;
+          document.getElementById("hasTags").checked = false;
+          document.getElementById("hasSubtopics").checked = false;
           updateSubtopicOptions("");
           renderResults(filterQuestions());
         });
@@ -563,6 +575,15 @@
           renderResults(filterQuestions());
         });
         document.getElementById("sortSession").addEventListener("change", () => {
+          renderResults(filterQuestions());
+        });
+        document.getElementById("hasExplanation").addEventListener("change", () => {
+          renderResults(filterQuestions());
+        });
+        document.getElementById("hasTags").addEventListener("change", () => {
+          renderResults(filterQuestions());
+        });
+        document.getElementById("hasSubtopics").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
         document.getElementById("toggleAnswer").addEventListener("change", () => {
