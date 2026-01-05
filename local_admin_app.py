@@ -24,6 +24,9 @@ HTML_PAGE = """<!doctype html>
       .preview-card { margin-bottom: 12px; }
       .tab { padding: 8px 12px; border: 1px solid #bbb; background: #fff; cursor: pointer; border-radius: 8px; }
       .tab.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+      .import-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
+      .import-tab { padding: 6px 10px; border: 1px solid #bbb; background: #fff; cursor: pointer; border-radius: 6px; }
+      .import-tab.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
       .section[hidden] { display: none; }
       .section { margin-top: 28px; padding-top: 8px; border-top: 1px solid #ddd; }
       .report-panel { margin-top: 16px; padding-top: 8px; border-top: 1px dashed #ccc; }
@@ -94,58 +97,71 @@ HTML_PAGE = """<!doctype html>
       <h2>インポート</h2>
       <p class="note">解説・タグ・小項目のJSONLをアップロードしてSQLiteに取り込みます。</p>
 
-      <label>一括インポート（フォルダ指定）</label>
-      <input id="bulkFolder" type="file" webkitdirectory directory multiple />
-      <button id="bulkImport">フォルダ内を一括インポート</button>
-      <div class="row">
+      <div class="import-tabs" role="tablist" aria-label="インポートタブ">
+        <button class="import-tab active" data-import-target="import-files" role="tab">ファイル</button>
+        <button class="import-tab" data-import-target="import-bulk" role="tab">フォルダ</button>
+        <button class="import-tab" data-import-target="import-downloads" role="tab">ダウンロード</button>
+        <button class="import-tab" data-import-target="import-paste" role="tab">貼り付け</button>
+      </div>
+
+      <div class="section" data-import-section="import-files">
+        <label>解説JSONL</label>
+        <input id="explanationsFile" type="file" accept=".jsonl" />
+        <div>
+          <label>解説バージョン（空欄で自動）</label>
+          <input id="explanationVersion" type="number" min="1" placeholder="auto" />
+          <label>解説インポート方式</label>
+          <select id="explanationMode">
+            <option value="append">追記</option>
+            <option value="skip">既存があればスキップ</option>
+            <option value="replace">既存を置き換え</option>
+          </select>
+        </div>
+        <button id="importExplanations">解説をインポート</button>
+
+        <label>タグJSONL</label>
+        <input id="tagsFile" type="file" accept=".jsonl" />
+        <div>
+          <label>タグインポート方式</label>
+          <select id="tagMode">
+            <option value="append">追記</option>
+            <option value="skip">既存があればスキップ</option>
+            <option value="replace">既存を置き換え</option>
+          </select>
+        </div>
+        <button id="importTags">タグをインポート</button>
+
+        <label>小項目JSONL</label>
+        <input id="subtopicsFile" type="file" accept=".jsonl" />
+        <div>
+          <label>小項目インポート方式</label>
+          <select id="subtopicMode">
+            <option value="append">追記</option>
+            <option value="skip">既存があればスキップ</option>
+            <option value="replace">既存を置き換え</option>
+          </select>
+        </div>
+        <button id="importSubtopics">小項目をインポート</button>
+      </div>
+
+      <div class="section" data-import-section="import-bulk" hidden>
+        <label>一括インポート（フォルダ指定）</label>
+        <input id="bulkFolder" type="file" webkitdirectory directory multiple />
+        <button id="bulkImport">フォルダ内を一括インポート</button>
+      </div>
+
+      <div class="section" data-import-section="import-downloads" hidden>
         <button id="importDownloads">ダウンロードフォルダから一括インポート</button>
       </div>
 
-      <h3>クリップボード貼り付け</h3>
-      <p class="note">出力を貼り付けてインポートできます（内容を自動判別）。</p>
-      <label>JSONLを貼り付け</label>
-      <textarea id="jsonlPaste" rows="8" style="width: 100%;"></textarea>
-      <div class="row">
-        <button id="importPaste">貼り付けをインポート</button>
+      <div class="section" data-import-section="import-paste" hidden>
+        <p class="note">出力を貼り付けてインポートできます（内容を自動判別）。</p>
+        <label>JSONLを貼り付け</label>
+        <textarea id="jsonlPaste" rows="8" style="width: 100%;"></textarea>
+        <div class="row">
+          <button id="importPaste">貼り付けをインポート</button>
+        </div>
       </div>
-
-      <label>解説JSONL</label>
-      <input id="explanationsFile" type="file" accept=".jsonl" />
-      <div>
-        <label>解説バージョン（空欄で自動）</label>
-        <input id="explanationVersion" type="number" min="1" placeholder="auto" />
-        <label>解説インポート方式</label>
-        <select id="explanationMode">
-          <option value="append">追記</option>
-          <option value="skip">既存があればスキップ</option>
-          <option value="replace">既存を置き換え</option>
-        </select>
-      </div>
-      <button id="importExplanations">解説をインポート</button>
-
-      <label>タグJSONL</label>
-      <input id="tagsFile" type="file" accept=".jsonl" />
-      <div>
-        <label>タグインポート方式</label>
-        <select id="tagMode">
-          <option value="append">追記</option>
-          <option value="skip">既存があればスキップ</option>
-          <option value="replace">既存を置き換え</option>
-        </select>
-      </div>
-      <button id="importTags">タグをインポート</button>
-
-      <label>小項目JSONL</label>
-      <input id="subtopicsFile" type="file" accept=".jsonl" />
-      <div>
-        <label>小項目インポート方式</label>
-        <select id="subtopicMode">
-          <option value="append">追記</option>
-          <option value="skip">既存があればスキップ</option>
-          <option value="replace">既存を置き換え</option>
-        </select>
-      </div>
-      <button id="importSubtopics">小項目をインポート</button>
 
       <div class="result" id="importResult"></div>
     </div>
@@ -823,6 +839,21 @@ HTML_PAGE = """<!doctype html>
           const target = tab.getAttribute("data-target");
           document.querySelectorAll(".section").forEach(section => {
             section.hidden = section.getAttribute("data-section") !== target;
+          });
+        });
+      });
+
+      document.querySelectorAll(".import-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".import-tab").forEach(t => {
+            t.classList.remove("active");
+            t.setAttribute("aria-selected", "false");
+          });
+          tab.classList.add("active");
+          tab.setAttribute("aria-selected", "true");
+          const target = tab.getAttribute("data-import-target");
+          document.querySelectorAll("[data-import-section]").forEach(section => {
+            section.hidden = section.getAttribute("data-import-section") !== target;
           });
         });
       });
