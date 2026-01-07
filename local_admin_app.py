@@ -1066,7 +1066,7 @@ def parse_args():
     )
     parser.add_argument(
         "--prompt-sample",
-        default="samples/custum_prompt_sample.txt",
+        default="resources/custum_prompt_sample.txt",
         help="Path to explanation prompt sample text.",
     )
     parser.add_argument(

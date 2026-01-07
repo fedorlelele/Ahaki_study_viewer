@@ -24,6 +24,7 @@
 - `local_admin_app.py` : ローカル管理画面
 - `web_app/` : WebUI
 - `samples/` : サンプル・プロンプト素材
+- `resources/` : プロンプト用のサンプルJSONLなど（管理対象）
 
 ## 1. SQLite生成（元TXTから）
 ```
