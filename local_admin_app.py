@@ -1,10 +1,13 @@
 import argparse
 import json
+import os
 import re
 import sqlite3
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, quote
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
 
 HTML_PAGE = """<!doctype html>
@@ -49,6 +52,7 @@ HTML_PAGE = """<!doctype html>
       <button class="tab active" data-target="prompts" role="tab" aria-selected="true">プロンプト</button>
       <button class="tab" data-target="imports" role="tab">インポート</button>
       <button class="tab" data-target="reports" role="tab">報告一覧</button>
+      <button class="tab" data-target="cloud" role="tab">クラウド集計</button>
       <button class="tab" data-target="preview" role="tab">検索・プレビュー</button>
       <button class="tab" data-target="missing" role="tab">未設定一覧</button>
       <button class="tab" data-target="build" role="tab">ファイル生成</button>
@@ -238,6 +242,19 @@ HTML_PAGE = """<!doctype html>
       <button id="clearReports">チェックした報告フラグを消去</button>
       </div>
       <div id="reportResult"></div>
+    </div>
+
+    <div class="section" data-section="cloud" hidden>
+      <h2>クラウド集計</h2>
+      <p class="note">Supabaseの集計を表示します。環境変数 SUPABASE_URL と SUPABASE_SERVICE_KEY が必要です。</p>
+      <label>取得件数（最大）</label>
+      <input id="cloudLimit" type="number" value="1000" min="1" />
+      <div class="row">
+        <button id="loadCloudFeedback">報告一覧を表示</button>
+        <button id="loadCloudAnswers">正答率集計を表示</button>
+      </div>
+      <div id="cloudFeedbackResult"></div>
+      <div id="cloudAnswersResult"></div>
     </div>
 
     <script>
@@ -813,6 +830,20 @@ HTML_PAGE = """<!doctype html>
         });
       });
 
+      document.getElementById("loadCloudFeedback").addEventListener("click", async () => {
+        const limit = document.getElementById("cloudLimit").value || "1000";
+        const resp = await fetch("/api/supabase/feedback?limit=" + encodeURIComponent(limit));
+        const data = await resp.json();
+        document.getElementById("cloudFeedbackResult").innerHTML = renderCloudFeedback(data);
+      });
+
+      document.getElementById("loadCloudAnswers").addEventListener("click", async () => {
+        const limit = document.getElementById("cloudLimit").value || "1000";
+        const resp = await fetch("/api/supabase/answers?limit=" + encodeURIComponent(limit));
+        const data = await resp.json();
+        document.getElementById("cloudAnswersResult").innerHTML = renderCloudAnswers(data);
+      });
+
       function renderProgress(data) {
         if (!data || !data.total_questions) return "<div>データがありません。</div>";
         var rows = "";
@@ -922,6 +953,47 @@ HTML_PAGE = """<!doctype html>
         return "<div>件数: " + data.count + "</div>" +
           "<table border='1' cellspacing='0' cellpadding='4'>" +
             "<thead><tr><th>シリアル</th><th>解説</th><th>タグ</th><th>小項目</th><th>日時</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function renderCloudFeedback(data) {
+        if (!data || !data.ok) return "<div>" + (data && data.message ? data.message : "取得に失敗しました。") + "</div>";
+        if (!data.items || !data.items.length) return "<div>報告がありません。</div>";
+        var rows = "";
+        data.items.forEach(function(item) {
+          rows += "<tr>" +
+            "<td>" + item.serial + "</td>" +
+            "<td>" + item.explanation_count + "</td>" +
+            "<td>" + item.tag_count + "</td>" +
+            "<td>" + item.subtopic_count + "</td>" +
+            "<td>" + item.total + "</td>" +
+            "<td>" + item.last_reported_at + "</td>" +
+            "</tr>";
+        });
+        return "<div>件数: " + data.count + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4'>" +
+            "<thead><tr><th>シリアル</th><th>解説</th><th>タグ</th><th>小項目</th><th>合計</th><th>最新日時</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function renderCloudAnswers(data) {
+        if (!data || !data.ok) return "<div>" + (data && data.message ? data.message : "取得に失敗しました。") + "</div>";
+        if (!data.items || !data.items.length) return "<div>回答データがありません。</div>";
+        var rows = "";
+        data.items.forEach(function(item) {
+          rows += "<tr>" +
+            "<td>" + item.serial + "</td>" +
+            "<td>" + item.total + "</td>" +
+            "<td>" + item.correct + "</td>" +
+            "<td>" + item.accuracy + "%</td>" +
+            "<td>" + item.last_answer_at + "</td>" +
+            "</tr>";
+        });
+        return "<div>件数: " + data.count + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4'>" +
+            "<thead><tr><th>シリアル</th><th>回答数</th><th>正解数</th><th>正答率</th><th>最新日時</th></tr></thead>" +
             "<tbody>" + rows + "</tbody>" +
           "</table>";
       }
@@ -1404,6 +1476,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/reports":
             payload = list_reports(self.server.db_path)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/supabase/feedback":
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["1000"])[0] or 1000)
+            payload = build_supabase_feedback(limit)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/supabase/answers":
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["1000"])[0] or 1000)
+            payload = build_supabase_answers(limit)
             self._send_json(payload)
             return
 
@@ -2369,6 +2453,115 @@ def clear_feedback_flag(conn, serial, kind):
         "DELETE FROM feedback_reports WHERE serial = ? AND explain = 0 AND tag = 0 AND subtopic = 0",
         (serial,),
     )
+
+
+def supabase_config():
+    url = (os.environ.get("SUPABASE_URL") or "").strip().rstrip("/")
+    key = (
+        os.environ.get("SUPABASE_SERVICE_KEY")
+        or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        or ""
+    ).strip()
+    if not url or not key:
+        return None
+    return {"url": url, "key": key}
+
+
+def fetch_supabase_rows(table, select, limit):
+    cfg = supabase_config()
+    if not cfg:
+        return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    endpoint = (
+        f"{cfg['url']}/rest/v1/{table}"
+        f"?select={quote(select)}&order=created_at.desc&limit={limit}"
+    )
+    req = Request(
+        endpoint,
+        headers={
+            "apikey": cfg["key"],
+            "Authorization": f"Bearer {cfg['key']}",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urlopen(req, timeout=10) as resp:
+            data = resp.read().decode("utf-8")
+        return json.loads(data), ""
+    except URLError as exc:
+        return None, f"Supabase接続に失敗しました: {exc}"
+
+
+def build_supabase_feedback(limit):
+    rows, error = fetch_supabase_rows("feedback", "serial,kind,created_at", limit)
+    if error:
+        return {"ok": False, "message": error, "items": []}
+    if not rows:
+        return {"ok": True, "count": 0, "items": []}
+    summary = {}
+    for row in rows:
+        serial = row.get("serial")
+        kind = row.get("kind")
+        created = row.get("created_at") or ""
+        if not serial or not kind:
+            continue
+        item = summary.get(serial)
+        if not item:
+            item = {
+                "serial": serial,
+                "explanation_count": 0,
+                "tag_count": 0,
+                "subtopic_count": 0,
+                "total": 0,
+                "last_reported_at": created,
+            }
+            summary[serial] = item
+        if kind == "explanation":
+            item["explanation_count"] += 1
+        elif kind == "tag":
+            item["tag_count"] += 1
+        elif kind == "subtopic":
+            item["subtopic_count"] += 1
+        item["total"] += 1
+        if created and created > item["last_reported_at"]:
+            item["last_reported_at"] = created
+    items = sorted(summary.values(), key=lambda x: (-x["total"], x["serial"]))
+    return {"ok": True, "count": len(items), "items": items}
+
+
+def build_supabase_answers(limit):
+    rows, error = fetch_supabase_rows(
+        "answers", "serial,is_correct,selected_index,created_at", limit
+    )
+    if error:
+        return {"ok": False, "message": error, "items": []}
+    if not rows:
+        return {"ok": True, "count": 0, "items": []}
+    summary = {}
+    for row in rows:
+        serial = row.get("serial")
+        if not serial:
+            continue
+        created = row.get("created_at") or ""
+        item = summary.get(serial)
+        if not item:
+            item = {
+                "serial": serial,
+                "total": 0,
+                "correct": 0,
+                "accuracy": 0.0,
+                "last_answer_at": created,
+            }
+            summary[serial] = item
+        item["total"] += 1
+        if row.get("is_correct"):
+            item["correct"] += 1
+        if created and created > item["last_answer_at"]:
+            item["last_answer_at"] = created
+    for item in summary.values():
+        if item["total"]:
+            item["accuracy"] = round(item["correct"] * 100.0 / item["total"], 1)
+    items = sorted(summary.values(), key=lambda x: (-x["total"], x["serial"]))
+    return {"ok": True, "count": len(items), "items": items}
 
 
 def run_command(repo_root, args):

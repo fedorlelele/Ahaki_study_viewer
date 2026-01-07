@@ -108,6 +108,25 @@
         padding-left: 18px;
         margin: 6px 0;
       }
+      .choice-btn {
+        display: inline-block;
+        width: 100%;
+        text-align: left;
+        border: none;
+        background: transparent;
+        padding: 4px 0;
+        font-size: 14px;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .choice-btn:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .choice-btn.selected {
+        background: #e6f0ff;
+        border-radius: 6px;
+      }
       .tagline {
         margin-top: 8px;
         font-size: 12px;
@@ -218,7 +237,14 @@
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+      const SUPABASE_URL = "https://fnidnxgliwclhmvovkji.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_DJCGkRg8OSddT_fG6sp4vw_SZFQ9F1v";
+      const supabaseClient =
+        window.supabase && SUPABASE_URL && SUPABASE_KEY
+          ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+          : null;
       const API_BASE =
         localStorage.getItem("reportApiBase") ||
         (location.port === "8001" ? "" : "http://127.0.0.1:8001");
@@ -401,9 +427,18 @@
 
           const ul = document.createElement("ol");
           ul.className = "choices";
-          (q.choices || []).forEach(choice => {
+          const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
+          (q.choices || []).forEach((choice, idx) => {
             const li = document.createElement("li");
-            li.textContent = choice;
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "choice-btn";
+            btn.textContent = choice;
+            btn.setAttribute("aria-label", `選択肢${idx + 1} ${choice}`);
+            btn.addEventListener("click", () => {
+              handleAnswerSelection(q, idx + 1, btn);
+            });
+            li.appendChild(btn);
             ul.appendChild(li);
           });
           card.appendChild(ul);
@@ -642,6 +677,21 @@
       init();
 
       function sendReport(serial, kind, button) {
+        const anonId = getAnonId();
+        if (supabaseClient) {
+          supabaseClient
+            .from("feedback")
+            .insert([{ serial, kind, anon_id: anonId }])
+            .then(({ error }) => {
+              if (error) {
+                button.classList.remove("reported");
+                console.warn("報告に失敗しました。", error);
+                return;
+              }
+              button.classList.add("reported");
+            });
+          return;
+        }
         fetch(
           `${API_BASE}/api/report?serial=${encodeURIComponent(serial)}&kind=${encodeURIComponent(kind)}`,
           { mode: "cors" }
@@ -659,6 +709,44 @@
             button.classList.remove("reported");
             console.warn("報告に失敗しました。", err);
           });
+      }
+
+      function handleAnswerSelection(question, selectedIndex, button) {
+        const buttons = button.closest("ol")?.querySelectorAll(".choice-btn") || [];
+        buttons.forEach(btn => btn.classList.remove("selected"));
+        button.classList.add("selected");
+        const isCorrect = Number(question.answer_index) === Number(selectedIndex);
+        const anonId = getAnonId();
+        if (supabaseClient) {
+          supabaseClient
+            .from("answers")
+            .insert([
+              {
+                serial: question.serial,
+                is_correct: isCorrect,
+                selected_index: selectedIndex,
+                anon_id: anonId
+              }
+            ])
+            .then(({ error }) => {
+              if (error) {
+                console.warn("回答の記録に失敗しました。", error);
+              }
+            });
+        }
+      }
+
+      function getAnonId() {
+        const key = "anonId";
+        let id = localStorage.getItem(key);
+        if (id) return id;
+        if (crypto && crypto.randomUUID) {
+          id = crypto.randomUUID();
+        } else {
+          id = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        }
+        localStorage.setItem(key, id);
+        return id;
       }
 
       function buildFilterHeader() {
