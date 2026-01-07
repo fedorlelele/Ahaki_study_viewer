@@ -19,7 +19,7 @@ def parse_args():
     )
     parser.add_argument(
         "--samples",
-        default="科目ごと小項目サンプル",
+        default="samples/科目ごと小項目サンプル",
         help="Path to subject subtopic sample folder.",
     )
     parser.add_argument(

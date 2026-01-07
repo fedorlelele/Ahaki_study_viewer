@@ -12,17 +12,18 @@
 - `kokushitxt/output/` : 生成物（SQLite / JSON など）
 - `convert_hikkei_to_json.py` : 既存のTXT -> Excel/JS 変換
 - `build_hikkei_sqlite.py` : TXT -> SQLite + 1問1JSON 生成
-- `generate_explanation_template.py` : 解説用JSONLテンプレ生成
-- `import_explanations.py` : 解説JSONLのSQLite取り込み
-- `generate_tag_template.py` : タグ用JSONLテンプレ生成
-- `import_tags.py` : タグJSONLのSQLite取り込み
-- `generate_subtopic_catalog.py` : 科目ごとの小項目カタログ雛形生成
-- `generate_subtopic_assignment_template.py` : 小項目割当用JSONL生成
-- `import_subtopics.py` : 小項目JSONLのSQLite取り込み
+- `scripts/generate_explanation_template.py` : 解説用JSONLテンプレ生成
+- `scripts/import_explanations.py` : 解説JSONLのSQLite取り込み
+- `scripts/generate_tag_template.py` : タグ用JSONLテンプレ生成
+- `scripts/import_tags.py` : タグJSONLのSQLite取り込み
+- `scripts/generate_subtopic_catalog.py` : 科目ごとの小項目カタログ雛形生成
+- `scripts/generate_subtopic_assignment_template.py` : 小項目割当用JSONL生成
+- `scripts/import_subtopics.py` : 小項目JSONLのSQLite取り込み
 - `config/subtopics_catalog.json` : 小項目カタログ（管理対象）
-- `generate_web_json.py` : WebUI用JSON生成
+- `scripts/generate_web_json.py` : WebUI用JSON生成
 - `local_admin_app.py` : ローカル管理画面
 - `web_app/` : WebUI
+- `samples/` : サンプル・プロンプト素材
 
 ## 1. SQLite生成（元TXTから）
 ```
@@ -35,7 +36,7 @@ python build_hikkei_sqlite.py
 ## 2. 解説の追加（JSONL）
 ### 2-1. テンプレ生成（10問）
 ```
-python generate_explanation_template.py --limit 10 \
+python scripts/generate_explanation_template.py --limit 10 \
   --out kokushitxt/output/explanations_batch.jsonl \
   --prompt-out kokushitxt/output/explanations_batch_prompt.txt
 ```
@@ -46,13 +47,13 @@ python generate_explanation_template.py --limit 10 \
 
 ### 2-3. SQLiteに取り込み
 ```
-python import_explanations.py --infile kokushitxt/output/explanations_batch_filled.jsonl
+python scripts/import_explanations.py --infile kokushitxt/output/explanations_batch_filled.jsonl
 ```
 
 ## 3. タグ付け（JSONL）
 ### 3-1. テンプレ生成（10問）
 ```
-python generate_tag_template.py --limit 10 \
+python scripts/generate_tag_template.py --limit 10 \
   --out kokushitxt/output/tags_batch.jsonl \
   --prompt-out kokushitxt/output/tags_batch_prompt.txt
 ```
@@ -63,19 +64,19 @@ python generate_tag_template.py --limit 10 \
 
 ### 3-3. SQLiteに取り込み
 ```
-python import_tags.py --infile kokushitxt/output/tags_batch_filled.jsonl
+python scripts/import_tags.py --infile kokushitxt/output/tags_batch_filled.jsonl
 ```
 
 ## 4. 小項目（サブトピック）
 ### 4-1. 科目ごとの候補リスト作成
 ```
-python generate_subtopic_catalog.py --out config/subtopics_catalog.json
+python scripts/generate_subtopic_catalog.py --out config/subtopics_catalog.json
 ```
 `config/subtopics_catalog.json` を編集して、科目ごとに候補リストを記入します。
 
 ### 4-2. 割り当て用JSONL生成
 ```
-python generate_subtopic_assignment_template.py --limit 10 \
+python scripts/generate_subtopic_assignment_template.py --limit 10 \
   --catalog config/subtopics_catalog.json \
   --out kokushitxt/output/subtopics_batch.jsonl \
   --prompt-out kokushitxt/output/subtopics_batch_prompt.txt
@@ -87,7 +88,7 @@ python generate_subtopic_assignment_template.py --limit 10 \
 
 ### 4-4. SQLiteに取り込み
 ```
-python import_subtopics.py --infile kokushitxt/output/subtopics_batch_filled.jsonl
+python scripts/import_subtopics.py --infile kokushitxt/output/subtopics_batch_filled.jsonl
 ```
 
 ## SQLite確認（例）
@@ -113,7 +114,7 @@ LIMIT 5;
 python -m http.server 8000
 ```
 ブラウザで `http://127.0.0.1:8000/web_app/` を開いてください。
-※ 事前に `generate_web_json.py` を実行し、`kokushitxt/output/web/` にJSONを生成しておく必要があります。
+※ 事前に `scripts/generate_web_json.py` を実行し、`kokushitxt/output/web/` にJSONを生成しておく必要があります。
 
 ### 機能
 - キーワード検索（空白区切りのAND検索）

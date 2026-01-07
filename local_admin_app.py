@@ -1066,7 +1066,7 @@ def parse_args():
     )
     parser.add_argument(
         "--prompt-sample",
-        default="custum_prompt_sample.txt",
+        default="samples/custum_prompt_sample.txt",
         help="Path to explanation prompt sample text.",
     )
     parser.add_argument(
@@ -2601,7 +2601,7 @@ def run_build_web(repo_root):
     message = run_command(
         repo_root,
         [
-            "generate_web_json.py",
+            "scripts/generate_web_json.py",
             "--out",
             "kokushitxt/output/web/questions.json",
             "--index-dir",
@@ -2618,7 +2618,7 @@ def run_build_all(repo_root):
         run_command(
             repo_root,
             [
-                "generate_study_sets.py",
+                "scripts/generate_study_sets.py",
                 "--out",
                 "kokushitxt/output/study_sets.json",
             ],
@@ -2628,7 +2628,7 @@ def run_build_all(repo_root):
         run_command(
             repo_root,
             [
-                "generate_progress_report.py",
+                "scripts/generate_progress_report.py",
                 "--out",
                 "kokushitxt/output/progress_report.json",
             ],

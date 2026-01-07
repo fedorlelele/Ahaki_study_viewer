@@ -31,7 +31,7 @@ def parse_args():
     )
     parser.add_argument(
         "--prompt-template",
-        default="custum_prompt_sample.txt",
+        default="samples/custum_prompt_sample.txt",
         help="Path to the prompt sample text.",
     )
     parser.add_argument(
