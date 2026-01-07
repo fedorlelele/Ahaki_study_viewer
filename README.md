@@ -10,8 +10,8 @@
 ## ディレクトリ構成
 - `kokushitxt/` : 元のTXTファイル
 - `output/` : 生成物（SQLite / JSON など）
-- `convert_hikkei_to_json.py` : 既存のTXT -> Excel/JS 変換
-- `build_hikkei_sqlite.py` : TXT -> SQLite + 1問1JSON 生成
+- `convert_ahaki_to_json.py` : 既存のTXT -> Excel/JS 変換
+- `build_ahaki_sqlite.py` : TXT -> SQLite + 1問1JSON 生成
 - `scripts/generate_explanation_template.py` : 解説用JSONLテンプレ生成
 - `scripts/import_explanations.py` : 解説JSONLのSQLite取り込み
 - `scripts/generate_tag_template.py` : タグ用JSONLテンプレ生成
@@ -28,10 +28,10 @@
 
 ## 1. SQLite生成（元TXTから）
 ```
-python build_hikkei_sqlite.py
+python build_ahaki_sqlite.py
 ```
 出力:
-- `output/hikkei.sqlite`
+- `output/ahaki.sqlite`
 - `output/questions_json/`（1問1JSON）
 
 ## 2. 解説の追加（JSONL）
@@ -94,7 +94,7 @@ python scripts/import_subtopics.py --infile output/subtopics_batch_filled.jsonl
 
 ## SQLite確認（例）
 ```
-sqlite3 output/hikkei.sqlite
+sqlite3 output/ahaki.sqlite
 .tables
 SELECT q.serial, s.name, q.stem
 FROM questions q

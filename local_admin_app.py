@@ -1045,7 +1045,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Local admin server.")
     parser.add_argument(
         "--db",
-        default="output/hikkei.sqlite",
+        default="output/ahaki.sqlite",
         help="Path to SQLite database.",
     )
     parser.add_argument(

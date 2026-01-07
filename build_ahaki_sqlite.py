@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from convert_hikkei_to_json import (
+from convert_ahaki_to_json import (
     add_subject_to_questions_and_rearrange_columns,
     clean_subject_names,
     generate_question_number,
@@ -185,7 +185,7 @@ def main():
     output_dir = base_dir / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    db_path = output_dir / "hikkei.sqlite"
+    db_path = output_dir / "ahaki.sqlite"
     json_dir = output_dir / "questions_json"
     json_dir.mkdir(parents=True, exist_ok=True)
 
