@@ -1045,7 +1045,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Local admin server.")
     parser.add_argument(
         "--db",
-        default="kokushitxt/output/hikkei.sqlite",
+        default="output/hikkei.sqlite",
         help="Path to SQLite database.",
     )
     parser.add_argument(
@@ -2603,9 +2603,9 @@ def run_build_web(repo_root):
         [
             "scripts/generate_web_json.py",
             "--out",
-            "kokushitxt/output/web/questions.json",
+            "output/web/questions.json",
             "--index-dir",
-            "kokushitxt/output/web/index",
+            "output/web/index",
         ],
     )
     return message
@@ -2620,7 +2620,7 @@ def run_build_all(repo_root):
             [
                 "scripts/generate_study_sets.py",
                 "--out",
-                "kokushitxt/output/study_sets.json",
+                "output/study_sets.json",
             ],
         )
     )
@@ -2630,7 +2630,7 @@ def run_build_all(repo_root):
             [
                 "scripts/generate_progress_report.py",
                 "--out",
-                "kokushitxt/output/progress_report.json",
+                "output/progress_report.json",
             ],
         )
     )

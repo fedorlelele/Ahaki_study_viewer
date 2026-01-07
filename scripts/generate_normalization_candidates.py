@@ -11,12 +11,12 @@ def parse_args():
     )
     parser.add_argument(
         "--db",
-        default="kokushitxt/output/hikkei.sqlite",
+        default="output/hikkei.sqlite",
         help="Path to SQLite database.",
     )
     parser.add_argument(
         "--out",
-        default="kokushitxt/output/normalization_candidates.json",
+        default="output/normalization_candidates.json",
         help="Output JSON path.",
     )
     return parser.parse_args()

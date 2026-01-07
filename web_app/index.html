@@ -288,9 +288,9 @@
 
       function loadData() {
         return Promise.all([
-          fetch("../kokushitxt/output/web/questions.json").then(r => r.json()),
-          fetch("../kokushitxt/output/web/index/index_by_subject.json").then(r => r.json()),
-          fetch("../kokushitxt/output/web/index/index_by_subtopic.json").then(r => r.json())
+          fetch("../output/web/questions.json").then(r => r.json()),
+          fetch("../output/web/index/index_by_subject.json").then(r => r.json()),
+          fetch("../output/web/index/index_by_subtopic.json").then(r => r.json())
         ]).then(([questions, bySubject, bySubtopic]) => {
           state.questions = questions;
           state.indexBySubject = bySubject;

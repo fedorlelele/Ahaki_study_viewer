@@ -10,12 +10,12 @@ def parse_args():
     )
     parser.add_argument(
         "--db",
-        default="kokushitxt/output/hikkei.sqlite",
+        default="output/hikkei.sqlite",
         help="Path to SQLite database.",
     )
     parser.add_argument(
         "--infile",
-        default="kokushitxt/output/tags_batch.jsonl",
+        default="output/tags_batch.jsonl",
         help="Input JSONL path.",
     )
     parser.add_argument(

@@ -14,7 +14,7 @@ def parse_args():
     )
     parser.add_argument(
         "--db",
-        default="kokushitxt/output/hikkei.sqlite",
+        default="output/hikkei.sqlite",
         help="Path to SQLite database (for subject validation).",
     )
     parser.add_argument(

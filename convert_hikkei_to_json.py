@@ -152,8 +152,9 @@ def save_df_as_js(df, js_path, var_name='data'):
 # ──────────────────────────────────
 def process_all_files_in_directory(directory_path):
     txt_files = [f for f in os.listdir(directory_path) if f.lower().endswith('.txt')]
-    # Creating output directory named 'output' inside the data directory
-    output_dir = os.path.join(directory_path, 'output')
+    # Creating output directory at project-level output/convert
+    base_dir = os.path.dirname(directory_path)
+    output_dir = os.path.join(base_dir, 'output', 'convert')
     os.makedirs(output_dir, exist_ok=True)
 
     all_df = pd.DataFrame()

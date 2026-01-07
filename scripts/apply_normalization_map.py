@@ -10,12 +10,12 @@ def parse_args():
     )
     parser.add_argument(
         "--db",
-        default="kokushitxt/output/hikkei.sqlite",
+        default="output/hikkei.sqlite",
         help="Path to SQLite database.",
     )
     parser.add_argument(
         "--map",
-        default="kokushitxt/output/normalization_map.json",
+        default="output/normalization_map.json",
         help="Normalization map JSON path.",
     )
     return parser.parse_args()

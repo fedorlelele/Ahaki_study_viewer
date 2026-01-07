@@ -182,7 +182,7 @@ def build_question_json(record):
 def main():
     base_dir = Path(__file__).resolve().parent
     input_dir = base_dir / "kokushitxt"
-    output_dir = input_dir / "output"
+    output_dir = base_dir / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     db_path = output_dir / "hikkei.sqlite"

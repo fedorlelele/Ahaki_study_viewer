@@ -9,7 +9,7 @@
 
 ## ディレクトリ構成
 - `kokushitxt/` : 元のTXTファイル
-- `kokushitxt/output/` : 生成物（SQLite / JSON など）
+- `output/` : 生成物（SQLite / JSON など）
 - `convert_hikkei_to_json.py` : 既存のTXT -> Excel/JS 変換
 - `build_hikkei_sqlite.py` : TXT -> SQLite + 1問1JSON 生成
 - `scripts/generate_explanation_template.py` : 解説用JSONLテンプレ生成
@@ -30,15 +30,15 @@
 python build_hikkei_sqlite.py
 ```
 出力:
-- `kokushitxt/output/hikkei.sqlite`
-- `kokushitxt/output/questions_json/`（1問1JSON）
+- `output/hikkei.sqlite`
+- `output/questions_json/`（1問1JSON）
 
 ## 2. 解説の追加（JSONL）
 ### 2-1. テンプレ生成（10問）
 ```
 python scripts/generate_explanation_template.py --limit 10 \
-  --out kokushitxt/output/explanations_batch.jsonl \
-  --prompt-out kokushitxt/output/explanations_batch_prompt.txt
+  --out output/explanations_batch.jsonl \
+  --prompt-out output/explanations_batch_prompt.txt
 ```
 
 ### 2-2. LLMで解説を埋める
@@ -47,15 +47,15 @@ python scripts/generate_explanation_template.py --limit 10 \
 
 ### 2-3. SQLiteに取り込み
 ```
-python scripts/import_explanations.py --infile kokushitxt/output/explanations_batch_filled.jsonl
+python scripts/import_explanations.py --infile output/explanations_batch_filled.jsonl
 ```
 
 ## 3. タグ付け（JSONL）
 ### 3-1. テンプレ生成（10問）
 ```
 python scripts/generate_tag_template.py --limit 10 \
-  --out kokushitxt/output/tags_batch.jsonl \
-  --prompt-out kokushitxt/output/tags_batch_prompt.txt
+  --out output/tags_batch.jsonl \
+  --prompt-out output/tags_batch_prompt.txt
 ```
 
 ### 3-2. LLMでタグを埋める
@@ -64,7 +64,7 @@ python scripts/generate_tag_template.py --limit 10 \
 
 ### 3-3. SQLiteに取り込み
 ```
-python scripts/import_tags.py --infile kokushitxt/output/tags_batch_filled.jsonl
+python scripts/import_tags.py --infile output/tags_batch_filled.jsonl
 ```
 
 ## 4. 小項目（サブトピック）
@@ -78,8 +78,8 @@ python scripts/generate_subtopic_catalog.py --out config/subtopics_catalog.json
 ```
 python scripts/generate_subtopic_assignment_template.py --limit 10 \
   --catalog config/subtopics_catalog.json \
-  --out kokushitxt/output/subtopics_batch.jsonl \
-  --prompt-out kokushitxt/output/subtopics_batch_prompt.txt
+  --out output/subtopics_batch.jsonl \
+  --prompt-out output/subtopics_batch_prompt.txt
 ```
 
 ### 4-3. LLMで小項目を割り当て
@@ -88,12 +88,12 @@ python scripts/generate_subtopic_assignment_template.py --limit 10 \
 
 ### 4-4. SQLiteに取り込み
 ```
-python scripts/import_subtopics.py --infile kokushitxt/output/subtopics_batch_filled.jsonl
+python scripts/import_subtopics.py --infile output/subtopics_batch_filled.jsonl
 ```
 
 ## SQLite確認（例）
 ```
-sqlite3 kokushitxt/output/hikkei.sqlite
+sqlite3 output/hikkei.sqlite
 .tables
 SELECT q.serial, s.name, q.stem
 FROM questions q
@@ -104,7 +104,7 @@ LIMIT 5;
 ## 補足
 - LLMの出力は「JSONLファイルとして保存して返す」指定になっています。
 - 既存データを壊さず、追記型で解説・タグ・小項目を蓄積します。
-- `kokushitxt/output/` は生成物のため `.gitignore` で除外しています。
+- `output/` は生成物のため `.gitignore` で除外しています。
 
 ## 5. Webアプリ簡易ビュー
 `web_app/index.html` に検索・絞り込み・コピー機能を備えた簡易ビューがあります。
@@ -114,7 +114,7 @@ LIMIT 5;
 python -m http.server 8000
 ```
 ブラウザで `http://127.0.0.1:8000/web_app/` を開いてください。
-※ 事前に `scripts/generate_web_json.py` を実行し、`kokushitxt/output/web/` にJSONを生成しておく必要があります。
+※ 事前に `scripts/generate_web_json.py` を実行し、`output/web/` にJSONを生成しておく必要があります。
 
 ### 機能
 - キーワード検索（空白区切りのAND検索）
@@ -165,5 +165,5 @@ python local_admin_app.py --port 8001
 - WebUI用ファイル生成 / 一括生成
 
 ### WebUI反映について
-管理画面からのインポート時に、WebUI用ファイル（`kokushitxt/output/web/`）を
+管理画面からのインポート時に、WebUI用ファイル（`output/web/`）を
 自動で再生成します。WebUIの表示が古い場合はブラウザを強制リロードしてください。
