@@ -116,6 +116,17 @@ python -m http.server 8000
 ブラウザで `http://127.0.0.1:8000/web_app/` を開いてください。
 ※ 事前に `scripts/generate_web_json.py` を実行し、`output/web/` にJSONを生成しておく必要があります。
 
+## 7. GitHub Pagesで公開
+GitHub Pagesを使う場合は `docs/` に公開用ファイルを生成します。
+
+```
+python scripts/generate_web_json.py
+bash scripts/prepare_pages.sh
+```
+
+GitHubのSettings → Pagesで `docs/` を公開対象に設定し、公開URLの
+`/web_app/` を開くとWebUIが表示されます。
+
 ### 機能
 - キーワード検索（空白区切りのAND検索）
 - タグ検索はキーワードに `#タグ名` を指定
