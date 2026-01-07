@@ -127,6 +127,21 @@
         background: #e6f0ff;
         border-radius: 6px;
       }
+      .choice-btn.correct {
+        background: #e6f7ed;
+        color: #0b5c2b;
+        border-radius: 6px;
+      }
+      .choice-btn.incorrect {
+        background: #ffe7ea;
+        color: #7a0015;
+        border-radius: 6px;
+      }
+      .choice-feedback {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
       .tagline {
         margin-top: 8px;
         font-size: 12px;
@@ -233,6 +248,7 @@
 
     <div class="toolbar">
       <button id="copyAllBtn" aria-label="検索結果をコピー">検索結果をコピー</button>
+      <button id="resetAnswersBtn" aria-label="回答履歴をリセット">回答履歴をリセット</button>
     </div>
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
     </main>
@@ -252,7 +268,8 @@
         questions: [],
         indexBySubject: {},
         indexBySubtopic: {},
-        subtopicsBySubject: {}
+        subtopicsBySubject: {},
+        answeredMap: {}
       };
 
       function populateSelect(select, items) {
@@ -428,6 +445,8 @@
           const ul = document.createElement("ol");
           ul.className = "choices";
           const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
+          const answered = getAnswered(q.serial);
+          const correctIndex = Number(q.answer_index);
           (q.choices || []).forEach((choice, idx) => {
             const li = document.createElement("li");
             const btn = document.createElement("button");
@@ -435,6 +454,15 @@
             btn.className = "choice-btn";
             btn.textContent = choice;
             btn.setAttribute("aria-label", `選択肢${idx + 1} ${choice}`);
+            if (answered) {
+              btn.disabled = true;
+              if (idx + 1 === correctIndex) {
+                btn.classList.add("correct");
+              }
+              if (answered.selectedIndex === idx + 1 && !answered.isCorrect) {
+                btn.classList.add("incorrect");
+              }
+            }
             btn.addEventListener("click", () => {
               handleAnswerSelection(q, idx + 1, btn);
             });
@@ -442,6 +470,13 @@
             ul.appendChild(li);
           });
           card.appendChild(ul);
+
+          const feedback = document.createElement("div");
+          feedback.className = "choice-feedback";
+          if (answered) {
+            feedback.textContent = answered.isCorrect ? "正解" : "不正解";
+          }
+          card.appendChild(feedback);
 
           const tags = document.createElement("div");
           tags.className = "tagline";
@@ -567,6 +602,7 @@
       }
 
       function init() {
+        loadAnsweredState();
         loadData().then(() => {
           populateSelect(
             document.getElementById("subjectSelect"),
@@ -628,12 +664,21 @@
           renderResults(filterQuestions());
         });
 
-        document.getElementById("copyAllBtn").addEventListener("click", () => {
-          const list = filterQuestions();
-          const header = buildFilterHeader();
-          const body = list.map(q => formatQuestionForCopy(q)).join("\n\n");
-          copyToClipboard(`${header}\n\n${body}`.trim());
-        });
+      document.getElementById("copyAllBtn").addEventListener("click", () => {
+        const list = filterQuestions();
+        const header = buildFilterHeader();
+        const body = list.map(q => formatQuestionForCopy(q)).join("\n\n");
+        copyToClipboard(`${header}\n\n${body}`.trim());
+      });
+
+      document.getElementById("resetAnswersBtn").addEventListener("click", () => {
+        if (!confirm("回答履歴をリセットしますか？")) {
+          return;
+        }
+        state.answeredMap = {};
+        localStorage.removeItem("answeredSerials");
+        renderResults(filterQuestions());
+      });
 
         document.getElementById("keyword").addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
@@ -712,10 +757,27 @@
       }
 
       function handleAnswerSelection(question, selectedIndex, button) {
+        if (hasAnswered(question.serial)) {
+          return;
+        }
+        const correctIndex = Number(question.answer_index);
+        const isCorrect = Number(selectedIndex) === correctIndex;
         const buttons = button.closest("ol")?.querySelectorAll(".choice-btn") || [];
-        buttons.forEach(btn => btn.classList.remove("selected"));
-        button.classList.add("selected");
-        const isCorrect = Number(question.answer_index) === Number(selectedIndex);
+        buttons.forEach((btn, idx) => {
+          btn.disabled = true;
+          btn.classList.remove("selected", "correct", "incorrect");
+          if (idx + 1 === correctIndex) {
+            btn.classList.add("correct");
+          }
+        });
+        if (!isCorrect) {
+          button.classList.add("incorrect");
+        }
+        const feedback = button.closest(".card")?.querySelector(".choice-feedback");
+        if (feedback) {
+          feedback.textContent = isCorrect ? "正解" : "不正解";
+        }
+        markAnswered(question.serial, selectedIndex, isCorrect);
         const anonId = getAnonId();
         if (supabaseClient) {
           supabaseClient
@@ -734,6 +796,43 @@
               }
             });
         }
+      }
+
+      function hasAnswered(serial) {
+        return Boolean(state.answeredMap[serial]);
+      }
+
+      function getAnswered(serial) {
+        return state.answeredMap[serial] || null;
+      }
+
+      function markAnswered(serial, selectedIndex, isCorrect) {
+        state.answeredMap[serial] = {
+          selectedIndex: Number(selectedIndex),
+          isCorrect: Boolean(isCorrect)
+        };
+        saveAnsweredState();
+      }
+
+      function loadAnsweredState() {
+        const key = "answeredSerials";
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        try {
+          const map = JSON.parse(raw);
+          if (map && typeof map === "object") {
+            Object.keys(map).forEach(serial => {
+              state.answeredMap[serial] = map[serial];
+            });
+          }
+        } catch (err) {
+          localStorage.removeItem(key);
+        }
+      }
+
+      function saveAnsweredState() {
+        const key = "answeredSerials";
+        localStorage.setItem(key, JSON.stringify(state.answeredMap));
       }
 
       function getAnonId() {
