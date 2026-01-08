@@ -9,6 +9,10 @@ mkdir -p "${DOCS_DIR}/output/web"
 
 cp -R "${ROOT_DIR}/web_app" "${DOCS_DIR}/"
 
+if [ -f "${ROOT_DIR}/web_app/config.js" ]; then
+  cp "${ROOT_DIR}/web_app/config.js" "${DOCS_DIR}/web_app/config.js"
+fi
+
 if [ -d "${ROOT_DIR}/output/web" ]; then
   cp -R "${ROOT_DIR}/output/web/"* "${DOCS_DIR}/output/web/"
 fi
