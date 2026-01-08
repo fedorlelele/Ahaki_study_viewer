@@ -6,3 +6,4 @@ output/
 !docs/output/**
 kokushitxt/
 samples/
+web_app/config.js

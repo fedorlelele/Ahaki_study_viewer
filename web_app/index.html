@@ -254,9 +254,10 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
     <script>
-      const SUPABASE_URL = "https://fnidnxgliwclhmvovkji.supabase.co";
-      const SUPABASE_KEY = "sb_publishable_DJCGkRg8OSddT_fG6sp4vw_SZFQ9F1v";
+      const SUPABASE_URL = window.SUPABASE_URL || "";
+      const SUPABASE_KEY = window.SUPABASE_KEY || "";
       const supabaseClient =
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)

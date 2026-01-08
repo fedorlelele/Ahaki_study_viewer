@@ -117,6 +117,11 @@ python -m http.server 8000
 ブラウザで `http://127.0.0.1:8000/web_app/` を開いてください。
 ※ 事前に `scripts/generate_web_json.py` を実行し、`output/web/` にJSONを生成しておく必要があります。
 
+### Supabase設定（WebUI）
+`web_app/config.example.js` を `web_app/config.js` にコピーして、
+Supabaseの `Publishable key` と `Project URL` を設定してください。
+`web_app/config.js` は `.gitignore` で除外されています。
+
 ## 7. GitHub Pagesで公開
 GitHub Pagesを使う場合は `docs/` に公開用ファイルを生成します。
 
