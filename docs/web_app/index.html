@@ -64,6 +64,14 @@
         cursor: pointer;
         font-size: 12px;
       }
+      .toolbar select {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 2px solid var(--line);
+        background: #fff;
+        cursor: pointer;
+        font-size: 12px;
+      }
       .toolbar {
         padding: 0 24px 18px;
         display: flex;
@@ -188,6 +196,14 @@
       .card-actions {
         margin-top: 10px;
       }
+      details.inline {
+        margin-top: 8px;
+      }
+      details.inline > summary {
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--muted);
+      }
       .card-actions button,
       .card-actions select {
         padding: 6px 10px;
@@ -220,22 +236,24 @@
     <main role="main" aria-label="学習ビュー">
     <div class="controls" role="search" aria-label="検索と絞り込み">
       <input id="keyword" type="text" placeholder="キーワード検索（例: #解剖学 筋）" aria-label="キーワード検索" />
-      <select id="subjectSelect" aria-label="科目の選択"><option value="">科目</option></select>
-      <select id="subtopicSelect" aria-label="小項目の選択"><option value="">小項目</option></select>
-      <select id="examTypeSelect" aria-label="試験種別の選択">
-        <option value="">種別</option>
-        <option value="A">A</option>
-        <option value="B">B</option>
-      </select>
-      <select id="sessionSelect" aria-label="試験回数の選択"><option value="">回数</option></select>
-      <select id="sortSession" aria-label="試験回数でソート">
-        <option value="">回数ソート</option>
-        <option value="desc" selected>新しい順</option>
-        <option value="asc">古い順</option>
-      </select>
-      <label><input type="checkbox" id="hasExplanation" /> 解説あり</label>
-      <label><input type="checkbox" id="hasTags" /> タグあり</label>
-      <label><input type="checkbox" id="hasSubtopics" /> 小項目あり</label>
+      <details class="inline">
+        <summary>詳細フィルタ</summary>
+        <div class="row">
+          <select id="subjectSelect" aria-label="科目の選択"><option value="">科目</option></select>
+          <select id="subtopicSelect" aria-label="小項目の選択"><option value="">小項目</option></select>
+          <select id="examTypeSelect" aria-label="試験種別の選択">
+            <option value="">種別</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+          </select>
+          <select id="sessionSelect" aria-label="試験回数の選択"><option value="">回数</option></select>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="hasExplanation" /> 解説あり</label>
+          <label><input type="checkbox" id="hasTags" /> タグあり</label>
+          <label><input type="checkbox" id="hasSubtopics" /> 小項目あり</label>
+        </div>
+      </details>
       <button id="searchBtn" aria-label="検索を実行">検索</button>
       <button id="resetBtn" aria-label="検索条件をリセット">リセット</button>
     </div>
@@ -249,6 +267,11 @@
     <div class="toolbar">
       <button id="copyAllBtn" aria-label="検索結果をコピー">検索結果をコピー</button>
       <button id="resetAnswersBtn" aria-label="回答履歴をリセット">回答履歴をリセット</button>
+      <select id="sortSession" aria-label="試験回数でソート">
+        <option value="">回数ソート</option>
+        <option value="desc" selected>新しい順</option>
+        <option value="asc">古い順</option>
+      </select>
     </div>
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
     </main>
@@ -535,6 +558,12 @@
           explanation.textContent = expText ? `解説:\n${expText}` : "解説: (未登録)";
           card.appendChild(explanation);
 
+          const actionWrap = document.createElement("details");
+          actionWrap.className = "inline";
+          const actionSummary = document.createElement("summary");
+          actionSummary.textContent = "操作を表示";
+          actionWrap.appendChild(actionSummary);
+
           const actions = document.createElement("div");
           actions.className = "card-actions";
           const toggleBtn = document.createElement("button");
@@ -596,7 +625,8 @@
             });
             actions.appendChild(select);
           }
-          card.appendChild(actions);
+          actionWrap.appendChild(actions);
+          card.appendChild(actionWrap);
 
           container.appendChild(card);
         });
@@ -777,6 +807,10 @@
         const feedback = button.closest(".card")?.querySelector(".choice-feedback");
         if (feedback) {
           feedback.textContent = isCorrect ? "正解" : "不正解";
+        }
+        const card = button.closest(".card");
+        if (card) {
+          card.classList.add("show-explanation");
         }
         markAnswered(question.serial, selectedIndex, isCorrect);
         const anonId = getAnonId();
