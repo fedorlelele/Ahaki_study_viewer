@@ -209,3 +209,29 @@ python local_admin_app.py --port 8001
 ### WebUI反映について
 管理画面からのインポート時に、WebUI用ファイル（`output/web/`）を
 自動で再生成します。WebUIの表示が古い場合はブラウザを強制リロードしてください。
+
+## 7. Gemini APIでの一括自動生成（CLI）
+Gemini 3 Flash preview（思考モード）で、解説・タグ・小項目の一括生成を
+20問単位で実行し、JSONLを自動インポートします。
+
+### 事前準備
+`.env` にAPIキーを保存（gitignore済み）。
+```
+GEMINI_API_KEY=YOUR_KEY
+```
+
+### 実行例
+```
+python scripts/run_gemini_combined.py --limit 20 --batches 3 --sleep-seconds 20
+```
+
+### 主なオプション
+- `--batches` : 実行回数（1回=20問）
+- `--sleep-seconds` : バッチ間の待機秒数（無料枠対策）
+- `--max-per-day` : 1日あたりの上限回数（既定25）
+- `--model` : 使用モデルID（既定 `gemini-3.0-flash-preview`）
+- `--thinking-budget` : 思考モードの予算（0で無効）
+- `--unannotated` / `--all` : 未設定のみ / 既存を含む
+- `--rebuild-web` / `--no-rebuild-web` : WebUI用データ再生成の有無
+
+実行履歴は `output/gemini_usage.json` に記録されます。

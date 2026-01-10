@@ -7,3 +7,4 @@ output/
 kokushitxt/
 samples/
 web_app/config.js
+.env
