@@ -25,6 +25,13 @@
       header {
         padding: 28px 24px 10px;
       }
+      .header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
       h1 {
         margin: 0;
         font-size: clamp(24px, 4vw, 36px);
@@ -79,6 +86,13 @@
         align-items: center;
         color: var(--muted);
         font-size: 13px;
+      }
+      .toolbar.main {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .toolbar .auth-panel {
+        margin-top: 0;
       }
       .results {
         padding: 0 24px 40px;
@@ -204,6 +218,40 @@
         font-size: 12px;
         color: var(--muted);
       }
+      .auth-panel {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 12px;
+      }
+      .auth-panel input {
+        width: 220px;
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        margin-right: 6px;
+      }
+      .auth-panel .note {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .auth-toggle {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 2px solid var(--line);
+        background: #fff;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .auth-container {
+        padding: 0 24px 12px;
+      }
+      .auth-panel[hidden] {
+        display: none;
+      }
       .card-actions button,
       .card-actions select {
         padding: 6px 10px;
@@ -229,8 +277,25 @@
   </head>
   <body>
     <header>
-      <h1>Ahaki Study Viewer</h1>
+      <div class="header-row">
+        <h1>Ahaki Study Viewer</h1>
+        <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">教師ログイン</button>
+      </div>
       <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
+      <div class="auth-container">
+        <div class="auth-panel" id="teacherAuth" hidden>
+          <div id="authStatus" class="note">未ログイン</div>
+          <div id="authForm">
+            <input id="authEmail" type="email" placeholder="メールアドレス" />
+            <input id="authPassword" type="password" placeholder="パスワード" />
+            <button id="authLoginBtn" type="button">ログイン</button>
+          </div>
+          <div id="authActions" hidden>
+            <button id="authLogoutBtn" type="button">ログアウト</button>
+          </div>
+          <div id="authMessage" class="note"></div>
+        </div>
+      </div>
     </header>
 
     <main role="main" aria-label="学習ビュー">
@@ -264,7 +329,7 @@
       <span id="countInfo" aria-live="polite"></span>
     </div>
 
-    <div class="toolbar">
+    <div class="toolbar main">
       <button id="copyAllBtn" aria-label="検索結果をコピー">検索結果をコピー</button>
       <button id="resetAnswersBtn" aria-label="回答履歴をリセット">回答履歴をリセット</button>
       <select id="sortSession" aria-label="試験回数でソート">
@@ -648,6 +713,8 @@
           renderResults(filterQuestions());
         });
 
+        initAuthUI();
+
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
         });
@@ -785,6 +852,78 @@
             button.classList.remove("reported");
             console.warn("報告に失敗しました。", err);
           });
+      }
+
+      function initAuthUI() {
+        const status = document.getElementById("authStatus");
+        const form = document.getElementById("authForm");
+        const actions = document.getElementById("authActions");
+        const message = document.getElementById("authMessage");
+        const emailInput = document.getElementById("authEmail");
+        const passwordInput = document.getElementById("authPassword");
+        const loginBtn = document.getElementById("authLoginBtn");
+        const logoutBtn = document.getElementById("authLogoutBtn");
+        const toggleBtn = document.getElementById("authToggleBtn");
+        const panel = document.getElementById("teacherAuth");
+
+        if (!supabaseClient) {
+          status.textContent = "Supabase未設定";
+          form.hidden = true;
+          panel.hidden = true;
+          toggleBtn.hidden = true;
+          return;
+        }
+
+        toggleBtn.addEventListener("click", () => {
+          const next = panel.hidden;
+          panel.hidden = !next ? true : false;
+          toggleBtn.setAttribute("aria-expanded", next ? "true" : "false");
+        });
+
+        supabaseClient.auth.getSession().then(({ data }) => {
+          updateAuthUI(data.session);
+        });
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+          updateAuthUI(session);
+        });
+
+        loginBtn.addEventListener("click", async () => {
+          const email = emailInput.value.trim();
+          const password = passwordInput.value;
+          message.textContent = "";
+          if (!email || !password) {
+            message.textContent = "メールとパスワードを入力してください。";
+            return;
+          }
+          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) {
+            message.textContent = "ログインに失敗しました。";
+            return;
+          }
+          message.textContent = "ログインしました。";
+        });
+
+        logoutBtn.addEventListener("click", async () => {
+          message.textContent = "";
+          const { error } = await supabaseClient.auth.signOut();
+          if (error) {
+            message.textContent = "ログアウトに失敗しました。";
+            return;
+          }
+          message.textContent = "ログアウトしました。";
+        });
+
+        function updateAuthUI(session) {
+          if (session && session.user) {
+            status.textContent = `ログイン中: ${session.user.email}`;
+            form.hidden = true;
+            actions.hidden = false;
+          } else {
+            status.textContent = "未ログイン";
+            form.hidden = false;
+            actions.hidden = true;
+          }
+        }
       }
 
       function handleAnswerSelection(question, selectedIndex, button) {
