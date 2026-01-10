@@ -221,6 +221,7 @@ HTML_PAGE = """<!doctype html>
 
     <div class="section" data-section="reports" hidden>
       <h2>報告一覧</h2>
+      <p class="note">Supabaseのfeedbackを参照します（SUPABASE_URL / SUPABASE_SERVICE_KEY が必要）。</p>
       <button id="loadReports">報告を表示</button>
       <div class="report-panel">
         <strong>プロンプト対象にセットする条件</strong>
@@ -927,7 +928,12 @@ HTML_PAGE = """<!doctype html>
       }
 
       function renderReports(data) {
-        if (!data || !data.items || !data.items.length) return "<div>報告がありません。</div>";
+        if (!data || !data.items || !data.items.length) {
+          if (data && data.message) {
+            return "<div>" + data.message + "</div>";
+          }
+          return "<div>報告がありません。</div>";
+        }
         var rows = "";
         data.items.forEach(function(item) {
           var explainBox = item.explanation
@@ -1471,11 +1477,13 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             serial = params.get("serial", [""])[0]
             kind = params.get("kind", [""])[0]
-            message = add_report(self.server.db_path, serial, kind)
-            self._send_json({"message": message})
+            payload = add_report_supabase(serial, kind)
+            self._send_json(payload)
             return
         if parsed.path == "/api/reports":
-            payload = list_reports(self.server.db_path)
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["2000"])[0] or 2000)
+            payload = list_reports_supabase(limit)
             self._send_json(payload)
             return
         if parsed.path == "/api/supabase/feedback":
@@ -1499,8 +1507,8 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/reports/clear":
             payload = self._read_json()
             items = payload.get("items", [])
-            message = clear_reports(self.server.db_path, items)
-            self._send_json({"message": message})
+            result = clear_reports_supabase(items)
+            self._send_json(result)
             return
         if parsed.path == "/api/backup":
             message = run_backup(self.server.repo_root)
@@ -1733,6 +1741,7 @@ def import_explanations(db_path, jsonl_text, mode, version):
             (question_id, explanation, next_version, source),
         )
         clear_feedback_flag(conn, serial, "explanation")
+        clear_supabase_feedback(serial, "explanation")
         inserted += 1
     conn.commit()
     conn.close()
@@ -1792,6 +1801,7 @@ def import_tags(db_path, jsonl_text, mode):
             updated = True
         if updated or mode == "replace":
             clear_feedback_flag(conn, serial, "tag")
+            clear_supabase_feedback(serial, "tag")
     conn.commit()
     conn.close()
     return inserted
@@ -1850,6 +1860,7 @@ def import_subtopics(db_path, jsonl_text, mode):
             updated = True
         if updated or mode == "replace":
             clear_feedback_flag(conn, serial, "subtopic")
+            clear_supabase_feedback(serial, "subtopic")
     conn.commit()
     conn.close()
     return inserted
@@ -1899,6 +1910,7 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                     )
                     counts["explanations"] += 1
                     clear_feedback_flag(conn, serial, "explanation")
+                    clear_supabase_feedback(serial, "explanation")
             else:
                 if mode_exp == "replace":
                     cursor.execute(
@@ -1921,6 +1933,7 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                 )
                 counts["explanations"] += 1
                 clear_feedback_flag(conn, serial, "explanation")
+                clear_supabase_feedback(serial, "explanation")
 
         tags = record.get("tags", [])
         if tags:
@@ -1951,6 +1964,7 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                         )
                         counts["tags"] += 1
                     clear_feedback_flag(conn, serial, "tag")
+                    clear_supabase_feedback(serial, "tag")
             else:
                 if mode_tag == "replace":
                     cursor.execute(
@@ -1981,6 +1995,7 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                     updated = True
                 if updated or mode_tag == "replace":
                     clear_feedback_flag(conn, serial, "tag")
+                    clear_supabase_feedback(serial, "tag")
 
         subtopics = record.get("subtopics", [])
         if subtopics:
@@ -2011,6 +2026,7 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                         )
                         counts["subtopics"] += 1
                     clear_feedback_flag(conn, serial, "subtopic")
+                    clear_supabase_feedback(serial, "subtopic")
             else:
                 if mode_sub == "replace":
                     cursor.execute(
@@ -2041,6 +2057,7 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                     updated = True
                 if updated or mode_sub == "replace":
                     clear_feedback_flag(conn, serial, "subtopic")
+                    clear_supabase_feedback(serial, "subtopic")
 
     conn.commit()
     conn.close()
@@ -2491,6 +2508,30 @@ def fetch_supabase_rows(table, select, limit):
         return None, f"Supabase接続に失敗しました: {exc}"
 
 
+def supabase_request(method, table, query, body=None):
+    cfg = supabase_config()
+    if not cfg:
+        return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    endpoint = f"{cfg['url']}/rest/v1/{table}{query}"
+    headers = {
+        "apikey": cfg["key"],
+        "Authorization": f"Bearer {cfg['key']}",
+        "Accept": "application/json",
+    }
+    data = None
+    if body is not None:
+        data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+        headers["Prefer"] = "return=minimal"
+    req = Request(endpoint, data=data, headers=headers, method=method)
+    try:
+        with urlopen(req, timeout=10) as resp:
+            payload = resp.read().decode("utf-8")
+        return payload, ""
+    except URLError as exc:
+        return None, f"Supabase接続に失敗しました: {exc}"
+
+
 def build_supabase_feedback(limit):
     rows, error = fetch_supabase_rows("feedback", "serial,kind,created_at", limit)
     if error:
@@ -2562,6 +2603,86 @@ def build_supabase_answers(limit):
             item["accuracy"] = round(item["correct"] * 100.0 / item["total"], 1)
     items = sorted(summary.values(), key=lambda x: (-x["total"], x["serial"]))
     return {"ok": True, "count": len(items), "items": items}
+
+
+def list_reports_supabase(limit):
+    rows, error = fetch_supabase_rows("feedback", "serial,kind,created_at", limit)
+    if error:
+        return {"count": 0, "serials": [], "items": [], "message": error}
+    if not rows:
+        return {"count": 0, "serials": [], "items": []}
+
+    summary = {}
+    for row in rows:
+        serial = row.get("serial")
+        kind = row.get("kind")
+        created = row.get("created_at") or ""
+        if not serial or not kind:
+            continue
+        item = summary.get(serial)
+        if not item:
+            item = {
+                "serial": serial,
+                "explanation": 0,
+                "tag": 0,
+                "subtopic": 0,
+                "reported_at": created,
+            }
+            summary[serial] = item
+        if kind == "explanation":
+            item["explanation"] = 1
+        elif kind == "tag":
+            item["tag"] = 1
+        elif kind == "subtopic":
+            item["subtopic"] = 1
+        if created and created > item["reported_at"]:
+            item["reported_at"] = created
+
+    items = sorted(summary.values(), key=lambda x: x["reported_at"], reverse=True)
+    return {
+        "count": len(items),
+        "serials": [item["serial"] for item in items],
+        "items": items,
+    }
+
+
+def add_report_supabase(serial, kind):
+    if not serial or kind not in {"explanation", "tag", "subtopic"}:
+        return {"message": "報告に失敗しました。"}
+    payload, error = supabase_request(
+        "POST",
+        "feedback",
+        "",
+        [{"serial": serial, "kind": kind}],
+    )
+    if error:
+        return {"message": error}
+    return {"message": f"報告しました: {serial} ({kind})"}
+
+
+def clear_reports_supabase(items):
+    if not items:
+        return {"message": "消去対象がありません。"}
+    for item in items:
+        serial = item.get("serial")
+        kinds = item.get("kinds", [])
+        if not serial or not kinds:
+            continue
+        for kind in kinds:
+            if kind not in {"explanation", "tag", "subtopic"}:
+                continue
+            query = f"?serial=eq.{quote(serial)}&kind=eq.{quote(kind)}"
+            _, error = supabase_request("DELETE", "feedback", query)
+            if error:
+                return {"message": error}
+    return {"message": "選択した報告フラグを消去しました。"}
+
+
+def clear_supabase_feedback(serial, kind):
+    if kind not in {"explanation", "tag", "subtopic"}:
+        return
+    query = f"?serial=eq.{quote(serial)}&kind=eq.{quote(kind)}"
+    supabase_request("DELETE", "feedback", query)
 
 
 def run_command(repo_root, args):

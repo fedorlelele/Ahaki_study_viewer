@@ -178,7 +178,8 @@ python local_admin_app.py --port 8001
 - 検索・プレビュー
 - 未設定一覧（JSON表示/CSVダウンロード）
 - 報告一覧の確認、プロンプト対象へのセット、報告フラグ消去
-- 解説/タグ/小項目のインポート時に該当報告フラグを自動消去
+- 報告一覧はSupabaseのfeedbackを参照（SUPABASE_URL / SUPABASE_SERVICE_KEYが必要）
+- 解説/タグ/小項目のインポート時に該当報告フラグを自動消去（Supabase側も消去）
 - WebUI用ファイル生成 / 一括生成
 
 ### WebUI反映について
