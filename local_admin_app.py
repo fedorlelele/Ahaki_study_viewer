@@ -51,6 +51,7 @@ HTML_PAGE = """<!doctype html>
     <div class="tabs" role="tablist" aria-label="管理タブ">
       <button class="tab active" data-target="prompts" role="tab" aria-selected="true">プロンプト</button>
       <button class="tab" data-target="imports" role="tab">インポート</button>
+      <button class="tab" data-target="edits" role="tab">編集提案</button>
       <button class="tab" data-target="reports" role="tab">報告一覧</button>
       <button class="tab" data-target="cloud" role="tab">クラウド集計</button>
       <button class="tab" data-target="preview" role="tab">検索・プレビュー</button>
@@ -245,6 +246,16 @@ HTML_PAGE = """<!doctype html>
       <div id="reportResult"></div>
     </div>
 
+    <div class="section" data-section="edits" hidden>
+      <h2>編集提案</h2>
+      <p class="note">Supabaseのedit_requestsを参照します（SUPABASE_URL / SUPABASE_SERVICE_KEY が必要）。</p>
+      <button id="loadEditRequests">編集提案を表示</button>
+      <div class="row">
+        <button id="applyEditRequests">SQLiteに反映</button>
+        <button id="dismissEditRequests">却下（ステータス更新）</button>
+      </div>
+      <div id="editRequestResult"></div>
+    </div>
     <div class="section" data-section="cloud" hidden>
       <h2>クラウド集計</h2>
       <p class="note">Supabaseの集計を表示します。環境変数 SUPABASE_URL と SUPABASE_SERVICE_KEY が必要です。</p>
@@ -756,6 +767,45 @@ HTML_PAGE = """<!doctype html>
         document.getElementById("reportResult").innerHTML = renderReports(data);
       });
 
+      let editItems = [];
+
+      document.getElementById("loadEditRequests").addEventListener("click", async () => {
+        const resp = await fetch("/api/edit_requests");
+        const data = await resp.json();
+        editItems = data.items || [];
+        document.getElementById("editRequestResult").innerHTML = renderEditRequests(data);
+      });
+
+      document.getElementById("applyEditRequests").addEventListener("click", async () => {
+        const selected = collectSelectedEdits();
+        if (!selected.length) {
+          document.getElementById("editRequestResult").textContent = "対象を選択してください。";
+          return;
+        }
+        const resp = await fetch("/api/edit_requests/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: selected }),
+        });
+        const data = await resp.json();
+        document.getElementById("editRequestResult").textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("dismissEditRequests").addEventListener("click", async () => {
+        const selected = collectSelectedEdits();
+        if (!selected.length) {
+          document.getElementById("editRequestResult").textContent = "対象を選択してください。";
+          return;
+        }
+        const resp = await fetch("/api/edit_requests/dismiss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: selected }),
+        });
+        const data = await resp.json();
+        document.getElementById("editRequestResult").textContent = data.message || "完了しました。";
+      });
+
       function getSelectedReportKinds() {
         const kinds = [];
         if (document.getElementById("reportExplain").checked) kinds.push("explanation");
@@ -959,6 +1009,75 @@ HTML_PAGE = """<!doctype html>
         return "<div>件数: " + data.count + "</div>" +
           "<table border='1' cellspacing='0' cellpadding='4'>" +
             "<thead><tr><th>シリアル</th><th>解説</th><th>タグ</th><th>小項目</th><th>日時</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function collectSelectedEdits() {
+        const selected = [];
+        document.querySelectorAll("input[data-edit-id]").forEach(input => {
+          if (!input.checked) return;
+          selected.push({
+            id: input.getAttribute("data-edit-id"),
+            serial: input.getAttribute("data-edit-serial"),
+            kind: input.getAttribute("data-edit-kind"),
+          });
+        });
+        return selected;
+      }
+
+      function renderEditRequests(data) {
+        if (!data || !data.items || !data.items.length) {
+          if (data && data.message) {
+            return "<div>" + data.message + "</div>";
+          }
+          return "<div>編集提案がありません。</div>";
+        }
+        function formatEditKind(kind) {
+          if (kind === "explanation_edit") return "解説";
+          if (kind === "explanation_confirm") return "解説（承認）";
+          if (kind === "tags_edit") return "タグ";
+          if (kind === "subtopics_edit") return "小項目";
+          return kind || "";
+        }
+        function renderEditPayload(item) {
+          var payload = item.payload || {};
+          var kind = item.kind || "";
+          if (kind === "explanation_edit") {
+            var body = String(payload.body || "").trim();
+            if (!body) return "<span>解説本文なし</span>";
+            return "<details><summary>解説本文</summary><pre>" + escapeHtml(body) + "</pre></details>";
+          }
+          if (kind === "explanation_confirm") {
+            return "<span>AI解説を承認</span>";
+          }
+          if (kind === "tags_edit" || kind === "subtopics_edit") {
+            var add = (payload.add || []).map(String).filter(Boolean);
+            var remove = (payload.remove || []).map(String).filter(Boolean);
+            var html = "";
+            if (add.length) html += "<div>追加: " + escapeHtml(add.join(", ")) + "</div>";
+            if (remove.length) html += "<div>削除: " + escapeHtml(remove.join(", ")) + "</div>";
+            if (!html) html = "<span>変更なし</span>";
+            return html;
+          }
+          return "<details><summary>内容</summary><pre>" + escapeHtml(JSON.stringify(payload || {}, null, 2)) + "</pre></details>";
+        }
+        var rows = "";
+        data.items.forEach(function(item) {
+          rows += "<tr>" +
+            "<td><input type='checkbox' data-edit-id='" + item.id +
+            "' data-edit-serial='" + item.serial + "' data-edit-kind='" + item.kind + "' /></td>" +
+            "<td>" + item.serial + "</td>" +
+            "<td>" + formatEditKind(item.kind) + "</td>" +
+            "<td>" + escapeHtml(item.note || "") + "</td>" +
+            "<td>" + renderEditPayload(item) + "</td>" +
+            "<td>" + (item.created_email || "") + "</td>" +
+            "<td>" + item.created_at + "</td>" +
+            "</tr>";
+        });
+        return "<div>件数: " + data.count + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4'>" +
+            "<thead><tr><th>選択</th><th>シリアル</th><th>種別</th><th>コメント</th><th>内容</th><th>作成者</th><th>日時</th></tr></thead>" +
             "<tbody>" + rows + "</tbody>" +
           "</table>";
       }
@@ -1486,6 +1605,12 @@ class Handler(BaseHTTPRequestHandler):
             payload = list_reports_supabase(limit)
             self._send_json(payload)
             return
+        if parsed.path == "/api/edit_requests":
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["2000"])[0] or 2000)
+            payload = list_edit_requests_supabase(limit)
+            self._send_json(payload)
+            return
         if parsed.path == "/api/supabase/feedback":
             params = parse_qs(parsed.query)
             limit = int(params.get("limit", ["1000"])[0] or 1000)
@@ -1508,6 +1633,18 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._read_json()
             items = payload.get("items", [])
             result = clear_reports_supabase(items)
+            self._send_json(result)
+            return
+        if parsed.path == "/api/edit_requests/apply":
+            payload = self._read_json()
+            items = payload.get("items", [])
+            result = apply_edit_requests(self.server.db_path, items)
+            self._send_json(result)
+            return
+        if parsed.path == "/api/edit_requests/dismiss":
+            payload = self._read_json()
+            items = payload.get("items", [])
+            result = update_edit_request_status(items, "dismissed")
             self._send_json(result)
             return
         if parsed.path == "/api/backup":
@@ -2644,6 +2781,206 @@ def list_reports_supabase(limit):
         "serials": [item["serial"] for item in items],
         "items": items,
     }
+
+
+def list_edit_requests_supabase(limit):
+    rows, error = fetch_supabase_rows(
+        "edit_requests",
+        "id,serial,kind,payload,note,status,created_at,created_by,created_email",
+        limit,
+    )
+    if error:
+        return {"count": 0, "items": [], "message": error}
+    if not rows:
+        return {"count": 0, "items": []}
+    items = [row for row in rows if row.get("status") == "open"]
+    return {"count": len(items), "items": items}
+
+
+def update_edit_request_status(items, status):
+    if not items:
+        return {"message": "対象がありません。"}
+    for item in items:
+        edit_id = item.get("id")
+        if not edit_id:
+            continue
+        query = f"?id=eq.{quote(str(edit_id))}"
+        _, error = supabase_request(
+            "PATCH",
+            "edit_requests",
+            query,
+            {"status": status},
+        )
+        if error:
+            return {"message": error}
+    return {"message": f"{len(items)} 件を更新しました。"}
+
+
+def apply_edit_requests(db_path, items):
+    if not items:
+        return {"message": "対象がありません。"}
+    edits = []
+    for item in items:
+        edit_id = item.get("id")
+        if not edit_id:
+            continue
+        query = f"?id=eq.{quote(str(edit_id))}"
+        payload, error = supabase_request(
+            "GET",
+            "edit_requests",
+            query + "&select=id,serial,kind,payload,note,status",
+        )
+        if error:
+            return {"message": error}
+        try:
+            rows = json.loads(payload)
+        except json.JSONDecodeError:
+            rows = []
+        edits.extend(rows)
+
+    if not edits:
+        return {"message": "対象の提案が見つかりません。"}
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    applied = 0
+    for edit in edits:
+        if edit.get("status") != "open":
+            continue
+        serial = edit.get("serial")
+        kind = edit.get("kind")
+        payload = edit.get("payload") or {}
+        row = cursor.execute(
+            "SELECT id FROM questions WHERE serial = ?",
+            (serial,),
+        ).fetchone()
+        if not row:
+            continue
+        question_id = row[0]
+        if kind == "explanation_edit":
+            body = str(payload.get("body") or "").strip()
+            if not body:
+                continue
+            row = cursor.execute(
+                "SELECT MAX(version) FROM explanations WHERE question_id = ?",
+                (question_id,),
+            ).fetchone()
+            next_version = (row[0] or 0) + 1
+            cursor.execute(
+                """
+                INSERT INTO explanations(question_id, body, version, source)
+                VALUES (?, ?, ?, ?)
+                """,
+                (question_id, body, next_version, "human"),
+            )
+            applied += 1
+        elif kind == "explanation_confirm":
+            row = cursor.execute(
+                """
+                SELECT body FROM explanations
+                WHERE question_id = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (question_id,),
+            ).fetchone()
+            if not row:
+                continue
+            body = row[0]
+            row = cursor.execute(
+                "SELECT MAX(version) FROM explanations WHERE question_id = ?",
+                (question_id,),
+            ).fetchone()
+            next_version = (row[0] or 0) + 1
+            cursor.execute(
+                """
+                INSERT INTO explanations(question_id, body, version, source)
+                VALUES (?, ?, ?, ?)
+                """,
+                (question_id, body, next_version, "llm_checked"),
+            )
+            applied += 1
+        elif kind == "tags_edit":
+            add = payload.get("add") or []
+            remove = payload.get("remove") or []
+            for tag in remove:
+                label = " ".join(str(tag).split()).strip()
+                if not label:
+                    continue
+                row = cursor.execute(
+                    "SELECT id FROM tags WHERE label = ?",
+                    (label,),
+                ).fetchone()
+                if not row:
+                    continue
+                tag_id = row[0]
+                cursor.execute(
+                    "DELETE FROM question_tags WHERE question_id = ? AND tag_id = ?",
+                    (question_id, tag_id),
+                )
+            for tag in add:
+                label = " ".join(str(tag).split()).strip()
+                if not label:
+                    continue
+                cursor.execute(
+                    "INSERT OR IGNORE INTO tags(label) VALUES (?)",
+                    (label,),
+                )
+                tag_id = cursor.execute(
+                    "SELECT id FROM tags WHERE label = ?",
+                    (label,),
+                ).fetchone()[0]
+                cursor.execute(
+                    """
+                    INSERT OR IGNORE INTO question_tags(question_id, tag_id, source)
+                    VALUES (?, ?, ?)
+                    """,
+                    (question_id, tag_id, "human"),
+                )
+            applied += 1
+        elif kind == "subtopics_edit":
+            add = payload.get("add") or []
+            remove = payload.get("remove") or []
+            for item in remove:
+                label = " ".join(str(item).split()).strip()
+                if not label:
+                    continue
+                row = cursor.execute(
+                    "SELECT id FROM subtopics WHERE name = ?",
+                    (label,),
+                ).fetchone()
+                if not row:
+                    continue
+                sub_id = row[0]
+                cursor.execute(
+                    "DELETE FROM question_subtopics WHERE question_id = ? AND subtopic_id = ?",
+                    (question_id, sub_id),
+                )
+            for item in add:
+                label = " ".join(str(item).split()).strip()
+                if not label:
+                    continue
+                cursor.execute(
+                    "INSERT OR IGNORE INTO subtopics(name) VALUES (?)",
+                    (label,),
+                )
+                sub_id = cursor.execute(
+                    "SELECT id FROM subtopics WHERE name = ?",
+                    (label,),
+                ).fetchone()[0]
+                cursor.execute(
+                    """
+                    INSERT OR IGNORE INTO question_subtopics(question_id, subtopic_id)
+                    VALUES (?, ?)
+                    """,
+                    (question_id, sub_id),
+                )
+            applied += 1
+        update_edit_request_status([{"id": edit.get("id")}], "applied")
+
+    conn.commit()
+    conn.close()
+    web_message = run_build_web(Path(__file__).resolve().parent)
+    return {"message": f"{applied} 件をSQLiteに反映しました。 / {web_message}"}
 
 
 def add_report_supabase(serial, kind):

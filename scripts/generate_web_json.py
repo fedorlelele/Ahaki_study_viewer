@@ -61,14 +61,16 @@ def load_questions(conn):
 def load_explanations(conn):
     rows = conn.execute(
         """
-        SELECT question_id, body, version
+        SELECT question_id, body, version, source
         FROM explanations
         ORDER BY id
         """
     ).fetchall()
     data = {}
-    for question_id, body, version in rows:
-        data.setdefault(question_id, []).append({"body": body, "version": version})
+    for question_id, body, version, source in rows:
+        data.setdefault(question_id, []).append(
+            {"body": body, "version": version, "source": source}
+        )
     return data
 
 
@@ -121,6 +123,7 @@ def main():
         exp_list = explanations.get(qid, [])
         exp_list_sorted = sorted(exp_list, key=lambda x: x.get("version", 0))
         latest_exp = exp_list_sorted[-1]["body"] if exp_list_sorted else None
+        latest_source = exp_list_sorted[-1].get("source") if exp_list_sorted else None
         record = {
             "serial": q["serial"],
             "exam_type": q["exam_type"],
@@ -131,6 +134,7 @@ def main():
             "choices": json.loads(q["choices_json"]),
             "answer_index": q["answer_index"],
             "explanation_latest": latest_exp,
+            "explanation_latest_source": latest_source,
             "explanations": exp_list_sorted,
             "tags": tags.get(qid, []),
             "subtopics": subtopics.get(qid, []),

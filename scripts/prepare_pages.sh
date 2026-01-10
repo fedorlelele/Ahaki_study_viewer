@@ -6,11 +6,16 @@ DOCS_DIR="${ROOT_DIR}/docs"
 
 rm -rf "${DOCS_DIR}"
 mkdir -p "${DOCS_DIR}/output/web"
+mkdir -p "${DOCS_DIR}/config"
 
 cp -R "${ROOT_DIR}/web_app" "${DOCS_DIR}/"
 
 if [ -f "${ROOT_DIR}/web_app/config.js" ]; then
   cp "${ROOT_DIR}/web_app/config.js" "${DOCS_DIR}/web_app/config.js"
+fi
+
+if [ -f "${ROOT_DIR}/config/subtopics_catalog.json" ]; then
+  cp "${ROOT_DIR}/config/subtopics_catalog.json" "${DOCS_DIR}/config/subtopics_catalog.json"
 fi
 
 if [ -d "${ROOT_DIR}/output/web" ]; then

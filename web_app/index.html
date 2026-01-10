@@ -358,7 +358,9 @@
         indexBySubject: {},
         indexBySubtopic: {},
         subtopicsBySubject: {},
-        answeredMap: {}
+        answeredMap: {},
+        subtopicCatalog: {},
+        teacherSession: null
       };
 
       function populateSelect(select, items) {
@@ -386,6 +388,17 @@
           state.indexBySubtopic = bySubtopic;
           state.subtopicsBySubject = buildSubtopicsBySubject(questions);
         });
+      }
+
+      function loadSubtopicCatalog() {
+        return fetch("../config/subtopics_catalog.json")
+          .then(r => (r.ok ? r.json() : {}))
+          .then(data => {
+            state.subtopicCatalog = data || {};
+          })
+          .catch(() => {
+            state.subtopicCatalog = {};
+          });
       }
 
       function buildSubtopicsBySubject(questions) {
@@ -499,6 +512,7 @@
         container.innerHTML = "";
         const showAnswer = document.getElementById("toggleAnswer").checked;
         const showExplanation = document.getElementById("toggleExplanation").checked;
+        const isTeacher = Boolean(state.teacherSession);
         document.getElementById("countInfo").textContent = `件数: ${list.length}`;
 
         list.slice(0, 200).forEach(q => {
@@ -620,7 +634,10 @@
           const explanation = document.createElement("div");
           explanation.className = "explanation";
           const expText = q.explanation_latest || "";
-          explanation.textContent = expText ? `解説:\n${expText}` : "解説: (未登録)";
+          const expLabel = formatExplanationLabel(q.explanation_latest_source);
+          explanation.textContent = expText
+            ? `解説${expLabel}:\n${expText}`
+            : "解説: (未登録)";
           card.appendChild(explanation);
 
           const actionWrap = document.createElement("details");
@@ -677,18 +694,131 @@
             select.appendChild(label);
             q.explanations.forEach(item => {
               const opt = document.createElement("option");
-              opt.value = item.body;
+              opt.value = JSON.stringify({ body: item.body, source: item.source || "" });
               opt.textContent = `v${item.version}`;
               select.appendChild(opt);
             });
             select.addEventListener("change", () => {
               if (select.value) {
-                explanation.textContent = `解説:\n${select.value}`;
+                try {
+                  const data = JSON.parse(select.value);
+                  const label = formatExplanationLabel(data.source);
+                  explanation.textContent = `解説${label}:\n${data.body}`;
+                } catch (err) {
+                  explanation.textContent = `解説:\n${select.value}`;
+                }
               } else {
-                explanation.textContent = expText ? `解説:\n${expText}` : "解説: (未登録)";
+                explanation.textContent = expText
+                  ? `解説${expLabel}:\n${expText}`
+                  : "解説: (未登録)";
               }
             });
             actions.appendChild(select);
+          }
+
+          if (isTeacher) {
+            const editor = document.createElement("details");
+            editor.className = "inline";
+            const summary = document.createElement("summary");
+            summary.textContent = "教師編集";
+            editor.appendChild(summary);
+
+            const editorBody = document.createElement("div");
+            editorBody.className = "card-actions";
+
+            const expLabel = document.createElement("div");
+            expLabel.textContent = "解説（編集/承認）";
+            editorBody.appendChild(expLabel);
+            const expArea = document.createElement("textarea");
+            expArea.rows = 4;
+            expArea.style.width = "100%";
+            expArea.value = expText || "";
+            editorBody.appendChild(expArea);
+            const expNote = document.createElement("input");
+            expNote.type = "text";
+            expNote.placeholder = "コメント（任意）";
+            expNote.style.width = "100%";
+            editorBody.appendChild(expNote);
+            const expActions = document.createElement("div");
+            expActions.className = "row";
+            const expSubmit = document.createElement("button");
+            expSubmit.textContent = "解説の編集提案";
+            expSubmit.addEventListener("click", () => {
+              submitEditRequest(q.serial, "explanation_edit", { body: expArea.value }, expNote.value);
+            });
+            expActions.appendChild(expSubmit);
+            const expConfirm = document.createElement("button");
+            expConfirm.textContent = "AI解説を承認";
+            expConfirm.addEventListener("click", () => {
+              submitEditRequest(q.serial, "explanation_confirm", {}, expNote.value);
+            });
+            expActions.appendChild(expConfirm);
+            editorBody.appendChild(expActions);
+
+            const tagLabel = document.createElement("div");
+            tagLabel.textContent = "タグ（追加/削除）";
+            editorBody.appendChild(tagLabel);
+            const tagRemoveWrap = document.createElement("div");
+            (q.tags || []).forEach(tag => {
+              const lbl = document.createElement("label");
+              const cb = document.createElement("input");
+              cb.type = "checkbox";
+              cb.value = tag;
+              lbl.appendChild(cb);
+              lbl.appendChild(document.createTextNode("削除: " + tag));
+              tagRemoveWrap.appendChild(lbl);
+            });
+            editorBody.appendChild(tagRemoveWrap);
+            const tagAdd = document.createElement("input");
+            tagAdd.type = "text";
+            tagAdd.placeholder = "追加タグ（カンマ区切り）";
+            tagAdd.style.width = "100%";
+            editorBody.appendChild(tagAdd);
+            const tagSubmit = document.createElement("button");
+            tagSubmit.textContent = "タグ編集提案";
+            tagSubmit.addEventListener("click", () => {
+              const remove = Array.from(tagRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
+              const add = tagAdd.value.split(",").map(t => t.trim()).filter(Boolean);
+              submitEditRequest(q.serial, "tags_edit", { add, remove }, expNote.value);
+            });
+            editorBody.appendChild(tagSubmit);
+
+            const subLabel = document.createElement("div");
+            subLabel.textContent = "小項目（カタログから選択）";
+            editorBody.appendChild(subLabel);
+            const subRemoveWrap = document.createElement("div");
+            (q.subtopics || []).forEach(name => {
+              const lbl = document.createElement("label");
+              const cb = document.createElement("input");
+              cb.type = "checkbox";
+              cb.value = name;
+              lbl.appendChild(cb);
+              lbl.appendChild(document.createTextNode("削除: " + name));
+              subRemoveWrap.appendChild(lbl);
+            });
+            editorBody.appendChild(subRemoveWrap);
+            const subSelect = document.createElement("select");
+            subSelect.multiple = true;
+            subSelect.style.width = "100%";
+            const catalog = state.subtopicCatalog[q.subject] || [];
+            catalog.forEach(name => {
+              const opt = document.createElement("option");
+              opt.value = name;
+              opt.textContent = name;
+              subSelect.appendChild(opt);
+            });
+            editorBody.appendChild(subSelect);
+            const subSubmit = document.createElement("button");
+            subSubmit.textContent = "小項目編集提案";
+            subSubmit.addEventListener("click", () => {
+              const remove = Array.from(subRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
+              const add = Array.from(subSelect.selectedOptions).map(opt => opt.value);
+              submitEditRequest(q.serial, "subtopics_edit", { add, remove }, expNote.value);
+            });
+            editorBody.appendChild(subSubmit);
+
+            editor.appendChild(editorBody);
+            actions.appendChild(editor);
           }
           actionWrap.appendChild(actions);
           card.appendChild(actionWrap);
@@ -699,6 +829,7 @@
 
       function init() {
         loadAnsweredState();
+        loadSubtopicCatalog();
         loadData().then(() => {
           populateSelect(
             document.getElementById("subjectSelect"),
@@ -914,6 +1045,7 @@
         });
 
         function updateAuthUI(session) {
+          state.teacherSession = session || null;
           if (session && session.user) {
             status.textContent = `ログイン中: ${session.user.email}`;
             form.hidden = true;
@@ -923,7 +1055,47 @@
             form.hidden = false;
             actions.hidden = true;
           }
+          renderResults(filterQuestions());
         }
+      }
+
+      function submitEditRequest(serial, kind, payload, note) {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return;
+        }
+        const session = state.teacherSession;
+        if (!session || !session.user) {
+          alert("教師ログインが必要です。");
+          return;
+        }
+        const body = {
+          serial: serial,
+          kind: kind,
+          payload: payload || {},
+          note: note || "",
+          status: "open",
+          created_by: session.user.id,
+          created_email: session.user.email
+        };
+        supabaseClient
+          .from("edit_requests")
+          .insert([body])
+          .then(({ error }) => {
+            if (error) {
+              alert("送信に失敗しました。");
+              return;
+            }
+            alert("編集提案を送信しました。");
+          });
+      }
+
+      function formatExplanationLabel(source) {
+        if (!source) return "";
+        if (source === "llm_checked") return "（AI承認済）";
+        if (source === "human" || source === "teacher") return "（教師編集）";
+        if (source === "llm" || source === "ai") return "（AI）";
+        return "（" + source + "）";
       }
 
       function handleAnswerSelection(question, selectedIndex, button) {
