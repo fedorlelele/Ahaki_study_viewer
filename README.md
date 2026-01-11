@@ -167,6 +167,7 @@ create policy "teacher insert edit_requests"
 - 検索結果全体のコピー（検索条件付き）
 - 各問題の個別コピー
 - タグ/小項目をクリックして関連問題にジャンプ
+- 更新情報は `output/web/update_log.json` に反映（解説追加数は自動集計、手動更新は `config/update_notes.json` に追記）
 
 ### ショートカットキー
 - `/` キーワード入力へ移動

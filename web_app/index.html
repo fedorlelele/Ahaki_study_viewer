@@ -217,6 +217,14 @@
       .card-actions {
         margin-top: 10px;
       }
+      .update-list {
+        margin: 6px 0 8px;
+        padding-left: 18px;
+        font-size: 12px;
+      }
+      .update-list li {
+        margin: 4px 0;
+      }
       details.inline {
         margin-top: 8px;
       }
@@ -340,6 +348,14 @@
         <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">教師ログイン</button>
       </div>
       <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
+      <details class="inline" id="updateInfo">
+        <summary>更新情報</summary>
+        <div class="card-actions">
+          <ul class="update-list" id="updateList"></ul>
+          <button id="updateMoreBtn" type="button">さらに表示</button>
+          <div class="note" id="updateEmpty" hidden>更新情報はありません。</div>
+        </div>
+      </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -418,7 +434,9 @@
         subtopicsBySubject: {},
         answeredMap: {},
         subtopicCatalog: {},
-        teacherSession: null
+        teacherSession: null,
+        updateLog: [],
+        updateShown: 0
       };
 
       function populateSelect(select, items) {
@@ -457,6 +475,44 @@
           .catch(() => {
             state.subtopicCatalog = {};
           });
+      }
+
+      function loadUpdateLog() {
+        return fetch("../output/web/update_log.json")
+          .then(r => (r.ok ? r.json() : []))
+          .then(data => {
+            state.updateLog = Array.isArray(data) ? data : [];
+          })
+          .catch(() => {
+            state.updateLog = [];
+          });
+      }
+
+      function renderUpdateLog(targetCount) {
+        const list = document.getElementById("updateList");
+        const moreBtn = document.getElementById("updateMoreBtn");
+        const empty = document.getElementById("updateEmpty");
+        if (!list || !moreBtn || !empty) return;
+
+        const total = state.updateLog.length;
+        if (!total) {
+          list.innerHTML = "";
+          moreBtn.hidden = true;
+          empty.hidden = false;
+          state.updateShown = 0;
+          return;
+        }
+
+        empty.hidden = true;
+        const count = Math.min(targetCount, total);
+        list.innerHTML = "";
+        state.updateLog.slice(0, count).forEach(item => {
+          const li = document.createElement("li");
+          li.textContent = `${item.date}　${item.text}`;
+          list.appendChild(li);
+        });
+        state.updateShown = count;
+        moreBtn.hidden = state.updateShown >= total;
       }
 
       function buildSubtopicsBySubject(questions) {
@@ -924,6 +980,13 @@
       function init() {
         loadAnsweredState();
         loadSubtopicCatalog();
+        const updateInfo = document.getElementById("updateInfo");
+        const updateMoreBtn = document.getElementById("updateMoreBtn");
+        loadUpdateLog().then(() => {
+          if (updateInfo && updateInfo.open) {
+            renderUpdateLog(3);
+          }
+        });
         loadData().then(() => {
           populateSelect(
             document.getElementById("subjectSelect"),
@@ -939,6 +1002,18 @@
         });
 
         initAuthUI();
+        if (updateInfo) {
+          updateInfo.addEventListener("toggle", () => {
+            if (updateInfo.open) {
+              renderUpdateLog(3);
+            }
+          });
+        }
+        if (updateMoreBtn) {
+          updateMoreBtn.addEventListener("click", () => {
+            renderUpdateLog(state.updateShown + 3);
+          });
+        }
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());

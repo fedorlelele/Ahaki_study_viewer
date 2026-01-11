@@ -126,6 +126,11 @@ def init_db(conn):
             FOREIGN KEY (question_id) REFERENCES questions(id)
         );
 
+        CREATE TABLE IF NOT EXISTS explanation_update_log (
+            date TEXT PRIMARY KEY,
+            count INTEGER NOT NULL DEFAULT 0
+        );
+
         CREATE TABLE IF NOT EXISTS tags (
             id INTEGER PRIMARY KEY,
             label TEXT NOT NULL UNIQUE,

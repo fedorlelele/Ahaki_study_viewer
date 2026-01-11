@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sqlite3
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, quote
@@ -1880,6 +1881,8 @@ def import_explanations(db_path, jsonl_text, mode, version):
         clear_feedback_flag(conn, serial, "explanation")
         clear_supabase_feedback(serial, "explanation")
         inserted += 1
+    if inserted:
+        add_explanation_update(conn, inserted)
     conn.commit()
     conn.close()
     return inserted
@@ -2196,6 +2199,8 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                     clear_feedback_flag(conn, serial, "subtopic")
                     clear_supabase_feedback(serial, "subtopic")
 
+    if counts["explanations"]:
+        add_explanation_update(conn, counts["explanations"])
     conn.commit()
     conn.close()
     return counts
@@ -2501,6 +2506,42 @@ def ensure_feedback_table(db_path):
         conn.execute("ALTER TABLE feedback_reports ADD COLUMN subtopic INTEGER DEFAULT 0")
     conn.commit()
     conn.close()
+
+
+def ensure_update_log_table_db(db_path):
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS explanation_update_log (
+            date TEXT PRIMARY KEY,
+            count INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def add_explanation_update(conn, count):
+    if count <= 0:
+        return
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS explanation_update_log (
+            date TEXT PRIMARY KEY,
+            count INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    today = datetime.now().strftime("%Y-%m-%d")
+    conn.execute(
+        """
+        INSERT INTO explanation_update_log(date, count)
+        VALUES (?, ?)
+        ON CONFLICT(date) DO UPDATE SET count = count + excluded.count
+        """,
+        (today, count),
+    )
 
 
 def add_report(db_path, serial, kind):
@@ -2844,6 +2885,7 @@ def apply_edit_requests(db_path, items):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     applied = 0
+    explanation_added = 0
     for edit in edits:
         if edit.get("status") != "open":
             continue
@@ -2874,6 +2916,7 @@ def apply_edit_requests(db_path, items):
                 (question_id, body, next_version, "human"),
             )
             applied += 1
+            explanation_added += 1
         elif kind == "explanation_confirm":
             row = cursor.execute(
                 """
@@ -2899,6 +2942,7 @@ def apply_edit_requests(db_path, items):
                 (question_id, body, next_version, "llm_checked"),
             )
             applied += 1
+            explanation_added += 1
         elif kind == "tags_edit":
             add = payload.get("add") or []
             remove = payload.get("remove") or []
@@ -2977,6 +3021,8 @@ def apply_edit_requests(db_path, items):
             applied += 1
         update_edit_request_status([{"id": edit.get("id")}], "applied")
 
+    if explanation_added:
+        add_explanation_update(conn, explanation_added)
     conn.commit()
     conn.close()
     web_message = run_build_web(Path(__file__).resolve().parent)
@@ -3116,6 +3162,7 @@ def main():
     server.repo_root = Path(__file__).resolve().parent
     server.downloads_dir = args.downloads
     ensure_feedback_table(db_path)
+    ensure_update_log_table_db(db_path)
 
     print(f"Server running: http://{args.host}:{args.port}")
     try:

@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -104,6 +105,67 @@ def load_subtopics(conn):
     return data
 
 
+def load_explanation_update_log(conn):
+    try:
+        rows = conn.execute(
+            """
+            SELECT date, count
+            FROM explanation_update_log
+            ORDER BY date DESC
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [{"date": row[0], "count": row[1]} for row in rows]
+
+
+def load_update_notes(path):
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(data, list):
+        return []
+    notes = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        date = str(item.get("date") or "").strip()
+        text = str(item.get("text") or "").strip()
+        if date and text:
+            notes.append({"date": date, "text": text})
+    return notes
+
+
+def parse_date_parts(value):
+    parts = re.findall(r"\d+", value)
+    if len(parts) >= 3:
+        year = parts[0].zfill(4)
+        month = parts[1].zfill(2)
+        day = parts[2].zfill(2)
+        return year, month, day
+    return None
+
+
+def normalize_date_key(value):
+    parts = parse_date_parts(value)
+    if parts:
+        return "".join(parts)
+    digits = "".join(re.findall(r"\d", value))
+    if len(digits) >= 8:
+        return digits[:8]
+    return digits.ljust(8, "0")
+
+
+def format_date_display(value):
+    parts = parse_date_parts(value)
+    if parts:
+        return f"{parts[0]}/{parts[1]}/{parts[2]}"
+    return value
+
+
 def main():
     args = parse_args()
     db_path = Path(args.db)
@@ -115,6 +177,7 @@ def main():
     explanations = load_explanations(conn)
     tags = load_tags(conn)
     subtopics = load_subtopics(conn)
+    update_log = load_explanation_update_log(conn)
     conn.close()
 
     output = []
@@ -147,6 +210,34 @@ def main():
         encoding="utf-8",
     )
     print(f"Web JSON saved: {out_path}")
+
+    update_notes = load_update_notes(Path("config/update_notes.json"))
+    update_entries = []
+    for item in update_log:
+        date = item.get("date", "")
+        count = item.get("count", 0)
+        if not date or count <= 0:
+            continue
+        update_entries.append(
+            {
+                "date": format_date_display(date),
+                "text": f"解説を{count}件追加しました。",
+                "kind": "explanation",
+            }
+        )
+    for note in update_notes:
+        update_entries.append(
+            {
+                "date": format_date_display(note["date"]),
+                "text": note["text"],
+                "kind": "note",
+            }
+        )
+    update_entries.sort(key=lambda x: normalize_date_key(x["date"]), reverse=True)
+    (out_path.parent / "update_log.json").write_text(
+        json.dumps(update_entries, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     index_dir.mkdir(parents=True, exist_ok=True)
     index_by_subject = {}
