@@ -1597,7 +1597,8 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             serial = params.get("serial", [""])[0]
             kind = params.get("kind", [""])[0]
-            payload = add_report_supabase(serial, kind)
+            comment = params.get("comment", [""])[0]
+            payload = add_report_supabase(serial, kind, comment)
             self._send_json(payload)
             return
         if parsed.path == "/api/reports":
@@ -3059,14 +3060,14 @@ def apply_edit_requests(db_path, items):
     return {"message": f"{applied} 件をSQLiteに反映しました。 / {web_message}"}
 
 
-def add_report_supabase(serial, kind):
+def add_report_supabase(serial, kind, comment=""):
     if not serial or kind not in {"explanation", "tag", "subtopic"}:
         return {"message": "報告に失敗しました。"}
     payload, error = supabase_request(
         "POST",
         "feedback",
         "",
-        [{"serial": serial, "kind": kind}],
+        [{"serial": serial, "kind": kind, "comment": comment}],
     )
     if error:
         return {"message": error}

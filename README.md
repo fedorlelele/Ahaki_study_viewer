@@ -156,6 +156,13 @@ create policy "teacher insert edit_requests"
   with check (true);
 ```
 
+## Supabase テーブル（報告コメント）
+報告コメントを保存するために `feedback` に `comment` 列を追加します。
+
+```sql
+alter table feedback add column if not exists comment text;
+```
+
 ### 機能
 - キーワード検索（空白区切りのAND検索）
 - タグ検索はキーワードに `#タグ名` を指定
