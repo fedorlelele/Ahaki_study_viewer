@@ -468,6 +468,7 @@
       <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
     </div>
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
+    <div class="toolbar" id="resultsMore"></div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -491,7 +492,8 @@
         subtopicCatalog: {},
         teacherSession: null,
         updateLog: [],
-        updateShown: 0
+        updateShown: 0,
+        orderIndexBySerial: {}
       };
 
       function populateSelect(select, items) {
@@ -518,6 +520,10 @@
           state.indexBySubject = bySubject;
           state.indexBySubtopic = bySubtopic;
           state.subtopicsBySubject = buildSubtopicsBySubject(questions);
+          state.orderIndexBySerial = {};
+          questions.forEach((q, idx) => {
+            if (q && q.serial) state.orderIndexBySerial[q.serial] = idx;
+          });
         });
       }
 
@@ -688,22 +694,36 @@
           return tagMatch && textMatch;
         });
         if (sortSession === "asc") {
-          filtered.sort((a, b) => (a.exam_session || 0) - (b.exam_session || 0));
+          filtered.sort((a, b) => {
+            const sessionDiff = (a.exam_session || 0) - (b.exam_session || 0);
+            if (sessionDiff !== 0) return sessionDiff;
+            const orderA = state.orderIndexBySerial[a.serial] || 0;
+            const orderB = state.orderIndexBySerial[b.serial] || 0;
+            return orderA - orderB;
+          });
         } else if (sortSession === "desc") {
-          filtered.sort((a, b) => (b.exam_session || 0) - (a.exam_session || 0));
+          filtered.sort((a, b) => {
+            const sessionDiff = (b.exam_session || 0) - (a.exam_session || 0);
+            if (sessionDiff !== 0) return sessionDiff;
+            const orderA = state.orderIndexBySerial[a.serial] || 0;
+            const orderB = state.orderIndexBySerial[b.serial] || 0;
+            return orderA - orderB;
+          });
         }
         return filtered;
       }
 
       function renderResults(list) {
         const container = document.getElementById("results");
+        const moreContainer = document.getElementById("resultsMore");
         container.innerHTML = "";
+        moreContainer.innerHTML = "";
         const isTeacher = Boolean(state.teacherSession);
         const showAnswer = isTeacher ? true : document.getElementById("toggleAnswer").checked;
         const showExplanation = isTeacher ? true : document.getElementById("toggleExplanation").checked;
         document.getElementById("countInfo").textContent = `件数: ${list.length}`;
 
-        list.slice(0, 200).forEach(q => {
+        function appendCard(q, target) {
           const card = document.createElement("div");
           card.className = "card";
           if (isTeacher) {
@@ -933,8 +953,8 @@
 
           const explanation = document.createElement("div");
           explanation.className = "explanation";
-          const expText = q.explanation_latest || "";
-          const expLabel = formatExplanationLabel(q.explanation_latest_source);
+          const expText = showExplanation || isTeacher ? (q.explanation_latest || "") : "";
+          const expLabel = showExplanation || isTeacher ? formatExplanationLabel(q.explanation_latest_source) : "";
           const expHeader = document.createElement("div");
           expHeader.className = "explanation-header";
           const expTitle = document.createElement("span");
@@ -1033,8 +1053,34 @@
           actions.appendChild(copyBtn);
           card.appendChild(actions);
 
-          container.appendChild(card);
-        });
+          target.appendChild(card);
+        }
+
+        const subset = list;
+        let idx = 0;
+        const batchSize = 20;
+        function renderChunk() {
+          const frag = document.createDocumentFragment();
+          const end = Math.min(idx + batchSize, subset.length);
+          for (; idx < end; idx++) {
+            appendCard(subset[idx], frag);
+          }
+          container.appendChild(frag);
+        }
+        renderChunk();
+        if (idx < subset.length) {
+          const more = document.createElement("button");
+          const updateLabel = () => {
+            more.textContent = `さらに表示 (${idx}/${subset.length})`;
+          };
+          updateLabel();
+          more.addEventListener("click", () => {
+            renderChunk();
+            updateLabel();
+            if (idx >= subset.length) more.remove();
+          });
+          moreContainer.appendChild(more);
+        }
       }
 
       function init() {
