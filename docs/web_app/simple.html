@@ -232,6 +232,7 @@
           <option value="new" selected>新しい順</option>
           <option value="old">古い順</option>
         </select>
+        <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
         <div class="row">
           <button id="startBtn" disabled>問題を表示</button>
           <button class="backBtn">戻る</button>
@@ -289,7 +290,8 @@
         answered: false,
         lastSubject: "",
         focusItems: [],
-        focusIndex: 0
+        focusIndex: 0,
+        answeredMap: {}
       };
 
       const stepGuide = document.getElementById("stepGuide");
@@ -300,6 +302,7 @@
       const examTypeSelect = document.getElementById("examTypeSelect");
       const subtopicSelect = document.getElementById("subtopicSelect");
       const orderSelect = document.getElementById("orderSelect");
+      const showAnsweredToggle = document.getElementById("showAnswered");
       const startBtn = document.getElementById("startBtn");
       const guideNext = document.getElementById("guideNext");
       const subjectNext = document.getElementById("subjectNext");
@@ -384,10 +387,12 @@
         const examType = examTypeSelect.value;
         const subtopic = subtopicSelect.value;
         const order = orderSelect.value;
+        const showAnswered = showAnsweredToggle.checked;
         state.filtered = state.questions.filter(q => {
           if (subject && q.subject !== subject) return false;
           if (examType && q.exam_type !== examType) return false;
           if (subtopic && !(q.subtopics || []).includes(subtopic)) return false;
+          if (!showAnswered && hasAnswered(q.serial)) return false;
           return true;
         });
         if (order === "old") {
@@ -520,6 +525,7 @@
           : `正答: ${correct}\n解説: (未登録)`;
         resultOverlay.classList.add("show");
         resultNext.focus();
+        markAnswered(q.serial, state.selectedIndex, isCorrect);
       }
 
       document.addEventListener("keydown", (e) => {
@@ -715,9 +721,39 @@
       });
 
       loadData().then(() => {
+        loadAnsweredState();
         updateState();
         showStep("guide");
       });
+
+      function hasAnswered(serial) {
+        return Boolean(state.answeredMap[serial]);
+      }
+
+      function markAnswered(serial, selectedIndex, isCorrect) {
+        state.answeredMap[serial] = { selectedIndex, isCorrect };
+        saveAnsweredState();
+      }
+
+      function loadAnsweredState() {
+        const key = "answeredSerials";
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const map = JSON.parse(raw);
+            if (map && typeof map === "object") {
+              state.answeredMap = map;
+            }
+          }
+        } catch (err) {
+          state.answeredMap = {};
+        }
+      }
+
+      function saveAnsweredState() {
+        const key = "answeredSerials";
+        localStorage.setItem(key, JSON.stringify(state.answeredMap));
+      }
     </script>
   </body>
 </html>
