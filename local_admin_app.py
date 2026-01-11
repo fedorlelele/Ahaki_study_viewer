@@ -1861,6 +1861,16 @@ def import_explanations(db_path, jsonl_text, mode, version):
             ).fetchone()
             if exists:
                 continue
+        latest = cursor.execute(
+            """
+            SELECT body FROM explanations
+            WHERE question_id = ?
+            ORDER BY id DESC LIMIT 1
+            """,
+            (question_id,),
+        ).fetchone()
+        if latest and latest[0].strip() == explanation:
+            continue
         if mode == "replace":
             cursor.execute("DELETE FROM explanations WHERE question_id = ?", (question_id,))
         if version is None:
@@ -2028,12 +2038,21 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
 
         explanation = str(record.get("explanation", "")).strip()
         if explanation:
+            latest = cursor.execute(
+                """
+                SELECT body FROM explanations
+                WHERE question_id = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (question_id,),
+            ).fetchone()
+            is_same = latest and latest[0].strip() == explanation
             if mode_exp == "skip":
                 exists = cursor.execute(
                     "SELECT 1 FROM explanations WHERE question_id = ? LIMIT 1",
                     (question_id,),
                 ).fetchone()
-                if not exists:
+                if not exists and not is_same:
                     next_version = version
                     if version is None:
                         row = cursor.execute(
@@ -2052,28 +2071,29 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                     clear_feedback_flag(conn, serial, "explanation")
                     clear_supabase_feedback(serial, "explanation")
             else:
-                if mode_exp == "replace":
+                if not is_same:
+                    if mode_exp == "replace":
+                        cursor.execute(
+                            "DELETE FROM explanations WHERE question_id = ?",
+                            (question_id,),
+                        )
+                    next_version = version
+                    if version is None:
+                        row = cursor.execute(
+                            "SELECT MAX(version) FROM explanations WHERE question_id = ?",
+                            (question_id,),
+                        ).fetchone()
+                        next_version = (row[0] or 0) + 1
                     cursor.execute(
-                        "DELETE FROM explanations WHERE question_id = ?",
-                        (question_id,),
+                        """
+                        INSERT INTO explanations(question_id, body, version, source)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (question_id, explanation, next_version, "llm"),
                     )
-                next_version = version
-                if version is None:
-                    row = cursor.execute(
-                        "SELECT MAX(version) FROM explanations WHERE question_id = ?",
-                        (question_id,),
-                    ).fetchone()
-                    next_version = (row[0] or 0) + 1
-                cursor.execute(
-                    """
-                    INSERT INTO explanations(question_id, body, version, source)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (question_id, explanation, next_version, "llm"),
-                )
-                counts["explanations"] += 1
-                clear_feedback_flag(conn, serial, "explanation")
-                clear_supabase_feedback(serial, "explanation")
+                    counts["explanations"] += 1
+                    clear_feedback_flag(conn, serial, "explanation")
+                    clear_supabase_feedback(serial, "explanation")
 
         tags = record.get("tags", [])
         if tags:
@@ -2902,6 +2922,16 @@ def apply_edit_requests(db_path, items):
         if kind == "explanation_edit":
             body = str(payload.get("body") or "").strip()
             if not body:
+                continue
+            row = cursor.execute(
+                """
+                SELECT body FROM explanations
+                WHERE question_id = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (question_id,),
+            ).fetchone()
+            if row and row[0].strip() == body:
                 continue
             row = cursor.execute(
                 "SELECT MAX(version) FROM explanations WHERE question_id = ?",
