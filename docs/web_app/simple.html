@@ -194,6 +194,7 @@
         </ol>
         <div class="row">
           <button id="guideNext">次へ</button>
+          <button class="topBtn">トップへ戻る</button>
         </div>
       </section>
 
@@ -205,6 +206,7 @@
         <div class="row">
           <button id="subjectNext" disabled>次へ</button>
           <button class="backBtn">戻る</button>
+          <button class="topBtn">トップへ戻る</button>
         </div>
       </section>
 
@@ -216,6 +218,7 @@
         <div class="row">
           <button id="subtopicNext">次へ</button>
           <button class="backBtn">戻る</button>
+          <button class="topBtn">トップへ戻る</button>
         </div>
       </section>
 
@@ -232,6 +235,7 @@
         <div class="row">
           <button id="startBtn" disabled>問題を表示</button>
           <button class="backBtn">戻る</button>
+          <button class="topBtn">トップへ戻る</button>
         </div>
       </section>
 
@@ -245,6 +249,7 @@
         <ul class="choices" id="choices" role="listbox" aria-label="選択肢"></ul>
         <div class="actions">
           <button id="confirmBtn" disabled>回答を確定</button>
+          <button class="topBtn">トップへ戻る</button>
         </div>
       </section>
     </main>
@@ -263,10 +268,12 @@
     <div class="overlay" id="resultOverlay" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
       <div class="dialog">
         <p id="resultTitle">正答・解説</p>
+        <div id="resultStatus" class="result"></div>
         <div id="resultText" class="result"></div>
         <div class="actions">
           <button id="resultBack">問題に戻る</button>
           <button id="resultNext">次の問題へ</button>
+          <button class="topBtn">トップへ戻る</button>
         </div>
       </div>
     </div>
@@ -297,6 +304,7 @@
       const guideNext = document.getElementById("guideNext");
       const subjectNext = document.getElementById("subjectNext");
       const subtopicNext = document.getElementById("subtopicNext");
+      const topBtn = document.getElementById("topBtn");
       const status = document.getElementById("status");
       const questionSection = document.getElementById("questionSection");
       const meta = document.getElementById("meta");
@@ -309,6 +317,7 @@
       const confirmYes = document.getElementById("confirmYes");
       const confirmNo = document.getElementById("confirmNo");
       const resultOverlay = document.getElementById("resultOverlay");
+      const resultStatus = document.getElementById("resultStatus");
       const resultText = document.getElementById("resultText");
       const resultBack = document.getElementById("resultBack");
       const resultNext = document.getElementById("resultNext");
@@ -395,6 +404,7 @@
           status.textContent = "条件に合う問題が見つかりませんでした。";
           resultOverlay.classList.add("show");
           resultText.textContent = "条件に合う問題が見つかりませんでした。";
+          resultStatus.textContent = "";
           resultBack.textContent = "トップへ戻る";
           resultNext.hidden = true;
           noResultsMode = true;
@@ -494,6 +504,7 @@
       function showResult() {
         const q = state.filtered[state.currentIndex];
         const correct = Number(q.answer_index);
+        const isCorrect = Number(state.selectedIndex) === correct;
         const items = Array.from(choices.querySelectorAll("li"));
         items.forEach(li => {
           const idx = Number(li.dataset.index);
@@ -503,6 +514,7 @@
         });
         const exp = q.explanation_latest || "";
         state.answered = true;
+        resultStatus.textContent = isCorrect ? "正解です。" : "不正解です。";
         resultText.textContent = exp
           ? `正答: ${correct}\n解説:\n${exp}`
           : `正答: ${correct}\n解説: (未登録)`;
@@ -608,6 +620,14 @@
             renderQuestion();
           }
         }
+      });
+
+      document.querySelectorAll(".topBtn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          confirmOverlay.classList.remove("show");
+          resultOverlay.classList.remove("show");
+          resetToTop();
+        });
       });
 
       function resetToTop() {
