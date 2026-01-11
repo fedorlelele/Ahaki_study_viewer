@@ -1097,11 +1097,30 @@ HTML_PAGE = """<!doctype html>
             "<td>" + item.last_reported_at + "</td>" +
             "</tr>";
         });
+        var commentsHtml = "";
+        if (data.comments && data.comments.length) {
+          var commentRows = "";
+          data.comments.forEach(function(item) {
+            commentRows += "<tr>" +
+              "<td>" + item.serial + "</td>" +
+              "<td>" + item.kind + "</td>" +
+              "<td><details><summary>" + escapeHtml(item.comment).slice(0, 80) + "</summary>" +
+              "<div>" + escapeHtml(item.comment) + "</div></details></td>" +
+              "<td>" + item.created_at + "</td>" +
+              "</tr>";
+          });
+          commentsHtml = "<div style='margin-top: 12px;'>コメント一覧</div>" +
+            "<table border='1' cellspacing='0' cellpadding='4'>" +
+              "<thead><tr><th>シリアル</th><th>種別</th><th>コメント</th><th>日時</th></tr></thead>" +
+              "<tbody>" + commentRows + "</tbody>" +
+            "</table>";
+        }
         return "<div>件数: " + data.count + "</div>" +
           "<table border='1' cellspacing='0' cellpadding='4'>" +
             "<thead><tr><th>シリアル</th><th>解説</th><th>タグ</th><th>小項目</th><th>合計</th><th>最新日時</th></tr></thead>" +
             "<tbody>" + rows + "</tbody>" +
-          "</table>";
+          "</table>" +
+          commentsHtml;
       }
 
       function renderCloudAnswers(data) {
@@ -2732,16 +2751,20 @@ def supabase_request(method, table, query, body=None):
 
 
 def build_supabase_feedback(limit):
-    rows, error = fetch_supabase_rows("feedback", "serial,kind,created_at", limit)
+    rows, error = fetch_supabase_rows(
+        "feedback", "serial,kind,comment,created_at", limit
+    )
     if error:
         return {"ok": False, "message": error, "items": []}
     if not rows:
         return {"ok": True, "count": 0, "items": []}
     summary = {}
+    comments = []
     for row in rows:
         serial = row.get("serial")
         kind = row.get("kind")
         created = row.get("created_at") or ""
+        comment = (row.get("comment") or "").strip()
         if not serial or not kind:
             continue
         item = summary.get(serial)
@@ -2764,8 +2787,23 @@ def build_supabase_feedback(limit):
         item["total"] += 1
         if created and created > item["last_reported_at"]:
             item["last_reported_at"] = created
+        if comment:
+            comments.append(
+                {
+                    "serial": serial,
+                    "kind": kind,
+                    "comment": comment,
+                    "created_at": created,
+                }
+            )
     items = sorted(summary.values(), key=lambda x: (-x["total"], x["serial"]))
-    return {"ok": True, "count": len(items), "items": items}
+    comments = sorted(comments, key=lambda x: x["created_at"], reverse=True)
+    return {
+        "ok": True,
+        "count": len(items),
+        "items": items,
+        "comments": comments,
+    }
 
 
 def build_supabase_answers(limit):
