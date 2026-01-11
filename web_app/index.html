@@ -1277,10 +1277,14 @@
             status.textContent = `ログイン中: ${session.user.email}`;
             form.hidden = true;
             actions.hidden = false;
+            toggleBtn.textContent = "教師ログイン（ログイン中）";
+            toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
           } else {
             status.textContent = "未ログイン";
             form.hidden = false;
             actions.hidden = true;
+            toggleBtn.textContent = "教師ログイン";
+            toggleBtn.setAttribute("aria-label", "教師ログイン");
           }
           renderResults(filterQuestions());
         }
