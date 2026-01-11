@@ -229,6 +229,15 @@
       .update-list li {
         margin: 4px 0;
       }
+      .user-readme {
+        margin: 6px 0;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
       details.inline {
         margin-top: 8px;
       }
@@ -394,6 +403,12 @@
           <div class="note" id="updateEmpty" hidden>更新情報はありません。</div>
         </div>
       </details>
+      <details class="inline" id="userReadme">
+        <summary>利用ガイド</summary>
+        <div class="card-actions">
+          <pre class="user-readme" id="userReadmeText">読み込み中...</pre>
+        </div>
+      </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -523,6 +538,23 @@
           })
           .catch(() => {
             state.updateLog = [];
+          });
+      }
+
+      function loadUserReadme() {
+        return fetch("./USER_README.md")
+          .then(r => (r.ok ? r.text() : "利用ガイドを読み込めませんでした。"))
+          .then(text => {
+            const target = document.getElementById("userReadmeText");
+            if (target) {
+              target.textContent = text;
+            }
+          })
+          .catch(() => {
+            const target = document.getElementById("userReadmeText");
+            if (target) {
+              target.textContent = "利用ガイドを読み込めませんでした。";
+            }
           });
       }
 
@@ -1006,6 +1038,7 @@
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
+        loadUserReadme();
         loadUpdateLog().then(() => {
           if (updateInfo && updateInfo.open) {
             renderUpdateLog(3);
