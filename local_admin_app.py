@@ -191,7 +191,7 @@ HTML_PAGE = """<!doctype html>
 
     <div class="section" data-section="build" hidden>
       <h2>ファイル生成</h2>
-      <p class="note">WebUI表示用のJSONや学習用セットをまとめて生成します。</p>
+      <p class="note">WebUI表示用のJSONや学習用セットをまとめて生成します（更新情報も反映されます）。</p>
       <button id="buildWeb">Web表示用ファイルを生成</button>
       <button id="buildAll">一括生成（Web/学習/進捗）</button>
       <pre id="buildResult"></pre>
