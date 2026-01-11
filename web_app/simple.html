@@ -259,9 +259,9 @@
     </main>
 
     <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-      <div class="dialog">
+      <div class="dialog" tabindex="-1">
         <p id="confirmTitle">この選択肢で回答しますか？</p>
-        <div id="confirmChoice"></div>
+        <div id="confirmChoice" aria-live="assertive"></div>
         <div class="actions">
           <button id="confirmYes">はい</button>
           <button id="confirmNo">いいえ</button>
@@ -270,10 +270,10 @@
     </div>
 
     <div class="overlay" id="resultOverlay" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
-      <div class="dialog">
+      <div class="dialog" tabindex="-1">
         <p id="resultTitle">正答・解説</p>
-        <div id="resultStatus" class="result"></div>
-        <div id="resultText" class="result"></div>
+        <div id="resultStatus" class="result" aria-live="assertive"></div>
+        <div id="resultText" class="result" aria-live="assertive"></div>
         <div class="actions">
           <button id="resultBack">問題に戻る</button>
           <button id="resultNext">次の問題へ</button>
@@ -502,7 +502,9 @@
         const item = choices.querySelector(`li[data-index='${state.selectedIndex}']`);
         confirmChoice.textContent = item ? item.textContent : "";
         confirmOverlay.classList.add("show");
-        confirmYes.focus();
+        const dialog = confirmOverlay.querySelector(".dialog");
+        if (dialog) dialog.focus();
+        setTimeout(() => confirmYes.focus(), 50);
       }
 
       function closeConfirm() {
@@ -513,6 +515,8 @@
         const q = state.filtered[state.currentIndex];
         const correct = Number(q.answer_index);
         const isCorrect = Number(state.selectedIndex) === correct;
+        const choicesList = q.choices || [];
+        const correctText = choicesList[correct - 1] || "";
         const items = Array.from(choices.querySelectorAll("li"));
         items.forEach(li => {
           const idx = Number(li.dataset.index);
@@ -524,10 +528,12 @@
         state.answered = true;
         resultStatus.textContent = isCorrect ? "正解です。" : "不正解です。";
         resultText.textContent = exp
-          ? `正答: ${correct}\n解説:\n${exp}`
-          : `正答: ${correct}\n解説: (未登録)`;
+          ? `正答: ${correct} ${correctText}\n解説:\n${exp}`
+          : `正答: ${correct} ${correctText}\n解説: (未登録)`;
         resultOverlay.classList.add("show");
-        resultNext.focus();
+        const dialog = resultOverlay.querySelector(".dialog");
+        if (dialog) dialog.focus();
+        setTimeout(() => resultNext.focus(), 50);
         markAnswered(q.serial, state.selectedIndex, isCorrect);
       }
 
@@ -559,7 +565,11 @@
       confirmOverlay.addEventListener("keydown", (e) => {
         if (!confirmOverlay.classList.contains("show")) return;
         e.stopPropagation();
-        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const next = document.activeElement === confirmNo ? confirmYes : confirmNo;
+          next.focus();
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
           e.preventDefault();
           confirmYes.focus();
         } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -601,7 +611,14 @@
       resultOverlay.addEventListener("keydown", (e) => {
         if (!resultOverlay.classList.contains("show")) return;
         e.stopPropagation();
-        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        const topBtn = resultOverlay.querySelector(".topBtn");
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const order = [resultBack, resultNext, topBtn].filter(Boolean);
+          const idx = order.indexOf(document.activeElement);
+          const next = order[(idx + 1) % order.length] || order[0];
+          next.focus();
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
           e.preventDefault();
           resultBack.focus();
         } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
