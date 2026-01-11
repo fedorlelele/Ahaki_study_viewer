@@ -464,6 +464,7 @@
         <option value="desc" selected>新しい順</option>
         <option value="asc">古い順</option>
       </select>
+      <label><input type="checkbox" id="showAnswered" /> 回答済みの問題を表示</label>
     </div>
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
     </main>
@@ -649,6 +650,7 @@
         const needExplanation = document.getElementById("hasExplanation").checked;
         const needTags = document.getElementById("hasTags").checked;
         const needSubtopics = document.getElementById("hasSubtopics").checked;
+        const showAnswered = document.getElementById("showAnswered").checked;
 
         const terms = keyword
           .split(/\s+/)
@@ -669,6 +671,7 @@
           if (serialSet && !serialSet.has(q.serial)) return false;
           if (examType && !q.serial.startsWith(examType)) return false;
           if (session && String(q.exam_session) !== session) return false;
+          if (!showAnswered && hasAnswered(q.serial)) return false;
           if (needExplanation && !(q.explanation_latest || "").trim()) return false;
           if (needTags && !(q.tags || []).length) return false;
           if (needSubtopics && !(q.subtopics || []).length) return false;
@@ -1081,6 +1084,7 @@
           document.getElementById("examTypeSelect").value = "";
           document.getElementById("sessionSelect").value = "";
           document.getElementById("sortSession").value = "desc";
+          document.getElementById("showAnswered").checked = false;
           document.getElementById("hasExplanation").checked = false;
           document.getElementById("hasTags").checked = false;
           document.getElementById("hasSubtopics").checked = false;
@@ -1101,6 +1105,9 @@
           renderResults(filterQuestions());
         });
         document.getElementById("sortSession").addEventListener("change", () => {
+          renderResults(filterQuestions());
+        });
+        document.getElementById("showAnswered").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
         document.getElementById("hasExplanation").addEventListener("change", () => {
@@ -1489,6 +1496,7 @@
         const examType = document.getElementById("examTypeSelect").value;
         const session = document.getElementById("sessionSelect").value;
         const sortSession = document.getElementById("sortSession").value;
+        const showAnswered = document.getElementById("showAnswered").checked;
         const parts = [];
         if (keyword) parts.push(`キーワード: ${keyword}`);
         if (subject) parts.push(`科目: ${subject}`);
@@ -1499,6 +1507,7 @@
           const label = sortSession === "asc" ? "古い順" : "新しい順";
           parts.push(`回数ソート: ${label}`);
         }
+        if (showAnswered) parts.push("回答済みを表示");
         return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
       }
 
