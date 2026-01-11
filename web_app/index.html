@@ -858,7 +858,8 @@
           copyBtn.textContent = "この問題をコピー";
           copyBtn.setAttribute("aria-label", "この問題をクリップボードにコピー");
           copyBtn.addEventListener("click", () => {
-            const text = formatQuestionForCopy(q);
+            const mode = getCopyMode();
+            const text = formatQuestionForCopy(q, mode);
             copyToClipboard(text);
           });
           actions.appendChild(copyBtn);
@@ -989,7 +990,8 @@
       document.getElementById("copyAllBtn").addEventListener("click", () => {
         const list = filterQuestions();
         const header = buildFilterHeader();
-        const body = list.map(q => formatQuestionForCopy(q)).join("\n\n");
+        const mode = getCopyMode();
+        const body = list.map(q => formatQuestionForCopy(q, mode)).join("\n\n");
         copyToClipboard(`${header}\n\n${body}`.trim());
       });
 
@@ -1307,7 +1309,18 @@
         return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
       }
 
-      function formatQuestionForCopy(q) {
+      function getCopyMode() {
+        const showAnswer = document.getElementById("toggleAnswer").checked;
+        const showExplanation = document.getElementById("toggleExplanation").checked;
+        return {
+          showAnswer: showAnswer || showExplanation,
+          showExplanation: showExplanation
+        };
+      }
+
+      function formatQuestionForCopy(q, mode) {
+        const showAnswer = mode && mode.showAnswer;
+        const showExplanation = mode && mode.showExplanation;
         const lines = [];
         lines.push(`${q.serial}　${q.stem || ""}`);
         const choices = q.choices || [];
@@ -1316,13 +1329,17 @@
           const n = nums[idx] || String(idx + 1);
           lines.push(`${n}．${choice}`);
         });
-        lines.push("　");
-        const ans = q.answer_index ? `解答　${nums[q.answer_index - 1] || q.answer_index}` : "解答　";
-        lines.push(ans);
-        const exp = q.explanation_latest || "";
-        if (exp) {
-          lines.push("解説");
-          lines.push(exp);
+        if (showAnswer) {
+          lines.push("　");
+          const ans = q.answer_index ? `解答　${nums[q.answer_index - 1] || q.answer_index}` : "解答　";
+          lines.push(ans);
+          if (showExplanation) {
+            const exp = q.explanation_latest || "";
+            if (exp) {
+              lines.push("解説");
+              lines.push(exp);
+            }
+          }
         }
         return lines.join("\n");
       }
