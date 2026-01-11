@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ahaki かんたんビュー</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --ink: #000000;
+        --muted: #2b2b2b;
+        --accent: #0b5cab;
+        --line: #000000;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      header {
+        padding: 16px 20px 8px;
+        border-bottom: 2px solid var(--line);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(24px, 4vw, 34px);
+      }
+      .subtitle {
+        font-size: 16px;
+        color: var(--muted);
+      }
+      .container {
+        padding: 16px 20px 40px;
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      .guide {
+        border: 2px solid var(--line);
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 16px;
+        background: #f7f7f7;
+      }
+      .guide ol {
+        margin: 8px 0 0 18px;
+      }
+      label {
+        display: block;
+        margin: 14px 0 6px;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      select, button {
+        font-size: 18px;
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+      select:focus,
+      button:focus {
+        outline: 4px solid var(--accent);
+        outline-offset: 2px;
+      }
+      button {
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      .status {
+        margin-top: 10px;
+        font-size: 16px;
+      }
+      .question {
+        margin-top: 18px;
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 18px;
+      }
+      .meta {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .case-text {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        background: #fff7e6;
+        font-size: 18px;
+        white-space: pre-wrap;
+      }
+      .stem {
+        margin: 10px 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .choices {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0;
+      }
+      .choices li {
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        font-size: 18px;
+        background: #fff;
+      }
+      .choices li.selected {
+        outline: 4px solid var(--accent);
+        background: #d7e7ff;
+        font-weight: 700;
+      }
+      .choices li.correct {
+        background: #e6f7ed;
+      }
+      .choices li.incorrect {
+        background: #ffe7ea;
+      }
+      .result {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        font-size: 18px;
+        background: #f5f5f5;
+        white-space: pre-wrap;
+      }
+      .actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .actions button {
+        min-width: 180px;
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .overlay.show {
+        display: flex;
+      }
+      .dialog {
+        background: #fff;
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        padding: 16px;
+        max-width: 520px;
+        width: 100%;
+      }
+      .dialog p {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+      .dialog .actions {
+        justify-content: flex-end;
+      }
+      .help {
+        margin-top: 10px;
+        font-size: 16px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Ahaki かんたんビュー</h1>
+      <div class="subtitle">視覚障害者・音声操作向けの簡易インターフェース</div>
+    </header>
+    <main class="container" role="main">
+      <section class="guide" id="stepGuide" aria-label="操作説明">
+        <strong>操作手順</strong>
+        <ol>
+          <li>科目を選択してください。</li>
+          <li>小項目を選択してください（すべてでも可）。</li>
+          <li>試験種別を選択してください。</li>
+          <li>問題が1問ずつ表示されます。矢印キーで選択肢を動かし、Enterで回答します。</li>
+          <li>Tabキーで次の項目に移動できます。</li>
+        </ol>
+        <div class="row">
+          <button id="guideNext">次へ</button>
+        </div>
+      </section>
+
+      <section id="stepSubject" aria-label="科目選択" hidden>
+        <label for="subjectSelect">科目を選択してください</label>
+        <select id="subjectSelect" aria-label="科目リスト">
+          <option value="">選択してください</option>
+        </select>
+        <div class="row">
+          <button id="subjectNext" disabled>次へ</button>
+          <button class="backBtn">戻る</button>
+        </div>
+      </section>
+
+      <section id="stepSubtopic" aria-label="小項目選択" hidden>
+        <label for="subtopicSelect">小項目を選択してください</label>
+        <select id="subtopicSelect" aria-label="小項目リスト">
+          <option value="">すべて</option>
+        </select>
+        <div class="row">
+          <button id="subtopicNext">次へ</button>
+          <button class="backBtn">戻る</button>
+        </div>
+      </section>
+
+      <section id="stepExamType" aria-label="試験種別選択" hidden>
+        <label for="examTypeSelect">試験種別を選択してください</label>
+        <select id="examTypeSelect" aria-label="試験種別リスト">
+          <option value="">選択してください</option>
+        </select>
+        <label for="orderSelect">表示順序を選択してください</label>
+        <select id="orderSelect" aria-label="表示順序リスト">
+          <option value="new" selected>新しい順</option>
+          <option value="old">古い順</option>
+        </select>
+        <div class="row">
+          <button id="startBtn" disabled>問題を表示</button>
+          <button class="backBtn">戻る</button>
+        </div>
+      </section>
+
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <div class="help">キーボード: ↑↓で選択 / Enterで回答 / Tabで項目移動</div>
+
+      <section class="question" id="questionSection" hidden>
+        <div class="meta" id="meta"></div>
+        <div class="case-text" id="caseText" hidden></div>
+        <div class="stem" id="stem"></div>
+        <ul class="choices" id="choices" role="listbox" aria-label="選択肢"></ul>
+        <div class="actions">
+          <button id="confirmBtn" disabled>回答を確定</button>
+        </div>
+      </section>
+    </main>
+
+    <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="dialog">
+        <p id="confirmTitle">この選択肢で回答しますか？</p>
+        <div id="confirmChoice"></div>
+        <div class="actions">
+          <button id="confirmYes">はい</button>
+          <button id="confirmNo">いいえ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="resultOverlay" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="dialog">
+        <p id="resultTitle">正答・解説</p>
+        <div id="resultText" class="result"></div>
+        <div class="actions">
+          <button id="resultBack">問題に戻る</button>
+          <button id="resultNext">次の問題へ</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        questions: [],
+        subtopicsBySubject: {},
+        examTypes: [],
+        filtered: [],
+        currentIndex: 0,
+        selectedIndex: null,
+        answered: false,
+        lastSubject: "",
+        focusItems: [],
+        focusIndex: 0
+      };
+
+      const stepGuide = document.getElementById("stepGuide");
+      const stepSubject = document.getElementById("stepSubject");
+      const stepSubtopic = document.getElementById("stepSubtopic");
+      const stepExamType = document.getElementById("stepExamType");
+      const subjectSelect = document.getElementById("subjectSelect");
+      const examTypeSelect = document.getElementById("examTypeSelect");
+      const subtopicSelect = document.getElementById("subtopicSelect");
+      const orderSelect = document.getElementById("orderSelect");
+      const startBtn = document.getElementById("startBtn");
+      const guideNext = document.getElementById("guideNext");
+      const subjectNext = document.getElementById("subjectNext");
+      const subtopicNext = document.getElementById("subtopicNext");
+      const status = document.getElementById("status");
+      const questionSection = document.getElementById("questionSection");
+      const meta = document.getElementById("meta");
+      const caseText = document.getElementById("caseText");
+      const stem = document.getElementById("stem");
+      const choices = document.getElementById("choices");
+      const confirmBtn = document.getElementById("confirmBtn");
+      const confirmOverlay = document.getElementById("confirmOverlay");
+      const confirmChoice = document.getElementById("confirmChoice");
+      const confirmYes = document.getElementById("confirmYes");
+      const confirmNo = document.getElementById("confirmNo");
+      const resultOverlay = document.getElementById("resultOverlay");
+      const resultText = document.getElementById("resultText");
+      const resultBack = document.getElementById("resultBack");
+      const resultNext = document.getElementById("resultNext");
+      let noResultsMode = false;
+
+      function loadData() {
+        return fetch("../output/web/questions.json")
+          .then(r => r.json())
+          .then(data => {
+            state.questions = data || [];
+            const subjects = new Set();
+            const examTypes = new Set();
+            const subMap = {};
+            state.questions.forEach(q => {
+              if (q.subject) subjects.add(q.subject);
+              if (q.exam_type) examTypes.add(q.exam_type);
+              if (!subMap[q.subject]) subMap[q.subject] = new Set();
+              (q.subtopics || []).forEach(s => subMap[q.subject].add(s));
+            });
+            state.examTypes = Array.from(examTypes).sort();
+            Object.keys(subMap).forEach(subject => {
+              state.subtopicsBySubject[subject] = Array.from(subMap[subject]).sort();
+            });
+            populateSelect(subjectSelect, Array.from(subjects).sort(), "選択してください");
+            populateSelect(examTypeSelect, state.examTypes, "選択してください");
+          });
+      }
+
+      function populateSelect(select, items, placeholder) {
+        select.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = placeholder;
+        select.appendChild(opt);
+        items.forEach(item => {
+          const o = document.createElement("option");
+          o.value = item;
+          o.textContent = item;
+          select.appendChild(o);
+        });
+      }
+
+      function showStep(step) {
+        stepGuide.hidden = step !== "guide";
+        stepSubject.hidden = step !== "subject";
+        stepSubtopic.hidden = step !== "subtopic";
+        stepExamType.hidden = step !== "exam";
+      }
+
+      function updateState() {
+        const subject = subjectSelect.value;
+        const examType = examTypeSelect.value;
+        if (subject && subject !== state.lastSubject) {
+          const subs = state.subtopicsBySubject[subject] || [];
+          populateSelect(subtopicSelect, subs, "すべて");
+          state.lastSubject = subject;
+        }
+        subjectNext.disabled = !subject;
+        startBtn.disabled = !examType;
+      }
+
+      function filterQuestions() {
+        const subject = subjectSelect.value;
+        const examType = examTypeSelect.value;
+        const subtopic = subtopicSelect.value;
+        const order = orderSelect.value;
+        state.filtered = state.questions.filter(q => {
+          if (subject && q.subject !== subject) return false;
+          if (examType && q.exam_type !== examType) return false;
+          if (subtopic && !(q.subtopics || []).includes(subtopic)) return false;
+          return true;
+        });
+        if (order === "old") {
+          state.filtered.sort((a, b) => (a.exam_session || 0) - (b.exam_session || 0));
+        } else {
+          state.filtered.sort((a, b) => (b.exam_session || 0) - (a.exam_session || 0));
+        }
+        state.currentIndex = 0;
+      }
+
+      function renderQuestion() {
+        const q = state.filtered[state.currentIndex];
+        if (!q) {
+          status.textContent = "条件に合う問題が見つかりませんでした。";
+          resultOverlay.classList.add("show");
+          resultText.textContent = "条件に合う問題が見つかりませんでした。";
+          resultBack.textContent = "トップへ戻る";
+          resultNext.hidden = true;
+          noResultsMode = true;
+          resultBack.focus();
+          questionSection.hidden = true;
+          return;
+        }
+        resultBack.textContent = "問題に戻る";
+        resultNext.hidden = false;
+        noResultsMode = false;
+        state.selectedIndex = null;
+        state.answered = false;
+        confirmBtn.disabled = true;
+        choices.innerHTML = "";
+        meta.textContent = `${q.serial} / ${q.subject} / ${q.exam_type} / 第${q.exam_session}回`;
+        if (q.case_text) {
+          caseText.textContent = q.case_text;
+          caseText.hidden = false;
+          caseText.setAttribute("tabindex", "0");
+        } else {
+          caseText.textContent = "";
+          caseText.hidden = true;
+        }
+        stem.textContent = q.stem || "";
+        stem.setAttribute("tabindex", "0");
+        (q.choices || []).forEach((choice, idx) => {
+          const li = document.createElement("li");
+          li.textContent = `${idx + 1}. ${choice}`;
+          li.setAttribute("role", "option");
+          li.dataset.index = String(idx + 1);
+          li.setAttribute("tabindex", "0");
+          li.setAttribute("aria-selected", "false");
+          li.addEventListener("click", () => {
+            highlightSelection(idx + 1);
+          });
+          li.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              highlightSelection(idx + 1);
+            }
+          });
+          choices.appendChild(li);
+        });
+        state.focusItems = [];
+        if (!caseText.hidden) state.focusItems.push(caseText);
+        state.focusItems.push(stem);
+        Array.from(choices.querySelectorAll("li")).forEach(li => state.focusItems.push(li));
+        state.focusIndex = 0;
+        questionSection.hidden = false;
+        status.textContent = `問題 ${state.currentIndex + 1} / ${state.filtered.length}`;
+        highlightSelection(1);
+        if (state.focusItems.length) {
+          state.focusItems[0].focus();
+        }
+      }
+
+      function setFocusIndex(index) {
+        if (!state.focusItems.length) return;
+        const bounded = (index + state.focusItems.length) % state.focusItems.length;
+        state.focusIndex = bounded;
+        const target = state.focusItems[bounded];
+        if (target) {
+          target.focus();
+          if (target.dataset && target.dataset.index) {
+            highlightSelection(Number(target.dataset.index));
+          }
+        }
+      }
+
+      function highlightSelection(index) {
+        const items = Array.from(choices.querySelectorAll("li"));
+        items.forEach(li => {
+          li.classList.remove("selected");
+          li.setAttribute("aria-selected", "false");
+        });
+        const target = items[index - 1];
+        if (target) {
+          target.classList.add("selected");
+          target.setAttribute("aria-selected", "true");
+          state.selectedIndex = index;
+          confirmBtn.disabled = false;
+        }
+      }
+
+      function openConfirm() {
+        if (!state.selectedIndex) return;
+        const item = choices.querySelector(`li[data-index='${state.selectedIndex}']`);
+        confirmChoice.textContent = item ? item.textContent : "";
+        confirmOverlay.classList.add("show");
+        confirmYes.focus();
+      }
+
+      function closeConfirm() {
+        confirmOverlay.classList.remove("show");
+      }
+
+      function showResult() {
+        const q = state.filtered[state.currentIndex];
+        const correct = Number(q.answer_index);
+        const items = Array.from(choices.querySelectorAll("li"));
+        items.forEach(li => {
+          const idx = Number(li.dataset.index);
+          li.classList.remove("selected");
+          if (idx === correct) li.classList.add("correct");
+          if (idx === state.selectedIndex && idx !== correct) li.classList.add("incorrect");
+        });
+        const exp = q.explanation_latest || "";
+        state.answered = true;
+        resultText.textContent = exp
+          ? `正答: ${correct}\n解説:\n${exp}`
+          : `正答: ${correct}\n解説: (未登録)`;
+        resultOverlay.classList.add("show");
+        resultNext.focus();
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (questionSection.hidden || state.answered) return;
+        if (!state.focusItems.length) return;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setFocusIndex(state.focusIndex + 1);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setFocusIndex(state.focusIndex - 1);
+        } else if (e.key === "Enter") {
+          if (document.activeElement && document.activeElement.dataset && document.activeElement.dataset.index) {
+            e.preventDefault();
+            openConfirm();
+          }
+        } else if (e.key === "Escape") {
+          resetToTop();
+        }
+      });
+
+      confirmBtn.addEventListener("click", openConfirm);
+      confirmNo.addEventListener("click", closeConfirm);
+      confirmYes.addEventListener("click", () => {
+        closeConfirm();
+        showResult();
+      });
+      confirmOverlay.addEventListener("keydown", (e) => {
+        if (!confirmOverlay.classList.contains("show")) return;
+        e.stopPropagation();
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          confirmYes.focus();
+        } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          confirmNo.focus();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          closeConfirm();
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (document.activeElement === confirmNo) {
+            closeConfirm();
+          } else {
+            closeConfirm();
+            showResult();
+          }
+        }
+      });
+
+      resultBack.addEventListener("click", () => {
+        if (noResultsMode) {
+          resultOverlay.classList.remove("show");
+          resetToTop();
+          return;
+        }
+        resultOverlay.classList.remove("show");
+      });
+
+      resultNext.addEventListener("click", () => {
+        resultOverlay.classList.remove("show");
+        state.currentIndex += 1;
+        if (state.currentIndex >= state.filtered.length) {
+          resetToTop();
+          return;
+        }
+        renderQuestion();
+      });
+
+      resultOverlay.addEventListener("keydown", (e) => {
+        if (!resultOverlay.classList.contains("show")) return;
+        e.stopPropagation();
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          resultBack.focus();
+        } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          resultNext.focus();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          resultOverlay.classList.remove("show");
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (document.activeElement === resultBack) {
+            if (noResultsMode) {
+              resultOverlay.classList.remove("show");
+              resetToTop();
+            } else {
+              resultOverlay.classList.remove("show");
+            }
+          } else {
+            resultOverlay.classList.remove("show");
+            state.currentIndex += 1;
+            if (state.currentIndex >= state.filtered.length) {
+              resetToTop();
+              return;
+            }
+            renderQuestion();
+          }
+        }
+      });
+
+      function resetToTop() {
+        questionSection.hidden = true;
+        subjectSelect.value = "";
+        examTypeSelect.value = "";
+        subtopicSelect.value = "";
+        status.textContent = "";
+        showStep("guide");
+        updateState();
+      }
+
+      guideNext.addEventListener("click", () => {
+        showStep("subject");
+      });
+      guideNext.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          showStep("subject");
+        }
+      });
+
+      subjectSelect.addEventListener("change", () => {
+        updateState();
+      });
+      subjectSelect.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !subjectNext.disabled) {
+          e.preventDefault();
+          showStep("subtopic");
+        }
+      });
+      subjectNext.addEventListener("click", () => {
+        showStep("subtopic");
+      });
+
+      subtopicSelect.addEventListener("change", () => {
+        updateState();
+      });
+      subtopicSelect.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          showStep("exam");
+        }
+      });
+      subtopicNext.addEventListener("click", () => {
+        showStep("exam");
+      });
+
+      examTypeSelect.addEventListener("change", () => {
+        updateState();
+      });
+      examTypeSelect.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !startBtn.disabled) {
+          e.preventDefault();
+          filterQuestions();
+          showStep("");
+          renderQuestion();
+        }
+      });
+      orderSelect.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !startBtn.disabled) {
+          e.preventDefault();
+          filterQuestions();
+          showStep("");
+          renderQuestion();
+        }
+      });
+
+      startBtn.addEventListener("click", () => {
+        filterQuestions();
+        showStep("");
+        renderQuestion();
+      });
+
+      document.querySelectorAll(".backBtn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (!stepExamType.hidden) {
+            showStep("subtopic");
+          } else if (!stepSubtopic.hidden) {
+            showStep("subject");
+          } else if (!stepSubject.hidden) {
+            showStep("guide");
+          }
+        });
+      });
+
+      loadData().then(() => {
+        updateState();
+        showStep("guide");
+      });
+    </script>
+  </body>
+</html>
