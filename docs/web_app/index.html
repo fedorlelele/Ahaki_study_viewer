@@ -217,6 +217,10 @@
       .card-actions {
         margin-top: 10px;
       }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+      }
       .update-list {
         margin: 6px 0 8px;
         padding-left: 18px;
@@ -326,6 +330,40 @@
         background: #fff;
         cursor: pointer;
         font-size: 12px;
+      }
+      .request-btn {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 2px solid var(--accent);
+        background: #fff;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .request-btn.reported {
+        background: #ffe7ea;
+        border-color: #b00020;
+        color: #7a0015;
+      }
+      .request-panel {
+        margin-top: 6px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 12px;
+        flex-basis: 100%;
+        width: 100%;
+      }
+      .request-panel textarea,
+      .request-panel button {
+        margin-top: 6px;
+        font-size: 12px;
+      }
+      .request-panel textarea {
+        width: 100%;
+        min-height: 96px;
+        resize: vertical;
       }
       .show .answer { display: block; }
       .show-explanation .answer { display: block; }
@@ -721,6 +759,15 @@
               tags.appendChild(link);
             });
           }
+          if (!isTeacher) {
+            const tagReportWrap = buildReportRequest(
+              q.serial,
+              "tag",
+              "タグ修正を要望"
+            );
+            tags.appendChild(tagReportWrap.button);
+            tags.appendChild(tagReportWrap.panel);
+          }
           if (isTeacher) {
             const tagDetails = document.createElement("details");
             tagDetails.className = "inline inline-details";
@@ -785,6 +832,15 @@
               subs.appendChild(link);
             });
           }
+          if (!isTeacher) {
+            const subReportWrap = buildReportRequest(
+              q.serial,
+              "subtopic",
+              "小項目修正を要望"
+            );
+            subs.appendChild(subReportWrap.button);
+            subs.appendChild(subReportWrap.panel);
+          }
           if (isTeacher) {
             const subDetails = document.createElement("details");
             subDetails.className = "inline inline-details";
@@ -848,6 +904,46 @@
           const expTitle = document.createElement("span");
           expTitle.textContent = expText ? `解説${expLabel}:` : "解説: (未登録)";
           expHeader.appendChild(expTitle);
+          if (!isTeacher) {
+            if (q.explanations && q.explanations.length > 1) {
+              const select = document.createElement("select");
+              select.setAttribute("aria-label", "解説バージョンを選択");
+              const label = document.createElement("option");
+              label.value = "";
+              label.textContent = "解説バージョン";
+              select.appendChild(label);
+              q.explanations.forEach(item => {
+                const opt = document.createElement("option");
+                opt.value = JSON.stringify({ body: item.body, source: item.source || "" });
+                opt.textContent = `v${item.version}`;
+                select.appendChild(opt);
+              });
+              select.addEventListener("change", () => {
+                if (select.value) {
+                  try {
+                    const data = JSON.parse(select.value);
+                    const label = formatExplanationLabel(data.source);
+                    expTitle.textContent = `解説${label}:`;
+                    expBody.textContent = data.body || "";
+                  } catch (err) {
+                    expTitle.textContent = "解説:";
+                    expBody.textContent = select.value || "";
+                  }
+                } else {
+                  expTitle.textContent = expText ? `解説${expLabel}:` : "解説: (未登録)";
+                  expBody.textContent = expText || "";
+                }
+              });
+              expHeader.appendChild(select);
+            }
+            const expReportWrap = buildReportRequest(
+              q.serial,
+              "explanation",
+              "解説修正を要望"
+            );
+            expHeader.appendChild(expReportWrap.button);
+            explanation.appendChild(expReportWrap.panel);
+          }
           if (isTeacher) {
             const expConfirm = document.createElement("button");
             expConfirm.textContent = "解説承認";
@@ -888,28 +984,8 @@
           explanation.appendChild(expBody);
           card.appendChild(explanation);
 
-          const actionWrap = document.createElement("details");
-          actionWrap.className = "inline";
-          const actionSummary = document.createElement("summary");
-          actionSummary.textContent = "操作を表示";
-          actionWrap.appendChild(actionSummary);
-
           const actions = document.createElement("div");
           actions.className = "card-actions";
-          if (!isTeacher) {
-            const toggleBtn = document.createElement("button");
-            toggleBtn.textContent = "正答・解説を表示";
-            toggleBtn.setAttribute("aria-label", "正答と解説の表示切り替え");
-            toggleBtn.addEventListener("click", () => {
-              if (card.classList.contains("show-explanation")) {
-                card.classList.remove("show-explanation");
-              } else {
-                card.classList.add("show-explanation");
-              }
-            });
-            actions.appendChild(toggleBtn);
-          }
-
           const copyBtn = document.createElement("button");
           copyBtn.textContent = "この問題をコピー";
           copyBtn.setAttribute("aria-label", "この問題をクリップボードにコピー");
@@ -919,59 +995,7 @@
             copyToClipboard(text);
           });
           actions.appendChild(copyBtn);
-
-          if (!isTeacher) {
-            const reportKinds = [
-              { key: "explanation", label: "解説要修正" },
-              { key: "tag", label: "タグ要修正" },
-              { key: "subtopic", label: "小項目要修正" }
-            ];
-            reportKinds.forEach(item => {
-              const reportBtn = document.createElement("button");
-              reportBtn.textContent = item.label;
-              reportBtn.className = "report-btn";
-              reportBtn.setAttribute("aria-label", `${item.label}を報告`);
-              reportBtn.addEventListener("click", () => {
-                sendReport(q.serial, item.key, reportBtn);
-              });
-              actions.appendChild(reportBtn);
-            });
-          }
-
-          if (q.explanations && q.explanations.length > 1) {
-            const select = document.createElement("select");
-            select.setAttribute("aria-label", "解説バージョンを選択");
-            const label = document.createElement("option");
-            label.value = "";
-            label.textContent = "解説バージョン";
-            select.appendChild(label);
-            q.explanations.forEach(item => {
-              const opt = document.createElement("option");
-              opt.value = JSON.stringify({ body: item.body, source: item.source || "" });
-              opt.textContent = `v${item.version}`;
-              select.appendChild(opt);
-            });
-            select.addEventListener("change", () => {
-              if (select.value) {
-                try {
-                  const data = JSON.parse(select.value);
-                  const label = formatExplanationLabel(data.source);
-                  expTitle.textContent = `解説${label}:`;
-                  expBody.textContent = data.body || "";
-                } catch (err) {
-                  expTitle.textContent = "解説:";
-                  expBody.textContent = select.value || "";
-                }
-              } else {
-                expTitle.textContent = expText ? `解説${expLabel}:` : "解説: (未登録)";
-                expBody.textContent = expText || "";
-              }
-            });
-            actions.appendChild(select);
-          }
-
-          actionWrap.appendChild(actions);
-          card.appendChild(actionWrap);
+          card.appendChild(actions);
 
           container.appendChild(card);
         });
@@ -1120,12 +1144,12 @@
 
       init();
 
-      function sendReport(serial, kind, button) {
+      function sendReport(serial, kind, button, comment) {
         const anonId = getAnonId();
         if (supabaseClient) {
           supabaseClient
             .from("feedback")
-            .insert([{ serial, kind, anon_id: anonId }])
+            .insert([{ serial, kind, anon_id: anonId, comment: comment }])
             .then(({ error }) => {
               if (error) {
                 button.classList.remove("reported");
@@ -1137,7 +1161,7 @@
           return;
         }
         fetch(
-          `${API_BASE}/api/report?serial=${encodeURIComponent(serial)}&kind=${encodeURIComponent(kind)}`,
+          `${API_BASE}/api/report?serial=${encodeURIComponent(serial)}&kind=${encodeURIComponent(kind)}&comment=${encodeURIComponent(comment || "")}`,
           { mode: "cors" }
         )
           .then(resp => resp.json())
@@ -1266,6 +1290,63 @@
         if (source === "human" || source === "teacher") return "（教師編集）";
         if (source === "llm" || source === "ai") return "（AI）";
         return "（" + source + "）";
+      }
+
+      function buildReportRequest(serial, kind, label) {
+        const panelId = `report-${serial}-${kind}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+        const button = document.createElement("button");
+        button.className = "request-btn";
+        button.textContent = label;
+        button.setAttribute("aria-label", `${label}を送信`);
+        button.setAttribute("aria-expanded", "false");
+        button.setAttribute("aria-controls", panelId);
+
+        const panel = document.createElement("div");
+        panel.className = "request-panel";
+        panel.hidden = true;
+        panel.id = panelId;
+
+        const textarea = document.createElement("textarea");
+        textarea.rows = 3;
+        textarea.placeholder = "修正内容のコメント（必須）";
+        textarea.setAttribute("aria-label", `${label}のコメント`);
+
+        const error = document.createElement("div");
+        error.className = "note";
+        error.textContent = "コメントを入力してください。";
+        error.hidden = true;
+
+        const submit = document.createElement("button");
+        submit.textContent = "送信";
+
+        button.addEventListener("click", () => {
+          panel.hidden = !panel.hidden;
+          if (!panel.hidden) {
+            textarea.focus();
+          }
+          button.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+        });
+
+        submit.addEventListener("click", () => {
+          const comment = textarea.value.trim();
+          if (!comment) {
+            error.hidden = false;
+            textarea.setAttribute("aria-invalid", "true");
+            return;
+          }
+          error.hidden = true;
+          textarea.removeAttribute("aria-invalid");
+          sendReport(serial, kind, button, comment);
+          textarea.value = "";
+          panel.hidden = true;
+          button.setAttribute("aria-expanded", "false");
+        });
+
+        panel.appendChild(textarea);
+        panel.appendChild(error);
+        panel.appendChild(submit);
+
+        return { button, panel };
       }
 
       function handleAnswerSelection(question, selectedIndex, button) {
