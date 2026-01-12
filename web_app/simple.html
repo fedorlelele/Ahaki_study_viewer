@@ -277,7 +277,7 @@
         <div class="actions">
           <button id="resultBack">問題に戻る</button>
           <button id="resultNext">次の問題へ</button>
-          <button class="topBtn">トップへ戻る</button>
+          <button class="topBtn" id="resultTop" type="button">トップへ戻る</button>
         </div>
       </div>
     </div>
@@ -327,6 +327,7 @@
       const resultText = document.getElementById("resultText");
       const resultBack = document.getElementById("resultBack");
       const resultNext = document.getElementById("resultNext");
+      const resultTop = document.getElementById("resultTop");
       let noResultsMode = false;
 
       function loadData() {
@@ -624,7 +625,7 @@
       resultOverlay.addEventListener("keydown", (e) => {
         if (!resultOverlay.classList.contains("show")) return;
         e.stopPropagation();
-        const topBtn = resultOverlay.querySelector(".topBtn");
+        const topBtn = resultTop || resultOverlay.querySelector(".topBtn");
         if (e.key === "Tab") {
           e.preventDefault();
           const order = [resultBack, resultNext, topBtn].filter(Boolean);
@@ -650,6 +651,12 @@
               resultOverlay.classList.remove("show");
               restoreQuestionFocus();
             }
+          } else if (document.activeElement === topBtn) {
+            confirmOverlay.classList.remove("show");
+            resultOverlay.classList.remove("show");
+            resetToTop();
+          } else if (document.activeElement !== resultNext) {
+            resultBack.focus();
           } else {
             resultOverlay.classList.remove("show");
             state.currentIndex += 1;
@@ -685,7 +692,7 @@
       }
 
       function setResultButtonsEnabled(enabled) {
-        const buttons = [resultBack, resultNext, ...resultOverlay.querySelectorAll(".topBtn")];
+        const buttons = [resultBack, resultNext, resultTop].filter(Boolean);
         buttons.forEach(btn => {
           btn.disabled = !enabled;
           btn.setAttribute("tabindex", enabled ? "0" : "-1");
@@ -693,6 +700,10 @@
       }
 
       function resetToTop() {
+        noResultsMode = false;
+        state.answered = false;
+        state.selectedIndex = null;
+        state.currentIndex = 0;
         questionSection.hidden = true;
         subjectSelect.value = "";
         examTypeSelect.value = "";
