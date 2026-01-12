@@ -289,7 +289,15 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
     <script>
+      const SUPABASE_URL = window.SUPABASE_URL || "";
+      const SUPABASE_KEY = window.SUPABASE_KEY || "";
+      const supabaseClient =
+        window.supabase && SUPABASE_URL && SUPABASE_KEY
+          ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+          : null;
       const state = {
         questions: [],
         subtopicsBySubject: {},
@@ -560,6 +568,24 @@
         const dialog = resultOverlay.querySelector(".dialog");
         if (dialog) dialog.focus();
         markAnswered(q.serial, state.selectedIndex, isCorrect);
+        const anonId = getAnonId();
+        if (supabaseClient) {
+          supabaseClient
+            .from("answers")
+            .insert([
+              {
+                serial: q.serial,
+                is_correct: isCorrect,
+                selected_index: state.selectedIndex,
+                anon_id: anonId
+              }
+            ])
+            .then(({ error }) => {
+              if (error) {
+                console.warn("回答の記録に失敗しました。", error);
+              }
+            });
+        }
         setTimeout(() => {
           resultText.textContent = resultBody;
           setResultButtonsEnabled(true);
@@ -841,6 +867,19 @@
       function saveAnsweredState() {
         const key = "answeredSerials";
         localStorage.setItem(key, JSON.stringify(state.answeredMap));
+      }
+
+      function getAnonId() {
+        const key = "anonId";
+        let id = localStorage.getItem(key);
+        if (id) return id;
+        if (crypto && crypto.randomUUID) {
+          id = crypto.randomUUID();
+        } else {
+          id = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        }
+        localStorage.setItem(key, id);
+        return id;
       }
     </script>
   </body>
