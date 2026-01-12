@@ -1010,12 +1010,24 @@
             explanation.appendChild(expReportWrap.panel);
           }
           if (isTeacher) {
-            const expConfirm = document.createElement("button");
-            expConfirm.textContent = "解説承認";
-            expConfirm.addEventListener("click", () => {
-              applyExplanationConfirm(q);
-            });
-            expHeader.appendChild(expConfirm);
+            const source = q.explanation_latest_source || "";
+            const teacherLabel = formatExplanationLabel(source);
+            expTitle.textContent = expText ? `解説${teacherLabel}:` : "解説: (未登録)";
+            if (source === "llm_checked") {
+              const expRevoke = document.createElement("button");
+              expRevoke.textContent = "承認取消";
+              expRevoke.addEventListener("click", () => {
+                applyExplanationConfirm(q, "llm");
+              });
+              expHeader.appendChild(expRevoke);
+            } else if (source !== "teacher" && source !== "human") {
+              const expConfirm = document.createElement("button");
+              expConfirm.textContent = "解説承認";
+              expConfirm.addEventListener("click", () => {
+                applyExplanationConfirm(q, "llm_checked");
+              });
+              expHeader.appendChild(expConfirm);
+            }
 
             const expDetails = document.createElement("details");
             expDetails.className = "inline inline-details";
@@ -1414,9 +1426,9 @@
         applyOverrideChange(question.serial, "subtopics", before, after, { subtopics: next }, note);
       }
 
-      function applyExplanationConfirm(question) {
+      function applyExplanationConfirm(question, nextSource) {
         const current = question.explanation_latest_source || "";
-        const normalized = current === "llm" || current === "ai" ? "llm_checked" : current || "llm_checked";
+        const normalized = nextSource || (current === "llm" || current === "ai" ? "llm_checked" : "llm_checked");
         const before = { explanation_source: current };
         const after = { explanation_source: normalized };
         applyOverrideChange(
@@ -1535,6 +1547,22 @@
           chunk.forEach(serial => {
             state.overridesBySerial[serial] = map[serial] || null;
             state.overridesLoaded.add(serial);
+          });
+          (data || []).forEach(row => {
+            const base = state.questions.find(item => item.serial === row.serial);
+            if (!base) return;
+            if (row.explanation !== null && row.explanation !== undefined) {
+              base.explanation_latest = row.explanation;
+            }
+            if (row.explanation_source !== null && row.explanation_source !== undefined) {
+              base.explanation_latest_source = row.explanation_source;
+            }
+            if (row.tags !== null && row.tags !== undefined) {
+              base.tags = row.tags;
+            }
+            if (row.subtopics !== null && row.subtopics !== undefined) {
+              base.subtopics = row.subtopics;
+            }
           });
         }
       }
