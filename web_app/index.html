@@ -1072,57 +1072,19 @@
         const updateLabel = () => {
           more.textContent = `さらに表示 (${idx}/${subset.length})`;
         };
-        function applyOverrides(q) {
-          const override = state.overridesBySerial[q.serial];
-          if (!override) return q;
-          const merged = { ...q };
-          if (override.explanation !== undefined && override.explanation !== null) {
-            merged.explanation_latest = override.explanation;
-            merged.explanation_latest_source =
-              override.explanation_source || merged.explanation_latest_source;
-          }
-          if (override.tags !== undefined && override.tags !== null) {
-            merged.tags = override.tags;
-          }
-          if (override.subtopics !== undefined && override.subtopics !== null) {
-            merged.subtopics = override.subtopics;
-          }
-          return merged;
-        }
         function renderBatch(batch) {
           const frag = document.createDocumentFragment();
           batch.forEach(item => {
-            appendCard(applyOverrides(item), frag);
+            appendCard(applyOverridesToQuestion(item), frag);
           });
           container.appendChild(frag);
-        }
-        async function ensureOverrides(serials) {
-          if (!supabaseClient || !serials.length) return;
-          const pending = serials.filter(serial => !state.overridesLoaded.has(serial));
-          if (!pending.length) return;
-          const { data, error } = await supabaseClient
-            .from("question_overrides")
-            .select("serial, explanation, explanation_source, tags, subtopics")
-            .in("serial", pending);
-          if (error) {
-            console.warn("差分の取得に失敗しました。", error);
-            return;
-          }
-          const map = {};
-          (data || []).forEach(row => {
-            map[row.serial] = row;
-          });
-          pending.forEach(serial => {
-            state.overridesBySerial[serial] = map[serial] || null;
-            state.overridesLoaded.add(serial);
-          });
         }
         async function renderChunk() {
           const end = Math.min(idx + batchSize, subset.length);
           const batch = subset.slice(idx, end);
           idx = end;
           more.disabled = true;
-          await ensureOverrides(batch.map(item => item.serial));
+          await ensureOverridesLoaded(batch.map(item => item.serial));
           renderBatch(batch);
           more.disabled = false;
           updateLabel();
@@ -1231,11 +1193,12 @@
           renderResults(filterQuestions());
         });
 
-      document.getElementById("copyAllBtn").addEventListener("click", () => {
+      document.getElementById("copyAllBtn").addEventListener("click", async () => {
         const list = filterQuestions();
+        await ensureOverridesLoaded(list.map(item => item.serial));
         const header = buildFilterHeader();
         const mode = getCopyMode();
-        const body = list.map(q => formatQuestionForCopy(q, mode)).join("\n\n");
+        const body = list.map(q => formatQuestionForCopy(applyOverridesToQuestion(q), mode)).join("\n\n");
         copyToClipboard(`${header}\n\n${body}`.trim());
       });
 
@@ -1548,6 +1511,50 @@
                 });
               });
           });
+      }
+
+      async function ensureOverridesLoaded(serials) {
+        if (!supabaseClient || !serials.length) return;
+        const pending = serials.filter(serial => !state.overridesLoaded.has(serial));
+        if (!pending.length) return;
+        const chunkSize = 100;
+        for (let i = 0; i < pending.length; i += chunkSize) {
+          const chunk = pending.slice(i, i + chunkSize);
+          const { data, error } = await supabaseClient
+            .from("question_overrides")
+            .select("serial, explanation, explanation_source, tags, subtopics")
+            .in("serial", chunk);
+          if (error) {
+            console.warn("差分の取得に失敗しました。", error);
+            return;
+          }
+          const map = {};
+          (data || []).forEach(row => {
+            map[row.serial] = row;
+          });
+          chunk.forEach(serial => {
+            state.overridesBySerial[serial] = map[serial] || null;
+            state.overridesLoaded.add(serial);
+          });
+        }
+      }
+
+      function applyOverridesToQuestion(q) {
+        const override = state.overridesBySerial[q.serial];
+        if (!override) return q;
+        const merged = { ...q };
+        if (override.explanation !== undefined && override.explanation !== null) {
+          merged.explanation_latest = override.explanation;
+          merged.explanation_latest_source =
+            override.explanation_source || merged.explanation_latest_source;
+        }
+        if (override.tags !== undefined && override.tags !== null) {
+          merged.tags = override.tags;
+        }
+        if (override.subtopics !== undefined && override.subtopics !== null) {
+          merged.subtopics = override.subtopics;
+        }
+        return merged;
       }
 
       function formatExplanationLabel(source) {
