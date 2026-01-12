@@ -258,10 +258,10 @@
       </section>
     </main>
 
-    <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmChoice">
       <div class="dialog" tabindex="-1">
         <p id="confirmTitle">この選択肢で回答しますか？</p>
-        <div id="confirmChoice" aria-live="assertive"></div>
+        <div id="confirmChoice"></div>
         <div class="actions">
           <button id="confirmYes">はい</button>
           <button id="confirmNo">いいえ</button>
@@ -269,11 +269,11 @@
       </div>
     </div>
 
-    <div class="overlay" id="resultOverlay" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+    <div class="overlay" id="resultOverlay" role="dialog" aria-modal="true" aria-label="結果" aria-describedby="resultStatus resultText">
       <div class="dialog" tabindex="-1">
-        <p id="resultTitle">正答・解説</p>
-        <div id="resultStatus" class="result" aria-live="assertive"></div>
-        <div id="resultText" class="result" aria-live="assertive"></div>
+        <p id="resultTitle" aria-hidden="true">正答・解説</p>
+        <div id="resultStatus" class="result" aria-live="assertive" aria-atomic="true"></div>
+        <div id="resultText" class="result" aria-live="assertive" aria-atomic="true"></div>
         <div class="actions">
           <button id="resultBack">問題に戻る</button>
           <button id="resultNext">次の問題へ</button>
@@ -440,11 +440,14 @@
         stem.setAttribute("tabindex", "0");
         (q.choices || []).forEach((choice, idx) => {
           const li = document.createElement("li");
-          li.textContent = `${idx + 1}. ${choice}`;
+          const labelText = `${idx + 1}　${choice}`;
+          li.textContent = labelText;
           li.setAttribute("role", "option");
           li.dataset.index = String(idx + 1);
+          li.dataset.choiceLabel = `${idx + 1} ${choice}`;
           li.setAttribute("tabindex", "0");
           li.setAttribute("aria-selected", "false");
+          li.setAttribute("aria-label", `${idx + 1} ${choice}`);
           li.addEventListener("click", () => {
             highlightSelection(idx + 1);
           });
@@ -500,11 +503,10 @@
       function openConfirm() {
         if (!state.selectedIndex) return;
         const item = choices.querySelector(`li[data-index='${state.selectedIndex}']`);
-        confirmChoice.textContent = item ? item.textContent : "";
+        confirmChoice.textContent = item ? (item.dataset.choiceLabel || item.textContent) : "";
         confirmOverlay.classList.add("show");
         const dialog = confirmOverlay.querySelector(".dialog");
         if (dialog) dialog.focus();
-        setTimeout(() => confirmYes.focus(), 50);
       }
 
       function closeConfirm() {
@@ -526,15 +528,20 @@
         });
         const exp = q.explanation_latest || "";
         state.answered = true;
+        setResultButtonsEnabled(false);
         resultStatus.textContent = isCorrect ? "正解です。" : "不正解です。";
-        resultText.textContent = exp
+        resultText.textContent = "";
+        const resultBody = exp
           ? `正答: ${correct} ${correctText}\n解説:\n${exp}`
           : `正答: ${correct} ${correctText}\n解説: (未登録)`;
         resultOverlay.classList.add("show");
         const dialog = resultOverlay.querySelector(".dialog");
         if (dialog) dialog.focus();
-        setTimeout(() => resultNext.focus(), 50);
         markAnswered(q.serial, state.selectedIndex, isCorrect);
+        setTimeout(() => {
+          resultText.textContent = resultBody;
+          setResultButtonsEnabled(true);
+        }, 150);
       }
 
       document.addEventListener("keydown", (e) => {
@@ -565,8 +572,13 @@
       confirmOverlay.addEventListener("keydown", (e) => {
         if (!confirmOverlay.classList.contains("show")) return;
         e.stopPropagation();
+        const onButton = document.activeElement === confirmYes || document.activeElement === confirmNo;
         if (e.key === "Tab") {
           e.preventDefault();
+          if (!onButton) {
+            confirmYes.focus();
+            return;
+          }
           const next = document.activeElement === confirmNo ? confirmYes : confirmNo;
           next.focus();
         } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
@@ -596,6 +608,7 @@
           return;
         }
         resultOverlay.classList.remove("show");
+        restoreQuestionFocus();
       });
 
       resultNext.addEventListener("click", () => {
@@ -635,6 +648,7 @@
               resetToTop();
             } else {
               resultOverlay.classList.remove("show");
+              restoreQuestionFocus();
             }
           } else {
             resultOverlay.classList.remove("show");
@@ -655,6 +669,28 @@
           resetToTop();
         });
       });
+
+      function restoreQuestionFocus() {
+        state.answered = false;
+        const items = Array.from(choices.querySelectorAll("li"));
+        items.forEach(li => {
+          li.classList.remove("correct");
+          li.classList.remove("incorrect");
+        });
+        const targetIndex = state.selectedIndex || 1;
+        highlightSelection(targetIndex);
+        if (state.focusItems.length) {
+          setFocusIndex(state.focusIndex || 0);
+        }
+      }
+
+      function setResultButtonsEnabled(enabled) {
+        const buttons = [resultBack, resultNext, ...resultOverlay.querySelectorAll(".topBtn")];
+        buttons.forEach(btn => {
+          btn.disabled = !enabled;
+          btn.setAttribute("tabindex", enabled ? "0" : "-1");
+        });
+      }
 
       function resetToTop() {
         questionSection.hidden = true;
