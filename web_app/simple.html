@@ -196,7 +196,7 @@
           <li>Tabキーで次の項目に移動できます。</li>
         </ol>
         <div class="row">
-          <button id="guideNext">次へ</button>
+          <button id="guideNext">開始</button>
           <button class="topBtn">トップへ戻る</button>
         </div>
       </section>
@@ -204,7 +204,7 @@
       <section id="stepSubject" aria-label="科目選択" hidden>
         <label for="subjectSelect">科目を選択してください</label>
         <select id="subjectSelect" aria-label="科目リスト">
-          <option value="">選択してください</option>
+          <option value="">すべて</option>
         </select>
         <div class="row">
           <button id="subjectNext" disabled>次へ</button>
@@ -228,7 +228,7 @@
       <section id="stepExamType" aria-label="試験種別選択" hidden>
         <label for="examTypeSelect">試験種別を選択してください</label>
         <select id="examTypeSelect" aria-label="試験種別リスト">
-          <option value="">選択してください</option>
+          <option value="">すべて</option>
         </select>
         <label for="orderSelect">表示順序を選択してください</label>
         <select id="orderSelect" aria-label="表示順序リスト">
@@ -348,8 +348,8 @@
             Object.keys(subMap).forEach(subject => {
               state.subtopicsBySubject[subject] = Array.from(subMap[subject]).sort();
             });
-            populateSelect(subjectSelect, Array.from(subjects).sort(), "選択してください");
-            populateSelect(examTypeSelect, state.examTypes, "選択してください");
+            populateSelect(subjectSelect, Array.from(subjects).sort(), "すべて");
+            populateSelect(examTypeSelect, state.examTypes, "すべて");
           });
       }
 
@@ -372,6 +372,17 @@
         stepSubject.hidden = step !== "subject";
         stepSubtopic.hidden = step !== "subtopic";
         stepExamType.hidden = step !== "exam";
+        setTimeout(() => {
+          if (step === "guide") {
+            guideNext.focus();
+          } else if (step === "subject") {
+            subjectSelect.focus();
+          } else if (step === "subtopic") {
+            subtopicSelect.focus();
+          } else if (step === "exam") {
+            examTypeSelect.focus();
+          }
+        }, 0);
       }
 
       function updateState() {
@@ -381,9 +392,12 @@
           const subs = state.subtopicsBySubject[subject] || [];
           populateSelect(subtopicSelect, subs, "すべて");
           state.lastSubject = subject;
+        } else if (!subject && state.lastSubject) {
+          populateSelect(subtopicSelect, [], "すべて");
+          state.lastSubject = "";
         }
-        subjectNext.disabled = !subject;
-        startBtn.disabled = !examType;
+        subjectNext.disabled = false;
+        startBtn.disabled = false;
       }
 
       function filterQuestions() {
