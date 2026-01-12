@@ -500,7 +500,9 @@
         teacherSession: null,
         updateLog: [],
         updateShown: 0,
-        orderIndexBySerial: {}
+        orderIndexBySerial: {},
+        overridesBySerial: {},
+        overridesLoaded: new Set()
       };
 
       function populateSelect(select, items) {
@@ -860,11 +862,11 @@
             tagNote.placeholder = "コメント（任意）";
             tagPanel.appendChild(tagNote);
             const tagSubmit = document.createElement("button");
-            tagSubmit.textContent = "タグ編集提案";
+            tagSubmit.textContent = "タグを反映";
             tagSubmit.addEventListener("click", () => {
               const remove = Array.from(tagRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
               const add = tagAdd.value.split(",").map(t => t.trim()).filter(Boolean);
-              submitEditRequest(q.serial, "tags_edit", { add, remove }, tagNote.value);
+              applyTagsOverride(q, add, remove, tagNote.value);
             });
             tagPanel.appendChild(tagSubmit);
             tagDetails.appendChild(tagPanel);
@@ -940,11 +942,11 @@
             subNote.placeholder = "コメント（任意）";
             subPanel.appendChild(subNote);
             const subSubmit = document.createElement("button");
-            subSubmit.textContent = "小項目編集提案";
+            subSubmit.textContent = "小項目を反映";
             subSubmit.addEventListener("click", () => {
               const remove = Array.from(subRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
               const add = Array.from(subSelect.selectedOptions).map(opt => opt.value);
-              submitEditRequest(q.serial, "subtopics_edit", { add, remove }, subNote.value);
+              applySubtopicsOverride(q, add, remove, subNote.value);
             });
             subPanel.appendChild(subSubmit);
             subDetails.appendChild(subPanel);
@@ -1011,7 +1013,7 @@
             const expConfirm = document.createElement("button");
             expConfirm.textContent = "解説承認";
             expConfirm.addEventListener("click", () => {
-              submitEditRequest(q.serial, "explanation_confirm", {}, "");
+              applyExplanationConfirm(q);
             });
             expHeader.appendChild(expConfirm);
 
@@ -1032,9 +1034,9 @@
             expNote.placeholder = "コメント（任意）";
             expPanel.appendChild(expNote);
             const expSubmit = document.createElement("button");
-            expSubmit.textContent = "解説の編集提案";
+            expSubmit.textContent = "解説を反映";
             expSubmit.addEventListener("click", () => {
-              submitEditRequest(q.serial, "explanation_edit", { body: expArea.value }, expNote.value);
+              applyExplanationEdit(q, expArea.value, expNote.value);
             });
             expPanel.appendChild(expSubmit);
             expDetails.appendChild(expPanel);
@@ -1066,25 +1068,74 @@
         const subset = list;
         let idx = 0;
         const batchSize = 20;
-        function renderChunk() {
-          const frag = document.createDocumentFragment();
-          const end = Math.min(idx + batchSize, subset.length);
-          for (; idx < end; idx++) {
-            appendCard(subset[idx], frag);
+        const more = document.createElement("button");
+        const updateLabel = () => {
+          more.textContent = `さらに表示 (${idx}/${subset.length})`;
+        };
+        function applyOverrides(q) {
+          const override = state.overridesBySerial[q.serial];
+          if (!override) return q;
+          const merged = { ...q };
+          if (override.explanation !== undefined && override.explanation !== null) {
+            merged.explanation_latest = override.explanation;
+            merged.explanation_latest_source =
+              override.explanation_source || merged.explanation_latest_source;
           }
+          if (override.tags !== undefined && override.tags !== null) {
+            merged.tags = override.tags;
+          }
+          if (override.subtopics !== undefined && override.subtopics !== null) {
+            merged.subtopics = override.subtopics;
+          }
+          return merged;
+        }
+        function renderBatch(batch) {
+          const frag = document.createDocumentFragment();
+          batch.forEach(item => {
+            appendCard(applyOverrides(item), frag);
+          });
           container.appendChild(frag);
         }
+        async function ensureOverrides(serials) {
+          if (!supabaseClient || !serials.length) return;
+          const pending = serials.filter(serial => !state.overridesLoaded.has(serial));
+          if (!pending.length) return;
+          const { data, error } = await supabaseClient
+            .from("question_overrides")
+            .select("serial, explanation, explanation_source, tags, subtopics")
+            .in("serial", pending);
+          if (error) {
+            console.warn("差分の取得に失敗しました。", error);
+            return;
+          }
+          const map = {};
+          (data || []).forEach(row => {
+            map[row.serial] = row;
+          });
+          pending.forEach(serial => {
+            state.overridesBySerial[serial] = map[serial] || null;
+            state.overridesLoaded.add(serial);
+          });
+        }
+        async function renderChunk() {
+          const end = Math.min(idx + batchSize, subset.length);
+          const batch = subset.slice(idx, end);
+          idx = end;
+          more.disabled = true;
+          await ensureOverrides(batch.map(item => item.serial));
+          renderBatch(batch);
+          more.disabled = false;
+          updateLabel();
+          if (idx >= subset.length) {
+            more.remove();
+          }
+        }
+
         renderChunk();
         if (idx < subset.length) {
-          const more = document.createElement("button");
-          const updateLabel = () => {
-            more.textContent = `さらに表示 (${idx}/${subset.length})`;
-          };
           updateLabel();
           more.addEventListener("click", () => {
             renderChunk();
-            updateLabel();
-            if (idx >= subset.length) more.remove();
           });
           moreContainer.appendChild(more);
         }
@@ -1382,9 +1433,126 @@
           });
       }
 
+      function applyTagsOverride(question, add, remove, note) {
+        const before = { tags: question.tags || [] };
+        const next = Array.from(
+          new Set([...(question.tags || []), ...add].filter(tag => !remove.includes(tag)))
+        );
+        const after = { tags: next };
+        applyOverrideChange(question.serial, "tags", before, after, { tags: next }, note);
+      }
+
+      function applySubtopicsOverride(question, add, remove, note) {
+        const before = { subtopics: question.subtopics || [] };
+        const next = Array.from(
+          new Set([...(question.subtopics || []), ...add].filter(name => !remove.includes(name)))
+        );
+        const after = { subtopics: next };
+        applyOverrideChange(question.serial, "subtopics", before, after, { subtopics: next }, note);
+      }
+
+      function applyExplanationConfirm(question) {
+        const current = question.explanation_latest_source || "";
+        const normalized = current === "llm" || current === "ai" ? "llm_checked" : current || "llm_checked";
+        const before = { explanation_source: current };
+        const after = { explanation_source: normalized };
+        applyOverrideChange(
+          question.serial,
+          "explanation",
+          before,
+          after,
+          { explanation_source: normalized }
+        );
+      }
+
+      function applyExplanationEdit(question, body, note) {
+        const before = {
+          explanation: question.explanation_latest || "",
+          explanation_source: question.explanation_latest_source || ""
+        };
+        const after = {
+          explanation: body,
+          explanation_source: "teacher"
+        };
+        applyOverrideChange(
+          question.serial,
+          "explanation",
+          before,
+          after,
+          { explanation: body, explanation_source: "teacher" },
+          note
+        );
+      }
+
+      function applyOverrideChange(serial, kind, beforeData, afterData, patch, note) {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return;
+        }
+        const session = state.teacherSession;
+        if (!session || !session.user) {
+          alert("教師ログインが必要です。");
+          return;
+        }
+        const payload = {
+          serial,
+          updated_at: new Date().toISOString(),
+          updated_by: session.user.id,
+          ...patch
+        };
+        const history = {
+          serial,
+          kind,
+          before_data: beforeData,
+          after_data: afterData,
+          approved_by: session.user.id
+        };
+        supabaseClient
+          .from("question_overrides")
+          .upsert(payload, { onConflict: "serial" })
+          .then(({ error }) => {
+            if (error) {
+              alert("反映に失敗しました。");
+              return;
+            }
+            supabaseClient
+              .from("override_history")
+              .insert([history])
+              .then(({ error: historyError }) => {
+                if (historyError) {
+                  alert("履歴の保存に失敗しました。");
+                  return;
+                }
+                const existing = state.overridesBySerial[serial] || {};
+                state.overridesBySerial[serial] = { ...existing, ...patch };
+                state.overridesLoaded.add(serial);
+                const base = state.questions.find(item => item.serial === serial);
+                if (base) {
+                  if (Object.prototype.hasOwnProperty.call(patch, "explanation")) {
+                    base.explanation_latest = patch.explanation;
+                  }
+                  if (Object.prototype.hasOwnProperty.call(patch, "explanation_source")) {
+                    base.explanation_latest_source = patch.explanation_source;
+                  }
+                  if (Object.prototype.hasOwnProperty.call(patch, "tags")) {
+                    base.tags = patch.tags;
+                  }
+                  if (Object.prototype.hasOwnProperty.call(patch, "subtopics")) {
+                    base.subtopics = patch.subtopics;
+                  }
+                }
+                const scrollY = window.scrollY;
+                renderResults(filterQuestions());
+                requestAnimationFrame(() => {
+                  window.scrollTo(0, scrollY);
+                });
+              });
+          });
+      }
+
       function formatExplanationLabel(source) {
         if (!source) return "";
-        if (source === "llm_checked") return "（AI承認済）";
+        if (source === "llm_checked") return "（AI承認済み）";
         if (source === "human" || source === "teacher") return "（教師編集）";
         if (source === "llm" || source === "ai") return "（AI）";
         return "（" + source + "）";
