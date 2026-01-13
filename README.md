@@ -163,6 +163,33 @@ create policy "teacher insert edit_requests"
 alter table feedback add column if not exists comment text;
 ```
 
+## Supabase テーブル（差分同期）
+WebUIで教師が反映した修正は `question_overrides` に保存されます。ローカルSQLiteへ反映する場合は管理画面から同期してください。
+
+### question_overrides
+- `serial` (text, PK)
+- `explanation` (text)
+- `explanation_source` (text)
+- `tags` (text[])
+- `subtopics` (text[])
+- `updated_at` (timestamp)
+- `updated_by` (uuid)
+
+### override_history
+- `serial` (text)
+- `kind` (text: explanation/tags/subtopics)
+- `before_data` (jsonb)
+- `after_data` (jsonb)
+- `approved_by` (uuid)
+- `created_at` (timestamp)
+
+### 同期手順（Supabase → SQLite）
+1. ローカル管理画面を起動
+2. 「ファイル生成」タブ → 「Supabase差分をSQLiteに同期」を実行
+3. 必要に応じて `updated_at` の開始時刻を指定
+
+注意: 同期はSQLiteのみ更新します。WebUI表示用JSONは別途「Web表示用ファイルを生成」で再生成してください。
+
 ### 機能
 - キーワード検索（空白区切りのAND検索）
 - タグ検索はキーワードに `#タグ名` を指定

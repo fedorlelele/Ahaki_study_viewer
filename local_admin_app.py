@@ -194,6 +194,11 @@ HTML_PAGE = """<!doctype html>
       <p class="note">WebUI表示用のJSONや学習用セットをまとめて生成します（更新情報も反映されます）。</p>
       <button id="buildWeb">Web表示用ファイルを生成</button>
       <button id="buildAll">一括生成（Web/学習/進捗）</button>
+      <div class="row">
+        <label>Supabase差分の同期（updated_at 以降）</label>
+        <input id="syncSince" type="text" placeholder="例: 2026-01-12T00:00:00Z" />
+        <button id="syncOverrides">Supabase差分をSQLiteに同期</button>
+      </div>
       <pre id="buildResult"></pre>
     </div>
 
@@ -695,6 +700,18 @@ HTML_PAGE = """<!doctype html>
         const result = document.getElementById("buildResult");
         result.textContent = "生成中...";
         const resp = await fetch("/api/build/all", { method: "POST" });
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("syncOverrides").addEventListener("click", async () => {
+        const result = document.getElementById("buildResult");
+        const since = document.getElementById("syncSince").value.trim();
+        result.textContent = "同期中...";
+        const endpoint = since
+          ? "/api/sync/overrides?since=" + encodeURIComponent(since)
+          : "/api/sync/overrides";
+        const resp = await fetch(endpoint, { method: "POST" });
         const data = await resp.json();
         result.textContent = data.message || "完了しました。";
       });
@@ -1825,6 +1842,12 @@ class Handler(BaseHTTPRequestHandler):
             message = run_build_all(self.server.repo_root)
             self._send_json({"message": message})
             return
+        if parsed.path == "/api/sync/overrides":
+            params = parse_qs(parsed.query)
+            since = (params.get("since", [""])[0] or "").strip()
+            result = sync_supabase_overrides(self.server.db_path, since)
+            self._send_json(result)
+            return
 
         if parsed.path == "/api/import/downloads":
             params = parse_qs(parsed.query)
@@ -2750,6 +2773,33 @@ def supabase_request(method, table, query, body=None):
         return None, f"Supabase接続に失敗しました: {exc}"
 
 
+def fetch_supabase_overrides(since=None, limit=500):
+    cfg = supabase_config()
+    if not cfg:
+        return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    select = "serial,explanation,explanation_source,tags,subtopics,updated_at"
+    offset = 0
+    rows = []
+    while True:
+        query = (
+            f"?select={quote(select)}&order=updated_at.asc&limit={limit}"
+            f"&offset={offset}"
+        )
+        if since:
+            query += f"&updated_at=gte.{quote(since)}"
+        payload, error = supabase_request("GET", "question_overrides", query)
+        if error:
+            return None, error
+        batch = json.loads(payload) if payload else []
+        if not batch:
+            break
+        rows.extend(batch)
+        if len(batch) < limit:
+            break
+        offset += limit
+    return rows, ""
+
+
 def build_supabase_feedback(limit):
     rows, error = fetch_supabase_rows(
         "feedback", "serial,kind,comment,created_at", limit
@@ -2840,6 +2890,133 @@ def build_supabase_answers(limit):
             item["accuracy"] = round(item["correct"] * 100.0 / item["total"], 1)
     items = sorted(summary.values(), key=lambda x: (-x["total"], x["serial"]))
     return {"ok": True, "count": len(items), "items": items}
+
+
+def sync_supabase_overrides(db_path, since):
+    rows, error = fetch_supabase_overrides(since or None)
+    if error:
+        return {"message": error, "counts": {}}
+    if not rows:
+        return {"message": "Supabase差分はありません。", "counts": {}}
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    counts = {"explanations": 0, "tags": 0, "subtopics": 0, "missing": 0}
+    for row in rows:
+        serial = row.get("serial")
+        if not serial:
+            continue
+        qrow = cursor.execute(
+            "SELECT id FROM questions WHERE serial = ?",
+            (serial,),
+        ).fetchone()
+        if not qrow:
+            counts["missing"] += 1
+            continue
+        question_id = qrow[0]
+        exp = row.get("explanation")
+        exp_source = row.get("explanation_source") or ""
+        if exp is not None or exp_source:
+            if apply_override_explanation(cursor, question_id, exp, exp_source):
+                counts["explanations"] += 1
+        if "tags" in row:
+            if apply_override_tags(cursor, question_id, row.get("tags")):
+                counts["tags"] += 1
+        if "subtopics" in row:
+            if apply_override_subtopics(cursor, question_id, row.get("subtopics")):
+                counts["subtopics"] += 1
+    add_explanation_update(conn, counts["explanations"])
+    conn.commit()
+    conn.close()
+    return {
+        "message": "Supabase差分を同期しました。",
+        "counts": counts,
+        "since": since or "",
+    }
+
+
+def apply_override_explanation(cursor, question_id, body, source):
+    latest = cursor.execute(
+        """
+        SELECT body, source, version
+        FROM explanations
+        WHERE question_id = ?
+        ORDER BY version DESC, id DESC
+        LIMIT 1
+        """,
+        (question_id,),
+    ).fetchone()
+    latest_body, latest_source, latest_version = (
+        latest if latest else ("", "", 0)
+    )
+    if body is None:
+        body = latest_body
+    if not body:
+        return False
+    src = source or latest_source or "llm"
+    if latest_body == body and (latest_source or "") == (src or ""):
+        return False
+    next_version = (latest_version or 0) + 1
+    cursor.execute(
+        """
+        INSERT INTO explanations(question_id, body, version, source)
+        VALUES (?, ?, ?, ?)
+        """,
+        (question_id, body, next_version, src),
+    )
+    return True
+
+
+def apply_override_tags(cursor, question_id, tags):
+    if tags is None:
+        return False
+    cursor.execute("DELETE FROM question_tags WHERE question_id = ?", (question_id,))
+    updated = False
+    for tag in tags:
+        label = " ".join(str(tag).split()).strip()
+        if not label:
+            continue
+        cursor.execute("INSERT OR IGNORE INTO tags(label) VALUES (?)", (label,))
+        tag_id = cursor.execute(
+            "SELECT id FROM tags WHERE label = ?",
+            (label,),
+        ).fetchone()[0]
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO question_tags(question_id, tag_id, source)
+            VALUES (?, ?, ?)
+            """,
+            (question_id, tag_id, "override"),
+        )
+        updated = True
+    return updated or tags == []
+
+
+def apply_override_subtopics(cursor, question_id, subtopics):
+    if subtopics is None:
+        return False
+    cursor.execute(
+        "DELETE FROM question_subtopics WHERE question_id = ?",
+        (question_id,),
+    )
+    updated = False
+    for item in subtopics:
+        name = " ".join(str(item).split()).strip()
+        if not name:
+            continue
+        cursor.execute("INSERT OR IGNORE INTO subtopics(name) VALUES (?)", (name,))
+        subtopic_id = cursor.execute(
+            "SELECT id FROM subtopics WHERE name = ?",
+            (name,),
+        ).fetchone()[0]
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO question_subtopics(question_id, subtopic_id)
+            VALUES (?, ?)
+            """,
+            (question_id, subtopic_id),
+        )
+        updated = True
+    return updated or subtopics == []
 
 
 def list_reports_supabase(limit):
