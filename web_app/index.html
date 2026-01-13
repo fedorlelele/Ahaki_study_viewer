@@ -1561,6 +1561,7 @@
           serial,
           updated_at: new Date().toISOString(),
           updated_by: session.user.id,
+          synced_at: null,
           ...patch
         };
         const history = {
