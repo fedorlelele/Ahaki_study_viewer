@@ -1623,7 +1623,8 @@
           const { data, error } = await supabaseClient
             .from("question_overrides")
             .select("serial, explanation, explanation_source, tags, subtopics")
-            .in("serial", chunk);
+            .in("serial", chunk)
+            .is("synced_at", null);
           if (error) {
             console.warn("差分の取得に失敗しました。", error);
             return;

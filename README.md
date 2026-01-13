@@ -174,6 +174,12 @@ WebUIで教師が反映した修正は `question_overrides` に保存されま�
 - `subtopics` (text[])
 - `updated_at` (timestamp)
 - `updated_by` (uuid)
+- `synced_at` (timestamp, SQLite同期済みフラグ)
+
+`synced_at` を追加するSQL:
+```sql
+alter table question_overrides add column if not exists synced_at timestamptz;
+```
 
 ### override_history
 - `serial` (text)
@@ -188,7 +194,9 @@ WebUIで教師が反映した修正は `question_overrides` に保存されま�
 2. 「ファイル生成」タブ → 「Supabase差分をSQLiteに同期」を実行
 3. 必要に応じて `updated_at` の開始時刻を指定
 
-注意: 同期はSQLiteのみ更新します。WebUI表示用JSONは別途「Web表示用ファイルを生成」で再生成してください。
+注意:
+- 同期はSQLiteのみ更新します。WebUI表示用JSONは別途「Web表示用ファイルを生成」で再生成してください。
+- WebUIは `synced_at` が空の差分のみを読み込みます。
 
 ### 機能
 - キーワード検索（空白区切りのAND検索）

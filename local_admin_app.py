@@ -2783,7 +2783,7 @@ def fetch_supabase_overrides(since=None, limit=500):
     while True:
         query = (
             f"?select={quote(select)}&order=updated_at.asc&limit={limit}"
-            f"&offset={offset}"
+            f"&offset={offset}&synced_at=is.null"
         )
         if since:
             query += f"&updated_at=gte.{quote(since)}"
@@ -2798,6 +2798,28 @@ def fetch_supabase_overrides(since=None, limit=500):
             break
         offset += limit
     return rows, ""
+
+
+def mark_supabase_overrides_synced(serials, synced_at):
+    if not serials:
+        return "", ""
+    cfg = supabase_config()
+    if not cfg:
+        return "", "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    chunk_size = 100
+    for i in range(0, len(serials), chunk_size):
+        chunk = serials[i : i + chunk_size]
+        serial_list = ",".join([f'"{s}"' for s in chunk])
+        query = f"?serial=in.({serial_list})"
+        payload, error = supabase_request(
+            "PATCH",
+            "question_overrides",
+            query,
+            {"synced_at": synced_at},
+        )
+        if error:
+            return payload, error
+    return "", ""
 
 
 def build_supabase_feedback(limit):
@@ -2901,6 +2923,7 @@ def sync_supabase_overrides(db_path, since):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     counts = {"explanations": 0, "tags": 0, "subtopics": 0, "missing": 0}
+    synced_serials = []
     for row in rows:
         serial = row.get("serial")
         if not serial:
@@ -2924,9 +2947,18 @@ def sync_supabase_overrides(db_path, since):
         if "subtopics" in row:
             if apply_override_subtopics(cursor, question_id, row.get("subtopics")):
                 counts["subtopics"] += 1
+        synced_serials.append(serial)
     add_explanation_update(conn, counts["explanations"])
     conn.commit()
     conn.close()
+    synced_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    _, sync_error = mark_supabase_overrides_synced(synced_serials, synced_at)
+    if sync_error:
+        return {
+            "message": f"SQLite同期は完了しましたが、Supabaseの同期フラグ更新に失敗しました: {sync_error}",
+            "counts": counts,
+            "since": since or "",
+        }
     return {
         "message": "Supabase差分を同期しました。",
         "counts": counts,
