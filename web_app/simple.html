@@ -309,7 +309,9 @@
         lastSubject: "",
         focusItems: [],
         focusIndex: 0,
-        answeredMap: {}
+        answeredMap: {},
+        overridesBySerial: {},
+        overridesLoaded: new Set()
       };
 
       const stepGuide = document.getElementById("stepGuide");
@@ -436,8 +438,12 @@
         state.currentIndex = 0;
       }
 
-      function renderQuestion() {
-        const q = state.filtered[state.currentIndex];
+      async function renderQuestion() {
+        const base = state.filtered[state.currentIndex];
+        if (base) {
+          await ensureOverridesLoaded([base.serial]);
+        }
+        const q = applyOverridesToQuestion(base);
         if (!q) {
           status.textContent = "条件に合う問題が見つかりませんでした。";
           resultOverlay.classList.add("show");
@@ -544,7 +550,7 @@
       }
 
       function showResult() {
-        const q = state.filtered[state.currentIndex];
+        const q = applyOverridesToQuestion(state.filtered[state.currentIndex]);
         const correct = Number(q.answer_index);
         const isCorrect = Number(state.selectedIndex) === correct;
         const choicesList = q.choices || [];
@@ -867,6 +873,67 @@
       function saveAnsweredState() {
         const key = "answeredSerials";
         localStorage.setItem(key, JSON.stringify(state.answeredMap));
+      }
+
+      async function ensureOverridesLoaded(serials) {
+        if (!supabaseClient || !serials.length) return;
+        const pending = serials.filter(serial => !state.overridesLoaded.has(serial));
+        if (!pending.length) return;
+        const chunkSize = 100;
+        for (let i = 0; i < pending.length; i += chunkSize) {
+          const chunk = pending.slice(i, i + chunkSize);
+          const { data, error } = await supabaseClient
+            .from("question_overrides")
+            .select("serial, explanation, explanation_source, tags, subtopics")
+            .in("serial", chunk);
+          if (error) {
+            console.warn("差分の取得に失敗しました。", error);
+            return;
+          }
+          const map = {};
+          (data || []).forEach(row => {
+            map[row.serial] = row;
+          });
+          chunk.forEach(serial => {
+            state.overridesBySerial[serial] = map[serial] || null;
+            state.overridesLoaded.add(serial);
+          });
+          (data || []).forEach(row => {
+            const base = state.questions.find(item => item.serial === row.serial);
+            if (!base) return;
+            if (row.explanation !== null && row.explanation !== undefined) {
+              base.explanation_latest = row.explanation;
+            }
+            if (row.explanation_source !== null && row.explanation_source !== undefined) {
+              base.explanation_latest_source = row.explanation_source;
+            }
+            if (row.tags !== null && row.tags !== undefined) {
+              base.tags = row.tags;
+            }
+            if (row.subtopics !== null && row.subtopics !== undefined) {
+              base.subtopics = row.subtopics;
+            }
+          });
+        }
+      }
+
+      function applyOverridesToQuestion(q) {
+        if (!q) return q;
+        const override = state.overridesBySerial[q.serial];
+        if (!override) return q;
+        const merged = { ...q };
+        if (override.explanation !== undefined && override.explanation !== null) {
+          merged.explanation_latest = override.explanation;
+          merged.explanation_latest_source =
+            override.explanation_source || merged.explanation_latest_source;
+        }
+        if (override.tags !== undefined && override.tags !== null) {
+          merged.tags = override.tags;
+        }
+        if (override.subtopics !== undefined && override.subtopics !== null) {
+          merged.subtopics = override.subtopics;
+        }
+        return merged;
       }
 
       function getAnonId() {
