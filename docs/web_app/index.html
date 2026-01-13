@@ -319,6 +319,54 @@
         border-radius: 6px;
         margin-right: 6px;
       }
+      .history-panel {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 13px;
+      }
+      .history-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .history-controls input,
+      .history-controls select,
+      .history-controls button {
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        font-size: 12px;
+      }
+      .history-list {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+      }
+      .history-item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        background: #f8fafc;
+      }
+      .history-meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .history-body {
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+      .history-item button {
+        margin-top: 6px;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
       .auth-panel .note {
         margin-top: 6px;
         color: var(--muted);
@@ -417,6 +465,23 @@
           <pre class="user-readme" id="userReadmeText">読み込み中...</pre>
         </div>
       </details>
+      <details class="inline" id="historyPanel" hidden>
+        <summary>編集履歴</summary>
+        <div class="history-panel">
+          <div class="history-controls">
+            <input id="historySerial" type="text" placeholder="シリアル (例: A01-001)" />
+            <select id="historyKind">
+              <option value="">すべて</option>
+              <option value="explanation">解説</option>
+              <option value="tags">タグ</option>
+              <option value="subtopics">小項目</option>
+            </select>
+            <button id="historyFetchBtn" type="button">履歴を取得</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
+          <div class="note" id="historyEmpty" hidden>履歴はありません。</div>
+        </div>
+      </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -500,7 +565,9 @@
         teacherSession: null,
         updateLog: [],
         updateShown: 0,
-        orderIndexBySerial: {}
+        orderIndexBySerial: {},
+        overridesBySerial: {},
+        overridesLoaded: new Set()
       };
 
       function populateSelect(select, items) {
@@ -860,11 +927,11 @@
             tagNote.placeholder = "コメント（任意）";
             tagPanel.appendChild(tagNote);
             const tagSubmit = document.createElement("button");
-            tagSubmit.textContent = "タグ編集提案";
+            tagSubmit.textContent = "タグを反映";
             tagSubmit.addEventListener("click", () => {
               const remove = Array.from(tagRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
               const add = tagAdd.value.split(",").map(t => t.trim()).filter(Boolean);
-              submitEditRequest(q.serial, "tags_edit", { add, remove }, tagNote.value);
+              applyTagsOverride(q, add, remove, tagNote.value);
             });
             tagPanel.appendChild(tagSubmit);
             tagDetails.appendChild(tagPanel);
@@ -940,11 +1007,11 @@
             subNote.placeholder = "コメント（任意）";
             subPanel.appendChild(subNote);
             const subSubmit = document.createElement("button");
-            subSubmit.textContent = "小項目編集提案";
+            subSubmit.textContent = "小項目を反映";
             subSubmit.addEventListener("click", () => {
               const remove = Array.from(subRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
               const add = Array.from(subSelect.selectedOptions).map(opt => opt.value);
-              submitEditRequest(q.serial, "subtopics_edit", { add, remove }, subNote.value);
+              applySubtopicsOverride(q, add, remove, subNote.value);
             });
             subPanel.appendChild(subSubmit);
             subDetails.appendChild(subPanel);
@@ -1008,12 +1075,24 @@
             explanation.appendChild(expReportWrap.panel);
           }
           if (isTeacher) {
-            const expConfirm = document.createElement("button");
-            expConfirm.textContent = "解説承認";
-            expConfirm.addEventListener("click", () => {
-              submitEditRequest(q.serial, "explanation_confirm", {}, "");
-            });
-            expHeader.appendChild(expConfirm);
+            const source = q.explanation_latest_source || "";
+            const teacherLabel = formatExplanationLabel(source);
+            expTitle.textContent = expText ? `解説${teacherLabel}:` : "解説: (未登録)";
+            if (source === "llm_checked") {
+              const expRevoke = document.createElement("button");
+              expRevoke.textContent = "承認取消";
+              expRevoke.addEventListener("click", () => {
+                applyExplanationConfirm(q, "llm");
+              });
+              expHeader.appendChild(expRevoke);
+            } else if (source !== "teacher" && source !== "human") {
+              const expConfirm = document.createElement("button");
+              expConfirm.textContent = "解説承認";
+              expConfirm.addEventListener("click", () => {
+                applyExplanationConfirm(q, "llm_checked");
+              });
+              expHeader.appendChild(expConfirm);
+            }
 
             const expDetails = document.createElement("details");
             expDetails.className = "inline inline-details";
@@ -1032,9 +1111,9 @@
             expNote.placeholder = "コメント（任意）";
             expPanel.appendChild(expNote);
             const expSubmit = document.createElement("button");
-            expSubmit.textContent = "解説の編集提案";
+            expSubmit.textContent = "解説を反映";
             expSubmit.addEventListener("click", () => {
-              submitEditRequest(q.serial, "explanation_edit", { body: expArea.value }, expNote.value);
+              applyExplanationEdit(q, expArea.value, expNote.value);
             });
             expPanel.appendChild(expSubmit);
             expDetails.appendChild(expPanel);
@@ -1066,25 +1145,36 @@
         const subset = list;
         let idx = 0;
         const batchSize = 20;
-        function renderChunk() {
+        const more = document.createElement("button");
+        const updateLabel = () => {
+          more.textContent = `さらに表示 (${idx}/${subset.length})`;
+        };
+        function renderBatch(batch) {
           const frag = document.createDocumentFragment();
-          const end = Math.min(idx + batchSize, subset.length);
-          for (; idx < end; idx++) {
-            appendCard(subset[idx], frag);
-          }
+          batch.forEach(item => {
+            appendCard(applyOverridesToQuestion(item), frag);
+          });
           container.appendChild(frag);
         }
+        async function renderChunk() {
+          const end = Math.min(idx + batchSize, subset.length);
+          const batch = subset.slice(idx, end);
+          idx = end;
+          more.disabled = true;
+          await ensureOverridesLoaded(batch.map(item => item.serial));
+          renderBatch(batch);
+          more.disabled = false;
+          updateLabel();
+          if (idx >= subset.length) {
+            more.remove();
+          }
+        }
+
         renderChunk();
         if (idx < subset.length) {
-          const more = document.createElement("button");
-          const updateLabel = () => {
-            more.textContent = `さらに表示 (${idx}/${subset.length})`;
-          };
           updateLabel();
           more.addEventListener("click", () => {
             renderChunk();
-            updateLabel();
-            if (idx >= subset.length) more.remove();
           });
           moreContainer.appendChild(more);
         }
@@ -1128,6 +1218,8 @@
             renderUpdateLog(state.updateShown + 3);
           });
         }
+
+        initHistoryPanel();
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
@@ -1180,11 +1272,12 @@
           renderResults(filterQuestions());
         });
 
-      document.getElementById("copyAllBtn").addEventListener("click", () => {
+      document.getElementById("copyAllBtn").addEventListener("click", async () => {
         const list = filterQuestions();
+        await ensureOverridesLoaded(list.map(item => item.serial));
         const header = buildFilterHeader();
         const mode = getCopyMode();
-        const body = list.map(q => formatQuestionForCopy(q, mode)).join("\n\n");
+        const body = list.map(q => formatQuestionForCopy(applyOverridesToQuestion(q), mode)).join("\n\n");
         copyToClipboard(`${header}\n\n${body}`.trim());
       });
 
@@ -1284,12 +1377,14 @@
         const logoutBtn = document.getElementById("authLogoutBtn");
         const toggleBtn = document.getElementById("authToggleBtn");
         const panel = document.getElementById("teacherAuth");
+        const historyPanel = document.getElementById("historyPanel");
 
         if (!supabaseClient) {
           status.textContent = "Supabase未設定";
           form.hidden = true;
           panel.hidden = true;
           toggleBtn.hidden = true;
+          if (historyPanel) historyPanel.hidden = true;
           return;
         }
 
@@ -1332,20 +1427,39 @@
           message.textContent = "ログアウトしました。";
         });
 
+        function isTeacherUser(user) {
+          return (user?.app_metadata?.role || user?.user_metadata?.role || "") === "teacher";
+        }
+
         function updateAuthUI(session) {
-          state.teacherSession = session || null;
-          if (session && session.user) {
-            status.textContent = `ログイン中: ${session.user.email}`;
+          const user = session && session.user ? session.user : null;
+          if (user && !isTeacherUser(user)) {
+            state.teacherSession = null;
+            status.textContent = "教師権限がありません。";
+            form.hidden = false;
+            actions.hidden = true;
+            toggleBtn.textContent = "教師ログイン";
+            toggleBtn.setAttribute("aria-label", "教師ログイン");
+            message.textContent = "教師アカウントでログインしてください。";
+            if (historyPanel) historyPanel.hidden = true;
+            supabaseClient.auth.signOut();
+            return;
+          }
+          state.teacherSession = user ? session : null;
+          if (user) {
+            status.textContent = `ログイン中: ${user.email}`;
             form.hidden = true;
             actions.hidden = false;
             toggleBtn.textContent = "教師ログイン（ログイン中）";
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
+            if (historyPanel) historyPanel.hidden = false;
           } else {
             status.textContent = "未ログイン";
             form.hidden = false;
             actions.hidden = true;
             toggleBtn.textContent = "教師ログイン";
             toggleBtn.setAttribute("aria-label", "教師ログイン");
+            if (historyPanel) historyPanel.hidden = true;
           }
           renderResults(filterQuestions());
         }
@@ -1382,9 +1496,337 @@
           });
       }
 
+      function applyTagsOverride(question, add, remove, note) {
+        const before = { tags: question.tags || [] };
+        const next = Array.from(
+          new Set([...(question.tags || []), ...add].filter(tag => !remove.includes(tag)))
+        );
+        const after = { tags: next };
+        applyOverrideChange(question.serial, "tags", before, after, { tags: next }, note);
+      }
+
+      function applySubtopicsOverride(question, add, remove, note) {
+        const before = { subtopics: question.subtopics || [] };
+        const next = Array.from(
+          new Set([...(question.subtopics || []), ...add].filter(name => !remove.includes(name)))
+        );
+        const after = { subtopics: next };
+        applyOverrideChange(question.serial, "subtopics", before, after, { subtopics: next }, note);
+      }
+
+      function applyExplanationConfirm(question, nextSource) {
+        const current = question.explanation_latest_source || "";
+        const normalized = nextSource || (current === "llm" || current === "ai" ? "llm_checked" : "llm_checked");
+        const before = { explanation_source: current };
+        const after = { explanation_source: normalized };
+        applyOverrideChange(
+          question.serial,
+          "explanation",
+          before,
+          after,
+          { explanation_source: normalized }
+        );
+      }
+
+      function applyExplanationEdit(question, body, note) {
+        const before = {
+          explanation: question.explanation_latest || "",
+          explanation_source: question.explanation_latest_source || ""
+        };
+        const after = {
+          explanation: body,
+          explanation_source: "teacher"
+        };
+        applyOverrideChange(
+          question.serial,
+          "explanation",
+          before,
+          after,
+          { explanation: body, explanation_source: "teacher" },
+          note
+        );
+      }
+
+      function applyOverrideChange(serial, kind, beforeData, afterData, patch, note) {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return;
+        }
+        const session = state.teacherSession;
+        if (!session || !session.user) {
+          alert("教師ログインが必要です。");
+          return;
+        }
+        const payload = {
+          serial,
+          updated_at: new Date().toISOString(),
+          updated_by: session.user.id,
+          synced_at: null,
+          ...patch
+        };
+        const history = {
+          serial,
+          kind,
+          before_data: beforeData,
+          after_data: afterData,
+          approved_by: session.user.id
+        };
+        supabaseClient
+          .from("question_overrides")
+          .upsert(payload, { onConflict: "serial" })
+          .then(({ error }) => {
+            if (error) {
+              alert(`反映に失敗しました: ${error.message}`);
+              return;
+            }
+            supabaseClient
+              .from("override_history")
+              .insert([history])
+              .then(({ error: historyError }) => {
+                if (historyError) {
+                  alert(`履歴の保存に失敗しました: ${historyError.message}`);
+                  return;
+                }
+                const existing = state.overridesBySerial[serial] || {};
+                state.overridesBySerial[serial] = { ...existing, ...patch };
+                state.overridesLoaded.add(serial);
+                const base = state.questions.find(item => item.serial === serial);
+                if (base) {
+                  if (Object.prototype.hasOwnProperty.call(patch, "explanation")) {
+                    base.explanation_latest = patch.explanation;
+                  }
+                  if (Object.prototype.hasOwnProperty.call(patch, "explanation_source")) {
+                    base.explanation_latest_source = patch.explanation_source;
+                  }
+                  if (Object.prototype.hasOwnProperty.call(patch, "tags")) {
+                    base.tags = patch.tags;
+                  }
+                  if (Object.prototype.hasOwnProperty.call(patch, "subtopics")) {
+                    base.subtopics = patch.subtopics;
+                  }
+                }
+                const scrollY = window.scrollY;
+                renderResults(filterQuestions());
+                requestAnimationFrame(() => {
+                  window.scrollTo(0, scrollY);
+                });
+              });
+          });
+      }
+
+      async function ensureOverridesLoaded(serials) {
+        if (!supabaseClient || !serials.length) return;
+        const pending = serials.filter(serial => !state.overridesLoaded.has(serial));
+        if (!pending.length) return;
+        const chunkSize = 100;
+        for (let i = 0; i < pending.length; i += chunkSize) {
+          const chunk = pending.slice(i, i + chunkSize);
+          const { data, error } = await supabaseClient
+            .from("question_overrides")
+            .select("serial, explanation, explanation_source, tags, subtopics")
+            .in("serial", chunk)
+            .is("synced_at", null);
+          if (error) {
+            console.warn("差分の取得に失敗しました。", error);
+            return;
+          }
+          const map = {};
+          (data || []).forEach(row => {
+            map[row.serial] = row;
+          });
+          chunk.forEach(serial => {
+            state.overridesBySerial[serial] = map[serial] || null;
+            state.overridesLoaded.add(serial);
+          });
+          (data || []).forEach(row => {
+            const base = state.questions.find(item => item.serial === row.serial);
+            if (!base) return;
+            if (row.explanation !== null && row.explanation !== undefined) {
+              base.explanation_latest = row.explanation;
+            }
+            if (row.explanation_source !== null && row.explanation_source !== undefined) {
+              base.explanation_latest_source = row.explanation_source;
+            }
+            if (row.tags !== null && row.tags !== undefined) {
+              base.tags = row.tags;
+            }
+            if (row.subtopics !== null && row.subtopics !== undefined) {
+              base.subtopics = row.subtopics;
+            }
+          });
+        }
+      }
+
+      function applyOverridesToQuestion(q) {
+        const override = state.overridesBySerial[q.serial];
+        if (!override) return q;
+        const merged = { ...q };
+        if (override.explanation !== undefined && override.explanation !== null) {
+          merged.explanation_latest = override.explanation;
+          merged.explanation_latest_source =
+            override.explanation_source || merged.explanation_latest_source;
+        }
+        if (override.tags !== undefined && override.tags !== null) {
+          merged.tags = override.tags;
+        }
+        if (override.subtopics !== undefined && override.subtopics !== null) {
+          merged.subtopics = override.subtopics;
+        }
+        return merged;
+      }
+
+      function initHistoryPanel() {
+        const fetchBtn = document.getElementById("historyFetchBtn");
+        if (!fetchBtn) return;
+        fetchBtn.addEventListener("click", () => {
+          fetchHistory();
+        });
+      }
+
+      async function fetchHistory() {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return;
+        }
+        const session = state.teacherSession;
+        if (!session || !session.user) {
+          alert("教師ログインが必要です。");
+          return;
+        }
+        const serialInput = document.getElementById("historySerial");
+        const kindSelect = document.getElementById("historyKind");
+        const serial = serialInput ? serialInput.value.trim() : "";
+        const kind = kindSelect ? kindSelect.value : "";
+        let query = supabaseClient
+          .from("override_history")
+          .select("id, serial, kind, before_data, after_data, created_at")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (serial) {
+          query = query.eq("serial", serial);
+        }
+        if (kind) {
+          query = query.eq("kind", kind);
+        }
+        const { data, error } = await query;
+        if (error) {
+          alert("履歴の取得に失敗しました。");
+          return;
+        }
+        renderHistoryList(data || []);
+      }
+
+      function renderHistoryList(items) {
+        const list = document.getElementById("historyList");
+        const empty = document.getElementById("historyEmpty");
+        if (!list || !empty) return;
+        list.innerHTML = "";
+        if (!items.length) {
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        items.forEach(item => {
+          const wrap = document.createElement("div");
+          wrap.className = "history-item";
+          const meta = document.createElement("div");
+          meta.className = "history-meta";
+          const when = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+          meta.textContent = `${item.serial} / ${kindLabel(item.kind)} / ${when}`;
+          wrap.appendChild(meta);
+          const body = document.createElement("div");
+          body.className = "history-body";
+          body.textContent = formatHistoryBody(item);
+          wrap.appendChild(body);
+          const rollback = document.createElement("button");
+          rollback.type = "button";
+          rollback.textContent = "この版に戻す";
+          rollback.addEventListener("click", () => {
+            applyHistoryRollback(item);
+          });
+          wrap.appendChild(rollback);
+          list.appendChild(wrap);
+        });
+      }
+
+      function kindLabel(kind) {
+        if (kind === "explanation") return "解説";
+        if (kind === "tags") return "タグ";
+        if (kind === "subtopics") return "小項目";
+        return kind || "";
+      }
+
+      function formatHistoryBody(item) {
+        const before = item.before_data || {};
+        const after = item.after_data || {};
+        if (item.kind === "explanation") {
+          const beforeText = truncateText(before.explanation || "");
+          const afterText = truncateText(after.explanation || "");
+          const beforeLabel = formatExplanationLabel(before.explanation_source || "");
+          const afterLabel = formatExplanationLabel(after.explanation_source || "");
+          if (beforeText || afterText) {
+            return `変更前${beforeLabel}: ${beforeText}\n変更後${afterLabel}: ${afterText}`;
+          }
+          return `変更前: ${before.explanation_source || "(空)"}\n変更後: ${after.explanation_source || "(空)"}`;
+        }
+        if (item.kind === "tags") {
+          return `変更前: ${(before.tags || []).join(", ")}\n変更後: ${(after.tags || []).join(", ")}`;
+        }
+        if (item.kind === "subtopics") {
+          return `変更前: ${(before.subtopics || []).join(", ")}\n変更後: ${(after.subtopics || []).join(", ")}`;
+        }
+        return JSON.stringify(item.after_data || {});
+      }
+
+      function truncateText(text) {
+        if (!text) return "";
+        return text.length > 160 ? `${text.slice(0, 160)}…` : text;
+      }
+
+      function applyHistoryRollback(item) {
+        if (!confirm("この版に戻しますか？")) return;
+        const base = state.questions.find(q => q.serial === item.serial);
+        const current = base ? applyOverridesToQuestion(base) : null;
+        if (!current) {
+          alert("対象の問題が見つかりません。");
+          return;
+        }
+        if (item.kind === "tags") {
+          const before = { tags: current.tags || [] };
+          const next = (item.before_data && item.before_data.tags) || [];
+          const after = { tags: next };
+          applyOverrideChange(item.serial, "tags", before, after, { tags: next }, "rollback");
+          return;
+        }
+        if (item.kind === "subtopics") {
+          const before = { subtopics: current.subtopics || [] };
+          const next = (item.before_data && item.before_data.subtopics) || [];
+          const after = { subtopics: next };
+          applyOverrideChange(item.serial, "subtopics", before, after, { subtopics: next }, "rollback");
+          return;
+        }
+        if (item.kind === "explanation") {
+          const before = {
+            explanation: current.explanation_latest || "",
+            explanation_source: current.explanation_latest_source || ""
+          };
+          const nextBody = item.before_data ? item.before_data.explanation : "";
+          const nextSource = item.before_data ? item.before_data.explanation_source : "";
+          const after = {
+            explanation: nextBody || "",
+            explanation_source: nextSource || ""
+          };
+          const patch = {
+            explanation: after.explanation,
+            explanation_source: after.explanation_source
+          };
+          applyOverrideChange(item.serial, "explanation", before, after, patch, "rollback");
+        }
+      }
+
       function formatExplanationLabel(source) {
         if (!source) return "";
-        if (source === "llm_checked") return "（AI承認済）";
+        if (source === "llm_checked") return "（AI承認済み）";
         if (source === "human" || source === "teacher") return "（教師編集）";
         if (source === "llm" || source === "ai") return "（AI）";
         return "（" + source + "）";
