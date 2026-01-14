@@ -563,6 +563,7 @@
         answeredMap: {},
         subtopicCatalog: {},
         teacherSession: null,
+        teacherUserId: null,
         updateLog: [],
         updateShown: 0,
         orderIndexBySerial: {},
@@ -1444,10 +1445,13 @@
           }
           state.teacherSession = user ? session : null;
           if (user) {
-            const answerToggle = document.getElementById("toggleAnswer");
-            const explanationToggle = document.getElementById("toggleExplanation");
-            if (answerToggle) answerToggle.checked = false;
-            if (explanationToggle) explanationToggle.checked = true;
+            if (state.teacherUserId !== user.id) {
+              const answerToggle = document.getElementById("toggleAnswer");
+              const explanationToggle = document.getElementById("toggleExplanation");
+              if (answerToggle) answerToggle.checked = false;
+              if (explanationToggle) explanationToggle.checked = true;
+              state.teacherUserId = user.id;
+            }
             status.textContent = `ログイン中: ${user.email}`;
             form.hidden = true;
             actions.hidden = false;
@@ -1455,6 +1459,7 @@
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
             if (historyPanel) historyPanel.hidden = false;
           } else {
+            state.teacherUserId = null;
             status.textContent = "未ログイン";
             form.hidden = false;
             actions.hidden = true;
