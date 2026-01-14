@@ -793,17 +793,14 @@
         container.innerHTML = "";
         moreContainer.innerHTML = "";
         const isTeacher = Boolean(state.teacherSession);
-        const showAnswer = isTeacher ? true : document.getElementById("toggleAnswer").checked;
-        const showExplanation = isTeacher ? true : document.getElementById("toggleExplanation").checked;
+        const showAnswer = document.getElementById("toggleAnswer").checked;
+        const showExplanation = document.getElementById("toggleExplanation").checked;
         document.getElementById("countInfo").textContent = `件数: ${list.length}`;
 
         function appendCard(q, target) {
           const card = document.createElement("div");
           card.className = "card";
-          if (isTeacher) {
-            card.classList.add("show-explanation");
-          }
-          card.setAttribute("tabindex", "0");
+        card.setAttribute("tabindex", "0");
           card.setAttribute("role", "group");
           card.setAttribute("aria-label", `問題 ${q.serial}`);
           if (showAnswer) {
@@ -1027,8 +1024,8 @@
 
           const explanation = document.createElement("div");
           explanation.className = "explanation";
-          const expText = showExplanation || isTeacher ? (q.explanation_latest || "") : "";
-          const expLabel = showExplanation || isTeacher ? formatExplanationLabel(q.explanation_latest_source) : "";
+          const expText = q.explanation_latest || "";
+          const expLabel = formatExplanationLabel(q.explanation_latest_source);
           const expHeader = document.createElement("div");
           expHeader.className = "explanation-header";
           const expTitle = document.createElement("span");
@@ -1447,6 +1444,10 @@
           }
           state.teacherSession = user ? session : null;
           if (user) {
+            const answerToggle = document.getElementById("toggleAnswer");
+            const explanationToggle = document.getElementById("toggleExplanation");
+            if (answerToggle) answerToggle.checked = false;
+            if (explanationToggle) explanationToggle.checked = true;
             status.textContent = `ログイン中: ${user.email}`;
             form.hidden = true;
             actions.hidden = false;
