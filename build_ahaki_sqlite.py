@@ -63,12 +63,21 @@ def parse_question_content(question_text):
         stem = "\n".join(content_lines).strip()
 
     answer_index = None
+    answer_indices = []
+    answer_none = False
     if answer_line:
-        match = re.search(r"解答\s*([0-9０-９]+)", answer_line)
-        if match:
-            answer_index = int(normalize_digits(match.group(1)))
+        normalized = normalize_digits(answer_line)
+        if "なし" in normalized:
+            answer_none = True
+        elif "すべて" in normalized:
+            answer_indices = [1, 2, 3, 4]
+        else:
+            digits = re.findall(r"[1-4]", normalized)
+            answer_indices = sorted({int(d) for d in digits})
+        if len(answer_indices) == 1:
+            answer_index = answer_indices[0]
 
-    return stem, choices, answer_index, answer_line
+    return stem, choices, answer_index, answer_indices, answer_none, answer_line
 
 
 def build_dataframe(txt_path):
@@ -112,6 +121,8 @@ def init_db(conn):
             stem TEXT NOT NULL,
             choices_json TEXT NOT NULL,
             answer_index INTEGER,
+            answer_indices_json TEXT,
+            answer_none INTEGER DEFAULT 0,
             answer_text TEXT,
             raw_text TEXT NOT NULL,
             FOREIGN KEY (subject_id) REFERENCES subjects(id)
@@ -178,6 +189,8 @@ def build_question_json(record):
         "stem": record["stem"],
         "choices": record["choices"],
         "answer_index": record["answer_index"],
+        "answer_indices": record.get("answer_indices", []),
+        "answer_none": record.get("answer_none", False),
         "answer_text": record["answer_text"],
         "explanations": [],
         "tags": [],
@@ -234,7 +247,7 @@ def main():
                 subject_cache[subject_name] = subject_id
             subject_id = subject_cache[subject_name]
 
-            stem, choices, answer_index, answer_text = parse_question_content(
+            stem, choices, answer_index, answer_indices, answer_none, answer_text = parse_question_content(
                 question_text
             )
 
@@ -250,9 +263,11 @@ def main():
                     stem,
                     choices_json,
                     answer_index,
+                    answer_indices_json,
+                    answer_none,
                     answer_text,
                     raw_text
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(serial) DO UPDATE SET
                     exam_type_code = excluded.exam_type_code,
                     exam_type = excluded.exam_type,
@@ -262,6 +277,8 @@ def main():
                     stem = excluded.stem,
                     choices_json = excluded.choices_json,
                     answer_index = excluded.answer_index,
+                    answer_indices_json = excluded.answer_indices_json,
+                    answer_none = excluded.answer_none,
                     answer_text = excluded.answer_text,
                     raw_text = excluded.raw_text
                 """,
@@ -275,6 +292,8 @@ def main():
                     stem,
                     json.dumps(choices, ensure_ascii=False),
                     answer_index,
+                    json.dumps(answer_indices, ensure_ascii=False),
+                    1 if answer_none else 0,
                     answer_text,
                     raw_text,
                 ),
@@ -290,6 +309,8 @@ def main():
                     "stem": stem,
                     "choices": choices,
                     "answer_index": answer_index,
+                    "answer_indices": answer_indices,
+                    "answer_none": answer_none,
                     "answer_text": answer_text,
                 }
             )

@@ -4,6 +4,30 @@ import re
 import sqlite3
 from pathlib import Path
 
+FULLWIDTH_TO_ASCII = str.maketrans("０１２３４５６７８９", "0123456789")
+
+
+def normalize_digits(value):
+    return value.translate(FULLWIDTH_TO_ASCII)
+
+
+def parse_answer_text(text):
+    if not text:
+        return [], False
+    normalized = normalize_digits(text)
+    if "なし" in normalized:
+        return [], True
+    if "すべて" in normalized:
+        return [1, 2, 3, 4], False
+    digits = re.findall(r"[1-4]", normalized)
+    indices = sorted({int(d) for d in digits})
+    return indices, False
+
+
+def load_question_columns(conn):
+    rows = conn.execute("PRAGMA table_info(questions)").fetchall()
+    return {row[1] for row in rows}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -28,8 +52,17 @@ def parse_args():
 
 
 def load_questions(conn):
+    columns = load_question_columns(conn)
+    extra_cols = []
+    if "answer_text" in columns:
+        extra_cols.append("q.answer_text")
+    if "answer_indices_json" in columns:
+        extra_cols.append("q.answer_indices_json")
+    if "answer_none" in columns:
+        extra_cols.append("q.answer_none")
     rows = conn.execute(
-        """
+        (
+            """
         SELECT
             q.id,
             q.serial,
@@ -40,10 +73,12 @@ def load_questions(conn):
             q.stem,
             q.choices_json,
             q.answer_index
+            {extra}
         FROM questions q
         LEFT JOIN subjects s ON q.subject_id = s.id
         ORDER BY q.serial
         """
+        ).format(extra=(", " + ", ".join(extra_cols)) if extra_cols else "")
     ).fetchall()
     columns = [
         "id",
@@ -56,6 +91,7 @@ def load_questions(conn):
         "choices_json",
         "answer_index",
     ]
+    columns.extend([col.replace("q.", "") for col in extra_cols])
     return [dict(zip(columns, row)) for row in rows]
 
 
@@ -117,6 +153,22 @@ def load_explanation_update_log(conn):
     except sqlite3.OperationalError:
         return []
     return [{"date": row[0], "count": row[1]} for row in rows]
+
+
+def resolve_answer_meta(record):
+    indices = []
+    answer_none = False
+    raw_json = record.get("answer_indices_json")
+    if raw_json:
+        try:
+            indices = json.loads(raw_json)
+        except json.JSONDecodeError:
+            indices = []
+    if record.get("answer_none"):
+        answer_none = True
+    if not indices and not answer_none:
+        indices, answer_none = parse_answer_text(record.get("answer_text", ""))
+    return indices, answer_none
 
 
 def load_update_notes(path):
@@ -183,6 +235,7 @@ def main():
     output = []
     for q in questions:
         qid = q["id"]
+        answer_indices, answer_none = resolve_answer_meta(q)
         exp_list = explanations.get(qid, [])
         exp_list_sorted = sorted(exp_list, key=lambda x: x.get("version", 0))
         latest_exp = exp_list_sorted[-1]["body"] if exp_list_sorted else None
@@ -196,6 +249,8 @@ def main():
             "stem": q["stem"],
             "choices": json.loads(q["choices_json"]),
             "answer_index": q["answer_index"],
+            "answer_indices": answer_indices,
+            "answer_none": answer_none,
             "explanation_latest": latest_exp,
             "explanation_latest_source": latest_source,
             "explanations": exp_list_sorted,

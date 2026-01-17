@@ -571,6 +571,33 @@
         overridesLoaded: new Set()
       };
 
+      function normalizeAscii(text) {
+        return (text || "")
+          .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+          .replace(/[‐‑‒–—―−ーｰ－]/g, "-");
+      }
+
+      function normalizeSerialTerm(raw) {
+        if (!raw) return "";
+        let text = normalizeAscii(raw).toUpperCase();
+        text = text.replace(/\s+/g, "");
+        text = text.replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/g, "");
+        let match = text.match(/^([AB])(\d{2})(\d{3})$/);
+        if (match) return `${match[1]}${match[2]}-${match[3]}`;
+        match = text.match(/^([AB])(\d{1,2})-(\d{1,3})$/);
+        if (match) {
+          return `${match[1]}${match[2].padStart(2, "0")}-${match[3].padStart(3, "0")}`;
+        }
+        match = text.match(/^([AB])(\d{4,5})$/);
+        if (match) {
+          const digits = match[2];
+          const session = digits.slice(0, -3).padStart(2, "0");
+          const number = digits.slice(-3).padStart(3, "0");
+          return `${match[1]}${session}-${number}`;
+        }
+        return "";
+      }
+
       function populateSelect(select, items) {
         const first = select.querySelector("option");
         select.innerHTML = "";
@@ -735,11 +762,25 @@
         const showAnswered = document.getElementById("showAnswered").checked;
 
         const terms = keyword
-          .split(/\s+/)
-          .map(term => term.trim().toLowerCase())
+          .split(/[\s,]+/)
+          .map(term => term.trim())
           .filter(Boolean);
-        const tagTerms = terms.filter(term => term.startsWith("#")).map(term => term.slice(1));
-        const textTerms = terms.filter(term => !term.startsWith("#"));
+        const tagTerms = [];
+        const textTerms = [];
+        const serialTerms = [];
+        terms.forEach(term => {
+          const lowered = normalizeAscii(term).toLowerCase();
+          if (lowered.startsWith("#")) {
+            tagTerms.push(lowered.slice(1));
+            return;
+          }
+          const serial = normalizeSerialTerm(term);
+          if (serial) {
+            serialTerms.push(serial);
+            return;
+          }
+          if (lowered) textTerms.push(lowered);
+        });
         const setFromIndex = (index, key) => new Set((index[key] || []));
 
         let serialSet = null;
@@ -757,6 +798,7 @@
           if (needExplanation && !(q.explanation_latest || "").trim()) return false;
           if (needTags && !(q.tags || []).length) return false;
           if (needSubtopics && !(q.subtopics || []).length) return false;
+          if (serialTerms.length && !serialTerms.includes(q.serial)) return false;
           if (!terms.length) return true;
           const hay = [
             q.stem || "",
@@ -832,7 +874,7 @@
           ul.className = "choices";
           const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
           const answered = getAnswered(q.serial);
-          const correctIndex = Number(q.answer_index);
+          const correctIndices = getAnswerIndices(q);
           (q.choices || []).forEach((choice, idx) => {
             const li = document.createElement("li");
             const btn = document.createElement("button");
@@ -842,7 +884,10 @@
             btn.setAttribute("aria-label", `選択肢${idx + 1} ${choice}`);
             if (answered) {
               btn.disabled = true;
-              if (idx + 1 === correctIndex) {
+              if (!q.answer_none && correctIndices.includes(idx + 1)) {
+                btn.classList.add("correct");
+              }
+              if (q.answer_none && answered.selectedIndex === idx + 1) {
                 btn.classList.add("correct");
               }
               if (answered.selectedIndex === idx + 1 && !answered.isCorrect) {
@@ -1019,8 +1064,8 @@
 
           const answer = document.createElement("div");
           answer.className = "answer";
-          const idx = q.answer_index ? q.answer_index : "";
-          answer.textContent = `正答: ${idx}`;
+          const label = formatAnswerLabel(q);
+          answer.textContent = label ? `正答: ${label}` : "正答: 未登録";
           card.appendChild(answer);
 
           const explanation = document.createElement("div");
@@ -1838,6 +1883,33 @@
         return "（" + source + "）";
       }
 
+      function getAnswerIndices(question) {
+        if (!question) return [];
+        const indices = Array.isArray(question.answer_indices)
+          ? question.answer_indices.map(Number)
+          : [];
+        if (!indices.length && question.answer_index) {
+          indices.push(Number(question.answer_index));
+        }
+        return indices.filter(n => Number.isFinite(n));
+      }
+
+      function isAnswerCorrect(question, selectedIndex) {
+        if (!question) return false;
+        if (question.answer_none) return true;
+        const indices = getAnswerIndices(question);
+        if (!indices.length) return false;
+        return indices.includes(Number(selectedIndex));
+      }
+
+      function formatAnswerLabel(question) {
+        if (!question) return "";
+        if (question.answer_none) return "なし";
+        const indices = getAnswerIndices(question);
+        if (!indices.length) return "";
+        return indices.join("・");
+      }
+
       function buildReportRequest(serial, kind, label) {
         const panelId = `report-${serial}-${kind}`.replace(/[^a-zA-Z0-9_-]/g, "-");
         const button = document.createElement("button");
@@ -1899,17 +1971,19 @@
         if (hasAnswered(question.serial)) {
           return;
         }
-        const correctIndex = Number(question.answer_index);
-        const isCorrect = Number(selectedIndex) === correctIndex;
+        const correctIndices = getAnswerIndices(question);
+        const isCorrect = isAnswerCorrect(question, Number(selectedIndex));
         const buttons = button.closest("ol")?.querySelectorAll(".choice-btn") || [];
         buttons.forEach((btn, idx) => {
           btn.disabled = true;
           btn.classList.remove("selected", "correct", "incorrect");
-          if (idx + 1 === correctIndex) {
+          if (!question.answer_none && correctIndices.includes(idx + 1)) {
             btn.classList.add("correct");
           }
         });
-        if (!isCorrect) {
+        if (question.answer_none && isCorrect) {
+          button.classList.add("correct");
+        } else if (!isCorrect) {
           button.classList.add("incorrect");
         }
         const feedback = button.closest(".card")?.querySelector(".choice-feedback");
@@ -2035,7 +2109,18 @@
         });
         if (showAnswer) {
           lines.push("　");
-          const ans = q.answer_index ? `解答　${nums[q.answer_index - 1] || q.answer_index}` : "解答　";
+          let ansLabel = "";
+          if (q.answer_none) {
+            ansLabel = "なし";
+          } else {
+            const indices = getAnswerIndices(q);
+            if (indices.length) {
+              ansLabel = indices
+                .map(idx => nums[idx - 1] || String(idx))
+                .join("・");
+            }
+          }
+          const ans = ansLabel ? `解答　${ansLabel}` : "解答　";
           lines.push(ans);
           if (showExplanation) {
             const exp = q.explanation_latest || "";

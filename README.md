@@ -200,6 +200,7 @@ alter table question_overrides add column if not exists synced_at timestamptz;
 
 ### 機能
 - キーワード検索（空白区切りのAND検索）
+- シリアル検索（A01-001 / a01001 / カンマ区切り対応）
 - タグ検索はキーワードに `#タグ名` を指定
 - 科目/小項目/試験種別/回数の絞り込み、回数ソート
 - 正答表示 / 正答・解説表示の切り替え

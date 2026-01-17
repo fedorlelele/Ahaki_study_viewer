@@ -551,25 +551,39 @@
 
       function showResult() {
         const q = applyOverridesToQuestion(state.filtered[state.currentIndex]);
-        const correct = Number(q.answer_index);
-        const isCorrect = Number(state.selectedIndex) === correct;
+        const correctIndices = getAnswerIndices(q);
+        const isCorrect = isAnswerCorrect(q, Number(state.selectedIndex));
         const choicesList = q.choices || [];
-        const correctText = choicesList[correct - 1] || "";
         const items = Array.from(choices.querySelectorAll("li"));
         items.forEach(li => {
           const idx = Number(li.dataset.index);
           li.classList.remove("selected");
-          if (idx === correct) li.classList.add("correct");
-          if (idx === state.selectedIndex && idx !== correct) li.classList.add("incorrect");
+          if (!q.answer_none && correctIndices.includes(idx)) {
+            li.classList.add("correct");
+          }
+          if (q.answer_none && idx === state.selectedIndex) {
+            li.classList.add("correct");
+          }
+          if (idx === state.selectedIndex && !isCorrect) {
+            li.classList.add("incorrect");
+          }
         });
         const exp = q.explanation_latest || "";
         state.answered = true;
         setResultButtonsEnabled(false);
         resultStatus.textContent = isCorrect ? "正解です。" : "不正解です。";
         resultText.textContent = "";
+        const answerLabel = formatAnswerLabel(q);
+        const singleAnswerText =
+          !q.answer_none && correctIndices.length === 1
+            ? ` ${choicesList[correctIndices[0] - 1] || ""}`.trim()
+            : "";
+        const answerLine = answerLabel
+          ? `正答: ${answerLabel}${singleAnswerText ? " " + singleAnswerText : ""}`
+          : "正答: 未登録";
         const resultBody = exp
-          ? `正答: ${correct} ${correctText}\n解説:\n${exp}`
-          : `正答: ${correct} ${correctText}\n解説: (未登録)`;
+          ? `${answerLine}\n解説:\n${exp}`
+          : `${answerLine}\n解説: (未登録)`;
         resultOverlay.classList.add("show");
         const dialog = resultOverlay.querySelector(".dialog");
         if (dialog) dialog.focus();
@@ -873,6 +887,33 @@
       function saveAnsweredState() {
         const key = "answeredSerials";
         localStorage.setItem(key, JSON.stringify(state.answeredMap));
+      }
+
+      function getAnswerIndices(question) {
+        if (!question) return [];
+        const indices = Array.isArray(question.answer_indices)
+          ? question.answer_indices.map(Number)
+          : [];
+        if (!indices.length && question.answer_index) {
+          indices.push(Number(question.answer_index));
+        }
+        return indices.filter(n => Number.isFinite(n));
+      }
+
+      function isAnswerCorrect(question, selectedIndex) {
+        if (!question) return false;
+        if (question.answer_none) return true;
+        const indices = getAnswerIndices(question);
+        if (!indices.length) return false;
+        return indices.includes(Number(selectedIndex));
+      }
+
+      function formatAnswerLabel(question) {
+        if (!question) return "";
+        if (question.answer_none) return "なし";
+        const indices = getAnswerIndices(question);
+        if (!indices.length) return "";
+        return indices.join("・");
       }
 
       async function ensureOverridesLoaded(serials) {
