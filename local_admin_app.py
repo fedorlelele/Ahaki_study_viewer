@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse, quote
 from urllib.request import Request, urlopen
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 
 
 HTML_PAGE = """<!doctype html>
@@ -52,6 +52,7 @@ HTML_PAGE = """<!doctype html>
     <div class="tabs" role="tablist" aria-label="管理タブ">
       <button class="tab active" data-target="prompts" role="tab" aria-selected="true">プロンプト</button>
       <button class="tab" data-target="imports" role="tab">インポート</button>
+      <button class="tab" data-target="teacher" role="tab">教師申請</button>
       <button class="tab" data-target="edits" role="tab">編集提案</button>
       <button class="tab" data-target="reports" role="tab">報告一覧</button>
       <button class="tab" data-target="cloud" role="tab">クラウド集計</button>
@@ -261,6 +262,25 @@ HTML_PAGE = """<!doctype html>
         <button id="dismissEditRequests">却下（ステータス更新）</button>
       </div>
       <div id="editRequestResult"></div>
+    </div>
+    <div class="section" data-section="teacher" hidden>
+      <h2>教師申請</h2>
+      <p class="note">teacher_requests を参照します（SUPABASE_URL / SUPABASE_SERVICE_KEY が必要）。</p>
+      <div class="row">
+        <label>表示ステータス</label>
+        <select id="teacherStatus">
+          <option value="pending">未承認</option>
+          <option value="approved">承認済み</option>
+          <option value="rejected">却下</option>
+          <option value="">すべて</option>
+        </select>
+        <button id="loadTeacherRequests">申請を表示</button>
+      </div>
+      <div class="row">
+        <button id="approveTeacherRequests">承認</button>
+        <button id="rejectTeacherRequests">却下</button>
+      </div>
+      <div id="teacherRequestResult"></div>
     </div>
     <div class="section" data-section="cloud" hidden>
       <h2>クラウド集計</h2>
@@ -824,6 +844,48 @@ HTML_PAGE = """<!doctype html>
         document.getElementById("editRequestResult").textContent = data.message || "完了しました。";
       });
 
+      let teacherRequestItems = [];
+
+      document.getElementById("loadTeacherRequests").addEventListener("click", async () => {
+        const status = document.getElementById("teacherStatus").value;
+        const params = new URLSearchParams();
+        if (status !== "") params.set("status", status);
+        const resp = await fetch("/api/teacher_requests?" + params.toString());
+        const data = await resp.json();
+        teacherRequestItems = data.items || [];
+        document.getElementById("teacherRequestResult").innerHTML = renderTeacherRequests(data);
+      });
+
+      document.getElementById("approveTeacherRequests").addEventListener("click", async () => {
+        const selected = collectSelectedTeacherRequests();
+        if (!selected.length) {
+          document.getElementById("teacherRequestResult").textContent = "対象を選択してください。";
+          return;
+        }
+        const resp = await fetch("/api/teacher_requests/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: selected }),
+        });
+        const data = await resp.json();
+        document.getElementById("teacherRequestResult").textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("rejectTeacherRequests").addEventListener("click", async () => {
+        const selected = collectSelectedTeacherRequests();
+        if (!selected.length) {
+          document.getElementById("teacherRequestResult").textContent = "対象を選択してください。";
+          return;
+        }
+        const resp = await fetch("/api/teacher_requests/reject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: selected }),
+        });
+        const data = await resp.json();
+        document.getElementById("teacherRequestResult").textContent = data.message || "完了しました。";
+      });
+
       function getSelectedReportKinds() {
         const kinds = [];
         if (document.getElementById("reportExplain").checked) kinds.push("explanation");
@@ -1096,6 +1158,46 @@ HTML_PAGE = """<!doctype html>
         return "<div>件数: " + data.count + "</div>" +
           "<table border='1' cellspacing='0' cellpadding='4'>" +
             "<thead><tr><th>選択</th><th>シリアル</th><th>種別</th><th>コメント</th><th>内容</th><th>作成者</th><th>日時</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function collectSelectedTeacherRequests() {
+        const selected = [];
+        document.querySelectorAll("input[data-teacher-id]").forEach(input => {
+          if (!input.checked) return;
+          selected.push({
+            id: input.getAttribute("data-teacher-id"),
+            user_id: input.getAttribute("data-teacher-user"),
+            email: input.getAttribute("data-teacher-email")
+          });
+        });
+        return selected;
+      }
+
+      function renderTeacherRequests(data) {
+        if (!data || !data.items || !data.items.length) {
+          if (data && data.message) {
+            return "<div>" + data.message + "</div>";
+          }
+          return "<div>申請がありません。</div>";
+        }
+        var rows = "";
+        data.items.forEach(function(item) {
+          rows += "<tr>" +
+            "<td><input type='checkbox' data-teacher-id='" + item.id +
+            "' data-teacher-user='" + escapeHtml(item.user_id || "") +
+            "' data-teacher-email='" + escapeHtml(item.email || "") + "' /></td>" +
+            "<td>" + escapeHtml(item.email || "") + "</td>" +
+            "<td>" + escapeHtml(item.user_id || "") + "</td>" +
+            "<td>" + escapeHtml(item.note || "") + "</td>" +
+            "<td>" + escapeHtml(item.status || "") + "</td>" +
+            "<td>" + (item.created_at || "") + "</td>" +
+            "</tr>";
+        });
+        return "<div>件数: " + data.count + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4'>" +
+            "<thead><tr><th>選択</th><th>メール</th><th>ユーザーID</th><th>メモ</th><th>ステータス</th><th>日時</th></tr></thead>" +
             "<tbody>" + rows + "</tbody>" +
           "</table>";
       }
@@ -1721,6 +1823,13 @@ class Handler(BaseHTTPRequestHandler):
             payload = list_edit_requests_supabase(limit)
             self._send_json(payload)
             return
+        if parsed.path == "/api/teacher_requests":
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["2000"])[0] or 2000)
+            status = params.get("status", [""])[0]
+            payload = list_teacher_requests_supabase(status, limit)
+            self._send_json(payload)
+            return
         if parsed.path == "/api/supabase/feedback":
             params = parse_qs(parsed.query)
             limit = int(params.get("limit", ["1000"])[0] or 1000)
@@ -1755,6 +1864,18 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._read_json()
             items = payload.get("items", [])
             result = update_edit_request_status(items, "dismissed")
+            self._send_json(result)
+            return
+        if parsed.path == "/api/teacher_requests/approve":
+            payload = self._read_json()
+            items = payload.get("items", [])
+            result = approve_teacher_requests(items)
+            self._send_json(result)
+            return
+        if parsed.path == "/api/teacher_requests/reject":
+            payload = self._read_json()
+            items = payload.get("items", [])
+            result = reject_teacher_requests(items)
             self._send_json(result)
             return
         if parsed.path == "/api/backup":
@@ -2845,6 +2966,56 @@ def supabase_request(method, table, query, body=None):
         return None, f"Supabase接続に失敗しました: {exc}"
 
 
+def supabase_admin_request(method, path, body=None):
+    cfg = supabase_config()
+    if not cfg:
+        return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    endpoint = f"{cfg['url']}/auth/v1/admin/{path}"
+    headers = {
+        "apikey": cfg["key"],
+        "Authorization": f"Bearer {cfg['key']}",
+        "Accept": "application/json",
+    }
+    data = None
+    if body is not None:
+        data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = Request(endpoint, data=data, headers=headers, method=method)
+    try:
+        with urlopen(req, timeout=10) as resp:
+            payload = resp.read().decode("utf-8")
+        return payload, ""
+    except HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8")
+        except Exception:
+            detail = ""
+        message = f"Supabase接続に失敗しました: {exc}"
+        if detail:
+            message = f"{message} / {detail}"
+        return None, message
+    except URLError as exc:
+        return None, f"Supabase接続に失敗しました: {exc}"
+
+
+def set_teacher_role(user_id):
+    methods = ["PATCH", "PUT"]
+    last_error = ""
+    for method in methods:
+        _, error = supabase_admin_request(
+            method,
+            f"users/{quote(str(user_id))}",
+            {"app_metadata": {"role": "teacher"}},
+        )
+        if not error:
+            return ""
+        last_error = error
+        if "405" not in error:
+            return error
+    return last_error
+
+
 def fetch_supabase_overrides(since=None, limit=500):
     cfg = supabase_config()
     if not cfg:
@@ -3176,6 +3347,70 @@ def list_edit_requests_supabase(limit):
         return {"count": 0, "items": []}
     items = [row for row in rows if row.get("status") == "open"]
     return {"count": len(items), "items": items}
+
+
+def list_teacher_requests_supabase(status, limit):
+    query = (
+        "?select="
+        + quote("id,user_id,email,note,status,created_at")
+        + f"&order=created_at.desc&limit={limit}"
+    )
+    if status:
+        query += f"&status=eq.{quote(status)}"
+    payload, error = supabase_request("GET", "teacher_requests", query)
+    if error:
+        return {"count": 0, "items": [], "message": error}
+    try:
+        rows = json.loads(payload or "[]")
+    except json.JSONDecodeError:
+        rows = []
+    return {"count": len(rows), "items": rows}
+
+
+def approve_teacher_requests(items):
+    if not items:
+        return {"message": "対象がありません。"}
+    approved = 0
+    for item in items:
+        request_id = item.get("id")
+        user_id = item.get("user_id")
+        if not request_id or not user_id:
+            continue
+        query = f"?id=eq.{quote(str(request_id))}"
+        _, error = supabase_request(
+            "PATCH",
+            "teacher_requests",
+            query,
+            {"status": "approved"},
+        )
+        if error:
+            return {"message": error}
+        error = set_teacher_role(user_id)
+        if error:
+            return {"message": error}
+        approved += 1
+    return {"message": f"{approved} 件を承認しました。"}
+
+
+def reject_teacher_requests(items):
+    if not items:
+        return {"message": "対象がありません。"}
+    rejected = 0
+    for item in items:
+        request_id = item.get("id")
+        if not request_id:
+            continue
+        query = f"?id=eq.{quote(str(request_id))}"
+        _, error = supabase_request(
+            "PATCH",
+            "teacher_requests",
+            query,
+            {"status": "rejected"},
+        )
+        if error:
+            return {"message": error}
+        rejected += 1
+    return {"message": f"{rejected} 件を却下しました。"}
 
 
 def update_edit_request_status(items, status):

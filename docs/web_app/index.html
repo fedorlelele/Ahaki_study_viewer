@@ -568,15 +568,25 @@
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
-          <div id="authForm">
-            <input id="authEmail" type="email" placeholder="メールアドレス" />
-            <input id="authPassword" type="password" placeholder="パスワード" />
-            <button id="authLoginBtn" type="button">ログイン</button>
+        <div id="authForm">
+          <input id="authEmail" type="email" placeholder="メールアドレス" />
+          <input id="authPassword" type="password" placeholder="パスワード" />
+          <button id="authLoginBtn" type="button">ログイン</button>
+        </div>
+        <details class="inline" id="teacherSignupPanel">
+          <summary>教師アカウントを申請</summary>
+          <div class="edit-panel">
+            <input id="signupEmail" type="email" placeholder="メールアドレス" />
+            <input id="signupPassword" type="password" placeholder="パスワード" />
+            <input id="signupNote" type="text" placeholder="申請理由（任意）" />
+            <button id="signupBtn" type="button">申請する</button>
+            <div class="note">申請後、管理者の承認が必要です。</div>
           </div>
-          <div id="authActions" hidden>
-            <button id="authLogoutBtn" type="button">ログアウト</button>
-          </div>
-          <div id="authMessage" class="note"></div>
+        </details>
+        <div id="authActions" hidden>
+          <button id="authLogoutBtn" type="button">ログアウト</button>
+        </div>
+        <div id="authMessage" class="note"></div>
         </div>
       </div>
     </header>
@@ -1655,6 +1665,50 @@
           }
           message.textContent = "ログインしました。";
         });
+
+        const signupBtn = document.getElementById("signupBtn");
+        const signupEmail = document.getElementById("signupEmail");
+        const signupPassword = document.getElementById("signupPassword");
+        const signupNote = document.getElementById("signupNote");
+        if (signupBtn) {
+          signupBtn.addEventListener("click", async () => {
+            const email = signupEmail ? signupEmail.value.trim() : "";
+            const password = signupPassword ? signupPassword.value : "";
+            const note = signupNote ? signupNote.value.trim() : "";
+            message.textContent = "";
+            if (!email || !password) {
+              message.textContent = "メールとパスワードを入力してください。";
+              return;
+            }
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) {
+              message.textContent = "申請に失敗しました。";
+              return;
+            }
+            const user = data && data.user ? data.user : null;
+            if (!user) {
+              message.textContent = "申請を受け付けました。確認メール後に再度申請してください。";
+              return;
+            }
+            const { error: insertError } = await supabaseClient
+              .from("teacher_requests")
+              .insert([
+                {
+                  user_id: user.id,
+                  email: email,
+                  note: note,
+                  status: "pending"
+                }
+              ]);
+            if (insertError) {
+              message.textContent = "申請の登録に失敗しました。";
+              return;
+            }
+            await supabaseClient.auth.signOut();
+            message.textContent = "申請を受け付けました。承認後にログインできます。";
+            if (signupPassword) signupPassword.value = "";
+          });
+        }
 
         logoutBtn.addEventListener("click", async () => {
           message.textContent = "";
