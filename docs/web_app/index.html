@@ -204,6 +204,34 @@
         border-color: #b00020;
         color: #7a0015;
       }
+      .proposal-list {
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        font-size: 0.9em;
+      }
+      .proposal-item {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed var(--line);
+      }
+      .proposal-item:first-child {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+      }
+      .proposal-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .proposal-label {
+        font-weight: 600;
+        margin-right: 6px;
+      }
       .answer {
         margin-top: 10px;
         padding: 8px 10px;
@@ -367,6 +395,44 @@
         padding: 4px 8px;
         font-size: 12px;
       }
+      .proposal-panel {
+        margin-top: 10px;
+      }
+      .proposal-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .proposal-controls input,
+      .proposal-controls select,
+      .proposal-controls button {
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        font-size: 12px;
+      }
+      .proposal-list-wide {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px;
+        font-size: 12px;
+      }
+      .proposal-row {
+        border-top: 1px solid var(--line);
+        padding: 8px 0;
+      }
+      .proposal-row:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+      .proposal-meta {
+        color: var(--muted);
+        font-size: 11px;
+        margin-bottom: 4px;
+      }
       .auth-panel .note {
         margin-top: 6px;
         color: var(--muted);
@@ -482,6 +548,23 @@
           <div class="note" id="historyEmpty" hidden>履歴はありません。</div>
         </div>
       </details>
+      <details class="inline" id="proposalPanel" hidden>
+        <summary>修正提案一覧</summary>
+        <div class="proposal-panel">
+          <div class="proposal-controls">
+            <input id="proposalSerial" type="text" placeholder="シリアル (任意)" />
+            <select id="proposalStatus">
+              <option value="open">未処理</option>
+              <option value="applied">反映済み</option>
+              <option value="rejected">却下</option>
+              <option value="">すべて</option>
+            </select>
+            <button id="proposalFetchBtn" type="button">提案を取得</button>
+          </div>
+          <div class="proposal-list-wide" id="proposalList"></div>
+          <div class="note" id="proposalEmpty" hidden>提案はありません。</div>
+        </div>
+      </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -568,7 +651,9 @@
         updateShown: 0,
         orderIndexBySerial: {},
         overridesBySerial: {},
-        overridesLoaded: new Set()
+        overridesLoaded: new Set(),
+        editRequestsBySerial: {},
+        editRequestsLoaded: new Set()
       };
 
       function normalizeAscii(text) {
@@ -933,13 +1018,47 @@
             });
           }
           if (!isTeacher) {
-            const tagReportWrap = buildReportRequest(
-              q.serial,
-              "tag",
-              "タグ修正を要望"
-            );
-            tags.appendChild(tagReportWrap.button);
-            tags.appendChild(tagReportWrap.panel);
+            const tagDetails = document.createElement("details");
+            tagDetails.className = "inline inline-details";
+            const tagSummary = document.createElement("summary");
+            tagSummary.className = "inline-summary";
+            tagSummary.textContent = "タグ修正を提案";
+            tagDetails.appendChild(tagSummary);
+            const tagPanel = document.createElement("div");
+            tagPanel.className = "edit-panel";
+            const tagRemoveWrap = document.createElement("div");
+            (q.tags || []).forEach(tag => {
+              const lbl = document.createElement("label");
+              const cb = document.createElement("input");
+              cb.type = "checkbox";
+              cb.value = tag;
+              lbl.appendChild(cb);
+              lbl.appendChild(document.createTextNode("削除: " + tag));
+              tagRemoveWrap.appendChild(lbl);
+            });
+            tagPanel.appendChild(tagRemoveWrap);
+            const tagAdd = document.createElement("input");
+            tagAdd.type = "text";
+            tagAdd.placeholder = "追加タグ（カンマ区切り）";
+            tagPanel.appendChild(tagAdd);
+            const tagNote = document.createElement("input");
+            tagNote.type = "text";
+            tagNote.placeholder = "コメント（必須）";
+            tagPanel.appendChild(tagNote);
+            const tagSubmit = document.createElement("button");
+            tagSubmit.textContent = "提案を送信";
+            tagSubmit.addEventListener("click", () => {
+              const remove = Array.from(tagRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
+              const add = tagAdd.value.split(",").map(t => t.trim()).filter(Boolean);
+              if (!add.length && !remove.length) {
+                alert("追加または削除を入力してください。");
+                return;
+              }
+              submitGuestEditRequest(q.serial, "tag", { add, remove }, tagNote.value);
+            });
+            tagPanel.appendChild(tagSubmit);
+            tagDetails.appendChild(tagPanel);
+            tags.appendChild(tagDetails);
           }
           if (isTeacher) {
             const tagDetails = document.createElement("details");
@@ -979,6 +1098,8 @@
             tagPanel.appendChild(tagSubmit);
             tagDetails.appendChild(tagPanel);
             tags.appendChild(tagDetails);
+            const tagProposals = buildProposalList(q, "tag");
+            if (tagProposals) tags.appendChild(tagProposals);
           }
           card.appendChild(tags);
 
@@ -1006,13 +1127,54 @@
             });
           }
           if (!isTeacher) {
-            const subReportWrap = buildReportRequest(
-              q.serial,
-              "subtopic",
-              "小項目修正を要望"
-            );
-            subs.appendChild(subReportWrap.button);
-            subs.appendChild(subReportWrap.panel);
+            const subDetails = document.createElement("details");
+            subDetails.className = "inline inline-details";
+            const subSummary = document.createElement("summary");
+            subSummary.className = "inline-summary";
+            subSummary.textContent = "小項目修正を提案";
+            subDetails.appendChild(subSummary);
+            const subPanel = document.createElement("div");
+            subPanel.className = "edit-panel";
+            const subRemoveWrap = document.createElement("div");
+            (q.subtopics || []).forEach(name => {
+              const lbl = document.createElement("label");
+              const cb = document.createElement("input");
+              cb.type = "checkbox";
+              cb.value = name;
+              lbl.appendChild(cb);
+              lbl.appendChild(document.createTextNode("削除: " + name));
+              subRemoveWrap.appendChild(lbl);
+            });
+            subPanel.appendChild(subRemoveWrap);
+            const subSelect = document.createElement("select");
+            subSelect.multiple = true;
+            subSelect.style.width = "100%";
+            const catalog = state.subtopicCatalog[q.subject] || [];
+            catalog.forEach(name => {
+              const opt = document.createElement("option");
+              opt.value = name;
+              opt.textContent = name;
+              subSelect.appendChild(opt);
+            });
+            subPanel.appendChild(subSelect);
+            const subNote = document.createElement("input");
+            subNote.type = "text";
+            subNote.placeholder = "コメント（必須）";
+            subPanel.appendChild(subNote);
+            const subSubmit = document.createElement("button");
+            subSubmit.textContent = "提案を送信";
+            subSubmit.addEventListener("click", () => {
+              const remove = Array.from(subRemoveWrap.querySelectorAll("input:checked")).map(cb => cb.value);
+              const add = Array.from(subSelect.selectedOptions).map(opt => opt.value);
+              if (!add.length && !remove.length) {
+                alert("追加または削除を入力してください。");
+                return;
+              }
+              submitGuestEditRequest(q.serial, "subtopic", { add, remove }, subNote.value);
+            });
+            subPanel.appendChild(subSubmit);
+            subDetails.appendChild(subPanel);
+            subs.appendChild(subDetails);
           }
           if (isTeacher) {
             const subDetails = document.createElement("details");
@@ -1059,6 +1221,8 @@
             subPanel.appendChild(subSubmit);
             subDetails.appendChild(subPanel);
             subs.appendChild(subDetails);
+            const subProposals = buildProposalList(q, "subtopic");
+            if (subProposals) subs.appendChild(subProposals);
           }
           card.appendChild(subs);
 
@@ -1109,13 +1273,39 @@
               });
               expHeader.appendChild(select);
             }
-            const expReportWrap = buildReportRequest(
-              q.serial,
-              "explanation",
-              "解説修正を要望"
-            );
-            expHeader.appendChild(expReportWrap.button);
-            explanation.appendChild(expReportWrap.panel);
+            const expDetails = document.createElement("details");
+            expDetails.className = "inline inline-details";
+            const expSummary = document.createElement("summary");
+            expSummary.className = "inline-summary";
+            expSummary.textContent = "解説修正を提案";
+            expDetails.appendChild(expSummary);
+            const expPanel = document.createElement("div");
+            expPanel.className = "edit-panel";
+            const expArea = document.createElement("textarea");
+            expArea.rows = 4;
+            expArea.value = expText || "";
+            expPanel.appendChild(expArea);
+            const expNote = document.createElement("input");
+            expNote.type = "text";
+            expNote.placeholder = "コメント（必須）";
+            expPanel.appendChild(expNote);
+            const expSubmit = document.createElement("button");
+            expSubmit.textContent = "提案を送信";
+            expSubmit.addEventListener("click", () => {
+              if (!expArea.value.trim()) {
+                alert("解説を入力してください。");
+                return;
+              }
+              submitGuestEditRequest(
+                q.serial,
+                "explanation",
+                { explanation: expArea.value },
+                expNote.value
+              );
+            });
+            expPanel.appendChild(expSubmit);
+            expDetails.appendChild(expPanel);
+            expHeader.appendChild(expDetails);
           }
           if (isTeacher) {
             const source = q.explanation_latest_source || "";
@@ -1161,6 +1351,8 @@
             expPanel.appendChild(expSubmit);
             expDetails.appendChild(expPanel);
             expHeader.appendChild(expDetails);
+            const expProposals = buildProposalList(q, "explanation");
+            if (expProposals) explanation.appendChild(expProposals);
           }
           explanation.appendChild(expHeader);
           const expBody = document.createElement("div");
@@ -1205,6 +1397,9 @@
           idx = end;
           more.disabled = true;
           await ensureOverridesLoaded(batch.map(item => item.serial));
+          if (isTeacher) {
+            await ensureEditRequestsLoaded(batch.map(item => item.serial));
+          }
           renderBatch(batch);
           more.disabled = false;
           updateLabel();
@@ -1263,6 +1458,7 @@
         }
 
         initHistoryPanel();
+        initProposalPanel();
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
@@ -1474,22 +1670,26 @@
           return (user?.app_metadata?.role || user?.user_metadata?.role || "") === "teacher";
         }
 
-        function updateAuthUI(session) {
-          const user = session && session.user ? session.user : null;
-          if (user && !isTeacherUser(user)) {
-            state.teacherSession = null;
-            status.textContent = "教師権限がありません。";
-            form.hidden = false;
-            actions.hidden = true;
-            toggleBtn.textContent = "教師ログイン";
-            toggleBtn.setAttribute("aria-label", "教師ログイン");
-            message.textContent = "教師アカウントでログインしてください。";
-            if (historyPanel) historyPanel.hidden = true;
-            supabaseClient.auth.signOut();
-            return;
-          }
-          state.teacherSession = user ? session : null;
-          if (user) {
+      function updateAuthUI(session) {
+        const user = session && session.user ? session.user : null;
+        state.editRequestsBySerial = {};
+        state.editRequestsLoaded = new Set();
+        const proposalPanel = document.getElementById("proposalPanel");
+        if (user && !isTeacherUser(user)) {
+          state.teacherSession = null;
+          status.textContent = "教師権限がありません。";
+          form.hidden = false;
+          actions.hidden = true;
+          toggleBtn.textContent = "教師ログイン";
+          toggleBtn.setAttribute("aria-label", "教師ログイン");
+          message.textContent = "教師アカウントでログインしてください。";
+          if (historyPanel) historyPanel.hidden = true;
+          if (proposalPanel) proposalPanel.hidden = true;
+          supabaseClient.auth.signOut();
+          return;
+        }
+        state.teacherSession = user ? session : null;
+        if (user) {
             if (state.teacherUserId !== user.id) {
               const answerToggle = document.getElementById("toggleAnswer");
               const explanationToggle = document.getElementById("toggleExplanation");
@@ -1503,6 +1703,7 @@
             toggleBtn.textContent = "教師ログイン（ログイン中）";
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
             if (historyPanel) historyPanel.hidden = false;
+            if (proposalPanel) proposalPanel.hidden = false;
           } else {
             state.teacherUserId = null;
             status.textContent = "未ログイン";
@@ -1511,6 +1712,7 @@
             toggleBtn.textContent = "教師ログイン";
             toggleBtn.setAttribute("aria-label", "教師ログイン");
             if (historyPanel) historyPanel.hidden = true;
+            if (proposalPanel) proposalPanel.hidden = true;
           }
           renderResults(filterQuestions());
         }
@@ -1547,13 +1749,72 @@
           });
       }
 
+      function submitGuestEditRequest(serial, kind, payload, note) {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return;
+        }
+        if (!note || !note.trim()) {
+          alert("コメントを入力してください。");
+          return;
+        }
+        const body = {
+          serial: serial,
+          kind: kind,
+          payload: payload || {},
+          note: note.trim(),
+          status: "open",
+          created_by: getAnonId(),
+          created_email: "guest"
+        };
+        supabaseClient
+          .from("edit_requests")
+          .insert([body])
+          .then(({ error }) => {
+            if (error) {
+              alert("送信に失敗しました。");
+              return;
+            }
+            alert("提案を送信しました。");
+          });
+      }
+
+      function updateEditRequestStatus(id, status) {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return Promise.resolve(false);
+        }
+        const session = state.teacherSession;
+        if (!session || !session.user) {
+          alert("教師ログインが必要です。");
+          return Promise.resolve(false);
+        }
+        return supabaseClient
+          .from("edit_requests")
+          .update({ status: status })
+          .eq("id", id)
+          .then(({ error }) => {
+            if (error) {
+              alert("更新に失敗しました。");
+              return false;
+            }
+            Object.keys(state.editRequestsBySerial).forEach(serial => {
+              state.editRequestsBySerial[serial] = (state.editRequestsBySerial[serial] || []).filter(
+                item => item.id !== id
+              );
+            });
+            renderResults(filterQuestions());
+            return true;
+          });
+      }
+
       function applyTagsOverride(question, add, remove, note) {
         const before = { tags: question.tags || [] };
         const next = Array.from(
           new Set([...(question.tags || []), ...add].filter(tag => !remove.includes(tag)))
         );
         const after = { tags: next };
-        applyOverrideChange(question.serial, "tags", before, after, { tags: next }, note);
+        return applyOverrideChange(question.serial, "tags", before, after, { tags: next }, note);
       }
 
       function applySubtopicsOverride(question, add, remove, note) {
@@ -1562,7 +1823,7 @@
           new Set([...(question.subtopics || []), ...add].filter(name => !remove.includes(name)))
         );
         const after = { subtopics: next };
-        applyOverrideChange(question.serial, "subtopics", before, after, { subtopics: next }, note);
+        return applyOverrideChange(question.serial, "subtopics", before, after, { subtopics: next }, note);
       }
 
       function applyExplanationConfirm(question, nextSource) {
@@ -1570,7 +1831,7 @@
         const normalized = nextSource || (current === "llm" || current === "ai" ? "llm_checked" : "llm_checked");
         const before = { explanation_source: current };
         const after = { explanation_source: normalized };
-        applyOverrideChange(
+        return applyOverrideChange(
           question.serial,
           "explanation",
           before,
@@ -1588,7 +1849,7 @@
           explanation: body,
           explanation_source: "teacher"
         };
-        applyOverrideChange(
+        return applyOverrideChange(
           question.serial,
           "explanation",
           before,
@@ -1601,12 +1862,12 @@
       function applyOverrideChange(serial, kind, beforeData, afterData, patch, note) {
         if (!supabaseClient) {
           alert("Supabaseが設定されていません。");
-          return;
+          return Promise.resolve(false);
         }
         const session = state.teacherSession;
         if (!session || !session.user) {
           alert("教師ログインが必要です。");
-          return;
+          return Promise.resolve(false);
         }
         const payload = {
           serial,
@@ -1622,21 +1883,21 @@
           after_data: afterData,
           approved_by: session.user.id
         };
-        supabaseClient
+        return supabaseClient
           .from("question_overrides")
           .upsert(payload, { onConflict: "serial" })
           .then(({ error }) => {
             if (error) {
               alert(`反映に失敗しました: ${error.message}`);
-              return;
+              return false;
             }
-            supabaseClient
+            return supabaseClient
               .from("override_history")
               .insert([history])
               .then(({ error: historyError }) => {
                 if (historyError) {
                   alert(`履歴の保存に失敗しました: ${historyError.message}`);
-                  return;
+                  return false;
                 }
                 const existing = state.overridesBySerial[serial] || {};
                 state.overridesBySerial[serial] = { ...existing, ...patch };
@@ -1661,6 +1922,7 @@
                 requestAnimationFrame(() => {
                   window.scrollTo(0, scrollY);
                 });
+                return true;
               });
           });
       }
@@ -1708,6 +1970,40 @@
         }
       }
 
+      async function ensureEditRequestsLoaded(serials) {
+        if (!supabaseClient || !serials.length) return;
+        const session = state.teacherSession;
+        if (!session || !session.user) return;
+        const pending = serials.filter(serial => !state.editRequestsLoaded.has(serial));
+        if (!pending.length) return;
+        const chunkSize = 100;
+        for (let i = 0; i < pending.length; i += chunkSize) {
+          const chunk = pending.slice(i, i + chunkSize);
+          const { data, error } = await supabaseClient
+            .from("edit_requests")
+            .select("id, serial, kind, payload, note, created_at, created_by, created_email, status")
+            .in("serial", chunk)
+            .eq("status", "open");
+          if (error) {
+            console.warn("編集提案の取得に失敗しました。", error);
+            chunk.forEach(serial => {
+              state.editRequestsBySerial[serial] = [];
+              state.editRequestsLoaded.add(serial);
+            });
+            continue;
+          }
+          const map = {};
+          (data || []).forEach(row => {
+            if (!map[row.serial]) map[row.serial] = [];
+            map[row.serial].push(row);
+          });
+          chunk.forEach(serial => {
+            state.editRequestsBySerial[serial] = map[serial] || [];
+            state.editRequestsLoaded.add(serial);
+          });
+        }
+      }
+
       function applyOverridesToQuestion(q) {
         const override = state.overridesBySerial[q.serial];
         if (!override) return q;
@@ -1726,11 +2022,122 @@
         return merged;
       }
 
+      function getOpenEditRequests(serial, kind) {
+        const list = state.editRequestsBySerial[serial] || [];
+        return list.filter(item => item.kind === kind);
+      }
+
+      function buildProposalList(question, kind) {
+        const items = getOpenEditRequests(question.serial, kind);
+        if (!items.length) return null;
+        const wrap = document.createElement("div");
+        wrap.className = "proposal-list";
+        const title = document.createElement("div");
+        title.textContent = "提案";
+        wrap.appendChild(title);
+
+        items.forEach(item => {
+          const entry = document.createElement("div");
+          entry.className = "proposal-item";
+          const meta = document.createElement("div");
+          const when = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+          meta.textContent = when ? `日時: ${when}` : "日時: (不明)";
+          entry.appendChild(meta);
+
+          const payload = item.payload || {};
+          if (kind === "tag" || kind === "subtopic") {
+            const add = Array.isArray(payload.add) ? payload.add : [];
+            const remove = Array.isArray(payload.remove) ? payload.remove : [];
+            const addLine = document.createElement("div");
+            const addLabel = document.createElement("span");
+            addLabel.className = "proposal-label";
+            addLabel.textContent = "追加:";
+            addLine.appendChild(addLabel);
+            addLine.appendChild(document.createTextNode(add.join(", ") || "(なし)"));
+            entry.appendChild(addLine);
+            const removeLine = document.createElement("div");
+            const removeLabel = document.createElement("span");
+            removeLabel.className = "proposal-label";
+            removeLabel.textContent = "削除:";
+            removeLine.appendChild(removeLabel);
+            removeLine.appendChild(document.createTextNode(remove.join(", ") || "(なし)"));
+            entry.appendChild(removeLine);
+          }
+          if (kind === "explanation") {
+            const body = payload.explanation || payload.body || "";
+            const bodyEl = document.createElement("div");
+            bodyEl.textContent = body;
+            entry.appendChild(bodyEl);
+          }
+
+          if (item.note) {
+            const note = document.createElement("div");
+            const noteLabel = document.createElement("span");
+            noteLabel.className = "proposal-label";
+            noteLabel.textContent = "コメント:";
+            note.appendChild(noteLabel);
+            note.appendChild(document.createTextNode(item.note));
+            entry.appendChild(note);
+          }
+
+          const actions = document.createElement("div");
+          actions.className = "proposal-actions";
+          const applyBtn = document.createElement("button");
+          applyBtn.textContent = "提案を反映";
+          applyBtn.addEventListener("click", () => {
+            if (kind === "tag") {
+              const add = Array.isArray(payload.add) ? payload.add : [];
+              const remove = Array.isArray(payload.remove) ? payload.remove : [];
+              applyTagsOverride(question, add, remove, item.note || "").then(ok => {
+                if (ok) updateEditRequestStatus(item.id, "applied");
+              });
+              return;
+            }
+            if (kind === "subtopic") {
+              const add = Array.isArray(payload.add) ? payload.add : [];
+              const remove = Array.isArray(payload.remove) ? payload.remove : [];
+              applySubtopicsOverride(question, add, remove, item.note || "").then(ok => {
+                if (ok) updateEditRequestStatus(item.id, "applied");
+              });
+              return;
+            }
+            if (kind === "explanation") {
+              const body = payload.explanation || payload.body || "";
+              if (!body.trim()) {
+                alert("提案された解説が空です。");
+                return;
+              }
+              applyExplanationEdit(question, body, item.note || "").then(ok => {
+                if (ok) updateEditRequestStatus(item.id, "applied");
+              });
+            }
+          });
+          actions.appendChild(applyBtn);
+          const rejectBtn = document.createElement("button");
+          rejectBtn.textContent = "提案を却下";
+          rejectBtn.addEventListener("click", () => {
+            updateEditRequestStatus(item.id, "rejected");
+          });
+          actions.appendChild(rejectBtn);
+          entry.appendChild(actions);
+          wrap.appendChild(entry);
+        });
+        return wrap;
+      }
+
       function initHistoryPanel() {
         const fetchBtn = document.getElementById("historyFetchBtn");
         if (!fetchBtn) return;
         fetchBtn.addEventListener("click", () => {
           fetchHistory();
+        });
+      }
+
+      function initProposalPanel() {
+        const fetchBtn = document.getElementById("proposalFetchBtn");
+        if (!fetchBtn) return;
+        fetchBtn.addEventListener("click", () => {
+          fetchProposals();
         });
       }
 
@@ -1767,6 +2174,39 @@
         renderHistoryList(data || []);
       }
 
+      async function fetchProposals() {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return;
+        }
+        const session = state.teacherSession;
+        if (!session || !session.user) {
+          alert("教師ログインが必要です。");
+          return;
+        }
+        const serialInput = document.getElementById("proposalSerial");
+        const statusSelect = document.getElementById("proposalStatus");
+        const serial = serialInput ? serialInput.value.trim() : "";
+        const status = statusSelect ? statusSelect.value : "open";
+        let query = supabaseClient
+          .from("edit_requests")
+          .select("id, serial, kind, payload, note, created_at, status, created_email, created_by")
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (serial) {
+          query = query.eq("serial", serial);
+        }
+        if (status) {
+          query = query.eq("status", status);
+        }
+        const { data, error } = await query;
+        if (error) {
+          alert("提案の取得に失敗しました。");
+          return;
+        }
+        renderProposalList(data || []);
+      }
+
       function renderHistoryList(items) {
         const list = document.getElementById("historyList");
         const empty = document.getElementById("historyEmpty");
@@ -1800,11 +2240,69 @@
         });
       }
 
+      function renderProposalList(items) {
+        const list = document.getElementById("proposalList");
+        const empty = document.getElementById("proposalEmpty");
+        if (!list || !empty) return;
+        list.innerHTML = "";
+        if (!items.length) {
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        items.forEach(item => {
+          const row = document.createElement("div");
+          row.className = "proposal-row";
+          const meta = document.createElement("div");
+          meta.className = "proposal-meta";
+          const when = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+          meta.textContent = `${item.serial} / ${kindLabelEdit(item.kind)} / ${when} / ${item.status || ""}`;
+          row.appendChild(meta);
+          const body = document.createElement("div");
+          body.textContent = formatProposalSummary(item);
+          row.appendChild(body);
+          const actions = document.createElement("div");
+          actions.className = "proposal-actions";
+          const openBtn = document.createElement("button");
+          openBtn.type = "button";
+          openBtn.textContent = "この問題を開く";
+          openBtn.addEventListener("click", () => {
+            applyFilters({ keyword: item.serial });
+          });
+          actions.appendChild(openBtn);
+          row.appendChild(actions);
+          list.appendChild(row);
+        });
+      }
+
       function kindLabel(kind) {
         if (kind === "explanation") return "解説";
         if (kind === "tags") return "タグ";
         if (kind === "subtopics") return "小項目";
         return kind || "";
+      }
+
+      function kindLabelEdit(kind) {
+        if (kind === "explanation") return "解説";
+        if (kind === "tag") return "タグ";
+        if (kind === "subtopic") return "小項目";
+        if (kind === "tags") return "タグ";
+        if (kind === "subtopics") return "小項目";
+        return kind || "";
+      }
+
+      function formatProposalSummary(item) {
+        const payload = item.payload || {};
+        if (item.kind === "tag" || item.kind === "subtopic") {
+          const add = Array.isArray(payload.add) ? payload.add : [];
+          const remove = Array.isArray(payload.remove) ? payload.remove : [];
+          return `追加: ${add.join(", ") || "(なし)"} / 削除: ${remove.join(", ") || "(なし)"} / コメント: ${item.note || ""}`;
+        }
+        if (item.kind === "explanation") {
+          const body = payload.explanation || payload.body || "";
+          return `解説: ${truncateText(body)} / コメント: ${item.note || ""}`;
+        }
+        return item.note || "";
       }
 
       function formatHistoryBody(item) {

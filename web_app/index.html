@@ -395,6 +395,44 @@
         padding: 4px 8px;
         font-size: 12px;
       }
+      .proposal-panel {
+        margin-top: 10px;
+      }
+      .proposal-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .proposal-controls input,
+      .proposal-controls select,
+      .proposal-controls button {
+        padding: 6px 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        font-size: 12px;
+      }
+      .proposal-list-wide {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px;
+        font-size: 12px;
+      }
+      .proposal-row {
+        border-top: 1px solid var(--line);
+        padding: 8px 0;
+      }
+      .proposal-row:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+      .proposal-meta {
+        color: var(--muted);
+        font-size: 11px;
+        margin-bottom: 4px;
+      }
       .auth-panel .note {
         margin-top: 6px;
         color: var(--muted);
@@ -508,6 +546,23 @@
           </div>
           <div class="history-list" id="historyList"></div>
           <div class="note" id="historyEmpty" hidden>履歴はありません。</div>
+        </div>
+      </details>
+      <details class="inline" id="proposalPanel" hidden>
+        <summary>修正提案一覧</summary>
+        <div class="proposal-panel">
+          <div class="proposal-controls">
+            <input id="proposalSerial" type="text" placeholder="シリアル (任意)" />
+            <select id="proposalStatus">
+              <option value="open">未処理</option>
+              <option value="applied">反映済み</option>
+              <option value="rejected">却下</option>
+              <option value="">すべて</option>
+            </select>
+            <button id="proposalFetchBtn" type="button">提案を取得</button>
+          </div>
+          <div class="proposal-list-wide" id="proposalList"></div>
+          <div class="note" id="proposalEmpty" hidden>提案はありません。</div>
         </div>
       </details>
       <div class="auth-container">
@@ -1403,6 +1458,7 @@
         }
 
         initHistoryPanel();
+        initProposalPanel();
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
@@ -1614,24 +1670,26 @@
           return (user?.app_metadata?.role || user?.user_metadata?.role || "") === "teacher";
         }
 
-        function updateAuthUI(session) {
-          const user = session && session.user ? session.user : null;
-          state.editRequestsBySerial = {};
-          state.editRequestsLoaded = new Set();
-          if (user && !isTeacherUser(user)) {
-            state.teacherSession = null;
-            status.textContent = "教師権限がありません。";
-            form.hidden = false;
-            actions.hidden = true;
-            toggleBtn.textContent = "教師ログイン";
-            toggleBtn.setAttribute("aria-label", "教師ログイン");
-            message.textContent = "教師アカウントでログインしてください。";
-            if (historyPanel) historyPanel.hidden = true;
-            supabaseClient.auth.signOut();
-            return;
-          }
-          state.teacherSession = user ? session : null;
-          if (user) {
+      function updateAuthUI(session) {
+        const user = session && session.user ? session.user : null;
+        state.editRequestsBySerial = {};
+        state.editRequestsLoaded = new Set();
+        const proposalPanel = document.getElementById("proposalPanel");
+        if (user && !isTeacherUser(user)) {
+          state.teacherSession = null;
+          status.textContent = "教師権限がありません。";
+          form.hidden = false;
+          actions.hidden = true;
+          toggleBtn.textContent = "教師ログイン";
+          toggleBtn.setAttribute("aria-label", "教師ログイン");
+          message.textContent = "教師アカウントでログインしてください。";
+          if (historyPanel) historyPanel.hidden = true;
+          if (proposalPanel) proposalPanel.hidden = true;
+          supabaseClient.auth.signOut();
+          return;
+        }
+        state.teacherSession = user ? session : null;
+        if (user) {
             if (state.teacherUserId !== user.id) {
               const answerToggle = document.getElementById("toggleAnswer");
               const explanationToggle = document.getElementById("toggleExplanation");
@@ -1645,6 +1703,7 @@
             toggleBtn.textContent = "教師ログイン（ログイン中）";
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
             if (historyPanel) historyPanel.hidden = false;
+            if (proposalPanel) proposalPanel.hidden = false;
           } else {
             state.teacherUserId = null;
             status.textContent = "未ログイン";
@@ -1653,6 +1712,7 @@
             toggleBtn.textContent = "教師ログイン";
             toggleBtn.setAttribute("aria-label", "教師ログイン");
             if (historyPanel) historyPanel.hidden = true;
+            if (proposalPanel) proposalPanel.hidden = true;
           }
           renderResults(filterQuestions());
         }
@@ -2073,6 +2133,14 @@
         });
       }
 
+      function initProposalPanel() {
+        const fetchBtn = document.getElementById("proposalFetchBtn");
+        if (!fetchBtn) return;
+        fetchBtn.addEventListener("click", () => {
+          fetchProposals();
+        });
+      }
+
       async function fetchHistory() {
         if (!supabaseClient) {
           alert("Supabaseが設定されていません。");
@@ -2104,6 +2172,39 @@
           return;
         }
         renderHistoryList(data || []);
+      }
+
+      async function fetchProposals() {
+        if (!supabaseClient) {
+          alert("Supabaseが設定されていません。");
+          return;
+        }
+        const session = state.teacherSession;
+        if (!session || !session.user) {
+          alert("教師ログインが必要です。");
+          return;
+        }
+        const serialInput = document.getElementById("proposalSerial");
+        const statusSelect = document.getElementById("proposalStatus");
+        const serial = serialInput ? serialInput.value.trim() : "";
+        const status = statusSelect ? statusSelect.value : "open";
+        let query = supabaseClient
+          .from("edit_requests")
+          .select("id, serial, kind, payload, note, created_at, status, created_email, created_by")
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (serial) {
+          query = query.eq("serial", serial);
+        }
+        if (status) {
+          query = query.eq("status", status);
+        }
+        const { data, error } = await query;
+        if (error) {
+          alert("提案の取得に失敗しました。");
+          return;
+        }
+        renderProposalList(data || []);
       }
 
       function renderHistoryList(items) {
@@ -2139,11 +2240,69 @@
         });
       }
 
+      function renderProposalList(items) {
+        const list = document.getElementById("proposalList");
+        const empty = document.getElementById("proposalEmpty");
+        if (!list || !empty) return;
+        list.innerHTML = "";
+        if (!items.length) {
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        items.forEach(item => {
+          const row = document.createElement("div");
+          row.className = "proposal-row";
+          const meta = document.createElement("div");
+          meta.className = "proposal-meta";
+          const when = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+          meta.textContent = `${item.serial} / ${kindLabelEdit(item.kind)} / ${when} / ${item.status || ""}`;
+          row.appendChild(meta);
+          const body = document.createElement("div");
+          body.textContent = formatProposalSummary(item);
+          row.appendChild(body);
+          const actions = document.createElement("div");
+          actions.className = "proposal-actions";
+          const openBtn = document.createElement("button");
+          openBtn.type = "button";
+          openBtn.textContent = "この問題を開く";
+          openBtn.addEventListener("click", () => {
+            applyFilters({ keyword: item.serial });
+          });
+          actions.appendChild(openBtn);
+          row.appendChild(actions);
+          list.appendChild(row);
+        });
+      }
+
       function kindLabel(kind) {
         if (kind === "explanation") return "解説";
         if (kind === "tags") return "タグ";
         if (kind === "subtopics") return "小項目";
         return kind || "";
+      }
+
+      function kindLabelEdit(kind) {
+        if (kind === "explanation") return "解説";
+        if (kind === "tag") return "タグ";
+        if (kind === "subtopic") return "小項目";
+        if (kind === "tags") return "タグ";
+        if (kind === "subtopics") return "小項目";
+        return kind || "";
+      }
+
+      function formatProposalSummary(item) {
+        const payload = item.payload || {};
+        if (item.kind === "tag" || item.kind === "subtopic") {
+          const add = Array.isArray(payload.add) ? payload.add : [];
+          const remove = Array.isArray(payload.remove) ? payload.remove : [];
+          return `追加: ${add.join(", ") || "(なし)"} / 削除: ${remove.join(", ") || "(なし)"} / コメント: ${item.note || ""}`;
+        }
+        if (item.kind === "explanation") {
+          const body = payload.explanation || payload.body || "";
+          return `解説: ${truncateText(body)} / コメント: ${item.note || ""}`;
+        }
+        return item.note || "";
       }
 
       function formatHistoryBody(item) {
