@@ -1239,6 +1239,45 @@ def parse_args():
     return parser.parse_args()
 
 
+def normalize_digits(text):
+    if text is None:
+        return ""
+    return str(text).translate(str.maketrans("０１２３４５６７８９", "0123456789"))
+
+
+def parse_answer_meta(answer_text, answer_index, answer_indices_json, answer_none):
+    answer_none_flag = bool(answer_none)
+    indices = []
+    if answer_indices_json:
+        try:
+            data = json.loads(answer_indices_json)
+            if isinstance(data, list):
+                indices = [int(x) for x in data if str(x).isdigit()]
+        except (json.JSONDecodeError, TypeError, ValueError):
+            indices = []
+    if not indices and answer_text:
+        normalized = normalize_digits(answer_text)
+        if "なし" in normalized:
+            answer_none_flag = True
+        elif "すべて" in normalized:
+            indices = [1, 2, 3, 4]
+        else:
+            digits = re.findall(r"[1-4]", normalized)
+            indices = sorted({int(d) for d in digits})
+    if not indices and answer_index:
+        try:
+            indices = [int(answer_index)]
+        except (TypeError, ValueError):
+            indices = []
+    if answer_none_flag:
+        indices = []
+    return indices, answer_none_flag
+
+
+def question_columns(conn):
+    return {row[1] for row in conn.execute("PRAGMA table_info(questions)").fetchall()}
+
+
 def build_explanation_prompt(sample_text, jsonl_text):
     return (
         f"{sample_text.strip()}\n\n"
@@ -1368,16 +1407,23 @@ def select_questions(
                 "NOT EXISTS (SELECT 1 FROM question_subtopics qs WHERE qs.question_id = q.id)"
             )
     where_sql = " AND ".join(where) if where else "1=1"
+    columns = question_columns(conn)
+    select_fields = [
+        "q.id",
+        "q.serial",
+        "s.name AS subject",
+        "q.case_text",
+        "q.stem",
+        "q.choices_json",
+        "q.answer_index",
+        "q.answer_text",
+        "q.answer_indices_json" if "answer_indices_json" in columns else "NULL AS answer_indices_json",
+        "q.answer_none" if "answer_none" in columns else "0 AS answer_none",
+    ]
+    select_clause = ",\n                ".join(select_fields)
     query = f"""
             SELECT
-                q.id,
-                q.serial,
-                s.name AS subject,
-                q.case_text,
-                q.stem,
-                q.choices_json,
-                q.answer_index,
-                q.answer_text
+                {select_clause}
             FROM questions q
             LEFT JOIN subjects s ON q.subject_id = s.id
             WHERE {where_sql}
@@ -1395,8 +1441,22 @@ def build_jsonl(records, subtopic_catalog):
     combined_rows = []
 
     for row in records:
-        _, serial, subject, case_text, stem, choices_json, answer_index, answer_text = row
+        (
+            _,
+            serial,
+            subject,
+            case_text,
+            stem,
+            choices_json,
+            answer_index,
+            answer_text,
+            answer_indices_json,
+            answer_none,
+        ) = row
         choices = json.loads(choices_json)
+        answer_indices, answer_none_flag = parse_answer_meta(
+            answer_text, answer_index, answer_indices_json, answer_none
+        )
 
         explanation_rows.append(
             {
@@ -1406,6 +1466,8 @@ def build_jsonl(records, subtopic_catalog):
                 "stem": stem,
                 "choices": choices,
                 "answer_index": answer_index,
+                "answer_indices": answer_indices,
+                "answer_none": answer_none_flag,
                 "answer_text": answer_text,
                 "explanation": "",
                 "source": "llm",
@@ -1418,6 +1480,10 @@ def build_jsonl(records, subtopic_catalog):
                 "case_text": case_text,
                 "stem": stem,
                 "choices": choices,
+                "answer_index": answer_index,
+                "answer_indices": answer_indices,
+                "answer_none": answer_none_flag,
+                "answer_text": answer_text,
                 "tags": [],
                 "source": "llm",
             }
@@ -1429,6 +1495,10 @@ def build_jsonl(records, subtopic_catalog):
                 "case_text": case_text,
                 "stem": stem,
                 "choices": choices,
+                "answer_index": answer_index,
+                "answer_indices": answer_indices,
+                "answer_none": answer_none_flag,
+                "answer_text": answer_text,
                 "candidate_subtopics": subtopic_catalog.get(subject, []),
                 "subtopics": [],
                 "source": "llm",
@@ -1442,6 +1512,8 @@ def build_jsonl(records, subtopic_catalog):
                 "stem": stem,
                 "choices": choices,
                 "answer_index": answer_index,
+                "answer_indices": answer_indices,
+                "answer_none": answer_none_flag,
                 "answer_text": answer_text,
                 "explanation": "",
                 "tags": [],
