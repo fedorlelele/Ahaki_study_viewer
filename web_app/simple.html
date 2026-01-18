@@ -26,6 +26,16 @@
         background: var(--bg);
         color: var(--ink);
       }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
       header {
         padding: 16px 20px 8px;
         border-bottom: 2px solid var(--line);
@@ -262,6 +272,13 @@
           <button id="confirmBtn" disabled>回答を確定</button>
           <button class="topBtn">トップへ戻る</button>
         </div>
+        <div class="actions">
+          <label for="jumpSerial" class="sr-only">シリアルでジャンプ</label>
+          <select id="jumpSerial" aria-label="シリアルでジャンプ">
+            <option value="">ジャンプ先を選択</option>
+          </select>
+          <button id="jumpBtn" type="button">ジャンプ</button>
+        </div>
       </section>
     </main>
 
@@ -335,6 +352,8 @@
       const stem = document.getElementById("stem");
       const choices = document.getElementById("choices");
       const confirmBtn = document.getElementById("confirmBtn");
+      const jumpSerial = document.getElementById("jumpSerial");
+      const jumpBtn = document.getElementById("jumpBtn");
       const confirmOverlay = document.getElementById("confirmOverlay");
       const confirmChoice = document.getElementById("confirmChoice");
       const confirmYes = document.getElementById("confirmYes");
@@ -417,6 +436,38 @@
         startBtn.disabled = false;
       }
 
+      function updateJumpOptions() {
+        if (!jumpSerial) return;
+        const current = jumpSerial.value;
+        jumpSerial.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "ジャンプ先を選択";
+        jumpSerial.appendChild(placeholder);
+        state.filtered.forEach(q => {
+          const opt = document.createElement("option");
+          opt.value = q.serial;
+          opt.textContent = q.serial;
+          jumpSerial.appendChild(opt);
+        });
+        if (current) {
+          jumpSerial.value = current;
+        }
+      }
+
+      function jumpToSerial() {
+        if (questionSection.hidden) return;
+        const serial = jumpSerial.value;
+        if (!serial) return;
+        const index = state.filtered.findIndex(q => q.serial === serial);
+        if (index === -1) {
+          status.textContent = `該当シリアルが見つかりませんでした: ${serial}`;
+          return;
+        }
+        state.currentIndex = index;
+        renderQuestion();
+      }
+
       function filterQuestions() {
         const subject = subjectSelect.value;
         const examType = examTypeSelect.value;
@@ -436,6 +487,7 @@
           state.filtered.sort((a, b) => (b.exam_session || 0) - (a.exam_session || 0));
         }
         state.currentIndex = 0;
+        updateJumpOptions();
       }
 
       async function renderQuestion() {
@@ -632,6 +684,9 @@
       });
 
       confirmBtn.addEventListener("click", openConfirm);
+      if (jumpBtn) {
+        jumpBtn.addEventListener("click", jumpToSerial);
+      }
       confirmNo.addEventListener("click", closeConfirm);
       confirmYes.addEventListener("click", () => {
         closeConfirm();
