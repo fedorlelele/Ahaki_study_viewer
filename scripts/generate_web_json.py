@@ -191,6 +191,28 @@ def load_update_notes(path):
     return notes
 
 
+def load_existing_update_log(path):
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(data, list):
+        return []
+    notes = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") != "note":
+            continue
+        date = str(item.get("date") or "").strip()
+        text = str(item.get("text") or "").strip()
+        if date and text:
+            notes.append({"date": date, "text": text})
+    return notes
+
+
 def parse_date_parts(value):
     parts = re.findall(r"\d+", value)
     if len(parts) >= 3:
@@ -267,6 +289,13 @@ def main():
     print(f"Web JSON saved: {out_path}")
 
     update_notes = load_update_notes(Path("config/update_notes.json"))
+    existing_notes = load_existing_update_log(out_path.parent / "update_log.json")
+    existing_set = {(note["date"], note["text"]) for note in update_notes}
+    for note in existing_notes:
+        key = (note["date"], note["text"])
+        if key not in existing_set:
+            update_notes.append(note)
+            existing_set.add(key)
     update_entries = []
     for item in update_log:
         date = item.get("date", "")
