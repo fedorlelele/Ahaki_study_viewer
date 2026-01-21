@@ -578,6 +578,7 @@
           <div class="edit-panel">
             <input id="signupEmail" type="email" placeholder="メールアドレス" />
             <input id="signupPassword" type="password" placeholder="パスワード" />
+            <input id="signupPasswordConfirm" type="password" placeholder="パスワード（確認）" />
             <input id="signupNote" type="text" placeholder="申請理由（任意）" />
             <button id="signupBtn" type="button">申請する</button>
             <div class="note">申請後、管理者の承認が必要です。</div>
@@ -1658,9 +1659,15 @@
             message.textContent = "メールとパスワードを入力してください。";
             return;
           }
-          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-          if (error) {
+          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error || !data || !data.session) {
             message.textContent = "ログインに失敗しました。";
+            return;
+          }
+          const user = data.session.user;
+          if (!isTeacherUser(user)) {
+            message.textContent = "教師権限がありません。";
+            await supabaseClient.auth.signOut();
             return;
           }
           message.textContent = "ログインしました。";
@@ -1669,15 +1676,21 @@
         const signupBtn = document.getElementById("signupBtn");
         const signupEmail = document.getElementById("signupEmail");
         const signupPassword = document.getElementById("signupPassword");
+        const signupPasswordConfirm = document.getElementById("signupPasswordConfirm");
         const signupNote = document.getElementById("signupNote");
         if (signupBtn) {
           signupBtn.addEventListener("click", async () => {
             const email = signupEmail ? signupEmail.value.trim() : "";
             const password = signupPassword ? signupPassword.value : "";
+            const passwordConfirm = signupPasswordConfirm ? signupPasswordConfirm.value : "";
             const note = signupNote ? signupNote.value.trim() : "";
             message.textContent = "";
             if (!email || !password) {
               message.textContent = "メールとパスワードを入力してください。";
+              return;
+            }
+            if (password !== passwordConfirm) {
+              message.textContent = "パスワードが一致しません。";
               return;
             }
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
@@ -1707,6 +1720,7 @@
             await supabaseClient.auth.signOut();
             message.textContent = "申請を受け付けました。承認後にログインできます。";
             if (signupPassword) signupPassword.value = "";
+            if (signupPasswordConfirm) signupPasswordConfirm.value = "";
           });
         }
 

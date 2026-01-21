@@ -279,6 +279,7 @@ HTML_PAGE = """<!doctype html>
       <div class="row">
         <button id="approveTeacherRequests">承認</button>
         <button id="rejectTeacherRequests">却下</button>
+        <button id="revokeTeacherRequests">承認を取り消す</button>
       </div>
       <div id="teacherRequestResult"></div>
     </div>
@@ -878,6 +879,21 @@ HTML_PAGE = """<!doctype html>
           return;
         }
         const resp = await fetch("/api/teacher_requests/reject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: selected }),
+        });
+        const data = await resp.json();
+        document.getElementById("teacherRequestResult").textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("revokeTeacherRequests").addEventListener("click", async () => {
+        const selected = collectSelectedTeacherRequests();
+        if (!selected.length) {
+          document.getElementById("teacherRequestResult").textContent = "対象を選択してください。";
+          return;
+        }
+        const resp = await fetch("/api/teacher_requests/revoke", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: selected }),
@@ -1876,6 +1892,12 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._read_json()
             items = payload.get("items", [])
             result = reject_teacher_requests(items)
+            self._send_json(result)
+            return
+        if parsed.path == "/api/teacher_requests/revoke":
+            payload = self._read_json()
+            items = payload.get("items", [])
+            result = revoke_teacher_requests(items)
             self._send_json(result)
             return
         if parsed.path == "/api/backup":
@@ -3016,6 +3038,23 @@ def set_teacher_role(user_id):
     return last_error
 
 
+def clear_teacher_role(user_id):
+    methods = ["PATCH", "PUT"]
+    last_error = ""
+    for method in methods:
+        _, error = supabase_admin_request(
+            method,
+            f"users/{quote(str(user_id))}",
+            {"app_metadata": {"role": ""}, "user_metadata": {"role": ""}},
+        )
+        if not error:
+            return ""
+        last_error = error
+        if "405" not in error:
+            return error
+    return last_error
+
+
 def fetch_supabase_overrides(since=None, limit=500):
     cfg = supabase_config()
     if not cfg:
@@ -3411,6 +3450,32 @@ def reject_teacher_requests(items):
             return {"message": error}
         rejected += 1
     return {"message": f"{rejected} 件を却下しました。"}
+
+
+def revoke_teacher_requests(items):
+    if not items:
+        return {"message": "対象がありません。"}
+    revoked = 0
+    for item in items:
+        request_id = item.get("id")
+        user_id = item.get("user_id")
+        if not user_id:
+            continue
+        if request_id:
+            query = f"?id=eq.{quote(str(request_id))}"
+            _, error = supabase_request(
+                "PATCH",
+                "teacher_requests",
+                query,
+                {"status": "revoked"},
+            )
+            if error:
+                return {"message": error}
+        error = clear_teacher_role(user_id)
+        if error:
+            return {"message": error}
+        revoked += 1
+    return {"message": f"{revoked} 件の承認を取り消しました。"}
 
 
 def update_edit_request_status(items, status):

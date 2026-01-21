@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>メール確認完了</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --ink: #1b1b1b;
+        --muted: #4b4b4b;
+        --accent: #0b5cab;
+        --line: #1b1b1b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px 20px;
+      }
+      .card {
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+        background: #f7f7f7;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(22px, 4vw, 28px);
+      }
+      p {
+        margin: 0 0 12px;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      a {
+        color: var(--accent);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <h1>メールアドレスの確認が完了しました。</h1>
+        <p>承認が完了すると、教師アカウントとしてログインできます。</p>
+        <p class="note">承認が完了するまでしばらくお待ちください。</p>
+        <p><a href="./">高機能ビューへ戻る</a></p>
+      </div>
+    </main>
+  </body>
+</html>
