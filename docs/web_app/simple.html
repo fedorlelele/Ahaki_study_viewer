@@ -76,7 +76,15 @@
         border-radius: 8px;
         background: #fff;
       }
+      input {
+        font-size: 18px;
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
       select:focus,
+      input:focus,
       button:focus {
         outline: 4px solid var(--accent);
         outline-offset: 2px;
@@ -252,9 +260,12 @@
           <option value="new" selected>新しい順</option>
           <option value="old">古い順</option>
         </select>
+        <label for="keywordInput">キーワードで絞り込み（AND検索）</label>
+        <input id="keywordInput" type="text" placeholder="例: 神経 筋" aria-label="キーワード検索" />
         <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
         <div class="row">
           <button id="startBtn" disabled>問題を表示</button>
+          <button id="copyAllBtn" type="button">検索結果をコピー</button>
           <button class="backBtn">戻る</button>
           <button class="topBtn">トップへ戻る</button>
         </div>
@@ -339,8 +350,10 @@
       const examTypeSelect = document.getElementById("examTypeSelect");
       const subtopicSelect = document.getElementById("subtopicSelect");
       const orderSelect = document.getElementById("orderSelect");
+      const keywordInput = document.getElementById("keywordInput");
       const showAnsweredToggle = document.getElementById("showAnswered");
       const startBtn = document.getElementById("startBtn");
+      const copyAllBtn = document.getElementById("copyAllBtn");
       const guideNext = document.getElementById("guideNext");
       const subjectNext = document.getElementById("subjectNext");
       const subtopicNext = document.getElementById("subtopicNext");
@@ -474,11 +487,29 @@
         const subtopic = subtopicSelect.value;
         const order = orderSelect.value;
         const showAnswered = showAnsweredToggle.checked;
+        const keyword = (keywordInput ? keywordInput.value : "").trim();
+        const terms = keyword
+          .split(/\s+/)
+          .map(term => term.trim())
+          .filter(Boolean);
         state.filtered = state.questions.filter(q => {
           if (subject && q.subject !== subject) return false;
           if (examType && q.exam_type !== examType) return false;
           if (subtopic && !(q.subtopics || []).includes(subtopic)) return false;
           if (!showAnswered && hasAnswered(q.serial)) return false;
+          if (terms.length) {
+            const hay = [
+              q.serial || "",
+              q.subject || "",
+              q.stem || "",
+              q.case_text || "",
+              (q.choices || []).join(" "),
+              (q.tags || []).join(" "),
+              (q.subtopics || []).join(" ")
+            ].join(" ").toLowerCase();
+            const match = terms.every(term => hay.includes(term.toLowerCase()));
+            if (!match) return false;
+          }
           return true;
         });
         if (order === "old") {
@@ -488,6 +519,62 @@
         }
         state.currentIndex = 0;
         updateJumpOptions();
+      }
+
+      function buildFilterHeader() {
+        const parts = [];
+        if (keywordInput && keywordInput.value.trim()) {
+          parts.push(`キーワード: ${keywordInput.value.trim()}`);
+        }
+        if (subjectSelect.value) parts.push(`科目: ${subjectSelect.value}`);
+        if (subtopicSelect.value) parts.push(`小項目: ${subtopicSelect.value}`);
+        if (examTypeSelect.value) parts.push(`種別: ${examTypeSelect.value}`);
+        const orderLabel = orderSelect.value === "old" ? "古い順" : "新しい順";
+        parts.push(`表示順: ${orderLabel}`);
+        if (showAnsweredToggle.checked) parts.push("回答済みを表示");
+        return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
+      }
+
+      function formatQuestionForCopy(question) {
+        const q = applyOverridesToQuestion(question);
+        const lines = [];
+        if (q.case_text) {
+          lines.push(q.case_text);
+        }
+        lines.push(`${q.serial}　${q.stem || ""}`);
+        const choicesList = q.choices || [];
+        const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
+        choicesList.forEach((choice, idx) => {
+          const n = nums[idx] || String(idx + 1);
+          lines.push(`${n}．${choice}`);
+        });
+        const answerLabel = formatAnswerLabel(q);
+        if (answerLabel) {
+          lines.push("");
+          lines.push(`解答　${answerLabel}`);
+        }
+        if (q.explanation_latest) {
+          lines.push("解説");
+          lines.push(q.explanation_latest);
+        }
+        return lines.join("\n");
+      }
+
+      async function copySearchResults() {
+        if (!state.filtered.length) {
+          status.textContent = "コピーする問題がありません。";
+          return;
+        }
+        await ensureOverridesLoaded(state.filtered.map(q => q.serial));
+        const header = buildFilterHeader();
+        const blocks = state.filtered.map(formatQuestionForCopy);
+        const text = [header, "", ...blocks].join("\n\n");
+        try {
+          await navigator.clipboard.writeText(text);
+          status.textContent = "検索結果をコピーしました。";
+        } catch (err) {
+          status.textContent = "コピーに失敗しました。";
+        }
       }
 
       async function renderQuestion() {
@@ -830,6 +917,7 @@
         subjectSelect.value = "";
         examTypeSelect.value = "";
         subtopicSelect.value = "";
+        if (keywordInput) keywordInput.value = "";
         status.textContent = "";
         showStep("guide");
         updateState();
@@ -896,6 +984,27 @@
         showStep("");
         renderQuestion();
       });
+
+      if (keywordInput) {
+        keywordInput.addEventListener("keydown", (e) => {
+          if (e.isComposing) return;
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (!startBtn.disabled) {
+              filterQuestions();
+              showStep("");
+              renderQuestion();
+            }
+          }
+        });
+      }
+
+      if (copyAllBtn) {
+        copyAllBtn.addEventListener("click", () => {
+          filterQuestions();
+          copySearchResults();
+        });
+      }
 
       document.querySelectorAll(".backBtn").forEach(btn => {
         btn.addEventListener("click", () => {

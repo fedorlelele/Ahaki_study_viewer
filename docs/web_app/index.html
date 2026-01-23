@@ -2749,6 +2749,9 @@
         const showAnswer = mode && mode.showAnswer;
         const showExplanation = mode && mode.showExplanation;
         const lines = [];
+        if (q.case_text) {
+          lines.push(q.case_text);
+        }
         lines.push(`${q.serial}　${q.stem || ""}`);
         const choices = q.choices || [];
         const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
