@@ -249,6 +249,13 @@
         white-space: pre-wrap;
         display: none;
       }
+      .answer-stats {
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px dashed var(--line);
+        font-size: 12px;
+        color: var(--muted);
+      }
       .card-actions {
         margin-top: 10px;
       }
@@ -666,7 +673,9 @@
         overridesBySerial: {},
         overridesLoaded: new Set(),
         editRequestsBySerial: {},
-        editRequestsLoaded: new Set()
+        editRequestsLoaded: new Set(),
+        answerStatsBySerial: {},
+        answerStatsLoaded: new Set()
       };
 
       function normalizeAscii(text) {
@@ -1378,6 +1387,18 @@
           expBody.className = "explanation-body";
           expBody.textContent = expText || "";
           explanation.appendChild(expBody);
+          const stats = state.answerStatsBySerial[q.serial];
+          if (stats) {
+            const statsEl = document.createElement("div");
+            statsEl.className = "answer-stats";
+            if (stats.count >= 5) {
+              const rate = stats.count ? Math.round((stats.correct / stats.count) * 100) : 0;
+              statsEl.textContent = `回答数: ${stats.count} / 正答数: ${stats.correct} / 正答率: ${rate}%`;
+            } else {
+              statsEl.textContent = `集計中（回答数: ${stats.count}）`;
+            }
+            explanation.appendChild(statsEl);
+          }
           card.appendChild(explanation);
 
           const actions = document.createElement("div");
@@ -1419,6 +1440,7 @@
           if (isTeacher) {
             await ensureEditRequestsLoaded(batch.map(item => item.serial));
           }
+          await ensureAnswerStatsLoaded(batch.map(item => item.serial));
           renderBatch(batch);
           more.disabled = false;
           updateLabel();
@@ -2085,6 +2107,43 @@
             state.editRequestsBySerial[serial] = map[serial] || [];
             state.editRequestsLoaded.add(serial);
           });
+        }
+      }
+
+      async function ensureAnswerStatsLoaded(serials) {
+        if (!supabaseClient || !serials.length) return;
+        if (state.answerStatsLoaded.has("*")) return;
+        const pending = serials.filter(serial => !state.answerStatsLoaded.has(serial));
+        if (!pending.length) return;
+        const chunkSize = 100;
+        for (let i = 0; i < pending.length; i += chunkSize) {
+          const chunk = pending.slice(i, i + chunkSize);
+          const { data, error } = await supabaseClient
+            .from("answers")
+            .select("serial, is_correct");
+          if (error) {
+            console.warn("回答集計の取得に失敗しました。", error);
+            chunk.forEach(serial => {
+              state.answerStatsBySerial[serial] = { count: 0, correct: 0 };
+              state.answerStatsLoaded.add(serial);
+            });
+            continue;
+          }
+          const stats = {};
+          (data || []).forEach(row => {
+            if (!stats[row.serial]) {
+              stats[row.serial] = { count: 0, correct: 0 };
+            }
+            stats[row.serial].count += 1;
+            if (row.is_correct) {
+              stats[row.serial].correct += 1;
+            }
+          });
+          chunk.forEach(serial => {
+            state.answerStatsBySerial[serial] = stats[serial] || { count: 0, correct: 0 };
+            state.answerStatsLoaded.add(serial);
+          });
+          state.answerStatsLoaded.add("*");
         }
       }
 
