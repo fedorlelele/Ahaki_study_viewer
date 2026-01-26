@@ -635,10 +635,16 @@
     <div class="toolbar main">
       <button id="copyAllBtn" aria-label="検索結果をコピー">検索結果をコピー</button>
       <button id="resetAnswersBtn" aria-label="回答履歴をリセット">回答履歴をリセット</button>
-      <select id="sortSession" aria-label="試験回数でソート">
-        <option value="">回数ソート</option>
+      <select id="sortSession" aria-label="並び替え">
+        <option value="">並び替え</option>
         <option value="desc" selected>新しい順</option>
         <option value="asc">古い順</option>
+        <option value="count_desc">回答数が多い順</option>
+        <option value="count_asc">回答数が少ない順</option>
+        <option value="correct_desc">正答数が多い順</option>
+        <option value="correct_asc">正答数が少ない順</option>
+        <option value="rate_desc">正答率が高い順</option>
+        <option value="rate_asc">正答率が低い順</option>
       </select>
       <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
     </div>
@@ -923,6 +929,11 @@
           const textMatch = textTerms.every(term => hay.includes(term));
           return tagMatch && textMatch;
         });
+        const getStats = (q) => state.answerStatsBySerial[q.serial] || { count: 0, correct: 0 };
+        const getRate = (q) => {
+          const stats = getStats(q);
+          return stats.count ? stats.correct / stats.count : 0;
+        };
         if (sortSession === "asc") {
           filtered.sort((a, b) => {
             const sessionDiff = (a.exam_session || 0) - (b.exam_session || 0);
@@ -939,6 +950,18 @@
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
+        } else if (sortSession === "count_desc") {
+          filtered.sort((a, b) => getStats(b).count - getStats(a).count);
+        } else if (sortSession === "count_asc") {
+          filtered.sort((a, b) => getStats(a).count - getStats(b).count);
+        } else if (sortSession === "correct_desc") {
+          filtered.sort((a, b) => getStats(b).correct - getStats(a).correct);
+        } else if (sortSession === "correct_asc") {
+          filtered.sort((a, b) => getStats(a).correct - getStats(b).correct);
+        } else if (sortSession === "rate_desc") {
+          filtered.sort((a, b) => getRate(b) - getRate(a));
+        } else if (sortSession === "rate_asc") {
+          filtered.sort((a, b) => getRate(a) - getRate(b));
         }
         return filtered;
       }
@@ -952,6 +975,15 @@
         const showAnswer = document.getElementById("toggleAnswer").checked;
         const showExplanation = document.getElementById("toggleExplanation").checked;
         document.getElementById("countInfo").textContent = `件数: ${list.length}`;
+        const sortSession = document.getElementById("sortSession").value;
+        const isStatSort = [
+          "count_desc",
+          "count_asc",
+          "correct_desc",
+          "correct_asc",
+          "rate_desc",
+          "rate_asc"
+        ].includes(sortSession);
 
         function appendCard(q, target) {
           const card = document.createElement("div");
@@ -1387,7 +1419,9 @@
           expBody.className = "explanation-body";
           expBody.textContent = expText || "";
           explanation.appendChild(expBody);
-          const stats = state.answerStatsBySerial[q.serial];
+          const stats =
+            state.answerStatsBySerial[q.serial] ||
+            (state.answerStatsLoaded.has("*") ? { count: 0, correct: 0 } : null);
           if (stats) {
             const statsEl = document.createElement("div");
             statsEl.className = "answer-stats";
@@ -1436,11 +1470,16 @@
           const batch = subset.slice(idx, end);
           idx = end;
           more.disabled = true;
+          const statsLoaded = state.answerStatsLoaded.has("*");
           await ensureOverridesLoaded(batch.map(item => item.serial));
           if (isTeacher) {
             await ensureEditRequestsLoaded(batch.map(item => item.serial));
           }
           await ensureAnswerStatsLoaded(batch.map(item => item.serial));
+          if (isStatSort && !statsLoaded && state.answerStatsLoaded.has("*")) {
+            renderResults(filterQuestions());
+            return;
+          }
           renderBatch(batch);
           more.disabled = false;
           updateLabel();
@@ -2139,8 +2178,13 @@
               stats[row.serial].correct += 1;
             }
           });
+          Object.keys(stats).forEach(serial => {
+            state.answerStatsBySerial[serial] = stats[serial];
+          });
           chunk.forEach(serial => {
-            state.answerStatsBySerial[serial] = stats[serial] || { count: 0, correct: 0 };
+            if (!state.answerStatsBySerial[serial]) {
+              state.answerStatsBySerial[serial] = { count: 0, correct: 0 };
+            }
             state.answerStatsLoaded.add(serial);
           });
           state.answerStatsLoaded.add("*");
@@ -2729,8 +2773,18 @@
           parts.push(`回数範囲: ${range || "指定なし"}`);
         }
         if (sortSession) {
-          const label = sortSession === "asc" ? "古い順" : "新しい順";
-          parts.push(`回数ソート: ${label}`);
+          const sortLabels = {
+            asc: "古い順",
+            desc: "新しい順",
+            count_desc: "回答数が多い順",
+            count_asc: "回答数が少ない順",
+            correct_desc: "正答数が多い順",
+            correct_asc: "正答数が少ない順",
+            rate_desc: "正答率が高い順",
+            rate_asc: "正答率が低い順"
+          };
+          const label = sortLabels[sortSession] || "新しい順";
+          parts.push(`並び替え: ${label}`);
         }
         if (showAnswered) parts.push("回答済みを表示");
         return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
