@@ -902,30 +902,30 @@
 
         let serialSet = null;
         if (subject) serialSet = setFromIndex(state.indexBySubject, subject);
-        if (subtopic) {
-          const s = setFromIndex(state.indexBySubtopic, subtopic);
-          serialSet = serialSet ? new Set([...serialSet].filter(x => s.has(x))) : s;
-        }
+        const subtopicFilter = subtopic;
 
         const filtered = state.questions.filter(q => {
-          if (serialSet && !serialSet.has(q.serial)) return false;
-          if (examType && !q.serial.startsWith(examType)) return false;
-          if (session && String(q.exam_session) !== session) return false;
-          if (sessionFrom !== null && Number(q.exam_session) < sessionFrom) return false;
-          if (sessionTo !== null && Number(q.exam_session) > sessionTo) return false;
-          if (!showAnswered && hasAnswered(q.serial)) return false;
-          if (needExplanation && !(q.explanation_latest || "").trim()) return false;
-          if (needTags && !(q.tags || []).length) return false;
-          if (needSubtopics && !(q.subtopics || []).length) return false;
-          if (serialTerms.length && !serialTerms.includes(q.serial)) return false;
+          const effective = applyOverridesToQuestion(q);
+          if (serialSet && !serialSet.has(effective.serial)) return false;
+          if (examType && !effective.serial.startsWith(examType)) return false;
+          if (session && String(effective.exam_session) !== session) return false;
+          if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
+          if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
+          if (!showAnswered && hasAnswered(effective.serial)) return false;
+          if (needExplanation && !(effective.explanation_latest || "").trim()) return false;
+          if (needTags && !(effective.tags || []).length) return false;
+          if (needSubtopics && !(effective.subtopics || []).length) return false;
+          if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
+          if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
           if (!terms.length) return true;
           const hay = [
-            q.stem || "",
-            (q.choices || []).join(" "),
-            q.case_text || "",
-            (q.tags || []).join(" ")
+            effective.stem || "",
+            (effective.choices || []).join(" "),
+            effective.case_text || "",
+            (effective.tags || []).join(" "),
+            (effective.subtopics || []).join(" ")
           ].join(" ").toLowerCase();
-          const tagMatch = tagTerms.every(tag => (q.tags || []).join(" ").toLowerCase().includes(tag));
+          const tagMatch = tagTerms.every(tag => (effective.tags || []).join(" ").toLowerCase().includes(tag));
           const textMatch = textTerms.every(term => hay.includes(term));
           return tagMatch && textMatch;
         });
