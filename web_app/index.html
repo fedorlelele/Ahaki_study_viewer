@@ -1446,6 +1446,14 @@
             copyToClipboard(text);
           });
           actions.appendChild(copyBtn);
+          const deepDiveBtn = document.createElement("button");
+          deepDiveBtn.textContent = "深掘りプロンプトをコピー";
+          deepDiveBtn.setAttribute("aria-label", "深掘り用プロンプトをクリップボードにコピー");
+          deepDiveBtn.addEventListener("click", () => {
+            const text = formatDeepDivePrompt(q);
+            copyToClipboard(text);
+          });
+          actions.appendChild(deepDiveBtn);
           card.appendChild(actions);
 
           target.appendChild(card);
@@ -2837,6 +2845,24 @@
           }
         }
         return lines.join("\n");
+      }
+
+      function formatDeepDivePrompt(q) {
+        const lines = [];
+        lines.push("以下の問題について徐々に深化して深掘りするよう解説してください。");
+        if (q.case_text) {
+          lines.push(q.case_text);
+        }
+        lines.push(q.stem || "");
+        const choices = q.choices || [];
+        choices.forEach((choice, idx) => {
+          lines.push(`${idx + 1}．${choice}`);
+        });
+        const answerLabel = formatAnswerLabel(q);
+        if (answerLabel) {
+          lines.push(`解答　${answerLabel}`);
+        }
+        return lines.filter(Boolean).join("\n");
       }
 
       function copyToClipboard(text) {
