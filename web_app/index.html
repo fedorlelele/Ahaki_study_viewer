@@ -447,6 +447,9 @@
       body:not(.report-mode) .guest-report {
         display: none;
       }
+      .is-hidden {
+        display: none;
+      }
       .proposal-meta {
         color: var(--muted);
         font-size: 11px;
@@ -664,6 +667,8 @@
       </select>
       <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
       <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
+      <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
+      <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
     </div>
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
@@ -687,6 +692,7 @@
         indexBySubtopic: {},
         subtopicsBySubject: {},
         answeredMap: {},
+        sessionAnswered: {},
         subtopicCatalog: {},
         teacherSession: null,
         teacherUserId: null,
@@ -699,7 +705,9 @@
         editRequestsLoaded: new Set(),
         answerStatsBySerial: {},
         answerStatsLoaded: new Set(),
-        reportMode: false
+        reportMode: false,
+        showTags: false,
+        showSubtopics: false
       };
 
       function normalizeAscii(text) {
@@ -1152,7 +1160,7 @@
           const ul = document.createElement("ol");
           ul.className = "choices";
           const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
-          const answered = getAnswered(q.serial);
+          const answered = getSessionAnswered(q.serial);
           const correctIndices = getAnswerIndices(q);
           (q.choices || []).forEach((choice, idx) => {
             const li = document.createElement("li");
@@ -1243,6 +1251,7 @@
 
           const tags = document.createElement("div");
           tags.className = "tagline";
+          if (!state.showTags) tags.classList.add("is-hidden");
           const tagsLabel = document.createElement("span");
           tagsLabel.className = "tag-label";
           tagsLabel.textContent = "タグ:";
@@ -1353,6 +1362,7 @@
 
           const subs = document.createElement("div");
           subs.className = "tagline";
+          if (!state.showSubtopics) subs.classList.add("is-hidden");
           const subsLabel = document.createElement("span");
           subsLabel.className = "tag-label";
           subsLabel.textContent = "小項目:";
@@ -1705,6 +1715,20 @@
             copyToClipboard(text);
           });
           actions.appendChild(deepDiveBtn);
+          const retryBtn = document.createElement("button");
+          retryBtn.textContent = "再回答";
+          retryBtn.className = "retry-btn";
+          retryBtn.disabled = !answered;
+          retryBtn.setAttribute("aria-label", "この問題を再回答する");
+          retryBtn.addEventListener("click", () => {
+            const scrollY = window.scrollY;
+            clearSessionAnswer(q.serial);
+            renderResults(filterQuestions());
+            requestAnimationFrame(() => {
+              window.scrollTo(0, scrollY);
+            });
+          });
+          actions.appendChild(retryBtn);
           card.appendChild(actions);
 
           target.appendChild(card);
@@ -1759,6 +1783,7 @@
 
       function init() {
         loadAnsweredState();
+        loadTagVisibility();
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
@@ -1842,6 +1867,16 @@
         document.getElementById("showAnswered").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
+        document.getElementById("showTagsToggle").addEventListener("change", (e) => {
+          state.showTags = e.target.checked;
+          saveTagVisibility();
+          renderResults(filterQuestions());
+        });
+        document.getElementById("showSubtopicsToggle").addEventListener("change", (e) => {
+          state.showSubtopics = e.target.checked;
+          saveTagVisibility();
+          renderResults(filterQuestions());
+        });
         document.getElementById("hasExplanation").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
@@ -1882,6 +1917,7 @@
           return;
         }
         state.answeredMap = {};
+        clearSessionAnswer();
         localStorage.removeItem("answeredSerials");
         renderResults(filterQuestions());
       });
@@ -2542,7 +2578,7 @@
           const chunk = pending.slice(i, i + chunkSize);
           const { data, error } = await supabaseClient
             .from("answers")
-            .select("serial, is_correct");
+            .select("serial, is_correct, anon_id, created_at");
           if (error) {
             console.warn("回答集計の取得に失敗しました。", error);
             chunk.forEach(serial => {
@@ -2552,7 +2588,20 @@
             continue;
           }
           const stats = {};
+          const latestByKey = {};
           (data || []).forEach(row => {
+            const serial = row.serial;
+            if (!serial) return;
+            const anon = row.anon_id || "";
+            const created = row.created_at || "";
+            const day = created ? created.slice(0, 10) : "unknown";
+            const key = `${serial}|${anon}|${day}`;
+            const existing = latestByKey[key];
+            if (!existing || created > existing.created_at) {
+              latestByKey[key] = row;
+            }
+          });
+          Object.values(latestByKey).forEach(row => {
             if (!stats[row.serial]) {
               stats[row.serial] = { count: 0, correct: 0 };
             }
@@ -3260,7 +3309,7 @@
       }
 
       function handleAnswerSelection(question, selectedIndex, button) {
-        if (hasAnswered(question.serial)) {
+        if (hasSessionAnswered(question.serial)) {
           return;
         }
         const correctIndices = getAnswerIndices(question);
@@ -3287,6 +3336,10 @@
           card.classList.add("show-explanation");
         }
         markAnswered(question.serial, selectedIndex, isCorrect);
+        const retryBtn = card ? card.querySelector(".retry-btn") : null;
+        if (retryBtn) {
+          retryBtn.disabled = false;
+        }
         const anonId = getAnonId();
         if (supabaseClient) {
           supabaseClient
@@ -3311,16 +3364,32 @@
         return Boolean(state.answeredMap[serial]);
       }
 
-      function getAnswered(serial) {
-        return state.answeredMap[serial] || null;
+      function hasSessionAnswered(serial) {
+        return Boolean(state.sessionAnswered[serial]);
+      }
+
+      function getSessionAnswered(serial) {
+        return state.sessionAnswered[serial] || null;
       }
 
       function markAnswered(serial, selectedIndex, isCorrect) {
+        state.sessionAnswered[serial] = {
+          selectedIndex: Number(selectedIndex),
+          isCorrect: Boolean(isCorrect)
+        };
         state.answeredMap[serial] = {
           selectedIndex: Number(selectedIndex),
           isCorrect: Boolean(isCorrect)
         };
         saveAnsweredState();
+      }
+
+      function clearSessionAnswer(serial) {
+        if (serial) {
+          delete state.sessionAnswered[serial];
+          return;
+        }
+        state.sessionAnswered = {};
       }
 
       function loadAnsweredState() {
@@ -3342,6 +3411,26 @@
       function saveAnsweredState() {
         const key = "answeredSerials";
         localStorage.setItem(key, JSON.stringify(state.answeredMap));
+      }
+
+      function loadTagVisibility() {
+        const tagsRaw = localStorage.getItem("showTags");
+        const subsRaw = localStorage.getItem("showSubtopics");
+        if (tagsRaw !== null) {
+          state.showTags = tagsRaw === "true";
+        }
+        if (subsRaw !== null) {
+          state.showSubtopics = subsRaw === "true";
+        }
+        const tagsToggle = document.getElementById("showTagsToggle");
+        const subsToggle = document.getElementById("showSubtopicsToggle");
+        if (tagsToggle) tagsToggle.checked = state.showTags;
+        if (subsToggle) subsToggle.checked = state.showSubtopics;
+      }
+
+      function saveTagVisibility() {
+        localStorage.setItem("showTags", String(state.showTags));
+        localStorage.setItem("showSubtopics", String(state.showSubtopics));
       }
 
       function getAnonId() {

@@ -310,6 +310,15 @@
         background: #fff;
         font-size: 12px;
       }
+      .edit-grid {
+        display: grid;
+        gap: 6px;
+      }
+      .edit-grid label {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
       .edit-panel input,
       .edit-panel select,
       .edit-panel textarea,
@@ -435,6 +444,12 @@
         border-top: none;
         padding-top: 0;
       }
+      body:not(.report-mode) .guest-report {
+        display: none;
+      }
+      .is-hidden {
+        display: none;
+      }
       .proposal-meta {
         color: var(--muted);
         font-size: 11px;
@@ -546,6 +561,10 @@
             <select id="historyKind">
               <option value="">すべて</option>
               <option value="explanation">解説</option>
+              <option value="case_text">症例文</option>
+              <option value="stem">問題文</option>
+              <option value="choices">選択肢</option>
+              <option value="answer">模範解答</option>
               <option value="tags">タグ</option>
               <option value="subtopics">小項目</option>
             </select>
@@ -647,6 +666,9 @@
         <option value="rate_asc">正答率が低い順</option>
       </select>
       <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
+      <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
+      <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
+      <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
     </div>
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
@@ -670,6 +692,7 @@
         indexBySubtopic: {},
         subtopicsBySubject: {},
         answeredMap: {},
+        sessionAnswered: {},
         subtopicCatalog: {},
         teacherSession: null,
         teacherUserId: null,
@@ -681,7 +704,10 @@
         editRequestsBySerial: {},
         editRequestsLoaded: new Set(),
         answerStatsBySerial: {},
-        answerStatsLoaded: new Set()
+        answerStatsLoaded: new Set(),
+        reportMode: false,
+        showTags: false,
+        showSubtopics: false
       };
 
       function normalizeAscii(text) {
@@ -1009,16 +1035,132 @@
             caseText.textContent = q.case_text;
             card.appendChild(caseText);
           }
+          if (!isTeacher) {
+            const caseDetails = document.createElement("details");
+            caseDetails.className = "inline inline-details";
+            caseDetails.classList.add("guest-report");
+            const caseSummary = document.createElement("summary");
+            caseSummary.className = "inline-summary";
+            caseSummary.textContent = "症例文の誤りを報告";
+            caseDetails.appendChild(caseSummary);
+            const casePanel = document.createElement("div");
+            casePanel.className = "edit-panel";
+            const caseArea = document.createElement("textarea");
+            caseArea.rows = 3;
+            caseArea.value = q.case_text || "";
+            caseArea.placeholder = "症例文の修正案";
+            casePanel.appendChild(caseArea);
+            const caseNote = document.createElement("input");
+            caseNote.type = "text";
+            caseNote.placeholder = "コメント（必須）";
+            casePanel.appendChild(caseNote);
+            const caseSubmit = document.createElement("button");
+            caseSubmit.textContent = "提案を送信";
+            caseSubmit.addEventListener("click", () => {
+              submitGuestEditRequest(
+                q.serial,
+                "case_text",
+                { case_text: caseArea.value },
+                caseNote.value
+              );
+            });
+            casePanel.appendChild(caseSubmit);
+            caseDetails.appendChild(casePanel);
+            card.appendChild(caseDetails);
+          }
+          if (isTeacher) {
+            const caseDetails = document.createElement("details");
+            caseDetails.className = "inline inline-details";
+            const caseSummary = document.createElement("summary");
+            caseSummary.className = "inline-summary";
+            caseSummary.textContent = "症例文編集";
+            caseDetails.appendChild(caseSummary);
+            const casePanel = document.createElement("div");
+            casePanel.className = "edit-panel";
+            const caseArea = document.createElement("textarea");
+            caseArea.rows = 3;
+            caseArea.value = q.case_text || "";
+            casePanel.appendChild(caseArea);
+            const caseNote = document.createElement("input");
+            caseNote.type = "text";
+            caseNote.placeholder = "コメント（任意）";
+            casePanel.appendChild(caseNote);
+            const caseSubmit = document.createElement("button");
+            caseSubmit.textContent = "症例文を反映";
+            caseSubmit.addEventListener("click", () => {
+              applyCaseTextOverride(q, caseArea.value, caseNote.value);
+            });
+            casePanel.appendChild(caseSubmit);
+            caseDetails.appendChild(casePanel);
+            card.appendChild(caseDetails);
+            const caseProposals = buildProposalList(q, "case_text");
+            if (caseProposals) card.appendChild(caseProposals);
+          }
 
           const stem = document.createElement("div");
           stem.className = "stem";
           stem.textContent = q.stem || "";
           card.appendChild(stem);
+          if (!isTeacher) {
+            const stemDetails = document.createElement("details");
+            stemDetails.className = "inline inline-details";
+            stemDetails.classList.add("guest-report");
+            const stemSummary = document.createElement("summary");
+            stemSummary.className = "inline-summary";
+            stemSummary.textContent = "問題文の誤りを報告";
+            stemDetails.appendChild(stemSummary);
+            const stemPanel = document.createElement("div");
+            stemPanel.className = "edit-panel";
+            const stemArea = document.createElement("textarea");
+            stemArea.rows = 3;
+            stemArea.value = q.stem || "";
+            stemPanel.appendChild(stemArea);
+            const stemNote = document.createElement("input");
+            stemNote.type = "text";
+            stemNote.placeholder = "コメント（必須）";
+            stemPanel.appendChild(stemNote);
+            const stemSubmit = document.createElement("button");
+            stemSubmit.textContent = "提案を送信";
+            stemSubmit.addEventListener("click", () => {
+              submitGuestEditRequest(q.serial, "stem", { stem: stemArea.value }, stemNote.value);
+            });
+            stemPanel.appendChild(stemSubmit);
+            stemDetails.appendChild(stemPanel);
+            card.appendChild(stemDetails);
+          }
+          if (isTeacher) {
+            const stemDetails = document.createElement("details");
+            stemDetails.className = "inline inline-details";
+            const stemSummary = document.createElement("summary");
+            stemSummary.className = "inline-summary";
+            stemSummary.textContent = "問題文編集";
+            stemDetails.appendChild(stemSummary);
+            const stemPanel = document.createElement("div");
+            stemPanel.className = "edit-panel";
+            const stemArea = document.createElement("textarea");
+            stemArea.rows = 3;
+            stemArea.value = q.stem || "";
+            stemPanel.appendChild(stemArea);
+            const stemNote = document.createElement("input");
+            stemNote.type = "text";
+            stemNote.placeholder = "コメント（任意）";
+            stemPanel.appendChild(stemNote);
+            const stemSubmit = document.createElement("button");
+            stemSubmit.textContent = "問題文を反映";
+            stemSubmit.addEventListener("click", () => {
+              applyStemOverride(q, stemArea.value, stemNote.value);
+            });
+            stemPanel.appendChild(stemSubmit);
+            stemDetails.appendChild(stemPanel);
+            card.appendChild(stemDetails);
+            const stemProposals = buildProposalList(q, "stem");
+            if (stemProposals) card.appendChild(stemProposals);
+          }
 
           const ul = document.createElement("ol");
           ul.className = "choices";
           const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
-          const answered = getAnswered(q.serial);
+          const answered = getSessionAnswered(q.serial);
           const correctIndices = getAnswerIndices(q);
           (q.choices || []).forEach((choice, idx) => {
             const li = document.createElement("li");
@@ -1046,6 +1188,59 @@
             ul.appendChild(li);
           });
           card.appendChild(ul);
+          if (!isTeacher) {
+            const choiceDetails = document.createElement("details");
+            choiceDetails.className = "inline inline-details";
+            choiceDetails.classList.add("guest-report");
+            const choiceSummary = document.createElement("summary");
+            choiceSummary.className = "inline-summary";
+            choiceSummary.textContent = "選択肢の誤りを報告";
+            choiceDetails.appendChild(choiceSummary);
+            const choicePanel = document.createElement("div");
+            choicePanel.className = "edit-panel";
+            const choiceInputs = buildChoiceInputs(q.choices || []);
+            choicePanel.appendChild(choiceInputs.wrap);
+            const choiceNote = document.createElement("input");
+            choiceNote.type = "text";
+            choiceNote.placeholder = "コメント（必須）";
+            choicePanel.appendChild(choiceNote);
+            const choiceSubmit = document.createElement("button");
+            choiceSubmit.textContent = "提案を送信";
+            choiceSubmit.addEventListener("click", () => {
+              const next = getChoiceInputValues(choiceInputs.inputs);
+              submitGuestEditRequest(q.serial, "choices", { choices: next }, choiceNote.value);
+            });
+            choicePanel.appendChild(choiceSubmit);
+            choiceDetails.appendChild(choicePanel);
+            card.appendChild(choiceDetails);
+          }
+          if (isTeacher) {
+            const choiceDetails = document.createElement("details");
+            choiceDetails.className = "inline inline-details";
+            const choiceSummary = document.createElement("summary");
+            choiceSummary.className = "inline-summary";
+            choiceSummary.textContent = "選択肢編集";
+            choiceDetails.appendChild(choiceSummary);
+            const choicePanel = document.createElement("div");
+            choicePanel.className = "edit-panel";
+            const choiceInputs = buildChoiceInputs(q.choices || []);
+            choicePanel.appendChild(choiceInputs.wrap);
+            const choiceNote = document.createElement("input");
+            choiceNote.type = "text";
+            choiceNote.placeholder = "コメント（任意）";
+            choicePanel.appendChild(choiceNote);
+            const choiceSubmit = document.createElement("button");
+            choiceSubmit.textContent = "選択肢を反映";
+            choiceSubmit.addEventListener("click", () => {
+              const next = getChoiceInputValues(choiceInputs.inputs);
+              applyChoicesOverride(q, next, choiceNote.value);
+            });
+            choicePanel.appendChild(choiceSubmit);
+            choiceDetails.appendChild(choicePanel);
+            card.appendChild(choiceDetails);
+            const choiceProposals = buildProposalList(q, "choices");
+            if (choiceProposals) card.appendChild(choiceProposals);
+          }
 
           const feedback = document.createElement("div");
           feedback.className = "choice-feedback";
@@ -1056,6 +1251,7 @@
 
           const tags = document.createElement("div");
           tags.className = "tagline";
+          if (!state.showTags) tags.classList.add("is-hidden");
           const tagsLabel = document.createElement("span");
           tagsLabel.className = "tag-label";
           tagsLabel.textContent = "タグ:";
@@ -1080,6 +1276,7 @@
           if (!isTeacher) {
             const tagDetails = document.createElement("details");
             tagDetails.className = "inline inline-details";
+            tagDetails.classList.add("guest-report");
             const tagSummary = document.createElement("summary");
             tagSummary.className = "inline-summary";
             tagSummary.textContent = "タグ修正を提案";
@@ -1165,6 +1362,7 @@
 
           const subs = document.createElement("div");
           subs.className = "tagline";
+          if (!state.showSubtopics) subs.classList.add("is-hidden");
           const subsLabel = document.createElement("span");
           subsLabel.className = "tag-label";
           subsLabel.textContent = "小項目:";
@@ -1189,6 +1387,7 @@
           if (!isTeacher) {
             const subDetails = document.createElement("details");
             subDetails.className = "inline inline-details";
+            subDetails.classList.add("guest-report");
             const subSummary = document.createElement("summary");
             subSummary.className = "inline-summary";
             subSummary.textContent = "小項目修正を提案";
@@ -1291,6 +1490,67 @@
           const label = formatAnswerLabel(q);
           answer.textContent = label ? `正答: ${label}` : "正答: 未登録";
           card.appendChild(answer);
+          if (!isTeacher) {
+            const answerDetails = document.createElement("details");
+            answerDetails.className = "inline inline-details";
+            answerDetails.classList.add("guest-report");
+            const answerSummary = document.createElement("summary");
+            answerSummary.className = "inline-summary";
+            answerSummary.textContent = "模範解答の誤りを報告";
+            answerDetails.appendChild(answerSummary);
+            const answerPanel = document.createElement("div");
+            answerPanel.className = "edit-panel";
+            const selector = buildAnswerSelector(
+              q.choices || [],
+              getAnswerIndices(q),
+              q.answer_none
+            );
+            answerPanel.appendChild(selector.wrap);
+            const answerNote = document.createElement("input");
+            answerNote.type = "text";
+            answerNote.placeholder = "コメント（必須）";
+            answerPanel.appendChild(answerNote);
+            const answerSubmit = document.createElement("button");
+            answerSubmit.textContent = "提案を送信";
+            answerSubmit.addEventListener("click", () => {
+              const value = selector.getValue();
+              submitGuestEditRequest(q.serial, "answer", value, answerNote.value);
+            });
+            answerPanel.appendChild(answerSubmit);
+            answerDetails.appendChild(answerPanel);
+            card.appendChild(answerDetails);
+          }
+          if (isTeacher) {
+            const answerDetails = document.createElement("details");
+            answerDetails.className = "inline inline-details";
+            const answerSummary = document.createElement("summary");
+            answerSummary.className = "inline-summary";
+            answerSummary.textContent = "模範解答編集";
+            answerDetails.appendChild(answerSummary);
+            const answerPanel = document.createElement("div");
+            answerPanel.className = "edit-panel";
+            const selector = buildAnswerSelector(
+              q.choices || [],
+              getAnswerIndices(q),
+              q.answer_none
+            );
+            answerPanel.appendChild(selector.wrap);
+            const answerNote = document.createElement("input");
+            answerNote.type = "text";
+            answerNote.placeholder = "コメント（任意）";
+            answerPanel.appendChild(answerNote);
+            const answerSubmit = document.createElement("button");
+            answerSubmit.textContent = "模範解答を反映";
+            answerSubmit.addEventListener("click", () => {
+              const value = selector.getValue();
+              applyAnswerOverride(q, value.answer_indices, value.answer_none, answerNote.value);
+            });
+            answerPanel.appendChild(answerSubmit);
+            answerDetails.appendChild(answerPanel);
+            card.appendChild(answerDetails);
+            const answerProposals = buildProposalList(q, "answer");
+            if (answerProposals) card.appendChild(answerProposals);
+          }
 
           const explanation = document.createElement("div");
           explanation.className = "explanation";
@@ -1335,6 +1595,7 @@
             }
             const expDetails = document.createElement("details");
             expDetails.className = "inline inline-details";
+            expDetails.classList.add("guest-report");
             const expSummary = document.createElement("summary");
             expSummary.className = "inline-summary";
             expSummary.textContent = "解説修正を提案";
@@ -1454,6 +1715,20 @@
             copyToClipboard(text);
           });
           actions.appendChild(deepDiveBtn);
+          const retryBtn = document.createElement("button");
+          retryBtn.textContent = "再回答";
+          retryBtn.className = "retry-btn";
+          retryBtn.disabled = !answered;
+          retryBtn.setAttribute("aria-label", "この問題を再回答する");
+          retryBtn.addEventListener("click", () => {
+            const scrollY = window.scrollY;
+            clearSessionAnswer(q.serial);
+            renderResults(filterQuestions());
+            requestAnimationFrame(() => {
+              window.scrollTo(0, scrollY);
+            });
+          });
+          actions.appendChild(retryBtn);
           card.appendChild(actions);
 
           target.appendChild(card);
@@ -1508,6 +1783,7 @@
 
       function init() {
         loadAnsweredState();
+        loadTagVisibility();
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
@@ -1591,6 +1867,16 @@
         document.getElementById("showAnswered").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
+        document.getElementById("showTagsToggle").addEventListener("change", (e) => {
+          state.showTags = e.target.checked;
+          saveTagVisibility();
+          renderResults(filterQuestions());
+        });
+        document.getElementById("showSubtopicsToggle").addEventListener("change", (e) => {
+          state.showSubtopics = e.target.checked;
+          saveTagVisibility();
+          renderResults(filterQuestions());
+        });
         document.getElementById("hasExplanation").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
@@ -1607,6 +1893,16 @@
           renderResults(filterQuestions());
         });
 
+        const reportModeToggle = document.getElementById("reportModeToggle");
+        if (reportModeToggle) {
+          reportModeToggle.addEventListener("change", () => {
+            state.reportMode = reportModeToggle.checked;
+            document.body.classList.toggle("report-mode", state.reportMode);
+          });
+          reportModeToggle.checked = false;
+          document.body.classList.remove("report-mode");
+        }
+
       document.getElementById("copyAllBtn").addEventListener("click", async () => {
         const list = filterQuestions();
         await ensureOverridesLoaded(list.map(item => item.serial));
@@ -1621,6 +1917,7 @@
           return;
         }
         state.answeredMap = {};
+        clearSessionAnswer();
         localStorage.removeItem("answeredSerials");
         renderResults(filterQuestions());
       });
@@ -1713,6 +2010,8 @@
         const toggleBtn = document.getElementById("authToggleBtn");
         const panel = document.getElementById("teacherAuth");
         const historyPanel = document.getElementById("historyPanel");
+        const reportModeWrap = document.getElementById("reportModeWrap");
+        const reportModeToggle = document.getElementById("reportModeToggle");
 
         if (!supabaseClient) {
           status.textContent = "Supabase未設定";
@@ -1720,6 +2019,7 @@
           panel.hidden = true;
           toggleBtn.hidden = true;
           if (historyPanel) historyPanel.hidden = true;
+          if (reportModeWrap) reportModeWrap.hidden = true;
           return;
         }
 
@@ -1838,6 +2138,7 @@
           message.textContent = "教師アカウントでログインしてください。";
           if (historyPanel) historyPanel.hidden = true;
           if (proposalPanel) proposalPanel.hidden = true;
+          if (reportModeWrap) reportModeWrap.hidden = false;
           supabaseClient.auth.signOut();
           return;
         }
@@ -1857,6 +2158,10 @@
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
             if (historyPanel) historyPanel.hidden = false;
             if (proposalPanel) proposalPanel.hidden = false;
+            if (reportModeWrap) reportModeWrap.hidden = true;
+            state.reportMode = false;
+            if (reportModeToggle) reportModeToggle.checked = false;
+            document.body.classList.remove("report-mode");
           } else {
             state.teacherUserId = null;
             status.textContent = "未ログイン";
@@ -1866,6 +2171,7 @@
             toggleBtn.setAttribute("aria-label", "教師ログイン");
             if (historyPanel) historyPanel.hidden = true;
             if (proposalPanel) proposalPanel.hidden = true;
+            if (reportModeWrap) reportModeWrap.hidden = false;
           }
           renderResults(filterQuestions());
         }
@@ -2012,6 +2318,73 @@
         );
       }
 
+      function applyCaseTextOverride(question, body, note) {
+        const before = { case_text: question.case_text || "" };
+        const after = { case_text: body || "" };
+        return applyOverrideChange(
+          question.serial,
+          "case_text",
+          before,
+          after,
+          { case_text: body || "" },
+          note
+        );
+      }
+
+      function applyStemOverride(question, body, note) {
+        const before = { stem: question.stem || "" };
+        const after = { stem: body || "" };
+        return applyOverrideChange(
+          question.serial,
+          "stem",
+          before,
+          after,
+          { stem: body || "" },
+          note
+        );
+      }
+
+      function applyChoicesOverride(question, choices, note) {
+        const before = { choices: question.choices || [] };
+        const next = Array.isArray(choices) ? choices : [];
+        const after = { choices: next };
+        return applyOverrideChange(
+          question.serial,
+          "choices",
+          before,
+          after,
+          { choices: next },
+          note
+        );
+      }
+
+      function applyAnswerOverride(question, answerIndices, answerNone, note) {
+        const before = {
+          answer_indices: getAnswerIndices(question),
+          answer_none: Boolean(question.answer_none)
+        };
+        const indices = Array.isArray(answerIndices)
+          ? answerIndices.map(Number).filter(n => Number.isFinite(n))
+          : [];
+        const normalizedNone = Boolean(answerNone);
+        const after = {
+          answer_indices: normalizedNone ? [] : indices,
+          answer_none: normalizedNone
+        };
+        return applyOverrideChange(
+          question.serial,
+          "answer",
+          before,
+          after,
+          {
+            answer_indices: after.answer_indices,
+            answer_index: after.answer_indices[0] || null,
+            answer_none: after.answer_none
+          },
+          note
+        );
+      }
+
       function applyOverrideChange(serial, kind, beforeData, afterData, patch, note) {
         if (!supabaseClient) {
           alert("Supabaseが設定されていません。");
@@ -2063,13 +2436,31 @@
                   if (Object.prototype.hasOwnProperty.call(patch, "explanation_source")) {
                     base.explanation_latest_source = patch.explanation_source;
                   }
-                  if (Object.prototype.hasOwnProperty.call(patch, "tags")) {
-                    base.tags = patch.tags;
-                  }
-                  if (Object.prototype.hasOwnProperty.call(patch, "subtopics")) {
-                    base.subtopics = patch.subtopics;
-                  }
+                if (Object.prototype.hasOwnProperty.call(patch, "tags")) {
+                  base.tags = patch.tags;
                 }
+                if (Object.prototype.hasOwnProperty.call(patch, "subtopics")) {
+                  base.subtopics = patch.subtopics;
+                }
+                if (Object.prototype.hasOwnProperty.call(patch, "case_text")) {
+                  base.case_text = patch.case_text;
+                }
+                if (Object.prototype.hasOwnProperty.call(patch, "stem")) {
+                  base.stem = patch.stem;
+                }
+                if (Object.prototype.hasOwnProperty.call(patch, "choices")) {
+                  base.choices = patch.choices;
+                }
+                if (Object.prototype.hasOwnProperty.call(patch, "answer_indices")) {
+                  base.answer_indices = patch.answer_indices;
+                }
+                if (Object.prototype.hasOwnProperty.call(patch, "answer_index")) {
+                  base.answer_index = patch.answer_index;
+                }
+                if (Object.prototype.hasOwnProperty.call(patch, "answer_none")) {
+                  base.answer_none = patch.answer_none;
+                }
+              }
                 const scrollY = window.scrollY;
                 renderResults(filterQuestions());
                 requestAnimationFrame(() => {
@@ -2089,7 +2480,9 @@
           const chunk = pending.slice(i, i + chunkSize);
           const { data, error } = await supabaseClient
             .from("question_overrides")
-            .select("serial, explanation, explanation_source, tags, subtopics")
+            .select(
+              "serial, explanation, explanation_source, tags, subtopics, case_text, stem, choices, answer_indices, answer_index, answer_none"
+            )
             .in("serial", chunk)
             .is("synced_at", null);
           if (error) {
@@ -2118,6 +2511,24 @@
             }
             if (row.subtopics !== null && row.subtopics !== undefined) {
               base.subtopics = row.subtopics;
+            }
+            if (row.case_text !== null && row.case_text !== undefined) {
+              base.case_text = row.case_text;
+            }
+            if (row.stem !== null && row.stem !== undefined) {
+              base.stem = row.stem;
+            }
+            if (row.choices !== null && row.choices !== undefined) {
+              base.choices = row.choices;
+            }
+            if (row.answer_indices !== null && row.answer_indices !== undefined) {
+              base.answer_indices = row.answer_indices;
+            }
+            if (row.answer_index !== null && row.answer_index !== undefined) {
+              base.answer_index = row.answer_index;
+            }
+            if (row.answer_none !== null && row.answer_none !== undefined) {
+              base.answer_none = row.answer_none;
             }
           });
         }
@@ -2167,7 +2578,7 @@
           const chunk = pending.slice(i, i + chunkSize);
           const { data, error } = await supabaseClient
             .from("answers")
-            .select("serial, is_correct");
+            .select("serial, is_correct, anon_id, created_at");
           if (error) {
             console.warn("回答集計の取得に失敗しました。", error);
             chunk.forEach(serial => {
@@ -2177,7 +2588,20 @@
             continue;
           }
           const stats = {};
+          const latestByKey = {};
           (data || []).forEach(row => {
+            const serial = row.serial;
+            if (!serial) return;
+            const anon = row.anon_id || "";
+            const created = row.created_at || "";
+            const day = created ? created.slice(0, 10) : "unknown";
+            const key = `${serial}|${anon}|${day}`;
+            const existing = latestByKey[key];
+            if (!existing || created > existing.created_at) {
+              latestByKey[key] = row;
+            }
+          });
+          Object.values(latestByKey).forEach(row => {
             if (!stats[row.serial]) {
               stats[row.serial] = { count: 0, correct: 0 };
             }
@@ -2213,6 +2637,24 @@
         }
         if (override.subtopics !== undefined && override.subtopics !== null) {
           merged.subtopics = override.subtopics;
+        }
+        if (override.case_text !== undefined && override.case_text !== null) {
+          merged.case_text = override.case_text;
+        }
+        if (override.stem !== undefined && override.stem !== null) {
+          merged.stem = override.stem;
+        }
+        if (override.choices !== undefined && override.choices !== null) {
+          merged.choices = override.choices;
+        }
+        if (override.answer_indices !== undefined && override.answer_indices !== null) {
+          merged.answer_indices = override.answer_indices;
+        }
+        if (override.answer_index !== undefined && override.answer_index !== null) {
+          merged.answer_index = override.answer_index;
+        }
+        if (override.answer_none !== undefined && override.answer_none !== null) {
+          merged.answer_none = override.answer_none;
         }
         return merged;
       }
@@ -2264,6 +2706,30 @@
             bodyEl.textContent = body;
             entry.appendChild(bodyEl);
           }
+          if (kind === "case_text") {
+            const body = payload.case_text || "";
+            const bodyEl = document.createElement("div");
+            bodyEl.textContent = body;
+            entry.appendChild(bodyEl);
+          }
+          if (kind === "stem") {
+            const body = payload.stem || "";
+            const bodyEl = document.createElement("div");
+            bodyEl.textContent = body;
+            entry.appendChild(bodyEl);
+          }
+          if (kind === "choices") {
+            const list = document.createElement("div");
+            const choices = Array.isArray(payload.choices) ? payload.choices : [];
+            list.textContent = choices.join(" / ");
+            entry.appendChild(list);
+          }
+          if (kind === "answer") {
+            const label = formatAnswerLabelFrom(payload);
+            const bodyEl = document.createElement("div");
+            bodyEl.textContent = label ? `模範解答: ${label}` : "模範解答: (未入力)";
+            entry.appendChild(bodyEl);
+          }
 
           if (item.note) {
             const note = document.createElement("div");
@@ -2303,6 +2769,31 @@
                 return;
               }
               applyExplanationEdit(question, body, item.note || "").then(ok => {
+                if (ok) updateEditRequestStatus(item.id, "applied");
+              });
+            }
+            if (kind === "case_text") {
+              const body = payload.case_text || "";
+              applyCaseTextOverride(question, body, item.note || "").then(ok => {
+                if (ok) updateEditRequestStatus(item.id, "applied");
+              });
+            }
+            if (kind === "stem") {
+              const body = payload.stem || "";
+              applyStemOverride(question, body, item.note || "").then(ok => {
+                if (ok) updateEditRequestStatus(item.id, "applied");
+              });
+            }
+            if (kind === "choices") {
+              const next = Array.isArray(payload.choices) ? payload.choices : [];
+              applyChoicesOverride(question, next, item.note || "").then(ok => {
+                if (ok) updateEditRequestStatus(item.id, "applied");
+              });
+            }
+            if (kind === "answer") {
+              const indices = Array.isArray(payload.answer_indices) ? payload.answer_indices : [];
+              const answerNone = Boolean(payload.answer_none);
+              applyAnswerOverride(question, indices, answerNone, item.note || "").then(ok => {
                 if (ok) updateEditRequestStatus(item.id, "applied");
               });
             }
@@ -2472,6 +2963,10 @@
 
       function kindLabel(kind) {
         if (kind === "explanation") return "解説";
+        if (kind === "case_text") return "症例文";
+        if (kind === "stem") return "問題文";
+        if (kind === "choices") return "選択肢";
+        if (kind === "answer") return "模範解答";
         if (kind === "tags") return "タグ";
         if (kind === "subtopics") return "小項目";
         return kind || "";
@@ -2483,6 +2978,10 @@
         if (kind === "subtopic") return "小項目";
         if (kind === "tags") return "タグ";
         if (kind === "subtopics") return "小項目";
+        if (kind === "case_text") return "症例文";
+        if (kind === "stem") return "問題文";
+        if (kind === "choices") return "選択肢";
+        if (kind === "answer") return "模範解答";
         return kind || "";
       }
 
@@ -2496,6 +2995,20 @@
         if (item.kind === "explanation") {
           const body = payload.explanation || payload.body || "";
           return `解説: ${truncateText(body)} / コメント: ${item.note || ""}`;
+        }
+        if (item.kind === "case_text") {
+          return `症例文: ${truncateText(payload.case_text || "")} / コメント: ${item.note || ""}`;
+        }
+        if (item.kind === "stem") {
+          return `問題文: ${truncateText(payload.stem || "")} / コメント: ${item.note || ""}`;
+        }
+        if (item.kind === "choices") {
+          const choices = Array.isArray(payload.choices) ? payload.choices : [];
+          return `選択肢: ${truncateText(choices.join(" / "))} / コメント: ${item.note || ""}`;
+        }
+        if (item.kind === "answer") {
+          const label = formatAnswerLabelFrom(payload);
+          return `模範解答: ${label || "(未入力)"} / コメント: ${item.note || ""}`;
         }
         return item.note || "";
       }
@@ -2518,6 +3031,22 @@
         }
         if (item.kind === "subtopics") {
           return `変更前: ${(before.subtopics || []).join(", ")}\n変更後: ${(after.subtopics || []).join(", ")}`;
+        }
+        if (item.kind === "case_text") {
+          return `変更前: ${truncateText(before.case_text || "")}\n変更後: ${truncateText(after.case_text || "")}`;
+        }
+        if (item.kind === "stem") {
+          return `変更前: ${truncateText(before.stem || "")}\n変更後: ${truncateText(after.stem || "")}`;
+        }
+        if (item.kind === "choices") {
+          const beforeText = Array.isArray(before.choices) ? before.choices.join(" / ") : "";
+          const afterText = Array.isArray(after.choices) ? after.choices.join(" / ") : "";
+          return `変更前: ${truncateText(beforeText)}\n変更後: ${truncateText(afterText)}`;
+        }
+        if (item.kind === "answer") {
+          const beforeLabel = formatAnswerLabelFrom(before);
+          const afterLabel = formatAnswerLabelFrom(after);
+          return `変更前: ${beforeLabel || "(未入力)"}\n変更後: ${afterLabel || "(未入力)"}`;
         }
         return JSON.stringify(item.after_data || {});
       }
@@ -2566,6 +3095,43 @@
           };
           applyOverrideChange(item.serial, "explanation", before, after, patch, "rollback");
         }
+        if (item.kind === "case_text") {
+          const before = { case_text: current.case_text || "" };
+          const next = item.before_data ? item.before_data.case_text || "" : "";
+          const after = { case_text: next };
+          applyOverrideChange(item.serial, "case_text", before, after, { case_text: next }, "rollback");
+        }
+        if (item.kind === "stem") {
+          const before = { stem: current.stem || "" };
+          const next = item.before_data ? item.before_data.stem || "" : "";
+          const after = { stem: next };
+          applyOverrideChange(item.serial, "stem", before, after, { stem: next }, "rollback");
+        }
+        if (item.kind === "choices") {
+          const before = { choices: current.choices || [] };
+          const next = item.before_data ? item.before_data.choices || [] : [];
+          const after = { choices: next };
+          applyOverrideChange(item.serial, "choices", before, after, { choices: next }, "rollback");
+        }
+        if (item.kind === "answer") {
+          const before = {
+            answer_indices: getAnswerIndices(current),
+            answer_none: Boolean(current.answer_none)
+          };
+          const next = item.before_data || {};
+          const nextIndices = Array.isArray(next.answer_indices) ? next.answer_indices : [];
+          const nextNone = Boolean(next.answer_none);
+          const after = {
+            answer_indices: nextNone ? [] : nextIndices,
+            answer_none: nextNone
+          };
+          const patch = {
+            answer_indices: after.answer_indices,
+            answer_index: after.answer_indices[0] || null,
+            answer_none: after.answer_none
+          };
+          applyOverrideChange(item.serial, "answer", before, after, patch, "rollback");
+        }
       }
 
       function formatExplanationLabel(source) {
@@ -2601,6 +3167,88 @@
         const indices = getAnswerIndices(question);
         if (!indices.length) return "";
         return indices.join("・");
+      }
+
+      function formatAnswerLabelFrom(data) {
+        if (!data) return "";
+        if (data.answer_none) return "なし";
+        const indices = Array.isArray(data.answer_indices)
+          ? data.answer_indices.map(Number)
+          : [];
+        if (!indices.length && data.answer_index) {
+          indices.push(Number(data.answer_index));
+        }
+        return indices.filter(n => Number.isFinite(n)).join("・");
+      }
+
+      function buildChoiceInputs(choices) {
+        const wrap = document.createElement("div");
+        wrap.className = "edit-grid";
+        const inputs = [];
+        (choices || []).forEach((choice, idx) => {
+          const label = document.createElement("label");
+          label.textContent = `選択肢${idx + 1}`;
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = choice || "";
+          label.appendChild(input);
+          wrap.appendChild(label);
+          inputs.push(input);
+        });
+        return { wrap, inputs };
+      }
+
+      function getChoiceInputValues(inputs) {
+        return (inputs || []).map(input => (input.value || "").trim());
+      }
+
+      function buildAnswerSelector(choices, currentIndices, currentNone) {
+        const wrap = document.createElement("div");
+        wrap.className = "edit-grid";
+        const indices = Array.isArray(currentIndices)
+          ? currentIndices.map(Number).filter(n => Number.isFinite(n))
+          : [];
+        const noneLabel = document.createElement("label");
+        const noneInput = document.createElement("input");
+        noneInput.type = "checkbox";
+        noneInput.checked = Boolean(currentNone);
+        noneLabel.appendChild(noneInput);
+        noneLabel.appendChild(document.createTextNode("解答なし"));
+        wrap.appendChild(noneLabel);
+        const checks = [];
+        (choices || []).forEach((choice, idx) => {
+          const label = document.createElement("label");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.value = String(idx + 1);
+          cb.checked = indices.includes(idx + 1);
+          label.appendChild(cb);
+          const text = choice ? ` ${idx + 1}. ${choice}` : ` ${idx + 1}`;
+          label.appendChild(document.createTextNode(text));
+          wrap.appendChild(label);
+          checks.push(cb);
+        });
+        const syncDisabled = () => {
+          const disabled = noneInput.checked;
+          checks.forEach(cb => {
+            cb.disabled = disabled;
+          });
+        };
+        noneInput.addEventListener("change", syncDisabled);
+        syncDisabled();
+        return {
+          wrap,
+          getValue: () => {
+            if (noneInput.checked) {
+              return { answer_none: true, answer_indices: [] };
+            }
+            const selected = checks
+              .filter(cb => cb.checked)
+              .map(cb => Number(cb.value))
+              .filter(n => Number.isFinite(n));
+            return { answer_none: false, answer_indices: selected };
+          }
+        };
       }
 
       function buildReportRequest(serial, kind, label) {
@@ -2661,7 +3309,7 @@
       }
 
       function handleAnswerSelection(question, selectedIndex, button) {
-        if (hasAnswered(question.serial)) {
+        if (hasSessionAnswered(question.serial)) {
           return;
         }
         const correctIndices = getAnswerIndices(question);
@@ -2688,6 +3336,10 @@
           card.classList.add("show-explanation");
         }
         markAnswered(question.serial, selectedIndex, isCorrect);
+        const retryBtn = card ? card.querySelector(".retry-btn") : null;
+        if (retryBtn) {
+          retryBtn.disabled = false;
+        }
         const anonId = getAnonId();
         if (supabaseClient) {
           supabaseClient
@@ -2712,16 +3364,32 @@
         return Boolean(state.answeredMap[serial]);
       }
 
-      function getAnswered(serial) {
-        return state.answeredMap[serial] || null;
+      function hasSessionAnswered(serial) {
+        return Boolean(state.sessionAnswered[serial]);
+      }
+
+      function getSessionAnswered(serial) {
+        return state.sessionAnswered[serial] || null;
       }
 
       function markAnswered(serial, selectedIndex, isCorrect) {
+        state.sessionAnswered[serial] = {
+          selectedIndex: Number(selectedIndex),
+          isCorrect: Boolean(isCorrect)
+        };
         state.answeredMap[serial] = {
           selectedIndex: Number(selectedIndex),
           isCorrect: Boolean(isCorrect)
         };
         saveAnsweredState();
+      }
+
+      function clearSessionAnswer(serial) {
+        if (serial) {
+          delete state.sessionAnswered[serial];
+          return;
+        }
+        state.sessionAnswered = {};
       }
 
       function loadAnsweredState() {
@@ -2743,6 +3411,26 @@
       function saveAnsweredState() {
         const key = "answeredSerials";
         localStorage.setItem(key, JSON.stringify(state.answeredMap));
+      }
+
+      function loadTagVisibility() {
+        const tagsRaw = localStorage.getItem("showTags");
+        const subsRaw = localStorage.getItem("showSubtopics");
+        if (tagsRaw !== null) {
+          state.showTags = tagsRaw === "true";
+        }
+        if (subsRaw !== null) {
+          state.showSubtopics = subsRaw === "true";
+        }
+        const tagsToggle = document.getElementById("showTagsToggle");
+        const subsToggle = document.getElementById("showSubtopicsToggle");
+        if (tagsToggle) tagsToggle.checked = state.showTags;
+        if (subsToggle) subsToggle.checked = state.showSubtopics;
+      }
+
+      function saveTagVisibility() {
+        localStorage.setItem("showTags", String(state.showTags));
+        localStorage.setItem("showSubtopics", String(state.showSubtopics));
       }
 
       function getAnonId() {
