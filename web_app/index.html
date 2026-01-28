@@ -444,6 +444,9 @@
         border-top: none;
         padding-top: 0;
       }
+      body:not(.report-mode) .guest-report {
+        display: none;
+      }
       .proposal-meta {
         color: var(--muted);
         font-size: 11px;
@@ -660,6 +663,7 @@
         <option value="rate_asc">正答率が低い順</option>
       </select>
       <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
+      <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
     </div>
     <div class="results" id="results" role="region" aria-live="polite" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
@@ -694,7 +698,8 @@
         editRequestsBySerial: {},
         editRequestsLoaded: new Set(),
         answerStatsBySerial: {},
-        answerStatsLoaded: new Set()
+        answerStatsLoaded: new Set(),
+        reportMode: false
       };
 
       function normalizeAscii(text) {
@@ -1025,6 +1030,7 @@
           if (!isTeacher) {
             const caseDetails = document.createElement("details");
             caseDetails.className = "inline inline-details";
+            caseDetails.classList.add("guest-report");
             const caseSummary = document.createElement("summary");
             caseSummary.className = "inline-summary";
             caseSummary.textContent = "症例文の誤りを報告";
@@ -1090,6 +1096,7 @@
           if (!isTeacher) {
             const stemDetails = document.createElement("details");
             stemDetails.className = "inline inline-details";
+            stemDetails.classList.add("guest-report");
             const stemSummary = document.createElement("summary");
             stemSummary.className = "inline-summary";
             stemSummary.textContent = "問題文の誤りを報告";
@@ -1176,6 +1183,7 @@
           if (!isTeacher) {
             const choiceDetails = document.createElement("details");
             choiceDetails.className = "inline inline-details";
+            choiceDetails.classList.add("guest-report");
             const choiceSummary = document.createElement("summary");
             choiceSummary.className = "inline-summary";
             choiceSummary.textContent = "選択肢の誤りを報告";
@@ -1259,6 +1267,7 @@
           if (!isTeacher) {
             const tagDetails = document.createElement("details");
             tagDetails.className = "inline inline-details";
+            tagDetails.classList.add("guest-report");
             const tagSummary = document.createElement("summary");
             tagSummary.className = "inline-summary";
             tagSummary.textContent = "タグ修正を提案";
@@ -1368,6 +1377,7 @@
           if (!isTeacher) {
             const subDetails = document.createElement("details");
             subDetails.className = "inline inline-details";
+            subDetails.classList.add("guest-report");
             const subSummary = document.createElement("summary");
             subSummary.className = "inline-summary";
             subSummary.textContent = "小項目修正を提案";
@@ -1473,6 +1483,7 @@
           if (!isTeacher) {
             const answerDetails = document.createElement("details");
             answerDetails.className = "inline inline-details";
+            answerDetails.classList.add("guest-report");
             const answerSummary = document.createElement("summary");
             answerSummary.className = "inline-summary";
             answerSummary.textContent = "模範解答の誤りを報告";
@@ -1574,6 +1585,7 @@
             }
             const expDetails = document.createElement("details");
             expDetails.className = "inline inline-details";
+            expDetails.classList.add("guest-report");
             const expSummary = document.createElement("summary");
             expSummary.className = "inline-summary";
             expSummary.textContent = "解説修正を提案";
@@ -1846,6 +1858,16 @@
           renderResults(filterQuestions());
         });
 
+        const reportModeToggle = document.getElementById("reportModeToggle");
+        if (reportModeToggle) {
+          reportModeToggle.addEventListener("change", () => {
+            state.reportMode = reportModeToggle.checked;
+            document.body.classList.toggle("report-mode", state.reportMode);
+          });
+          reportModeToggle.checked = false;
+          document.body.classList.remove("report-mode");
+        }
+
       document.getElementById("copyAllBtn").addEventListener("click", async () => {
         const list = filterQuestions();
         await ensureOverridesLoaded(list.map(item => item.serial));
@@ -1952,6 +1974,8 @@
         const toggleBtn = document.getElementById("authToggleBtn");
         const panel = document.getElementById("teacherAuth");
         const historyPanel = document.getElementById("historyPanel");
+        const reportModeWrap = document.getElementById("reportModeWrap");
+        const reportModeToggle = document.getElementById("reportModeToggle");
 
         if (!supabaseClient) {
           status.textContent = "Supabase未設定";
@@ -1959,6 +1983,7 @@
           panel.hidden = true;
           toggleBtn.hidden = true;
           if (historyPanel) historyPanel.hidden = true;
+          if (reportModeWrap) reportModeWrap.hidden = true;
           return;
         }
 
@@ -2077,6 +2102,7 @@
           message.textContent = "教師アカウントでログインしてください。";
           if (historyPanel) historyPanel.hidden = true;
           if (proposalPanel) proposalPanel.hidden = true;
+          if (reportModeWrap) reportModeWrap.hidden = false;
           supabaseClient.auth.signOut();
           return;
         }
@@ -2096,6 +2122,10 @@
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
             if (historyPanel) historyPanel.hidden = false;
             if (proposalPanel) proposalPanel.hidden = false;
+            if (reportModeWrap) reportModeWrap.hidden = true;
+            state.reportMode = false;
+            if (reportModeToggle) reportModeToggle.checked = false;
+            document.body.classList.remove("report-mode");
           } else {
             state.teacherUserId = null;
             status.textContent = "未ログイン";
@@ -2105,6 +2135,7 @@
             toggleBtn.setAttribute("aria-label", "教師ログイン");
             if (historyPanel) historyPanel.hidden = true;
             if (proposalPanel) proposalPanel.hidden = true;
+            if (reportModeWrap) reportModeWrap.hidden = false;
           }
           renderResults(filterQuestions());
         }
