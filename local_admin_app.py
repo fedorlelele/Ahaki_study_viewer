@@ -3059,7 +3059,10 @@ def fetch_supabase_overrides(since=None, limit=500):
     cfg = supabase_config()
     if not cfg:
         return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
-    select = "serial,explanation,explanation_source,tags,subtopics,updated_at"
+    select = (
+        "serial,explanation,explanation_source,tags,subtopics,case_text,stem,choices,"
+        "answer_indices,answer_index,answer_none,updated_at"
+    )
     offset = 0
     rows = []
     while True:
@@ -3204,7 +3207,16 @@ def sync_supabase_overrides(db_path, since):
         return {"message": "Supabase差分はありません。", "counts": {}}
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    counts = {"explanations": 0, "tags": 0, "subtopics": 0, "missing": 0}
+    counts = {
+        "explanations": 0,
+        "tags": 0,
+        "subtopics": 0,
+        "case_text": 0,
+        "stem": 0,
+        "choices": 0,
+        "answers": 0,
+        "missing": 0,
+    }
     synced_serials = []
     for row in rows:
         serial = row.get("serial")
@@ -3229,6 +3241,11 @@ def sync_supabase_overrides(db_path, since):
         if "subtopics" in row:
             if apply_override_subtopics(cursor, question_id, row.get("subtopics")):
                 counts["subtopics"] += 1
+        question_updates = apply_override_question_fields(cursor, question_id, row)
+        counts["case_text"] += 1 if question_updates.get("case_text") else 0
+        counts["stem"] += 1 if question_updates.get("stem") else 0
+        counts["choices"] += 1 if question_updates.get("choices") else 0
+        counts["answers"] += 1 if question_updates.get("answers") else 0
         synced_serials.append(serial)
     add_explanation_update(conn, counts["explanations"])
     conn.commit()
@@ -3331,6 +3348,83 @@ def apply_override_subtopics(cursor, question_id, subtopics):
         )
         updated = True
     return updated or subtopics == []
+
+
+def apply_override_question_fields(cursor, question_id, row):
+    updated = {"case_text": False, "stem": False, "choices": False, "answers": False}
+    if "case_text" in row and row.get("case_text") is not None:
+        cursor.execute(
+            "UPDATE questions SET case_text = ? WHERE id = ?",
+            (row.get("case_text"), question_id),
+        )
+        updated["case_text"] = True
+    if "stem" in row and row.get("stem") is not None:
+        cursor.execute(
+            "UPDATE questions SET stem = ? WHERE id = ?",
+            (row.get("stem"), question_id),
+        )
+        updated["stem"] = True
+    if "choices" in row and row.get("choices") is not None:
+        choices = row.get("choices")
+        if isinstance(choices, str):
+            try:
+                choices = json.loads(choices)
+            except json.JSONDecodeError:
+                choices = [choices]
+        if not isinstance(choices, list):
+            choices = [str(choices)]
+        cursor.execute(
+            "UPDATE questions SET choices_json = ? WHERE id = ?",
+            (json.dumps(choices, ensure_ascii=False), question_id),
+        )
+        updated["choices"] = True
+    answer_keys = (
+        row.get("answer_indices") is not None
+        or row.get("answer_index") is not None
+        or row.get("answer_none") is not None
+    )
+    if answer_keys:
+        indices = row.get("answer_indices")
+        if isinstance(indices, str):
+            try:
+                indices = json.loads(indices)
+            except json.JSONDecodeError:
+                indices = [indices]
+        if indices is None:
+            indices = []
+        if not isinstance(indices, list):
+            indices = [indices]
+        normalized = []
+        for item in indices:
+            try:
+                normalized.append(int(item))
+            except (ValueError, TypeError):
+                continue
+        answer_none = bool(row.get("answer_none"))
+        answer_index = row.get("answer_index")
+        if answer_none:
+            normalized = []
+            answer_index = None
+        elif normalized:
+            answer_index = normalized[0]
+        answer_label = "なし" if answer_none else "・".join(str(n) for n in normalized)
+        answer_text = f"解答　{answer_label}" if answer_label else "解答　"
+        cursor.execute(
+            """
+            UPDATE questions
+            SET answer_index = ?, answer_indices_json = ?, answer_none = ?, answer_text = ?
+            WHERE id = ?
+            """,
+            (
+                answer_index,
+                json.dumps(normalized, ensure_ascii=False),
+                1 if answer_none else 0,
+                answer_text,
+                question_id,
+            ),
+        )
+        updated["answers"] = True
+    return updated
 
 
 def list_reports_supabase(limit):
