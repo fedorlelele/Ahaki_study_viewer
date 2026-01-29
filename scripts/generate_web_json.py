@@ -255,8 +255,11 @@ def main():
     conn.close()
 
     output = []
+    max_session = 0
     for q in questions:
         qid = q["id"]
+        if q.get("exam_session") and int(q["exam_session"]) > max_session:
+            max_session = int(q["exam_session"])
         answer_indices, answer_none = resolve_answer_meta(q)
         exp_list = explanations.get(qid, [])
         exp_list_sorted = sorted(exp_list, key=lambda x: x.get("version", 0))
@@ -280,6 +283,77 @@ def main():
             "subtopics": subtopics.get(qid, []),
         }
         output.append(record)
+
+    if max_session <= 0:
+        max_session = 1
+
+    tag_scores = {}
+    for record in output:
+        subject = record["subject"]
+        session = record.get("exam_session") or 0
+        try:
+            session_value = int(session)
+        except (TypeError, ValueError):
+            session_value = 0
+        weight = 1.0 + (session_value / max_session)
+        subtopics_list = record.get("subtopics") or []
+        if not subtopics_list:
+            subtopics_list = [None]
+        for subtopic in subtopics_list:
+            key = (subject, subtopic)
+            tag_scores.setdefault(key, {})
+            for tag in record.get("tags") or []:
+                tag_scores[key][tag] = tag_scores[key].get(tag, 0.0) + weight
+
+    top_tag_map = {}
+    max_score_map = {}
+    top_limit = 5
+    for key, scores in tag_scores.items():
+        ordered = sorted(scores.items(), key=lambda x: (-x[1], x[0]))
+        top_tag_map[key] = ordered[:top_limit]
+        max_score_map[key] = sum(score for _, score in ordered[:top_limit])
+
+    for record in output:
+        subject = record["subject"]
+        subtopics_list = record.get("subtopics") or []
+        keys = []
+        if subtopics_list:
+            keys.extend((subject, subtopic) for subtopic in subtopics_list)
+        else:
+            keys.append((subject, None))
+        best_score = 0.0
+        best_tags = []
+        best_scope = ""
+        for key in keys:
+            top_tags = top_tag_map.get(key, [])
+            if not top_tags:
+                continue
+            top_tags_map = {tag: score for tag, score in top_tags}
+            matched = [tag for tag in (record.get("tags") or []) if tag in top_tags_map]
+            if not matched:
+                continue
+            score = sum(top_tags_map[tag] for tag in matched)
+            if score > best_score:
+                best_score = score
+                best_tags = sorted(matched, key=lambda t: -top_tags_map.get(t, 0))
+                scope_label = key[1] if key[1] is not None else "subject"
+                best_scope = scope_label
+        max_score = max_score_map.get(
+            (subject, best_scope if best_scope != "subject" else None), 0.0
+        )
+        level = 0
+        if best_score > 0 and max_score > 0:
+            ratio = best_score / max_score
+            if ratio >= 0.66:
+                level = 3
+            elif ratio >= 0.33:
+                level = 2
+            else:
+                level = 1
+        record["frequent_score"] = round(best_score, 3)
+        record["frequent_level"] = level
+        record["frequent_tags"] = best_tags[:2]
+        record["frequent_scope"] = best_scope
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(

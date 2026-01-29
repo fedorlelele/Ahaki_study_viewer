@@ -455,6 +455,30 @@
         font-size: 11px;
         margin-bottom: 4px;
       }
+      .frequent-badge {
+        margin-left: 8px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .frequent-badge.level-1 {
+        background: #e6f1ff;
+        color: #0b3b75;
+      }
+      .frequent-badge.level-2 {
+        background: #ffe6a3;
+        color: #5a2c00;
+      }
+      .frequent-badge.level-3 {
+        background: #ffd1b8;
+        color: #5a1f00;
+      }
+      .frequent-tags {
+        margin-left: 6px;
+        font-size: 11px;
+        color: var(--muted);
+      }
       .auth-panel .note {
         margin-top: 6px;
         color: var(--muted);
@@ -591,6 +615,14 @@
           <div class="note" id="proposalEmpty" hidden>提案はありません。</div>
         </div>
       </details>
+      <details class="inline" id="tagDisablePanel" hidden>
+        <summary>タグ無効化</summary>
+        <div class="edit-panel">
+          <input id="disableTagInput" type="text" placeholder="無効化するタグ（カンマ区切り）" />
+          <button id="disableTagAddBtn" type="button">無効化する</button>
+          <div id="disabledTagList"></div>
+        </div>
+      </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -639,6 +671,7 @@
           <label><input type="checkbox" id="hasExplanation" /> 解説あり</label>
           <label><input type="checkbox" id="hasTags" /> タグあり</label>
           <label><input type="checkbox" id="hasSubtopics" /> 小項目あり</label>
+          <label><input type="checkbox" id="onlyFrequent" /> 頻出のみ</label>
         </div>
       </details>
       <button id="searchBtn" aria-label="検索を実行">検索</button>
@@ -658,6 +691,8 @@
         <option value="">並び替え</option>
         <option value="desc" selected>新しい順</option>
         <option value="asc">古い順</option>
+        <option value="frequent_desc">頻出順</option>
+        <option value="frequent_asc">頻出（低い順）</option>
         <option value="count_desc">回答数が多い順</option>
         <option value="count_asc">回答数が少ない順</option>
         <option value="correct_desc">正答数が多い順</option>
@@ -707,7 +742,8 @@
         answerStatsLoaded: new Set(),
         reportMode: false,
         showTags: false,
-        showSubtopics: false
+        showSubtopics: false,
+        disabledTags: new Set()
       };
 
       function normalizeAscii(text) {
@@ -900,6 +936,7 @@
         const needExplanation = document.getElementById("hasExplanation").checked;
         const needTags = document.getElementById("hasTags").checked;
         const needSubtopics = document.getElementById("hasSubtopics").checked;
+        const onlyFrequent = document.getElementById("onlyFrequent").checked;
         const showAnswered = document.getElementById("showAnswered").checked;
         const sessionFrom = sessionFromRaw ? Number(sessionFromRaw) : null;
         const sessionTo = sessionToRaw ? Number(sessionToRaw) : null;
@@ -941,6 +978,7 @@
           if (needExplanation && !(effective.explanation_latest || "").trim()) return false;
           if (needTags && !(effective.tags || []).length) return false;
           if (needSubtopics && !(effective.subtopics || []).length) return false;
+          if (onlyFrequent && !(Number(effective.frequent_level) > 0)) return false;
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
           if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
           if (!terms.length) return true;
@@ -988,6 +1026,10 @@
           filtered.sort((a, b) => getRate(b) - getRate(a));
         } else if (sortSession === "rate_asc") {
           filtered.sort((a, b) => getRate(a) - getRate(b));
+        } else if (sortSession === "frequent_desc") {
+          filtered.sort((a, b) => (Number(b.frequent_score) || 0) - (Number(a.frequent_score) || 0));
+        } else if (sortSession === "frequent_asc") {
+          filtered.sort((a, b) => (Number(a.frequent_score) || 0) - (Number(b.frequent_score) || 0));
         }
         return filtered;
       }
@@ -1027,6 +1069,29 @@
           const meta = document.createElement("div");
           meta.className = "meta";
           meta.textContent = `${q.serial} / ${q.subject} / 第${q.exam_session}回`;
+          if (hasAnswered(q.serial)) {
+            const answered = document.createElement("span");
+            answered.className = "frequent-badge level-1";
+            answered.textContent = "回答済み";
+            meta.appendChild(answered);
+          }
+          const level = Number(q.frequent_level) || 0;
+          if (level > 0) {
+            const badge = document.createElement("span");
+            badge.className = `frequent-badge level-${level}`;
+            badge.textContent = level === 3 ? "頻出 高" : level === 2 ? "頻出 中" : "頻出 低";
+            const tags = (q.frequent_tags || []).slice(0, 2);
+            if (tags.length) {
+              badge.title = `頻出タグ: ${tags.join(", ")}`;
+            }
+            meta.appendChild(badge);
+            if (q.frequent_tags && q.frequent_tags.length) {
+              const tagLabel = document.createElement("span");
+              tagLabel.className = "frequent-tags";
+              tagLabel.textContent = q.frequent_tags.slice(0, 2).join(" / ");
+              meta.appendChild(tagLabel);
+            }
+          }
           card.appendChild(meta);
 
           if (q.case_text) {
@@ -1793,7 +1858,8 @@
             renderUpdateLog(3);
           }
         });
-        loadData().then(() => {
+        Promise.all([loadData(), loadDisabledTags()]).then(() => {
+          computeFrequentScores();
           populateSelect(
             document.getElementById("subjectSelect"),
             Object.keys(state.indexBySubject)
@@ -1823,6 +1889,7 @@
 
         initHistoryPanel();
         initProposalPanel();
+        initTagDisablePanel();
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
@@ -1839,6 +1906,7 @@
           document.getElementById("hasExplanation").checked = false;
           document.getElementById("hasTags").checked = false;
           document.getElementById("hasSubtopics").checked = false;
+          document.getElementById("onlyFrequent").checked = false;
           updateSubtopicOptions("");
           renderResults(filterQuestions());
         });
@@ -1884,6 +1952,9 @@
           renderResults(filterQuestions());
         });
         document.getElementById("hasSubtopics").addEventListener("change", () => {
+          renderResults(filterQuestions());
+        });
+        document.getElementById("onlyFrequent").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
         document.getElementById("toggleAnswer").addEventListener("change", () => {
@@ -2128,6 +2199,7 @@
         state.editRequestsBySerial = {};
         state.editRequestsLoaded = new Set();
         const proposalPanel = document.getElementById("proposalPanel");
+        const tagDisablePanel = document.getElementById("tagDisablePanel");
         if (user && !isTeacherUser(user)) {
           state.teacherSession = null;
           status.textContent = "教師権限がありません。";
@@ -2138,6 +2210,7 @@
           message.textContent = "教師アカウントでログインしてください。";
           if (historyPanel) historyPanel.hidden = true;
           if (proposalPanel) proposalPanel.hidden = true;
+          if (tagDisablePanel) tagDisablePanel.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
           supabaseClient.auth.signOut();
           return;
@@ -2158,6 +2231,7 @@
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
             if (historyPanel) historyPanel.hidden = false;
             if (proposalPanel) proposalPanel.hidden = false;
+            if (tagDisablePanel) tagDisablePanel.hidden = false;
             if (reportModeWrap) reportModeWrap.hidden = true;
             state.reportMode = false;
             if (reportModeToggle) reportModeToggle.checked = false;
@@ -2171,6 +2245,7 @@
             toggleBtn.setAttribute("aria-label", "教師ログイン");
             if (historyPanel) historyPanel.hidden = true;
             if (proposalPanel) proposalPanel.hidden = true;
+            if (tagDisablePanel) tagDisablePanel.hidden = true;
             if (reportModeWrap) reportModeWrap.hidden = false;
           }
           renderResults(filterQuestions());
@@ -2624,9 +2699,12 @@
       }
 
       function applyOverridesToQuestion(q) {
-        const override = state.overridesBySerial[q.serial];
-        if (!override) return q;
         const merged = { ...q };
+        const override = state.overridesBySerial[q.serial];
+        if (!override) {
+          merged.tags = filterDisabledTags(merged.tags || []);
+          return merged;
+        }
         if (override.explanation !== undefined && override.explanation !== null) {
           merged.explanation_latest = override.explanation;
           merged.explanation_latest_source =
@@ -2656,6 +2734,7 @@
         if (override.answer_none !== undefined && override.answer_none !== null) {
           merged.answer_none = override.answer_none;
         }
+        merged.tags = filterDisabledTags(merged.tags || []);
         return merged;
       }
 
@@ -3433,6 +3512,178 @@
         localStorage.setItem("showSubtopics", String(state.showSubtopics));
       }
 
+      function filterDisabledTags(tags) {
+        if (!tags || !tags.length) return [];
+        if (!state.disabledTags || state.disabledTags.size === 0) return tags.slice();
+        return tags.filter(tag => !state.disabledTags.has(tag));
+      }
+
+      function loadDisabledTags() {
+        if (!supabaseClient) {
+          state.disabledTags = new Set();
+          return Promise.resolve();
+        }
+        return supabaseClient
+          .from("tag_settings")
+          .select("tag, disabled")
+          .eq("disabled", true)
+          .then(({ data, error }) => {
+            if (error) {
+              console.warn("無効タグの取得に失敗しました。", error);
+              state.disabledTags = new Set();
+              return;
+            }
+            const disabled = (data || [])
+              .map(row => String(row.tag || "").trim())
+              .filter(Boolean);
+            state.disabledTags = new Set(disabled);
+            renderDisabledTagList();
+          });
+      }
+
+      function computeFrequentScores() {
+        const questions = state.questions || [];
+        let maxSession = 1;
+        questions.forEach(q => {
+          const value = Number(q.exam_session) || 0;
+          if (value > maxSession) maxSession = value;
+        });
+        const tagScores = {};
+        questions.forEach(q => {
+          const subject = q.subject || "";
+          const session = Number(q.exam_session) || 0;
+          const weight = 1 + session / maxSession;
+          const subtopics = (q.subtopics || []).length ? q.subtopics : [null];
+          const tags = filterDisabledTags(q.tags || []);
+          subtopics.forEach(subtopic => {
+            const key = `${subject}||${subtopic || ""}`;
+            if (!tagScores[key]) tagScores[key] = {};
+            tags.forEach(tag => {
+              tagScores[key][tag] = (tagScores[key][tag] || 0) + weight;
+            });
+          });
+        });
+        const topTagMap = {};
+        const maxScoreMap = {};
+        Object.keys(tagScores).forEach(key => {
+          const entries = Object.entries(tagScores[key]).sort((a, b) => b[1] - a[1]);
+          const top = entries.slice(0, 5);
+          topTagMap[key] = top;
+          maxScoreMap[key] = top.reduce((sum, item) => sum + item[1], 0);
+        });
+        questions.forEach(q => {
+          const subject = q.subject || "";
+          const tags = filterDisabledTags(q.tags || []);
+          const subtopics = (q.subtopics || []).length ? q.subtopics : [null];
+          let bestScore = 0;
+          let bestTags = [];
+          let bestKey = "";
+          subtopics.forEach(subtopic => {
+            const key = `${subject}||${subtopic || ""}`;
+            const top = topTagMap[key] || [];
+            if (!top.length) return;
+            const topMap = {};
+            top.forEach(([tag, score]) => {
+              topMap[tag] = score;
+            });
+            const matched = tags.filter(tag => topMap[tag]);
+            if (!matched.length) return;
+            const score = matched.reduce((sum, tag) => sum + topMap[tag], 0);
+            if (score > bestScore) {
+              bestScore = score;
+              bestTags = matched.sort((a, b) => topMap[b] - topMap[a]).slice(0, 2);
+              bestKey = key;
+            }
+          });
+          const maxScore = bestKey ? (maxScoreMap[bestKey] || 0) : 0;
+          let level = 0;
+          if (bestScore > 0 && maxScore > 0) {
+            const ratio = bestScore / maxScore;
+            level = ratio >= 0.66 ? 3 : ratio >= 0.33 ? 2 : 1;
+          }
+          q.frequent_score = Math.round(bestScore * 1000) / 1000;
+          q.frequent_level = level;
+          q.frequent_tags = bestTags;
+        });
+      }
+
+      function initTagDisablePanel() {
+        const addBtn = document.getElementById("disableTagAddBtn");
+        const input = document.getElementById("disableTagInput");
+        if (!addBtn || !input) return;
+        addBtn.addEventListener("click", async () => {
+          const session = state.teacherSession;
+          if (!session || !session.user) {
+            alert("教師ログインが必要です。");
+            return;
+          }
+          const tags = input.value
+            .split(",")
+            .map(t => t.trim())
+            .filter(Boolean);
+          if (!tags.length) {
+            alert("タグを入力してください。");
+            return;
+          }
+          for (const tag of tags) {
+            await supabaseClient
+              .from("tag_settings")
+              .upsert(
+                [
+                  {
+                    tag,
+                    disabled: true,
+                    updated_at: new Date().toISOString(),
+                    updated_by: session.user.id
+                  }
+                ],
+                { onConflict: "tag" }
+              );
+          }
+          input.value = "";
+          await loadDisabledTags();
+          computeFrequentScores();
+          renderResults(filterQuestions());
+        });
+      }
+
+      function renderDisabledTagList() {
+        const list = document.getElementById("disabledTagList");
+        if (!list) return;
+        list.innerHTML = "";
+        const tags = Array.from(state.disabledTags || []).sort();
+        if (!tags.length) {
+          const empty = document.createElement("div");
+          empty.className = "note";
+          empty.textContent = "無効化されたタグはありません。";
+          list.appendChild(empty);
+          return;
+        }
+        tags.forEach(tag => {
+          const row = document.createElement("div");
+          row.className = "row";
+          const label = document.createElement("span");
+          label.textContent = tag;
+          row.appendChild(label);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = "解除";
+          btn.addEventListener("click", async () => {
+            const session = state.teacherSession;
+            if (!session || !session.user) {
+              alert("教師ログインが必要です。");
+              return;
+            }
+            await supabaseClient.from("tag_settings").delete().eq("tag", tag);
+            await loadDisabledTags();
+            computeFrequentScores();
+            renderResults(filterQuestions());
+          });
+          row.appendChild(btn);
+          list.appendChild(row);
+        });
+      }
+
       function getAnonId() {
         const key = "anonId";
         let id = localStorage.getItem(key);
@@ -3456,6 +3707,7 @@
         const sessionTo = document.getElementById("sessionTo").value;
         const sortSession = document.getElementById("sortSession").value;
         const showAnswered = document.getElementById("showAnswered").checked;
+        const onlyFrequent = document.getElementById("onlyFrequent").checked;
         const parts = [];
         if (keyword) parts.push(`キーワード: ${keyword}`);
         if (subject) parts.push(`科目: ${subject}`);
@@ -3472,6 +3724,8 @@
           const sortLabels = {
             asc: "古い順",
             desc: "新しい順",
+            frequent_desc: "頻出順",
+            frequent_asc: "頻出（低い順）",
             count_desc: "回答数が多い順",
             count_asc: "回答数が少ない順",
             correct_desc: "正答数が多い順",
@@ -3482,6 +3736,7 @@
           const label = sortLabels[sortSession] || "新しい順";
           parts.push(`並び替え: ${label}`);
         }
+        if (onlyFrequent) parts.push("頻出のみ");
         if (showAnswered) parts.push("回答済みを表示");
         return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
       }
