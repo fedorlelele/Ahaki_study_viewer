@@ -681,6 +681,7 @@
           <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
           <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
           <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
+          <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
         </div>
       </details>
       <button id="searchBtn" aria-label="検索を実行">検索</button>
@@ -702,7 +703,6 @@
         <option value="rate_desc">正答率が高い順</option>
         <option value="rate_asc">正答率が低い順</option>
       </select>
-      <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
       <span id="countInfo" aria-live="polite"></span>
     </div>
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
