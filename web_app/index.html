@@ -630,8 +630,10 @@
         <div class="card-actions">
           <div class="note">直近24時間（1時間ごと）</div>
           <div id="answerTrendHourly"></div>
+          <button id="answerTrendMoreHourly" type="button">さらに表示</button>
           <div class="note">直近30日（1日ごと）</div>
           <div id="answerTrendDaily"></div>
+          <button id="answerTrendMoreDaily" type="button">さらに表示</button>
         </div>
       </details>
       <details class="inline" id="historyPanel" hidden>
@@ -799,6 +801,8 @@
         answerStatsLoaded: new Set(),
         answerRows: null,
         answerTimeline: null,
+        answerTrendExpandHourly: false,
+        answerTrendExpandDaily: false,
         reportMode: false,
         showTags: false,
         showSubtopics: false,
@@ -3568,11 +3572,25 @@
 
       function initAnswerTrendPanel() {
         const panel = document.getElementById("answerTrendPanel");
+        const moreHourly = document.getElementById("answerTrendMoreHourly");
+        const moreDaily = document.getElementById("answerTrendMoreDaily");
         if (!panel) return;
         panel.addEventListener("toggle", () => {
           if (!panel.open) return;
           loadAnswerTimeline().then(renderAnswerTimeline);
         });
+        if (moreHourly) {
+          moreHourly.addEventListener("click", () => {
+            state.answerTrendExpandHourly = true;
+            renderAnswerTimeline();
+          });
+        }
+        if (moreDaily) {
+          moreDaily.addEventListener("click", () => {
+            state.answerTrendExpandDaily = true;
+            renderAnswerTimeline();
+          });
+        }
       }
 
       function loadAnswerTimeline() {
@@ -3640,17 +3658,33 @@
       function renderAnswerTimeline() {
         const hourlyEl = document.getElementById("answerTrendHourly");
         const dailyEl = document.getElementById("answerTrendDaily");
+        const moreHourly = document.getElementById("answerTrendMoreHourly");
+        const moreDaily = document.getElementById("answerTrendMoreDaily");
         if (!hourlyEl || !dailyEl) return;
         if (!supabaseClient) {
           hourlyEl.textContent = "Supabase未設定のため表示できません。";
           dailyEl.textContent = "";
+          if (moreHourly) moreHourly.hidden = true;
+          if (moreDaily) moreDaily.hidden = true;
           return;
         }
         const timeline = state.answerTimeline || { hourly: [], daily: [] };
         hourlyEl.innerHTML = "";
         dailyEl.innerHTML = "";
-        hourlyEl.appendChild(buildTrendBars(timeline.hourly));
-        dailyEl.appendChild(buildTrendBars(timeline.daily));
+        const hourlyItems = state.answerTrendExpandHourly
+          ? timeline.hourly
+          : timeline.hourly.slice(-5);
+        const dailyItems = state.answerTrendExpandDaily
+          ? timeline.daily
+          : timeline.daily.slice(-5);
+        hourlyEl.appendChild(buildTrendBars(hourlyItems));
+        dailyEl.appendChild(buildTrendBars(dailyItems));
+        if (moreHourly) {
+          moreHourly.hidden = state.answerTrendExpandHourly || timeline.hourly.length <= 5;
+        }
+        if (moreDaily) {
+          moreDaily.hidden = state.answerTrendExpandDaily || timeline.daily.length <= 5;
+        }
       }
 
       function buildTrendBars(items) {
