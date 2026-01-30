@@ -455,6 +455,54 @@
         font-size: 11px;
         margin-bottom: 4px;
       }
+      .trend-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin: 6px 0 12px;
+      }
+      .trend-bars {
+        display: grid;
+        gap: 6px;
+        margin: 6px 0 12px;
+        font-size: 12px;
+      }
+      .trend-bar {
+        display: grid;
+        grid-template-columns: 140px 1fr 40px;
+        gap: 8px;
+        align-items: center;
+      }
+      .trend-bar-label {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .trend-bar-track {
+        background: #f3f4f6;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        height: 10px;
+        overflow: hidden;
+      }
+      .trend-bar-fill {
+        height: 100%;
+        background: #4b7bca;
+        border-radius: 999px;
+      }
+      .trend-bar-count {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .trend-table th,
+      .trend-table td {
+        padding: 4px 6px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+      .trend-table th {
+        color: var(--muted);
+        font-weight: 600;
+      }
       .frequent-badge {
         margin-left: 8px;
         padding: 2px 6px;
@@ -575,6 +623,15 @@
         <summary>利用ガイド</summary>
         <div class="card-actions">
           <pre class="user-readme" id="userReadmeText">読み込み中...</pre>
+        </div>
+      </details>
+      <details class="inline" id="answerTrendPanel">
+        <summary>回答数の推移</summary>
+        <div class="card-actions">
+          <div class="note">直近24時間（1時間ごと）</div>
+          <div id="answerTrendHourly"></div>
+          <div class="note">直近30日（1日ごと）</div>
+          <div id="answerTrendDaily"></div>
         </div>
       </details>
       <details class="inline" id="historyPanel" hidden>
@@ -740,6 +797,8 @@
         editRequestsLoaded: new Set(),
         answerStatsBySerial: {},
         answerStatsLoaded: new Set(),
+        answerRows: null,
+        answerTimeline: null,
         reportMode: false,
         showTags: false,
         showSubtopics: false,
@@ -1851,6 +1910,7 @@
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
         loadUserReadme();
+        initAnswerTrendPanel();
         loadUpdateLog().then(() => {
           if (updateInfo && updateInfo.open) {
             renderUpdateLog(3);
@@ -2650,6 +2710,11 @@
               state.answerStatsLoaded.add(serial);
             });
             continue;
+          }
+          state.answerRows = data || [];
+          if (!state.answerTimeline) {
+            state.answerTimeline = buildAnswerTimeline(state.answerRows);
+            renderAnswerTimeline();
           }
           const stats = {};
           const latestByKey = {};
@@ -3499,6 +3564,120 @@
       function saveTagVisibility() {
         localStorage.setItem("showTags", String(state.showTags));
         localStorage.setItem("showSubtopics", String(state.showSubtopics));
+      }
+
+      function initAnswerTrendPanel() {
+        const panel = document.getElementById("answerTrendPanel");
+        if (!panel) return;
+        panel.addEventListener("toggle", () => {
+          if (!panel.open) return;
+          loadAnswerTimeline().then(renderAnswerTimeline);
+        });
+      }
+
+      function loadAnswerTimeline() {
+        if (state.answerTimeline) {
+          return Promise.resolve();
+        }
+        if (!supabaseClient) {
+          state.answerTimeline = { hourly: [], daily: [] };
+          return Promise.resolve();
+        }
+        if (state.answerRows) {
+          state.answerTimeline = buildAnswerTimeline(state.answerRows);
+          return Promise.resolve();
+        }
+        return supabaseClient
+          .from("answers")
+          .select("created_at")
+          .then(({ data, error }) => {
+            if (error) {
+              console.warn("回答の取得に失敗しました。", error);
+              state.answerTimeline = { hourly: [], daily: [] };
+              return;
+            }
+            state.answerRows = data || [];
+            state.answerTimeline = buildAnswerTimeline(state.answerRows);
+          });
+      }
+
+      function buildAnswerTimeline(rows) {
+        const now = new Date();
+        const hourly = [];
+        const daily = [];
+        const hourCounts = {};
+        const dayCounts = {};
+        rows.forEach(row => {
+          if (!row || !row.created_at) return;
+          const date = new Date(row.created_at);
+          if (Number.isNaN(date.getTime())) return;
+          const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+            date.getDate()
+          ).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:00`;
+          hourCounts[hourKey] = (hourCounts[hourKey] || 0) + 1;
+          const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+            date.getDate()
+          ).padStart(2, "0")}`;
+          dayCounts[dayKey] = (dayCounts[dayKey] || 0) + 1;
+        });
+        for (let i = 23; i >= 0; i -= 1) {
+          const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+          const hourKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+            d.getDate()
+          ).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:00`;
+          hourly.push({ label: hourKey, count: hourCounts[hourKey] || 0 });
+        }
+        for (let i = 29; i >= 0; i -= 1) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+            d.getDate()
+          ).padStart(2, "0")}`;
+          daily.push({ label: dayKey, count: dayCounts[dayKey] || 0 });
+        }
+        return { hourly, daily };
+      }
+
+      function renderAnswerTimeline() {
+        const hourlyEl = document.getElementById("answerTrendHourly");
+        const dailyEl = document.getElementById("answerTrendDaily");
+        if (!hourlyEl || !dailyEl) return;
+        if (!supabaseClient) {
+          hourlyEl.textContent = "Supabase未設定のため表示できません。";
+          dailyEl.textContent = "";
+          return;
+        }
+        const timeline = state.answerTimeline || { hourly: [], daily: [] };
+        hourlyEl.innerHTML = "";
+        dailyEl.innerHTML = "";
+        hourlyEl.appendChild(buildTrendBars(timeline.hourly));
+        dailyEl.appendChild(buildTrendBars(timeline.daily));
+      }
+
+      function buildTrendBars(items) {
+        const wrap = document.createElement("div");
+        wrap.className = "trend-bars";
+        const max = Math.max(1, ...items.map(item => item.count || 0));
+        items.forEach(item => {
+          const row = document.createElement("div");
+          row.className = "trend-bar";
+          const label = document.createElement("div");
+          label.className = "trend-bar-label";
+          label.textContent = item.label;
+          const track = document.createElement("div");
+          track.className = "trend-bar-track";
+          const fill = document.createElement("div");
+          fill.className = "trend-bar-fill";
+          fill.style.width = `${Math.round((item.count / max) * 100)}%`;
+          track.appendChild(fill);
+          const count = document.createElement("div");
+          count.className = "trend-bar-count";
+          count.textContent = String(item.count);
+          row.appendChild(label);
+          row.appendChild(track);
+          row.appendChild(count);
+          wrap.appendChild(row);
+        });
+        return wrap;
       }
 
       function filterDisabledTags(tags) {
