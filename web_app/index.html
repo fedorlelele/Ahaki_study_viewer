@@ -691,14 +691,13 @@
           <button id="authLoginBtn" type="button">ログイン</button>
         </div>
         <details class="inline" id="teacherSignupPanel">
-          <summary>教師アカウントを申請</summary>
+          <summary>サインアップ</summary>
           <div class="edit-panel">
             <input id="signupEmail" type="email" placeholder="メールアドレス" />
             <input id="signupPassword" type="password" placeholder="パスワード" />
             <input id="signupPasswordConfirm" type="password" placeholder="パスワード（確認）" />
-            <input id="signupNote" type="text" placeholder="申請理由（任意）" />
-            <button id="signupBtn" type="button">申請する</button>
-            <div class="note">申請後、管理者の承認が必要です。</div>
+            <button id="signupBtn" type="button">登録する</button>
+            <div class="note">登録後は未承認です。管理者または教師が権限を付与します。</div>
           </div>
         </details>
         <div id="authActions" hidden>
@@ -2183,13 +2182,11 @@
         const signupEmail = document.getElementById("signupEmail");
         const signupPassword = document.getElementById("signupPassword");
         const signupPasswordConfirm = document.getElementById("signupPasswordConfirm");
-        const signupNote = document.getElementById("signupNote");
         if (signupBtn) {
           signupBtn.addEventListener("click", async () => {
             const email = signupEmail ? signupEmail.value.trim() : "";
             const password = signupPassword ? signupPassword.value : "";
             const passwordConfirm = signupPasswordConfirm ? signupPasswordConfirm.value : "";
-            const note = signupNote ? signupNote.value.trim() : "";
             message.textContent = "";
             if (!email || !password) {
               message.textContent = "メールとパスワードを入力してください。";
@@ -2201,30 +2198,15 @@
             }
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) {
-              message.textContent = "申請に失敗しました。";
+              message.textContent = "登録に失敗しました。";
               return;
             }
             const user = data && data.user ? data.user : null;
             if (!user) {
-              message.textContent = "申請を受け付けました。確認メール後に再度申請してください。";
+              message.textContent = "登録を受け付けました。確認メール後にログインしてください。";
               return;
             }
-            const { error: insertError } = await supabaseClient
-              .from("teacher_requests")
-              .insert([
-                {
-                  user_id: user.id,
-                  email: email,
-                  note: note,
-                  status: "pending"
-                }
-              ]);
-            if (insertError) {
-              message.textContent = "申請の登録に失敗しました。";
-              return;
-            }
-            await supabaseClient.auth.signOut();
-            message.textContent = "申請を受け付けました。承認後にログインできます。";
+            message.textContent = "登録しました。承認されるまで未承認としてログインできます。";
             if (signupPassword) signupPassword.value = "";
             if (signupPasswordConfirm) signupPasswordConfirm.value = "";
           });

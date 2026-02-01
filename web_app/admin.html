@@ -99,9 +99,11 @@
       <div class="card hidden" id="adminPanel">
         <div class="row">
           <input id="userSearch" type="text" placeholder="メールで検索" />
+          <label><input type="checkbox" id="filterUnapproved" /> 未承認のみ</label>
           <button id="reloadUsers" type="button">再読み込み</button>
         </div>
         <div class="note" id="adminNote"></div>
+        <div class="note" id="adminRuleNote"></div>
         <div id="userList"></div>
       </div>
 
@@ -132,6 +134,7 @@
         role: "guest",
         roleRank: 0,
         users: [],
+        filterUnapproved: false,
       };
 
       function roleRank(role) {
@@ -195,6 +198,13 @@
         if (state.roleRank >= 2) {
           adminPanel.classList.remove("hidden");
           roleLogPanel.classList.toggle("hidden", state.roleRank < 3);
+          const ruleNote = document.getElementById("adminRuleNote");
+          if (ruleNote) {
+            ruleNote.textContent =
+              state.roleRank >= 3
+                ? "管理者は生徒/教師/管理者の権限を付与できます。"
+                : "教師は生徒権限のみ付与できます（教師以上の付与は管理者のみ）。";
+          }
           loadUsers();
         } else {
           adminPanel.classList.add("hidden");
@@ -260,6 +270,7 @@
       function renderUserList() {
         const wrap = document.getElementById("userList");
         const keyword = (document.getElementById("userSearch").value || "").toLowerCase();
+        const unapprovedOnly = state.filterUnapproved;
         wrap.innerHTML = "";
         const table = document.createElement("table");
         const thead = document.createElement("thead");
@@ -268,6 +279,7 @@
         const tbody = document.createElement("tbody");
         state.users
           .filter(user => !keyword || (user.email || "").toLowerCase().includes(keyword))
+          .filter(user => !unapprovedOnly || !user.role)
           .forEach(user => {
             const row = document.createElement("tr");
             const email = document.createElement("td");
@@ -278,12 +290,19 @@
             const select = document.createElement("select");
             select.innerHTML = buildRoleOptions(user.role);
             select.addEventListener("change", async () => {
+              const nextRole = select.value;
+              const label = nextRole || "未承認";
+              const confirmText = `${user.email || user.id} の権限を「${label}」に変更しますか？`;
+              if (!confirm(confirmText)) {
+                select.value = user.role || "";
+                return;
+              }
               await apiFetch(`/admin/role`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   user_id: user.id,
-                  role: select.value,
+                  role: nextRole,
                   actor_id: state.session?.user?.id || ""
                 })
               });
@@ -366,6 +385,11 @@
       });
 
       document.getElementById("userSearch").addEventListener("input", () => {
+        renderUserList();
+      });
+
+      document.getElementById("filterUnapproved").addEventListener("change", (e) => {
+        state.filterUnapproved = e.target.checked;
         renderUserList();
       });
 
