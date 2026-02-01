@@ -691,19 +691,19 @@
           <button id="authLoginBtn" type="button">ログイン</button>
         </div>
         <details class="inline" id="teacherSignupPanel">
-          <summary>教師アカウントを申請</summary>
+          <summary>サインアップ</summary>
           <div class="edit-panel">
             <input id="signupEmail" type="email" placeholder="メールアドレス" />
             <input id="signupPassword" type="password" placeholder="パスワード" />
             <input id="signupPasswordConfirm" type="password" placeholder="パスワード（確認）" />
-            <input id="signupNote" type="text" placeholder="申請理由（任意）" />
-            <button id="signupBtn" type="button">申請する</button>
-            <div class="note">申請後、管理者の承認が必要です。</div>
+            <button id="signupBtn" type="button">登録する</button>
+            <div class="note">登録後は未承認です。管理者または教師が権限を付与します。</div>
           </div>
         </details>
         <div id="authActions" hidden>
           <button id="authLogoutBtn" type="button">ログアウト</button>
         </div>
+        <div id="adminLink" class="note" hidden><a href="./admin.html">管理画面を開く</a></div>
         <div id="authMessage" class="note"></div>
         </div>
       </div>
@@ -806,7 +806,9 @@
         reportMode: false,
         showTags: false,
         showSubtopics: false,
-        disabledTags: new Set()
+        disabledTags: new Set(),
+        currentRole: "guest",
+        roleRank: 0
       };
 
       function normalizeAscii(text) {
@@ -1100,7 +1102,7 @@
         const moreContainer = document.getElementById("resultsMore");
         container.innerHTML = "";
         moreContainer.innerHTML = "";
-        const isTeacher = Boolean(state.teacherSession);
+        const isTeacher = state.roleRank >= 2;
         const showAnswer = document.getElementById("toggleAnswer").checked;
         const showExplanation = document.getElementById("toggleExplanation").checked;
         document.getElementById("countInfo").textContent = `件数: ${list.length}`;
@@ -2170,13 +2172,7 @@
           }
           const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
           if (error || !data || !data.session) {
-            message.textContent = "ログインに失敗しました。";
-            return;
-          }
-          const user = data.session.user;
-          if (!isTeacherUser(user)) {
-            message.textContent = "教師権限がありません。";
-            await supabaseClient.auth.signOut();
+            message.textContent = `ログインに失敗しました。${error ? " " + error.message : ""}`;
             return;
           }
           message.textContent = "ログインしました。";
@@ -2186,13 +2182,11 @@
         const signupEmail = document.getElementById("signupEmail");
         const signupPassword = document.getElementById("signupPassword");
         const signupPasswordConfirm = document.getElementById("signupPasswordConfirm");
-        const signupNote = document.getElementById("signupNote");
         if (signupBtn) {
           signupBtn.addEventListener("click", async () => {
             const email = signupEmail ? signupEmail.value.trim() : "";
             const password = signupPassword ? signupPassword.value : "";
             const passwordConfirm = signupPasswordConfirm ? signupPasswordConfirm.value : "";
-            const note = signupNote ? signupNote.value.trim() : "";
             message.textContent = "";
             if (!email || !password) {
               message.textContent = "メールとパスワードを入力してください。";
@@ -2204,30 +2198,15 @@
             }
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) {
-              message.textContent = "申請に失敗しました。";
+              message.textContent = "登録に失敗しました。";
               return;
             }
             const user = data && data.user ? data.user : null;
             if (!user) {
-              message.textContent = "申請を受け付けました。確認メール後に再度申請してください。";
+              message.textContent = "登録を受け付けました。確認メール後にログインしてください。";
               return;
             }
-            const { error: insertError } = await supabaseClient
-              .from("teacher_requests")
-              .insert([
-                {
-                  user_id: user.id,
-                  email: email,
-                  note: note,
-                  status: "pending"
-                }
-              ]);
-            if (insertError) {
-              message.textContent = "申請の登録に失敗しました。";
-              return;
-            }
-            await supabaseClient.auth.signOut();
-            message.textContent = "申請を受け付けました。承認後にログインできます。";
+            message.textContent = "登録しました。承認されるまで未承認としてログインできます。";
             if (signupPassword) signupPassword.value = "";
             if (signupPasswordConfirm) signupPasswordConfirm.value = "";
           });
@@ -2243,8 +2222,31 @@
           message.textContent = "ログアウトしました。";
         });
 
+        function normalizeRole(role) {
+          if (role === "admin" || role === "teacher" || role === "student") {
+            return role;
+          }
+          return "";
+        }
+
+        function getUserRole(user) {
+          const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+          return normalizeRole(role);
+        }
+
+        function roleRank(role) {
+          if (role === "admin") return 3;
+          if (role === "teacher") return 2;
+          if (role === "student") return 1;
+          return 0;
+        }
+
+        function isRoleAtLeast(role) {
+          return state.roleRank >= roleRank(role);
+        }
+
         function isTeacherUser(user) {
-          return (user?.app_metadata?.role || user?.user_metadata?.role || "") === "teacher";
+          return roleRank(getUserRole(user)) >= 2;
         }
 
       function updateAuthUI(session) {
@@ -2253,22 +2255,31 @@
         state.editRequestsLoaded = new Set();
         const proposalPanel = document.getElementById("proposalPanel");
         const tagDisablePanel = document.getElementById("tagDisablePanel");
-        if (user && !isTeacherUser(user)) {
+        const answerTrendPanel = document.getElementById("answerTrendPanel");
+        const adminLink = document.getElementById("adminLink");
+        if (!user) {
+          state.currentRole = "guest";
+          state.roleRank = 0;
           state.teacherSession = null;
-          status.textContent = "教師権限がありません。";
+          state.teacherUserId = null;
+          status.textContent = "未ログイン";
           form.hidden = false;
           actions.hidden = true;
           toggleBtn.textContent = "教師ログイン";
           toggleBtn.setAttribute("aria-label", "教師ログイン");
-          message.textContent = "教師アカウントでログインしてください。";
           if (historyPanel) historyPanel.hidden = true;
           if (proposalPanel) proposalPanel.hidden = true;
           if (tagDisablePanel) tagDisablePanel.hidden = true;
+          if (answerTrendPanel) answerTrendPanel.hidden = true;
+          if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
-          supabaseClient.auth.signOut();
+          renderResults(filterQuestions());
           return;
         }
-        state.teacherSession = user ? session : null;
+        const role = getUserRole(user);
+        state.currentRole = role || "unapproved";
+        state.roleRank = roleRank(role);
+        state.teacherSession = isRoleAtLeast("teacher") ? session : null;
         if (user) {
             if (state.teacherUserId !== user.id) {
               const answerToggle = document.getElementById("toggleAnswer");
@@ -2277,32 +2288,31 @@
               if (explanationToggle) explanationToggle.checked = true;
               state.teacherUserId = user.id;
             }
-            status.textContent = `ログイン中: ${user.email}`;
+            const roleLabel =
+              state.currentRole === "unapproved"
+                ? "未承認"
+                : state.currentRole === "student"
+                ? "生徒"
+                : state.currentRole === "teacher"
+                ? "教師"
+                : "管理者";
+            status.textContent = `ログイン中: ${user.email} (${roleLabel})`;
             form.hidden = true;
             actions.hidden = false;
             toggleBtn.textContent = "教師ログイン（ログイン中）";
             toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
-            if (historyPanel) historyPanel.hidden = false;
-            if (proposalPanel) proposalPanel.hidden = false;
-            if (tagDisablePanel) tagDisablePanel.hidden = false;
-            if (reportModeWrap) reportModeWrap.hidden = true;
+            if (historyPanel) historyPanel.hidden = !isRoleAtLeast("teacher");
+            if (proposalPanel) proposalPanel.hidden = !isRoleAtLeast("teacher");
+            if (tagDisablePanel) tagDisablePanel.hidden = !isRoleAtLeast("teacher");
+            if (answerTrendPanel) answerTrendPanel.hidden = !isRoleAtLeast("teacher");
+            if (adminLink) adminLink.hidden = !isRoleAtLeast("teacher");
+            if (reportModeWrap) reportModeWrap.hidden = isRoleAtLeast("teacher");
             state.reportMode = false;
             if (reportModeToggle) reportModeToggle.checked = false;
             document.body.classList.remove("report-mode");
-          } else {
-            state.teacherUserId = null;
-            status.textContent = "未ログイン";
-            form.hidden = false;
-            actions.hidden = true;
-            toggleBtn.textContent = "教師ログイン";
-            toggleBtn.setAttribute("aria-label", "教師ログイン");
-            if (historyPanel) historyPanel.hidden = true;
-            if (proposalPanel) proposalPanel.hidden = true;
-            if (tagDisablePanel) tagDisablePanel.hidden = true;
-            if (reportModeWrap) reportModeWrap.hidden = false;
           }
-          renderResults(filterQuestions());
-        }
+        renderResults(filterQuestions());
+      }
       }
 
       function submitEditRequest(serial, kind, payload, note) {
@@ -3577,6 +3587,10 @@
         if (!panel) return;
         panel.addEventListener("toggle", () => {
           if (!panel.open) return;
+          if (!state.teacherSession) {
+            panel.open = false;
+            return;
+          }
           loadAnswerTimeline().then(renderAnswerTimeline);
         });
         if (moreHourly) {
