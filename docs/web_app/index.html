@@ -607,10 +607,11 @@
     <header>
       <div class="header-row">
         <h1>Ahaki Study Viewer</h1>
-        <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">教師ログイン</button>
+        <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
       </div>
       <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
       <div class="subtitle"><a href="./simple.html">かんたんビューを開く</a></div>
+      <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
       <details class="inline" id="updateInfo">
         <summary>更新情報</summary>
         <div class="card-actions">
@@ -2265,8 +2266,8 @@
           status.textContent = "未ログイン";
           form.hidden = false;
           actions.hidden = true;
-          toggleBtn.textContent = "教師ログイン";
-          toggleBtn.setAttribute("aria-label", "教師ログイン");
+          toggleBtn.textContent = "ログイン";
+          toggleBtn.setAttribute("aria-label", "ログイン");
           if (historyPanel) historyPanel.hidden = true;
           if (proposalPanel) proposalPanel.hidden = true;
           if (tagDisablePanel) tagDisablePanel.hidden = true;
@@ -2299,8 +2300,8 @@
             status.textContent = `ログイン中: ${user.email} (${roleLabel})`;
             form.hidden = true;
             actions.hidden = false;
-            toggleBtn.textContent = "教師ログイン（ログイン中）";
-            toggleBtn.setAttribute("aria-label", "教師ログイン（ログイン中）");
+            toggleBtn.textContent = `ログイン中（${roleLabel}）`;
+            toggleBtn.setAttribute("aria-label", `ログイン中（${roleLabel}）`);
             if (historyPanel) historyPanel.hidden = !isRoleAtLeast("teacher");
             if (proposalPanel) proposalPanel.hidden = !isRoleAtLeast("teacher");
             if (tagDisablePanel) tagDisablePanel.hidden = !isRoleAtLeast("teacher");
