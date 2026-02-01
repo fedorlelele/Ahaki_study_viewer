@@ -122,6 +122,11 @@ python -m http.server 8000
 Supabaseの `Publishable key` と `Project URL` を設定してください。
 `web_app/config.js` は `.gitignore` で除外されています。
 
+### アカウントと権限
+- サインアップは共通フォームから行い、初期状態は未承認です。
+- 権限（生徒/教師/管理者）は管理者または教師が付与します。
+- 管理者はWebUIの「管理画面を開く」からユーザー権限を変更できます。
+
 ## 7. GitHub Pagesで公開
 GitHub Pagesを使う場合は `docs/` に公開用ファイルを生成します。
 
