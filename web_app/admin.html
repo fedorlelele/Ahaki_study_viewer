@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ahaki Admin</title>
+    <style>
+      :root {
+        --ink: #1a1a1a;
+        --muted: #5f5f5f;
+        --line: #d9d9d9;
+        --bg: #f7f3ee;
+      }
+      body {
+        margin: 0;
+        font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+      main {
+        padding: 16px 20px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      input, select, button {
+        font-size: 14px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+      }
+      button {
+        cursor: pointer;
+        background: #fff;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th, td {
+        border-bottom: 1px solid var(--line);
+        padding: 6px 4px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Ahaki 管理画面</h1>
+    </header>
+    <main>
+      <div class="card" id="authCard">
+        <div class="row">
+          <div id="authStatus" class="note">未ログイン</div>
+        </div>
+        <div class="row" id="authForm">
+          <input id="authEmail" type="email" placeholder="メールアドレス" />
+          <input id="authPassword" type="password" placeholder="パスワード" />
+          <button id="authLoginBtn" type="button">ログイン</button>
+        </div>
+        <div class="row hidden" id="authActions">
+          <button id="authLogoutBtn" type="button">ログアウト</button>
+        </div>
+        <div id="authMessage" class="note"></div>
+      </div>
+
+      <div class="card hidden" id="adminPanel">
+        <div class="row">
+          <input id="userSearch" type="text" placeholder="メールで検索" />
+          <button id="reloadUsers" type="button">再読み込み</button>
+        </div>
+        <div class="note" id="adminNote"></div>
+        <div id="userList"></div>
+      </div>
+
+      <div class="card hidden" id="roleLogPanel">
+        <div class="row">
+          <button id="reloadRoleLog" type="button">履歴を読み込み</button>
+        </div>
+        <div id="roleLogList"></div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+    <script>
+      const SUPABASE_URL = window.SUPABASE_URL || "";
+      const SUPABASE_KEY = window.SUPABASE_KEY || "";
+      const supabaseClient =
+        window.supabase && SUPABASE_URL && SUPABASE_KEY
+          ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+          : null;
+      const API_BASE =
+        window.ADMIN_API_BASE ||
+        localStorage.getItem("adminApiBase") ||
+        (location.port === "8001" ? "" : "http://127.0.0.1:8001");
+
+      const state = {
+        session: null,
+        role: "guest",
+        roleRank: 0,
+        users: [],
+      };
+
+      function roleRank(role) {
+        if (role === "admin") return 3;
+        if (role === "teacher") return 2;
+        if (role === "student") return 1;
+        return 0;
+      }
+
+      function normalizeRole(role) {
+        if (role === "admin" || role === "teacher" || role === "student") {
+          return role;
+        }
+        return "";
+      }
+
+      function getUserRole(user) {
+        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+        return normalizeRole(role);
+      }
+
+      function updateAuthUI(session) {
+        const status = document.getElementById("authStatus");
+        const form = document.getElementById("authForm");
+        const actions = document.getElementById("authActions");
+        const message = document.getElementById("authMessage");
+        const adminPanel = document.getElementById("adminPanel");
+        const roleLogPanel = document.getElementById("roleLogPanel");
+
+        if (!supabaseClient) {
+          status.textContent = "Supabase未設定";
+          form.classList.add("hidden");
+          return;
+        }
+
+        const user = session && session.user ? session.user : null;
+        if (!user) {
+          state.role = "guest";
+          state.roleRank = 0;
+          status.textContent = "未ログイン";
+          form.classList.remove("hidden");
+          actions.classList.add("hidden");
+          adminPanel.classList.add("hidden");
+          roleLogPanel.classList.add("hidden");
+          return;
+        }
+        const role = getUserRole(user);
+        state.role = role || "unapproved";
+        state.roleRank = roleRank(role);
+        const label =
+          state.role === "unapproved"
+            ? "未承認"
+            : state.role === "student"
+            ? "生徒"
+            : state.role === "teacher"
+            ? "教師"
+            : "管理者";
+        status.textContent = `ログイン中: ${user.email} (${label})`;
+        form.classList.add("hidden");
+        actions.classList.remove("hidden");
+        if (state.roleRank >= 2) {
+          adminPanel.classList.remove("hidden");
+          roleLogPanel.classList.toggle("hidden", state.roleRank < 3);
+          loadUsers();
+        } else {
+          adminPanel.classList.add("hidden");
+          roleLogPanel.classList.add("hidden");
+          message.textContent = "管理画面は教師以上のみ利用できます。";
+        }
+      }
+
+      function buildRoleOptions(current) {
+        const options = [];
+        if (state.roleRank >= 3) {
+          options.push({ value: "", label: "未承認" });
+          options.push({ value: "student", label: "生徒" });
+          options.push({ value: "teacher", label: "教師" });
+          options.push({ value: "admin", label: "管理者" });
+        } else {
+          options.push({ value: "", label: "未承認" });
+          options.push({ value: "student", label: "生徒" });
+        }
+        return options.map(opt => {
+          const selected = opt.value === (current || "");
+          return `<option value="${opt.value}" ${selected ? "selected" : ""}>${opt.label}</option>`;
+        }).join("");
+      }
+
+      function resolveApiUrl(path) {
+        if (API_BASE.endsWith("/api")) {
+          return `${API_BASE}${path}`;
+        }
+        if (API_BASE.includes("127.0.0.1:8001") || API_BASE.includes("localhost:8001")) {
+          return `${API_BASE}/api${path}`;
+        }
+        return `${API_BASE}${path}`;
+      }
+
+      async function apiFetch(path, options) {
+        const session = state.session;
+        const headers = Object.assign({}, (options && options.headers) || {});
+        if (session && session.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
+        return fetch(resolveApiUrl(path), Object.assign({}, options, { headers }));
+      }
+
+      async function loadUsers() {
+        const note = document.getElementById("adminNote");
+        note.textContent = "読み込み中...";
+        try {
+          const resp = await apiFetch(`/admin/users?limit=200&page=1`);
+          const data = await resp.json();
+          if (!data.ok) {
+            note.textContent = data.message || "読み込みに失敗しました。";
+            return;
+          }
+          state.users = data.users || [];
+          note.textContent = `件数: ${state.users.length}`;
+          renderUserList();
+        } catch (err) {
+          note.textContent = "読み込みに失敗しました。";
+        }
+      }
+
+      function renderUserList() {
+        const wrap = document.getElementById("userList");
+        const keyword = (document.getElementById("userSearch").value || "").toLowerCase();
+        wrap.innerHTML = "";
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        thead.innerHTML = "<tr><th>メール</th><th>権限</th><th>無効化</th><th>作成日</th></tr>";
+        table.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        state.users
+          .filter(user => !keyword || (user.email || "").toLowerCase().includes(keyword))
+          .forEach(user => {
+            const row = document.createElement("tr");
+            const email = document.createElement("td");
+            email.textContent = user.email || user.id;
+            row.appendChild(email);
+
+            const roleCell = document.createElement("td");
+            const select = document.createElement("select");
+            select.innerHTML = buildRoleOptions(user.role);
+            select.addEventListener("change", async () => {
+              await apiFetch(`/admin/role`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  user_id: user.id,
+                  role: select.value,
+                  actor_id: state.session?.user?.id || ""
+                })
+              });
+              loadUsers();
+            });
+            roleCell.appendChild(select);
+            row.appendChild(roleCell);
+
+            const disableCell = document.createElement("td");
+            if (state.roleRank >= 3) {
+              const btn = document.createElement("button");
+              btn.textContent = user.disabled ? "解除" : "無効化";
+              btn.addEventListener("click", async () => {
+                await apiFetch(`/admin/disable`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    user_id: user.id,
+                    disabled: !user.disabled,
+                    actor_id: state.session?.user?.id || "",
+                    note: ""
+                  })
+                });
+                loadUsers();
+              });
+              disableCell.appendChild(btn);
+            } else {
+              disableCell.textContent = "-";
+            }
+            row.appendChild(disableCell);
+
+            const created = document.createElement("td");
+            created.textContent = user.created_at ? new Date(user.created_at).toLocaleString() : "";
+            row.appendChild(created);
+
+            tbody.appendChild(row);
+          });
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+      }
+
+      async function loadRoleLog() {
+        const wrap = document.getElementById("roleLogList");
+        wrap.textContent = "読み込み中...";
+        const resp = await apiFetch(`/admin/role_changes?limit=200`);
+        const data = await resp.json();
+        if (!data.ok) {
+          wrap.textContent = data.message || "読み込みに失敗しました。";
+          return;
+        }
+        const items = data.items || [];
+        wrap.innerHTML = items.map(item => {
+          const when = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+          return `<div>${when} ${item.target_user_id} ${item.before_role || "未承認"} → ${item.after_role || "未承認"}</div>`;
+        }).join("");
+      }
+
+      document.getElementById("authLoginBtn").addEventListener("click", async () => {
+        const email = document.getElementById("authEmail").value.trim();
+        const password = document.getElementById("authPassword").value;
+        const message = document.getElementById("authMessage");
+        message.textContent = "";
+        if (!email || !password) {
+          message.textContent = "メールとパスワードを入力してください。";
+          return;
+        }
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error || !data || !data.session) {
+          message.textContent = `ログインに失敗しました。${error ? " " + error.message : ""}`;
+          return;
+        }
+      });
+
+      document.getElementById("authLogoutBtn").addEventListener("click", async () => {
+        await supabaseClient.auth.signOut();
+      });
+
+      document.getElementById("reloadUsers").addEventListener("click", () => {
+        loadUsers();
+      });
+
+      document.getElementById("userSearch").addEventListener("input", () => {
+        renderUserList();
+      });
+
+      document.getElementById("reloadRoleLog").addEventListener("click", () => {
+        loadRoleLog();
+      });
+
+      if (supabaseClient) {
+        supabaseClient.auth.getSession().then(({ data }) => {
+          state.session = data.session;
+          updateAuthUI(data.session);
+        });
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+          state.session = session;
+          updateAuthUI(session);
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -1858,6 +1858,19 @@ class Handler(BaseHTTPRequestHandler):
             payload = build_supabase_answers(limit)
             self._send_json(payload)
             return
+        if parsed.path == "/api/admin/users":
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["200"])[0] or 200)
+            page = int(params.get("page", ["1"])[0] or 1)
+            payload = list_admin_users(limit, page)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/admin/role_changes":
+            params = parse_qs(parsed.query)
+            limit = int(params.get("limit", ["200"])[0] or 200)
+            payload = list_role_changes(limit)
+            self._send_json(payload)
+            return
 
         self.send_response(404)
         self.end_headers()
@@ -1903,6 +1916,23 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/backup":
             message = run_backup(self.server.repo_root)
             self._send_json({"message": message})
+            return
+        if parsed.path == "/api/admin/role":
+            payload = self._read_json()
+            user_id = payload.get("user_id", "")
+            role = payload.get("role", "")
+            actor = payload.get("actor_id", "")
+            result = set_admin_role(user_id, role, actor)
+            self._send_json(result)
+            return
+        if parsed.path == "/api/admin/disable":
+            payload = self._read_json()
+            user_id = payload.get("user_id", "")
+            disabled = bool(payload.get("disabled"))
+            note = payload.get("note", "")
+            actor = payload.get("actor_id", "")
+            result = set_user_disabled(user_id, disabled, note, actor)
+            self._send_json(result)
             return
         parsed = urlparse(self.path)
         if parsed.path == "/api/import/explanations_text":
@@ -3498,6 +3528,122 @@ def list_teacher_requests_supabase(status, limit):
     except json.JSONDecodeError:
         rows = []
     return {"count": len(rows), "items": rows}
+
+
+def list_admin_users(limit, page):
+    payload, error = supabase_admin_request(
+        "GET", f"users?page={page}&per_page={limit}"
+    )
+    if error:
+        return {"ok": False, "message": error, "users": []}
+    try:
+        data = json.loads(payload or "{}")
+    except json.JSONDecodeError:
+        data = {}
+    users = data.get("users", []) if isinstance(data, dict) else []
+    flags = fetch_user_flags()
+    items = []
+    for user in users:
+        if not isinstance(user, dict):
+            continue
+        uid = user.get("id") or ""
+        role = (user.get("app_metadata") or {}).get("role") or ""
+        items.append(
+            {
+                "id": uid,
+                "email": user.get("email") or "",
+                "role": role,
+                "created_at": user.get("created_at") or "",
+                "last_sign_in_at": user.get("last_sign_in_at") or "",
+                "disabled": bool(flags.get(uid, {}).get("disabled")),
+            }
+        )
+    return {"ok": True, "count": len(items), "users": items}
+
+
+def fetch_user_flags():
+    rows, error = fetch_supabase_rows(
+        "user_flags", "user_id,disabled,note,updated_at", 10000
+    )
+    if error or not rows:
+        return {}
+    flags = {}
+    for row in rows:
+        uid = row.get("user_id") or ""
+        if uid:
+            flags[uid] = row
+    return flags
+
+
+def list_role_changes(limit):
+    rows, error = fetch_supabase_rows(
+        "role_changes",
+        "id,target_user_id,before_role,after_role,changed_by,created_at",
+        limit,
+    )
+    if error:
+        return {"ok": False, "message": error, "items": []}
+    return {"ok": True, "items": rows or []}
+
+
+def set_admin_role(user_id, role, actor_id):
+    if not user_id:
+        return {"ok": False, "message": "user_id が必要です。"}
+    role_value = role if role in ("student", "teacher", "admin") else ""
+    before_role = ""
+    payload, error = supabase_admin_request("GET", f"users/{quote(user_id)}")
+    if not error and payload:
+        try:
+            data = json.loads(payload or "{}")
+        except json.JSONDecodeError:
+            data = {}
+        before_role = (data.get("app_metadata") or {}).get("role") or ""
+    _, update_error = supabase_admin_request(
+        "PUT",
+        f"users/{quote(user_id)}",
+        {"app_metadata": {"role": role_value}},
+    )
+    if update_error:
+        return {"ok": False, "message": update_error}
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    supabase_request(
+        "POST",
+        "role_changes",
+        "",
+        {
+            "target_user_id": user_id,
+            "before_role": before_role or None,
+            "after_role": role_value or None,
+            "changed_by": actor_id or None,
+            "created_at": now,
+        },
+    )
+    return {"ok": True, "message": "権限を更新しました。"}
+
+
+def set_user_disabled(user_id, disabled, note, actor_id):
+    if not user_id:
+        return {"ok": False, "message": "user_id が必要です。"}
+    query = f"?user_id=eq.{quote(user_id)}"
+    supabase_request("DELETE", "user_flags", query)
+    if not disabled:
+        return {"ok": True, "message": "無効化を解除しました。"}
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    _, error = supabase_request(
+        "POST",
+        "user_flags",
+        "",
+        {
+            "user_id": user_id,
+            "disabled": True,
+            "note": note or "",
+            "updated_at": now,
+            "updated_by": actor_id or None,
+        },
+    )
+    if error:
+        return {"ok": False, "message": error}
+    return {"ok": True, "message": "無効化しました。"}
 
 
 def approve_teacher_requests(items):
