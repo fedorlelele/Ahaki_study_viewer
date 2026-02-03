@@ -155,6 +155,32 @@ def load_explanation_update_log(conn):
     return [{"date": row[0], "count": row[1]} for row in rows]
 
 
+def load_deep_dive(conn):
+    try:
+        rows = conn.execute(
+            """
+            SELECT serial, explanation, tags_json, updated_at
+            FROM deep_dive_explanations
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    data = {}
+    for serial, explanation, tags_json, updated_at in rows:
+        tags = []
+        if tags_json:
+            try:
+                tags = json.loads(tags_json)
+            except json.JSONDecodeError:
+                tags = []
+        data[serial] = {
+            "explanation": explanation or "",
+            "tags": tags or [],
+            "updated_at": updated_at or "",
+        }
+    return data
+
+
 def resolve_answer_meta(record):
     indices = []
     answer_none = False
@@ -251,6 +277,7 @@ def main():
     explanations = load_explanations(conn)
     tags = load_tags(conn)
     subtopics = load_subtopics(conn)
+    deep_dive = load_deep_dive(conn)
     update_log = load_explanation_update_log(conn)
     conn.close()
 
@@ -281,6 +308,7 @@ def main():
             "explanations": exp_list_sorted,
             "tags": tags.get(qid, []),
             "subtopics": subtopics.get(qid, []),
+            "deep_dive": deep_dive.get(q["serial"]) or None,
         }
         output.append(record)
 

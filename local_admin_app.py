@@ -198,6 +198,7 @@ HTML_PAGE = """<!doctype html>
         <label>Supabase差分の同期（updated_at 以降）</label>
         <input id="syncSince" type="text" placeholder="例: 2026-01-12T00:00:00Z" />
         <button id="syncOverrides">Supabase差分をSQLiteに同期</button>
+        <button id="syncDeepDive">深掘り解説をSQLiteに同期</button>
       </div>
       <pre id="buildResult"></pre>
     </div>
@@ -711,6 +712,18 @@ HTML_PAGE = """<!doctype html>
         const endpoint = since
           ? "/api/sync/overrides?since=" + encodeURIComponent(since)
           : "/api/sync/overrides";
+        const resp = await fetch(endpoint, { method: "POST" });
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("syncDeepDive").addEventListener("click", async () => {
+        const result = document.getElementById("buildResult");
+        const since = document.getElementById("syncSince").value.trim();
+        result.textContent = "同期中...";
+        const endpoint = since
+          ? "/api/sync/deep_dive?since=" + encodeURIComponent(since)
+          : "/api/sync/deep_dive";
         const resp = await fetch(endpoint, { method: "POST" });
         const data = await resp.json();
         result.textContent = data.message || "完了しました。";
@@ -1990,6 +2003,12 @@ class Handler(BaseHTTPRequestHandler):
             result = sync_supabase_overrides(self.server.db_path, since)
             self._send_json(result)
             return
+        if parsed.path == "/api/sync/deep_dive":
+            params = parse_qs(parsed.query)
+            since = (params.get("since", [""])[0] or "").strip()
+            result = sync_supabase_deep_dive(self.server.db_path, since)
+            self._send_json(result)
+            return
 
         if parsed.path == "/api/import/downloads":
             params = parse_qs(parsed.query)
@@ -2978,6 +2997,33 @@ def fetch_supabase_overrides(since=None, limit=500):
     return rows, ""
 
 
+def fetch_supabase_deep_dive(since=None, limit=500):
+    cfg = supabase_config()
+    if not cfg:
+        return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    select = "serial,explanation,tags,updated_at,created_by"
+    offset = 0
+    rows = []
+    while True:
+        query = (
+            f"?select={quote(select)}&order=updated_at.asc&limit={limit}"
+            f"&offset={offset}"
+        )
+        if since:
+            query += f"&updated_at=gte.{quote(since)}"
+        payload, error = supabase_request("GET", "deep_dive_explanations", query)
+        if error:
+            return None, error
+        batch = json.loads(payload) if payload else []
+        if not batch:
+            break
+        rows.extend(batch)
+        if len(batch) < limit:
+            break
+        offset += limit
+    return rows, ""
+
+
 def mark_supabase_overrides_synced(serials, synced_at):
     if not serials:
         return "", ""
@@ -3154,6 +3200,61 @@ def sync_supabase_overrides(db_path, since):
     return {
         "message": "Supabase差分を同期しました。",
         "counts": counts,
+        "since": since or "",
+    }
+
+
+def sync_supabase_deep_dive(db_path, since):
+    rows, error = fetch_supabase_deep_dive(since or None)
+    if error:
+        return {"message": error, "counts": {}}
+    if not rows:
+        return {"message": "深掘り解説の差分はありません。", "counts": {}}
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS deep_dive_explanations (
+          serial TEXT PRIMARY KEY,
+          explanation TEXT,
+          tags_json TEXT,
+          updated_at TEXT,
+          created_by TEXT
+        )
+        """
+    )
+    cursor = conn.cursor()
+    inserted = 0
+    updated = 0
+    for row in rows:
+        serial = row.get("serial") or ""
+        if not serial:
+            continue
+        explanation = row.get("explanation") or ""
+        tags_json = json.dumps(row.get("tags") or [], ensure_ascii=False)
+        updated_at = row.get("updated_at") or ""
+        created_by = row.get("created_by") or ""
+        cursor.execute(
+            """
+            INSERT INTO deep_dive_explanations
+              (serial, explanation, tags_json, updated_at, created_by)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(serial) DO UPDATE SET
+              explanation=excluded.explanation,
+              tags_json=excluded.tags_json,
+              updated_at=excluded.updated_at,
+              created_by=excluded.created_by
+            """,
+            (serial, explanation, tags_json, updated_at, created_by),
+        )
+        if cursor.rowcount == 1:
+            inserted += 1
+        else:
+            updated += 1
+    conn.commit()
+    conn.close()
+    return {
+        "message": f"深掘り解説を同期しました。新規 {inserted} 件 / 更新 {updated} 件",
+        "counts": {"inserted": inserted, "updated": updated},
         "since": since or "",
     }
 

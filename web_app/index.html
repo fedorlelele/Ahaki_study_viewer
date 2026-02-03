@@ -1910,45 +1910,29 @@
             deepDiveBody.textContent = explanationText || "";
             deepDiveTags.textContent = "";
             (tags || []).forEach(tag => {
-              const chip = document.createElement("span");
+              const chip = document.createElement("button");
               chip.className = "chip-link";
               chip.textContent = tag;
+              chip.setAttribute("aria-label", `タグ ${tag} で絞り込み`);
+              chip.addEventListener("click", () => {
+                applyFilters({ keyword: `#${tag}` });
+              });
               deepDiveTags.appendChild(chip);
             });
           };
 
-          const deepDiveViewBtn = document.createElement("button");
-          deepDiveViewBtn.textContent = "深掘り解説を見る";
-          deepDiveViewBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
-          deepDiveViewBtn.addEventListener("click", async () => {
-            if (!window.AI_API_BASE) {
-              alert("AI_API_BASE が設定されていません。");
-              return;
-            }
-            showDeepDivePanel();
-            deepDiveStatus.textContent = "読み込み中...";
-            deepDiveBody.textContent = "";
-            deepDiveTags.textContent = "";
-            try {
-              const resp = await fetch(
-                `${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`
-              );
-              if (!resp.ok) {
-                const errorText = await resp.text();
-                throw new Error(errorText || "API error");
-              }
-              const payload = await resp.json();
-              if (!payload.found) {
-                deepDiveStatus.textContent = "まだ保存された深掘り解説はありません。";
-                return;
-              }
-              renderDeepDive(payload.data?.explanation || "", payload.data?.tags || []);
-            } catch (err) {
-              deepDiveStatus.textContent = "読み込みに失敗しました。";
-              deepDiveBody.textContent = String(err || "");
-            }
-          });
-          actions.appendChild(deepDiveViewBtn);
+          const hasDeepDive =
+            q.deep_dive &&
+            (q.deep_dive.explanation || (q.deep_dive.tags || []).length);
+          if (hasDeepDive) {
+            const deepDiveViewBtn = document.createElement("button");
+            deepDiveViewBtn.textContent = "深掘り解説を見る";
+            deepDiveViewBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
+            deepDiveViewBtn.addEventListener("click", () => {
+              renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || []);
+            });
+            actions.appendChild(deepDiveViewBtn);
+          }
 
           if (isRoleAtLeast("admin")) {
             const deepDiveGenBtn = document.createElement("button");
@@ -2002,9 +1986,13 @@
                 deepDiveBody.textContent = parsed.explanation || text || "";
                 deepDiveTags.textContent = "";
                 (parsed.tags || []).forEach(tag => {
-                  const chip = document.createElement("span");
+                  const chip = document.createElement("button");
                   chip.className = "chip-link";
                   chip.textContent = tag;
+                  chip.setAttribute("aria-label", `タグ ${tag} で絞り込み`);
+                  chip.addEventListener("click", () => {
+                    applyFilters({ keyword: `#${tag}` });
+                  });
                   deepDiveTags.appendChild(chip);
                 });
               } catch (err) {
