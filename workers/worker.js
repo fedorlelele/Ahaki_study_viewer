@@ -78,19 +78,33 @@ async function handleAdmin(request, env) {
 }
 
 async function handleAi(request, env) {
+  const url = new URL(request.url);
+  const path = url.pathname;
+  if (request.method === "GET" && path === "/ai/deep_dive") {
+    const serial = (url.searchParams.get("serial") || "").trim();
+    if (!serial) {
+      return jsonResponse({ message: "serial is required" }, 400);
+    }
+    return fetchDeepDive(env, serial);
+  }
+
   if (request.method !== "POST") {
     return jsonResponse({ message: "Method not allowed" }, 405);
   }
   const user = await authenticate(request, env);
   if (!user) return jsonResponse({ message: "Unauthorized" }, 401);
   const role = getRole(user);
-  if (!isRoleAtLeast(role, "student")) {
+  if (!isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
   const body = await readJson(request);
   const prompt = (body.prompt || "").trim();
+  const serial = (body.serial || "").trim();
   if (!prompt) {
     return jsonResponse({ message: "Prompt is required" }, 400);
+  }
+  if (!serial) {
+    return jsonResponse({ message: "serial is required" }, 400);
   }
   const model = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
   const limit = await checkRateLimit(env, user.id);
@@ -120,7 +134,14 @@ async function handleAi(request, env) {
   const data = await resp.json();
   const text =
     data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
-  return jsonResponse({ text });
+  const parsed = parseDeepDive(text);
+  await upsertDeepDive(env, {
+    serial,
+    explanation: parsed.explanation || "",
+    tags: parsed.tags || [],
+    created_by: user.id || null
+  });
+  return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags });
 }
 
 async function authenticate(request, env) {
@@ -155,6 +176,68 @@ function roleRank(role) {
   if (role === "teacher") return 2;
   if (role === "student") return 1;
   return 0;
+}
+
+function parseDeepDive(text) {
+  if (!text) return { explanation: "", tags: [] };
+  try {
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}");
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      const json = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      const tags = Array.isArray(json.tags)
+        ? json.tags.map(tag => String(tag).trim()).filter(Boolean)
+        : [];
+      return { explanation: json.explanation || "", tags };
+    }
+  } catch (_err) {
+    // fall through
+  }
+  return { explanation: text, tags: [] };
+}
+
+async function fetchDeepDive(env, serial) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial,explanation,tags,updated_at&serial=eq.${encodeURIComponent(serial)}&limit=1`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json();
+  if (!rows || !rows.length) {
+    return jsonResponse({ ok: true, found: false });
+  }
+  const row = rows[0];
+  return jsonResponse({ ok: true, found: true, data: row });
+}
+
+async function upsertDeepDive(env, record) {
+  const now = new Date().toISOString();
+  const payload = {
+    serial: record.serial,
+    explanation: record.explanation || "",
+    tags: record.tags || [],
+    updated_at: now,
+    created_by: record.created_by || null
+  };
+  await fetch(`${env.SUPABASE_URL}/rest/v1/deep_dive_explanations`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates"
+    },
+    body: JSON.stringify(payload)
+  });
 }
 
 async function listUsers(env, page, limit) {

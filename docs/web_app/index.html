@@ -228,6 +228,25 @@
         gap: 8px;
         margin-top: 8px;
       }
+      .deep-dive-panel {
+        margin-top: 12px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .deep-dive-panel pre {
+        white-space: pre-wrap;
+        margin: 8px 0 0;
+      }
+      .deep-dive-tags {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
       .proposal-label {
         font-weight: 600;
         margin-right: 6px;
@@ -811,6 +830,33 @@
         currentRole: "guest",
         roleRank: 0
       };
+
+      function normalizeRole(role) {
+        if (role === "admin" || role === "teacher" || role === "student") {
+          return role;
+        }
+        return "";
+      }
+
+      function getUserRole(user) {
+        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+        return normalizeRole(role);
+      }
+
+      function roleRank(role) {
+        if (role === "admin") return 3;
+        if (role === "teacher") return 2;
+        if (role === "student") return 1;
+        return 0;
+      }
+
+      function isRoleAtLeast(role) {
+        return state.roleRank >= roleRank(role);
+      }
+
+      function isTeacherUser(user) {
+        return roleRank(getUserRole(user)) >= 2;
+      }
 
       function normalizeAscii(text) {
         return (text || "")
@@ -1844,6 +1890,132 @@
             copyToClipboard(text);
           });
           actions.appendChild(deepDiveBtn);
+          const deepDivePanel = document.createElement("div");
+          deepDivePanel.className = "deep-dive-panel";
+          deepDivePanel.hidden = true;
+          const deepDiveStatus = document.createElement("div");
+          deepDiveStatus.className = "note";
+          deepDivePanel.appendChild(deepDiveStatus);
+          const deepDiveBody = document.createElement("pre");
+          deepDivePanel.appendChild(deepDiveBody);
+          const deepDiveTags = document.createElement("div");
+          deepDiveTags.className = "deep-dive-tags";
+          deepDivePanel.appendChild(deepDiveTags);
+          const showDeepDivePanel = () => {
+            deepDivePanel.hidden = false;
+          };
+          const renderDeepDive = (explanationText, tags) => {
+            showDeepDivePanel();
+            deepDiveStatus.textContent = "保存済みの深掘り解説";
+            deepDiveBody.textContent = explanationText || "";
+            deepDiveTags.textContent = "";
+            (tags || []).forEach(tag => {
+              const chip = document.createElement("span");
+              chip.className = "chip-link";
+              chip.textContent = tag;
+              deepDiveTags.appendChild(chip);
+            });
+          };
+
+          const deepDiveViewBtn = document.createElement("button");
+          deepDiveViewBtn.textContent = "深掘り解説を見る";
+          deepDiveViewBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
+          deepDiveViewBtn.addEventListener("click", async () => {
+            if (!window.AI_API_BASE) {
+              alert("AI_API_BASE が設定されていません。");
+              return;
+            }
+            showDeepDivePanel();
+            deepDiveStatus.textContent = "読み込み中...";
+            deepDiveBody.textContent = "";
+            deepDiveTags.textContent = "";
+            try {
+              const resp = await fetch(
+                `${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`
+              );
+              if (!resp.ok) {
+                const errorText = await resp.text();
+                throw new Error(errorText || "API error");
+              }
+              const payload = await resp.json();
+              if (!payload.found) {
+                deepDiveStatus.textContent = "まだ保存された深掘り解説はありません。";
+                return;
+              }
+              renderDeepDive(payload.data?.explanation || "", payload.data?.tags || []);
+            } catch (err) {
+              deepDiveStatus.textContent = "読み込みに失敗しました。";
+              deepDiveBody.textContent = String(err || "");
+            }
+          });
+          actions.appendChild(deepDiveViewBtn);
+
+          if (isRoleAtLeast("admin")) {
+            const deepDiveGenBtn = document.createElement("button");
+            deepDiveGenBtn.textContent = "深掘り解説を生成（管理者）";
+            deepDiveGenBtn.setAttribute(
+              "aria-label",
+              "深掘り解説と関連タグを生成（管理者限定）"
+            );
+            deepDiveGenBtn.addEventListener("click", async () => {
+              if (!window.AI_API_BASE) {
+                alert("AI_API_BASE が設定されていません。");
+                return;
+              }
+              if (!supabaseClient) {
+                alert("Supabaseが設定されていません。");
+                return;
+              }
+              const { data } = await supabaseClient.auth.getSession();
+              const session = data && data.session ? data.session : null;
+              if (!session || !session.access_token) {
+                alert("管理者ログインが必要です。");
+                return;
+              }
+              showDeepDivePanel();
+              deepDiveStatus.textContent = "生成中...";
+              deepDiveBody.textContent = "";
+              deepDiveTags.textContent = "";
+              deepDiveGenBtn.disabled = true;
+              try {
+                const prompt = buildDeepDiveApiPrompt(q, expText);
+                const resp = await fetch(`${window.AI_API_BASE}/ai/deep_dive`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${session.access_token}`
+                  },
+                  body: JSON.stringify({
+                    serial: q.serial,
+                    prompt,
+                    model: "gemini-3-flash-preview"
+                  })
+                });
+                if (!resp.ok) {
+                  const errorText = await resp.text();
+                  throw new Error(errorText || "API error");
+                }
+                const payload = await resp.json();
+                const text = (payload && payload.text) || "";
+                const parsed = parseDeepDiveResponse(text);
+                deepDiveStatus.textContent = "生成完了";
+                deepDiveBody.textContent = parsed.explanation || text || "";
+                deepDiveTags.textContent = "";
+                (parsed.tags || []).forEach(tag => {
+                  const chip = document.createElement("span");
+                  chip.className = "chip-link";
+                  chip.textContent = tag;
+                  deepDiveTags.appendChild(chip);
+                });
+              } catch (err) {
+                deepDiveStatus.textContent = "生成に失敗しました。";
+                deepDiveBody.textContent = String(err || "");
+              } finally {
+                deepDiveGenBtn.disabled = false;
+              }
+            });
+            actions.appendChild(deepDiveGenBtn);
+          }
           const retryBtn = document.createElement("button");
           retryBtn.textContent = "再回答";
           retryBtn.className = "retry-btn";
@@ -1859,6 +2031,7 @@
           });
           actions.appendChild(retryBtn);
           card.appendChild(actions);
+          card.appendChild(deepDivePanel);
 
           target.appendChild(card);
         }
@@ -2222,33 +2395,6 @@
           }
           message.textContent = "ログアウトしました。";
         });
-
-        function normalizeRole(role) {
-          if (role === "admin" || role === "teacher" || role === "student") {
-            return role;
-          }
-          return "";
-        }
-
-        function getUserRole(user) {
-          const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
-          return normalizeRole(role);
-        }
-
-        function roleRank(role) {
-          if (role === "admin") return 3;
-          if (role === "teacher") return 2;
-          if (role === "student") return 1;
-          return 0;
-        }
-
-        function isRoleAtLeast(role) {
-          return state.roleRank >= roleRank(role);
-        }
-
-        function isTeacherUser(user) {
-          return roleRank(getUserRole(user)) >= 2;
-        }
 
       function updateAuthUI(session) {
         const user = session && session.user ? session.user : null;
@@ -4021,6 +4167,70 @@
           lines.push(`解答　${answerLabel}`);
         }
         return lines.filter(Boolean).join("\n");
+      }
+
+      function buildDeepDiveApiPrompt(q, explanationText) {
+        const lines = [];
+        lines.push("あなたは医療系国家試験の深掘り解説生成AIです。");
+        lines.push(
+          "以下の情報をもとに、学習者の理解が深まり「なぜそうなるか」が腑に落ちるように、段階的に詳しく掘り下げた解説を作成してください。"
+        );
+        lines.push("");
+        lines.push("【入力】");
+        lines.push("症例文:");
+        lines.push(q.case_text ? q.case_text : "（なし）");
+        lines.push("");
+        lines.push("問題文:");
+        lines.push(q.stem || "");
+        lines.push("");
+        lines.push("選択肢:");
+        (q.choices || []).forEach((choice, idx) => {
+          lines.push(`${idx + 1}. ${choice}`);
+        });
+        lines.push("");
+        lines.push("既存解説:");
+        lines.push(explanationText || "（なし）");
+        lines.push("");
+        lines.push("【出力形式（厳守）】");
+        lines.push("深掘り解説:");
+        lines.push("- Level 1: 直感的で短い要点（初学者向け）");
+        lines.push("- Level 2: 病態・原因・根拠を丁寧に説明（中級）");
+        lines.push("- Level 3: 鑑別、関連疾患、臨床応用、周辺知識（上級）");
+        lines.push("- Level 4: よくある誤解や落とし穴、試験の引っかけポイント（発展）");
+        lines.push("");
+        lines.push("関連タグ:");
+        lines.push("- タグ1");
+        lines.push("- タグ2");
+        lines.push("- タグ3");
+        lines.push("");
+        lines.push("【ルール】");
+        lines.push("- 既存解説と矛盾しないこと");
+        lines.push("- 説明は長くても良い（疑問が解決し、興味が持てる内容を優先）");
+        lines.push("- 試験で問われやすい観点を盛り込むこと");
+        lines.push("- 余計な断定を避け、根拠や理由を言語化すること");
+        lines.push("- タグは8〜15個程度、具体的な医学用語で");
+        lines.push("");
+        lines.push("出力は次のJSONのみを返してください。");
+        lines.push("{\"explanation\":\"...\",\"tags\":[\"...\",\"...\"]}");
+        return lines.join("\n");
+      }
+
+      function parseDeepDiveResponse(text) {
+        if (!text) return { explanation: "", tags: [] };
+        try {
+          const jsonStart = text.indexOf("{");
+          const jsonEnd = text.lastIndexOf("}");
+          if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            const json = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+            const tags = Array.isArray(json.tags)
+              ? json.tags.map(tag => String(tag).trim()).filter(Boolean)
+              : [];
+            return { explanation: json.explanation || "", tags };
+          }
+        } catch (_err) {
+          // fall through
+        }
+        return { explanation: text, tags: [] };
       }
 
       function copyToClipboard(text) {
