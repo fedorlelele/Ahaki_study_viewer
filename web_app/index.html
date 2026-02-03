@@ -746,15 +746,11 @@
           <input id="sessionTo" type="number" min="1" placeholder="回数To" aria-label="試験回数の終了" />
         </div>
         <div class="row">
-          <label><input type="checkbox" id="hasExplanation" /> 解説あり</label>
-          <label><input type="checkbox" id="hasTags" /> タグあり</label>
-          <label><input type="checkbox" id="hasSubtopics" /> 小項目あり</label>
           <label><input type="checkbox" id="onlyFrequent" /> 頻出のみ</label>
         </div>
         <div class="row">
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
           <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
-          <button id="resetAnswersBtn" aria-label="回答履歴をリセット">回答履歴をリセット</button>
         </div>
         <div class="row">
           <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
@@ -1044,9 +1040,9 @@
         const sessionFromRaw = document.getElementById("sessionFrom").value;
         const sessionToRaw = document.getElementById("sessionTo").value;
         const sortSession = document.getElementById("sortSession").value;
-        const needExplanation = document.getElementById("hasExplanation").checked;
-        const needTags = document.getElementById("hasTags").checked;
-        const needSubtopics = document.getElementById("hasSubtopics").checked;
+        const needExplanation = false;
+        const needTags = false;
+        const needSubtopics = false;
         const onlyFrequent = document.getElementById("onlyFrequent").checked;
         const showAnswered = document.getElementById("showAnswered").checked;
         const sessionFrom = sessionFromRaw ? Number(sessionFromRaw) : null;
@@ -1085,9 +1081,7 @@
         if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
         if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
           if (!showAnswered && hasAnswered(effective.serial)) return false;
-          if (needExplanation && !(effective.explanation_latest || "").trim()) return false;
-          if (needTags && !(effective.tags || []).length) return false;
-          if (needSubtopics && !(effective.subtopics || []).length) return false;
+          // filters removed (all questions are populated)
           if (onlyFrequent && !(Number(effective.frequent_level) > 0)) return false;
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
           if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
@@ -2123,9 +2117,6 @@
           document.getElementById("sessionTo").value = "";
           document.getElementById("sortSession").value = "desc";
           document.getElementById("showAnswered").checked = false;
-          document.getElementById("hasExplanation").checked = false;
-          document.getElementById("hasTags").checked = false;
-          document.getElementById("hasSubtopics").checked = false;
           document.getElementById("onlyFrequent").checked = false;
           updateSubtopicOptions("");
           renderResults(filterQuestions());
@@ -2162,15 +2153,6 @@
           saveTagVisibility();
           renderResults(filterQuestions());
         });
-        document.getElementById("hasExplanation").addEventListener("change", () => {
-          renderResults(filterQuestions());
-        });
-        document.getElementById("hasTags").addEventListener("change", () => {
-          renderResults(filterQuestions());
-        });
-        document.getElementById("hasSubtopics").addEventListener("change", () => {
-          renderResults(filterQuestions());
-        });
         document.getElementById("onlyFrequent").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
@@ -2200,15 +2182,6 @@
         copyToClipboard(`${header}\n\n${body}`.trim());
       });
 
-      document.getElementById("resetAnswersBtn").addEventListener("click", () => {
-        if (!confirm("回答履歴をリセットしますか？")) {
-          return;
-        }
-        state.answeredMap = {};
-        clearSessionAnswer();
-        localStorage.removeItem("answeredSerials");
-        renderResults(filterQuestions());
-      });
 
         document.getElementById("keyword").addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
