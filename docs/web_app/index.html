@@ -746,7 +746,7 @@
           <input id="sessionTo" type="number" min="1" placeholder="回数To" aria-label="試験回数の終了" />
         </div>
         <div class="row">
-          <label><input type="checkbox" id="onlyFrequent" /> 頻出のみ</label>
+          <label><input type="checkbox" id="onlyDeepDive" /> 深掘り解説あり</label>
         </div>
         <div class="row">
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
@@ -825,6 +825,8 @@
         disabledTags: new Set(),
         currentRole: "guest",
         roleRank: 0
+        ,deepDiveSerials: new Set()
+        ,deepDiveSerialsLoaded: false
       };
 
       function normalizeRole(role) {
@@ -931,6 +933,23 @@
           })
           .catch(() => {
             state.updateLog = [];
+          });
+      }
+
+      function loadDeepDiveSerials() {
+        if (!window.AI_API_BASE) {
+          state.deepDiveSerialsLoaded = true;
+          return Promise.resolve();
+        }
+        return fetch(`${window.AI_API_BASE}/ai/deep_dive_index`)
+          .then(r => (r.ok ? r.json() : { serials: [] }))
+          .then(data => {
+            const serials = Array.isArray(data.serials) ? data.serials : [];
+            state.deepDiveSerials = new Set(serials);
+            state.deepDiveSerialsLoaded = true;
+          })
+          .catch(() => {
+            state.deepDiveSerialsLoaded = true;
           });
       }
 
@@ -1043,7 +1062,7 @@
         const needExplanation = false;
         const needTags = false;
         const needSubtopics = false;
-        const onlyFrequent = document.getElementById("onlyFrequent").checked;
+        const onlyDeepDive = document.getElementById("onlyDeepDive").checked;
         const showAnswered = document.getElementById("showAnswered").checked;
         const sessionFrom = sessionFromRaw ? Number(sessionFromRaw) : null;
         const sessionTo = sessionToRaw ? Number(sessionToRaw) : null;
@@ -1082,7 +1101,15 @@
         if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
           if (!showAnswered && hasAnswered(effective.serial)) return false;
           // filters removed (all questions are populated)
-          if (onlyFrequent && !(Number(effective.frequent_level) > 0)) return false;
+          if (
+            onlyDeepDive &&
+            !(
+              (effective.deep_dive &&
+                (effective.deep_dive.explanation || (effective.deep_dive.tags || []).length)) ||
+              state.deepDiveSerials.has(effective.serial)
+            )
+          )
+            return false;
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
           if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
           if (!terms.length) return true;
@@ -1916,14 +1943,37 @@
           };
 
           const hasDeepDive =
-            q.deep_dive &&
-            (q.deep_dive.explanation || (q.deep_dive.tags || []).length);
+            (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) ||
+            state.deepDiveSerials.has(q.serial);
           if (hasDeepDive) {
             const deepDiveViewBtn = document.createElement("button");
             deepDiveViewBtn.textContent = "深掘り解説を見る";
             deepDiveViewBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
             deepDiveViewBtn.addEventListener("click", () => {
-              renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || []);
+              if (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) {
+                renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || []);
+                return;
+              }
+              if (!window.AI_API_BASE) {
+                alert("AI_API_BASE が設定されていません。");
+                return;
+              }
+              showDeepDivePanel();
+              deepDiveStatus.textContent = "読み込み中...";
+              deepDiveBody.textContent = "";
+              deepDiveTags.textContent = "";
+              fetch(`${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`)
+                .then(r => (r.ok ? r.json() : Promise.reject(r)))
+                .then(payload => {
+                  if (!payload.found) {
+                    deepDiveStatus.textContent = "まだ保存された深掘り解説はありません。";
+                    return;
+                  }
+                  renderDeepDive(payload.data?.explanation || "", payload.data?.tags || []);
+                })
+                .catch(() => {
+                  deepDiveStatus.textContent = "読み込みに失敗しました。";
+                });
             });
             actions.appendChild(deepDiveViewBtn);
           }
@@ -2078,7 +2128,7 @@
             renderUpdateLog(3);
           }
         });
-        Promise.all([loadData(), loadDisabledTags()]).then(() => {
+        Promise.all([loadData(), loadDisabledTags(), loadDeepDiveSerials()]).then(() => {
           computeFrequentScores();
           populateSelect(
             document.getElementById("subjectSelect"),
@@ -2153,7 +2203,7 @@
           saveTagVisibility();
           renderResults(filterQuestions());
         });
-        document.getElementById("onlyFrequent").addEventListener("change", () => {
+        document.getElementById("onlyDeepDive").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
         document.getElementById("toggleAnswer").addEventListener("change", () => {

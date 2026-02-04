@@ -80,6 +80,9 @@ async function handleAdmin(request, env) {
 async function handleAi(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
+  if (request.method === "GET" && path === "/ai/deep_dive_index") {
+    return fetchDeepDiveIndex(env);
+  }
   if (request.method === "GET" && path === "/ai/deep_dive") {
     const serial = (url.searchParams.get("serial") || "").trim();
     if (!serial) {
@@ -217,6 +220,26 @@ async function fetchDeepDive(env, serial) {
   }
   const row = rows[0];
   return jsonResponse({ ok: true, found: true, data: row });
+}
+
+async function fetchDeepDiveIndex(env) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json();
+  const serials = Array.isArray(rows) ? rows.map(row => row.serial).filter(Boolean) : [];
+  return jsonResponse({ serials });
 }
 
 async function upsertDeepDive(env, record) {
