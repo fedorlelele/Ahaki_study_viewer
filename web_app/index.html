@@ -28,9 +28,34 @@
         color: var(--ink);
         background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
         min-height: 100vh;
+        padding-top: 68px;
       }
       header {
-        padding: 28px 24px 10px;
+        padding: 16px 24px 10px;
+      }
+      .top-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: #fff;
+        border-bottom: 2px solid var(--line);
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+      }
+      .site-title {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: 0.3px;
+      }
+      .top-nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
       .header-row {
         display: flex;
@@ -624,10 +649,14 @@
   </head>
   <body>
     <header>
-      <div class="header-row">
-        <h1>Ahaki Study Viewer</h1>
-        <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
+      <div class="top-nav">
+        <h1 class="site-title">Ahaki Study Viewer</h1>
+        <div class="top-nav-actions">
+          <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
+          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="true">メニュー</button>
+        </div>
       </div>
+      <div id="topMenuContent">
       <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
       <div class="subtitle"><a href="./simple.html">かんたんビューを開く</a></div>
       <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
@@ -702,6 +731,7 @@
           <div id="disabledTagList"></div>
         </div>
       </details>
+      </div>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -2139,6 +2169,15 @@
         });
 
         initAuthUI();
+        const menuToggleBtn = document.getElementById("menuToggleBtn");
+        const topMenuContent = document.getElementById("topMenuContent");
+        if (menuToggleBtn && topMenuContent) {
+          menuToggleBtn.addEventListener("click", () => {
+            const nextHidden = !topMenuContent.hidden;
+            topMenuContent.hidden = nextHidden;
+            menuToggleBtn.setAttribute("aria-expanded", nextHidden ? "false" : "true");
+          });
+        }
         if (updateInfo) {
           updateInfo.addEventListener("toggle", () => {
             if (updateInfo.open) {
