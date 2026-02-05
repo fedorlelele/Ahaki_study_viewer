@@ -181,6 +181,35 @@ def load_deep_dive(conn):
     return data
 
 
+def load_question_qa(conn):
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, serial, question, answer, view_count, like_count, created_at
+            FROM question_qa
+            WHERE status = 'ok'
+            ORDER BY like_count DESC, view_count DESC, created_at DESC
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    data = {}
+    for qa_id, serial, question, answer, view_count, like_count, created_at in rows:
+        if not serial:
+            continue
+        data.setdefault(serial, []).append(
+            {
+                "id": qa_id,
+                "question": question or "",
+                "answer": answer or "",
+                "view_count": int(view_count or 0),
+                "like_count": int(like_count or 0),
+                "created_at": created_at or "",
+            }
+        )
+    return data
+
+
 def resolve_answer_meta(record):
     indices = []
     answer_none = False
@@ -278,6 +307,7 @@ def main():
     tags = load_tags(conn)
     subtopics = load_subtopics(conn)
     deep_dive = load_deep_dive(conn)
+    qa_map = load_question_qa(conn)
     update_log = load_explanation_update_log(conn)
     conn.close()
 
@@ -309,6 +339,7 @@ def main():
             "tags": tags.get(qid, []),
             "subtopics": subtopics.get(qid, []),
             "deep_dive": deep_dive.get(q["serial"]) or None,
+            "qa_list": qa_map.get(q["serial"], []),
         }
         output.append(record)
 

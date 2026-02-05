@@ -83,6 +83,29 @@ async function handleAi(request, env) {
   if (request.method === "GET" && path === "/ai/deep_dive_index") {
     return fetchDeepDiveIndex(env);
   }
+  if (path === "/ai/question_qa") {
+    if (request.method === "GET") {
+      const serial = (url.searchParams.get("serial") || "").trim();
+      if (!serial) {
+        return jsonResponse({ message: "serial is required" }, 400);
+      }
+      return fetchQuestionQa(env, serial);
+    }
+    if (request.method === "POST") {
+      return handleQuestionQa(request, env);
+    }
+  }
+  if (path === "/ai/question_qa_index" && request.method === "GET") {
+    return fetchQuestionQaIndex(env);
+  }
+  if (path === "/ai/question_qa/view" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementQaCounter(env, body, "view_count");
+  }
+  if (path === "/ai/question_qa/like" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementQaCounter(env, body, "like_count");
+  }
   if (request.method === "GET" && path === "/ai/deep_dive") {
     const serial = (url.searchParams.get("serial") || "").trim();
     if (!serial) {
@@ -145,6 +168,218 @@ async function handleAi(request, env) {
     created_by: user.id || null
   });
   return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags });
+}
+
+async function handleQuestionQa(request, env) {
+  const user = await authenticate(request, env);
+  if (!user) return jsonResponse({ message: "Unauthorized" }, 401);
+  const role = getRole(user);
+  if (!isRoleAtLeast(role, "admin")) {
+    return jsonResponse({ message: "Forbidden" }, 403);
+  }
+  const body = await readJson(request);
+  const serial = (body.serial || "").trim();
+  const question = (body.question || "").trim();
+  if (!serial || !question) {
+    return jsonResponse({ message: "serial and question are required" }, 400);
+  }
+  const prompt = buildQuestionQaPrompt(body);
+  const model = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const limit = await checkRateLimit(env, user.id);
+  if (!limit.ok) {
+    return jsonResponse({ message: limit.message }, 429);
+  }
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ]
+  };
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    return jsonResponse({ message: "Gemini API error", detail: errorText }, 500);
+  }
+  const data = await resp.json();
+  const text =
+    data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const parsed = parseQuestionQa(text);
+  const status = parsed.status || "irrelevant";
+  await saveQuestionQa(env, {
+    serial,
+    status,
+    question: parsed.question || question,
+    answer: parsed.answer || "",
+    created_by: user.id || null
+  });
+  return jsonResponse({
+    status,
+    question: parsed.question || question,
+    answer: parsed.answer || ""
+  });
+}
+
+function buildQuestionQaPrompt(body) {
+  const caseText = body.case_text || "（なし）";
+  const stem = body.stem || "";
+  const choices = Array.isArray(body.choices) ? body.choices : [];
+  const answer = body.answer || "";
+  const explanation = body.explanation || "";
+  const question = body.question || "";
+  return [
+    "あなたは医療系国家試験問題に対するQ&A作成AIです。",
+    "以下の質問が、この問題に関係するか判定し、関係があればQ&Aを作成してください。",
+    "",
+    "【問題】",
+    "症例文:",
+    caseText,
+    "",
+    "問題文:",
+    stem,
+    "",
+    "選択肢:",
+    ...choices.map((c, i) => `${i + 1}. ${c}`),
+    "",
+    "解答:",
+    answer,
+    "",
+    "解説:",
+    explanation,
+    "",
+    "【ユーザーの質問】",
+    question,
+    "",
+    "【出力形式（JSONのみ）】",
+    "{\"status\":\"ok|irrelevant\",\"question\":\"整形した質問\",\"answer\":\"回答\"}",
+    "",
+    "ルール:",
+    "- 無関係なら status=irrelevant とし、answerは空でよい",
+    "- 関係がある場合は status=ok",
+    "- questionは簡潔に整形する",
+    "- answerは簡潔に要点を説明する"
+  ].join("\n");
+}
+
+function parseQuestionQa(text) {
+  if (!text) return { status: "irrelevant", question: "", answer: "" };
+  try {
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}");
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      const json = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      return {
+        status: json.status || "irrelevant",
+        question: json.question || "",
+        answer: json.answer || ""
+      };
+    }
+  } catch (_err) {
+    // fall through
+  }
+  return { status: "irrelevant", question: "", answer: "" };
+}
+
+async function saveQuestionQa(env, record) {
+  const payload = {
+    serial: record.serial,
+    status: record.status,
+    question: record.question || "",
+    answer: record.answer || "",
+    created_by: record.created_by || null,
+    view_count: 0,
+    like_count: 0
+  };
+  await fetch(`${env.SUPABASE_URL}/rest/v1/question_qa`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+async function fetchQuestionQa(env, serial) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_qa?select=id,serial,question,answer,view_count,like_count,created_at&serial=eq.${encodeURIComponent(serial)}&status=eq.ok&order=like_count.desc&order=view_count.desc&order=created_at.desc`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json();
+  return jsonResponse({ items: rows || [] });
+}
+
+async function fetchQuestionQaIndex(env) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_qa?select=serial&status=eq.ok&limit=10000`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json();
+  const serials = Array.isArray(rows) ? rows.map(row => row.serial).filter(Boolean) : [];
+  const unique = Array.from(new Set(serials));
+  return jsonResponse({ serials: unique });
+}
+
+async function incrementQaCounter(env, body, field) {
+  const id = body.id;
+  if (!id) return jsonResponse({ message: "id required" }, 400);
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_qa?select=id,${field}&id=eq.${encodeURIComponent(id)}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) return jsonResponse({ message: "Supabase fetch failed" }, 500);
+  const rows = await resp.json();
+  const current = rows && rows[0] ? rows[0][field] || 0 : 0;
+  const next = current + 1;
+  const update = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_qa?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ [field]: next })
+    }
+  );
+  if (!update.ok) return jsonResponse({ message: "Supabase update failed" }, 500);
+  return jsonResponse({ ok: true, [field]: next });
 }
 
 async function authenticate(request, env) {

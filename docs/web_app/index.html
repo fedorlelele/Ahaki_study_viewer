@@ -329,6 +329,17 @@
         gap: 8px;
         margin-top: 8px;
       }
+      .qa-reload {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        padding: 2px 4px;
+        cursor: pointer;
+      }
+      .qa-reload:hover {
+        color: var(--accent);
+      }
       .deep-dive-panel {
         margin-top: 12px;
         padding: 10px;
@@ -868,6 +879,7 @@
         </div>
         <div class="row">
           <label><input type="checkbox" id="onlyDeepDive" /> 深掘り解説あり</label>
+          <label><input type="checkbox" id="onlyQa" /> Q&Aあり</label>
         </div>
         <div class="row">
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
@@ -945,9 +957,13 @@
         showSubtopics: false,
         disabledTags: new Set(),
         currentRole: "guest",
-        roleRank: 0
+        roleRank: 0,
+        qaViewed: new Set(),
+        qaLiked: new Set()
         ,deepDiveSerials: new Set()
         ,deepDiveSerialsLoaded: false
+        ,qaSerials: new Set()
+        ,qaSerialsLoaded: false
       };
 
       function normalizeRole(role) {
@@ -1025,6 +1041,13 @@
           fetch("../output/web/index/index_by_subtopic.json").then(r => r.json())
         ]).then(([questions, bySubject, bySubtopic]) => {
           state.questions = questions;
+          const qaSet = new Set();
+          questions.forEach((q) => {
+            if (q && Array.isArray(q.qa_list) && q.qa_list.length) {
+              qaSet.add(q.serial);
+            }
+          });
+          state.qaSerials = qaSet;
           state.indexBySubject = bySubject;
           state.indexBySubtopic = bySubtopic;
           state.subtopicsBySubject = buildSubtopicsBySubject(questions);
@@ -1072,6 +1095,30 @@
           .catch(() => {
             state.deepDiveSerialsLoaded = true;
           });
+      }
+
+      function loadQaSerials() {
+        if (!window.AI_API_BASE) {
+          state.qaSerialsLoaded = true;
+          return Promise.resolve();
+        }
+        return fetch(`${window.AI_API_BASE}/ai/question_qa_index`)
+          .then(r => (r.ok ? r.json() : { serials: [] }))
+          .then(data => {
+            const serials = Array.isArray(data.serials) ? data.serials : [];
+            const merged = new Set(state.qaSerials);
+            serials.forEach((s) => merged.add(s));
+            state.qaSerials = merged;
+            state.qaSerialsLoaded = true;
+          })
+          .catch(() => {
+            state.qaSerialsLoaded = true;
+          });
+      }
+
+      function ensureQaSerialsLoaded() {
+        if (state.qaSerialsLoaded) return Promise.resolve();
+        return loadQaSerials();
       }
 
       function loadUserReadme() {
@@ -1184,6 +1231,7 @@
         const needTags = false;
         const needSubtopics = false;
         const onlyDeepDive = document.getElementById("onlyDeepDive").checked;
+        const onlyQa = document.getElementById("onlyQa").checked;
         const showAnswered = document.getElementById("showAnswered").checked;
         const sessionFrom = sessionFromRaw ? Number(sessionFromRaw) : null;
         const sessionTo = sessionToRaw ? Number(sessionToRaw) : null;
@@ -1231,6 +1279,7 @@
             )
           )
             return false;
+          if (onlyQa && !state.qaSerials.has(effective.serial)) return false;
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
           if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
           if (!terms.length) return true;
@@ -2013,6 +2062,190 @@
           }
           card.appendChild(explanation);
 
+          const qaSection = document.createElement("div");
+          qaSection.className = "deep-dive-panel";
+          const qaHeader = document.createElement("div");
+          qaHeader.className = "note";
+          qaHeader.textContent = "Q&A（全ユーザーの質問と回答）";
+          qaSection.appendChild(qaHeader);
+          const qaList = document.createElement("div");
+          qaSection.appendChild(qaList);
+          const qaActions = document.createElement("div");
+          qaActions.className = "proposal-actions";
+          const qaLoadBtn = document.createElement("button");
+          qaLoadBtn.textContent = "再読み込み";
+          qaLoadBtn.className = "qa-reload";
+          const renderQaItems = (items) => {
+            qaList.textContent = "";
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) {
+              qaHeader.textContent = "Q&Aはまだありません。";
+              return;
+            }
+            qaHeader.textContent = `Q&A件数: ${list.length}`;
+            list.forEach(item => {
+              const entry = document.createElement("div");
+              entry.className = "proposal-item";
+              const qBtn = document.createElement("button");
+              qBtn.className = "chip-link";
+              qBtn.textContent = item.question || "質問";
+              let likeCount = item.like_count || 0;
+              let viewCount = item.view_count || 0;
+              const meta = document.createElement("div");
+              meta.className = "note";
+              const likeBtn = document.createElement("button");
+              likeBtn.className = "chip-link";
+              likeBtn.setAttribute("aria-label", "いいねを付ける");
+              likeBtn.textContent = `👍 ${likeCount}`;
+              likeBtn.addEventListener("click", () => {
+                if (state.qaLiked.has(item.id)) return;
+                state.qaLiked.add(item.id);
+                likeCount += 1;
+                likeBtn.textContent = `👍 ${likeCount}`;
+                if (!item.id) return;
+                fetch(`${window.AI_API_BASE}/ai/question_qa/like`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: item.id })
+                }).catch(() => {});
+              });
+              const viewSpan = document.createElement("span");
+              viewSpan.textContent = `閲覧 ${viewCount}`;
+              meta.appendChild(likeBtn);
+              meta.appendChild(viewSpan);
+              const aBox = document.createElement("div");
+              aBox.className = "note";
+              aBox.hidden = true;
+              qBtn.addEventListener("click", async () => {
+                aBox.hidden = !aBox.hidden;
+                if (!state.qaViewed.has(item.id)) {
+                  state.qaViewed.add(item.id);
+                  viewCount += 1;
+                  viewSpan.textContent = `閲覧 ${viewCount}`;
+                  if (item.id) {
+                    fetch(`${window.AI_API_BASE}/ai/question_qa/view`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: item.id })
+                    }).catch(() => {});
+                  }
+                }
+              });
+              aBox.textContent = item.answer || "";
+              entry.appendChild(qBtn);
+              entry.appendChild(meta);
+              entry.appendChild(aBox);
+              qaList.appendChild(entry);
+            });
+          };
+          const loadQaItems = async () => {
+            if (!window.AI_API_BASE) {
+              qaHeader.textContent = "AI_API_BASE が設定されていません。";
+              return;
+            }
+            qaHeader.textContent = "読み込み中...";
+            qaLoadBtn.disabled = true;
+            try {
+              const resp = await fetch(
+                `${window.AI_API_BASE}/ai/question_qa?serial=${encodeURIComponent(q.serial)}`
+              );
+              if (!resp.ok) throw new Error("API error");
+              const data = await resp.json();
+              const items = Array.isArray(data.items) ? data.items : [];
+              const localItems = Array.isArray(q.qa_list) ? q.qa_list : [];
+              const merged = [];
+              const seen = new Set();
+              [...items, ...localItems].forEach((item) => {
+                const key = item.id ? `id:${item.id}` : `qa:${item.question}|${item.answer}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                merged.push(item);
+              });
+              renderQaItems(merged);
+            } catch (_err) {
+              qaHeader.textContent = "読み込みに失敗しました。";
+            } finally {
+              qaLoadBtn.disabled = false;
+            }
+          };
+          qaLoadBtn.addEventListener("click", loadQaItems);
+          qaActions.appendChild(qaLoadBtn);
+          if (isRoleAtLeast("admin")) {
+            const qaInput = document.createElement("textarea");
+            qaInput.placeholder = "この問題について質問を入力";
+            qaInput.style.width = "100%";
+            qaInput.style.minHeight = "96px";
+            qaInput.hidden = true;
+            const qaToggle = document.createElement("button");
+            qaToggle.textContent = "質問を入力";
+            qaToggle.addEventListener("click", () => {
+              qaInput.hidden = !qaInput.hidden;
+              qaSend.hidden = qaInput.hidden;
+            });
+            const qaSend = document.createElement("button");
+            qaSend.textContent = "質問して回答を生成";
+            qaSend.hidden = true;
+            qaSend.addEventListener("click", async () => {
+              const question = qaInput.value.trim();
+              if (!question) return;
+              if (!window.AI_API_BASE) {
+                qaHeader.textContent = "AI_API_BASE が設定されていません。";
+                return;
+              }
+              const { data } = await supabaseClient.auth.getSession();
+              const session = data && data.session ? data.session : null;
+              if (!session || !session.access_token) {
+                qaHeader.textContent = "管理者ログインが必要です。";
+                return;
+              }
+              qaHeader.textContent = "生成中...";
+              qaSend.disabled = true;
+              try {
+                const resp = await fetch(`${window.AI_API_BASE}/ai/question_qa`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${session.access_token}`
+                  },
+                  body: JSON.stringify({
+                    serial: q.serial,
+                    question,
+                    case_text: q.case_text || "",
+                    stem: q.stem || "",
+                    choices: q.choices || [],
+                    answer: formatAnswerLabel(q) || "",
+                    explanation: expText || ""
+                  })
+                });
+                const payload = await resp.json();
+                if (!resp.ok) {
+                  qaHeader.textContent = "生成に失敗しました。";
+                  return;
+                }
+                if (payload.status === "irrelevant") {
+                  qaHeader.textContent = "質問が問題と無関係と判定されました。";
+                  return;
+                }
+                qaHeader.textContent = "生成完了";
+                qaInput.value = "";
+                loadQaItems();
+              } catch (_err) {
+                qaHeader.textContent = "生成に失敗しました。";
+              } finally {
+                qaSend.disabled = false;
+              }
+            });
+            qaSection.appendChild(qaToggle);
+            qaSection.appendChild(qaInput);
+            qaActions.appendChild(qaSend);
+          }
+          qaSection.appendChild(qaActions);
+          card.appendChild(qaSection);
+          if (Array.isArray(q.qa_list) && q.qa_list.length) {
+            renderQaItems(q.qa_list);
+          }
+          loadQaItems();
+
           const actions = document.createElement("div");
           actions.className = "card-actions";
           const copyBtn = document.createElement("button");
@@ -2249,7 +2482,7 @@
             renderUpdateLog(3);
           }
         });
-        Promise.all([loadData(), loadDisabledTags(), loadDeepDiveSerials()]).then(() => {
+        Promise.all([loadData(), loadDisabledTags(), loadDeepDiveSerials(), loadQaSerials()]).then(() => {
           computeFrequentScores();
           populateSelect(
             document.getElementById("subjectSelect"),
@@ -2442,6 +2675,12 @@
           renderResults(filterQuestions());
         });
         document.getElementById("onlyDeepDive").addEventListener("change", () => {
+          renderResults(filterQuestions());
+        });
+        document.getElementById("onlyQa").addEventListener("change", async (e) => {
+          if (e.target.checked) {
+            await ensureQaSerialsLoaded();
+          }
           renderResults(filterQuestions());
         });
         document.getElementById("toggleAnswer").addEventListener("change", () => {

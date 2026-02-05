@@ -199,6 +199,7 @@ HTML_PAGE = """<!doctype html>
         <input id="syncSince" type="text" placeholder="例: 2026-01-12T00:00:00Z" />
         <button id="syncOverrides">Supabase差分をSQLiteに同期</button>
         <button id="syncDeepDive">深掘り解説をSQLiteに同期</button>
+        <button id="syncQa">Q&AをSQLiteに同期</button>
       </div>
       <pre id="buildResult"></pre>
     </div>
@@ -724,6 +725,18 @@ HTML_PAGE = """<!doctype html>
         const endpoint = since
           ? "/api/sync/deep_dive?since=" + encodeURIComponent(since)
           : "/api/sync/deep_dive";
+        const resp = await fetch(endpoint, { method: "POST" });
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("syncQa").addEventListener("click", async () => {
+        const result = document.getElementById("buildResult");
+        const since = document.getElementById("syncSince").value.trim();
+        result.textContent = "同期中...";
+        const endpoint = since
+          ? "/api/sync/question_qa?since=" + encodeURIComponent(since)
+          : "/api/sync/question_qa";
         const resp = await fetch(endpoint, { method: "POST" });
         const data = await resp.json();
         result.textContent = data.message || "完了しました。";
@@ -2009,6 +2022,12 @@ class Handler(BaseHTTPRequestHandler):
             result = sync_supabase_deep_dive(self.server.db_path, since)
             self._send_json(result)
             return
+        if parsed.path == "/api/sync/question_qa":
+            params = parse_qs(parsed.query)
+            since = (params.get("since", [""])[0] or "").strip()
+            result = sync_supabase_question_qa(self.server.db_path, since)
+            self._send_json(result)
+            return
 
         if parsed.path == "/api/import/downloads":
             params = parse_qs(parsed.query)
@@ -3024,6 +3043,33 @@ def fetch_supabase_deep_dive(since=None, limit=500):
     return rows, ""
 
 
+def fetch_supabase_question_qa(since=None, limit=500):
+    cfg = supabase_config()
+    if not cfg:
+        return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    select = "id,serial,question,answer,status,view_count,like_count,created_by,created_at"
+    offset = 0
+    rows = []
+    while True:
+        query = (
+            f"?select={quote(select)}&order=created_at.asc&limit={limit}"
+            f"&offset={offset}&status=eq.ok"
+        )
+        if since:
+            query += f"&created_at=gte.{quote(since)}"
+        payload, error = supabase_request("GET", "question_qa", query)
+        if error:
+            return None, error
+        batch = json.loads(payload) if payload else []
+        if not batch:
+            break
+        rows.extend(batch)
+        if len(batch) < limit:
+            break
+        offset += limit
+    return rows, ""
+
+
 def mark_supabase_overrides_synced(serials, synced_at):
     if not serials:
         return "", ""
@@ -3254,6 +3300,75 @@ def sync_supabase_deep_dive(db_path, since):
     conn.close()
     return {
         "message": f"深掘り解説を同期しました。新規 {inserted} 件 / 更新 {updated} 件",
+        "counts": {"inserted": inserted, "updated": updated},
+        "since": since or "",
+    }
+
+
+def sync_supabase_question_qa(db_path, since):
+    rows, error = fetch_supabase_question_qa(since or None)
+    if error:
+        return {"message": error, "counts": {}}
+    if not rows:
+        return {"message": "Q&Aの差分はありません。", "counts": {}}
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS question_qa (
+          id INTEGER PRIMARY KEY,
+          serial TEXT,
+          question TEXT,
+          answer TEXT,
+          status TEXT,
+          view_count INTEGER,
+          like_count INTEGER,
+          created_by TEXT,
+          created_at TEXT
+        )
+        """
+    )
+    cursor = conn.cursor()
+    inserted = 0
+    updated = 0
+    for row in rows:
+        qa_id = row.get("id")
+        if qa_id is None:
+            continue
+        cursor.execute(
+            """
+            INSERT INTO question_qa
+              (id, serial, question, answer, status, view_count, like_count, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              serial=excluded.serial,
+              question=excluded.question,
+              answer=excluded.answer,
+              status=excluded.status,
+              view_count=excluded.view_count,
+              like_count=excluded.like_count,
+              created_by=excluded.created_by,
+              created_at=excluded.created_at
+            """,
+            (
+                qa_id,
+                row.get("serial") or "",
+                row.get("question") or "",
+                row.get("answer") or "",
+                row.get("status") or "",
+                int(row.get("view_count") or 0),
+                int(row.get("like_count") or 0),
+                row.get("created_by") or "",
+                row.get("created_at") or "",
+            ),
+        )
+        if cursor.rowcount == 1:
+            inserted += 1
+        else:
+            updated += 1
+    conn.commit()
+    conn.close()
+    return {
+        "message": f"Q&Aを同期しました。新規 {inserted} 件 / 更新 {updated} 件",
         "counts": {"inserted": inserted, "updated": updated},
         "since": since or "",
     }
