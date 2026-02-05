@@ -28,7 +28,7 @@
         color: var(--ink);
         background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
         min-height: 100vh;
-        padding-top: 68px;
+        padding-top: 56px;
       }
       header {
         padding: 16px 24px 10px;
@@ -38,7 +38,7 @@
         top: 0;
         left: 0;
         right: 0;
-        height: 60px;
+        height: 48px;
         background: #fff;
         border-bottom: 2px solid var(--line);
         z-index: 999;
@@ -52,10 +52,61 @@
         font-size: 20px;
         letter-spacing: 0.3px;
       }
+      .site-title-short {
+        display: none;
+      }
+      @media (max-width: 520px) {
+        .site-title-full {
+          display: none;
+        }
+        .site-title-short {
+          display: inline;
+        }
+      }
       .top-nav-actions {
         display: flex;
         align-items: center;
         gap: 8px;
+      }
+      .top-panels {
+        position: fixed;
+        top: 48px;
+        left: 0;
+        right: 0;
+        z-index: 998;
+        background: #fff;
+        border-bottom: 2px solid var(--line);
+        padding: 12px 16px 16px;
+        max-height: calc(100vh - 48px);
+        overflow: auto;
+      }
+      .top-panels[hidden] {
+        display: none;
+      }
+      .top-menu {
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .top-menu button,
+      .top-menu a {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 2px solid var(--line);
+        background: #fff;
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .top-menu button:hover,
+      .top-menu a:hover {
+        border-color: var(--accent);
+        color: var(--accent);
       }
       .header-row {
         display: flex;
@@ -650,31 +701,42 @@
   <body>
     <header>
       <div class="top-nav">
-        <h1 class="site-title">Ahaki Study Viewer</h1>
+        <h1 class="site-title" aria-label="Ahaki Study Viewer">
+          <span class="site-title-full">Ahaki Study Viewer</span>
+          <span class="site-title-short">ASV</span>
+        </h1>
         <div class="top-nav-actions">
-          <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
-          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="true">メニュー</button>
+          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="true" aria-label="メニュー">☰</button>
         </div>
       </div>
-      <div id="topMenuContent">
-      <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
-      <div class="subtitle"><a href="./simple.html">かんたんビューを開く</a></div>
-      <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
-      <details class="inline" id="updateInfo">
+      <div id="topPanels" class="top-panels" hidden>
+        <div id="topMenuContent" hidden>
+          <div class="top-menu" role="navigation" aria-label="メニュー">
+            <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
+            <button type="button" data-menu-target="updateInfo">更新情報</button>
+            <button type="button" data-menu-target="userReadme">利用ガイド</button>
+            <button type="button" data-menu-target="answerTrendPanel">回答数の推移</button>
+            <button type="button" data-menu-target="historyPanel">編集履歴</button>
+            <button type="button" data-menu-target="proposalPanel">修正提案一覧</button>
+            <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
+            <a href="./simple.html">かんたんビューへのリンク</a>
+          </div>
+        </div>
+        <details class="inline" id="updateInfo" hidden>
         <summary>更新情報</summary>
         <div class="card-actions">
           <ul class="update-list" id="updateList"></ul>
           <button id="updateMoreBtn" type="button">さらに表示</button>
           <div class="note" id="updateEmpty" hidden>更新情報はありません。</div>
         </div>
-      </details>
-      <details class="inline" id="userReadme">
+        </details>
+        <details class="inline" id="userReadme" hidden>
         <summary>利用ガイド</summary>
         <div class="card-actions">
           <pre class="user-readme" id="userReadmeText">読み込み中...</pre>
         </div>
-      </details>
-      <details class="inline" id="answerTrendPanel">
+        </details>
+        <details class="inline" id="answerTrendPanel" hidden>
         <summary>回答数の推移</summary>
         <div class="card-actions">
           <div class="note">直近24時間（1時間ごと）</div>
@@ -684,8 +746,8 @@
           <div id="answerTrendDaily"></div>
           <button id="answerTrendMoreDaily" type="button">さらに表示</button>
         </div>
-      </details>
-      <details class="inline" id="historyPanel" hidden>
+        </details>
+        <details class="inline" id="historyPanel" hidden>
         <summary>編集履歴</summary>
         <div class="history-panel">
           <div class="history-controls">
@@ -705,8 +767,8 @@
           <div class="history-list" id="historyList"></div>
           <div class="note" id="historyEmpty" hidden>履歴はありません。</div>
         </div>
-      </details>
-      <details class="inline" id="proposalPanel" hidden>
+        </details>
+        <details class="inline" id="proposalPanel" hidden>
         <summary>修正提案一覧</summary>
         <div class="proposal-panel">
           <div class="proposal-controls">
@@ -722,16 +784,15 @@
           <div class="proposal-list-wide" id="proposalList"></div>
           <div class="note" id="proposalEmpty" hidden>提案はありません。</div>
         </div>
-      </details>
-      <details class="inline" id="tagDisablePanel" hidden>
+        </details>
+        <details class="inline" id="tagDisablePanel" hidden>
         <summary>タグ無効化</summary>
         <div class="edit-panel">
           <input id="disableTagInput" type="text" placeholder="無効化するタグ（カンマ区切り）" />
           <button id="disableTagAddBtn" type="button">無効化する</button>
           <div id="disabledTagList"></div>
         </div>
-      </details>
-      </div>
+        </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -757,9 +818,14 @@
         <div id="authMessage" class="note"></div>
         </div>
       </div>
+      </div>
     </header>
 
     <main role="main" aria-label="学習ビュー">
+    <div class="intro">
+      <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
+      <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
+    </div>
     <div class="controls" role="search" aria-label="検索と絞り込み">
       <input id="keyword" type="text" placeholder="キーワード検索（例: #解剖学 筋）" aria-label="キーワード検索" />
       <details class="inline">
@@ -2171,18 +2237,90 @@
         initAuthUI();
         const menuToggleBtn = document.getElementById("menuToggleBtn");
         const topMenuContent = document.getElementById("topMenuContent");
+        const topPanels = document.getElementById("topPanels");
+        const menuTargetIds = [
+          "updateInfo",
+          "userReadme",
+          "answerTrendPanel",
+          "historyPanel",
+          "proposalPanel",
+          "tagDisablePanel"
+        ];
+        const closeAuthPanel = () => {
+          const panel = document.getElementById("teacherAuth");
+          const toggle = document.getElementById("authToggleBtn");
+          if (panel) panel.hidden = true;
+          if (toggle) toggle.setAttribute("aria-expanded", "false");
+        };
+        const closeMenuTargets = () => {
+          menuTargetIds.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el && el.tagName === "DETAILS") {
+              el.open = false;
+              el.hidden = true;
+            }
+          });
+        };
         if (menuToggleBtn && topMenuContent) {
           menuToggleBtn.addEventListener("click", () => {
             const nextHidden = !topMenuContent.hidden;
             topMenuContent.hidden = nextHidden;
+            if (topPanels) topPanels.hidden = nextHidden;
             menuToggleBtn.setAttribute("aria-expanded", nextHidden ? "false" : "true");
+            closeMenuTargets();
+          });
+          topMenuContent.querySelectorAll("[data-menu-target]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const targetId = btn.getAttribute("data-menu-target");
+              const target = targetId ? document.getElementById(targetId) : null;
+              closeMenuTargets();
+              if (target && target.tagName === "DETAILS") {
+                target.hidden = false;
+                target.open = true;
+              }
+              closeAuthPanel();
+              if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            });
           });
         }
         if (updateInfo) {
           updateInfo.addEventListener("toggle", () => {
             if (updateInfo.open) {
+              closeAuthPanel();
               renderUpdateLog(3);
             }
+          });
+        }
+        const userReadme = document.getElementById("userReadme");
+        if (userReadme) {
+          userReadme.addEventListener("toggle", () => {
+            if (userReadme.open) closeAuthPanel();
+          });
+        }
+        const answerTrendPanel = document.getElementById("answerTrendPanel");
+        if (answerTrendPanel) {
+          answerTrendPanel.addEventListener("toggle", () => {
+            if (answerTrendPanel.open) closeAuthPanel();
+          });
+        }
+        const historyPanel = document.getElementById("historyPanel");
+        if (historyPanel) {
+          historyPanel.addEventListener("toggle", () => {
+            if (historyPanel.open) closeAuthPanel();
+          });
+        }
+        const proposalPanel = document.getElementById("proposalPanel");
+        if (proposalPanel) {
+          proposalPanel.addEventListener("toggle", () => {
+            if (proposalPanel.open) closeAuthPanel();
+          });
+        }
+        const tagDisablePanel = document.getElementById("tagDisablePanel");
+        if (tagDisablePanel) {
+          tagDisablePanel.addEventListener("toggle", () => {
+            if (tagDisablePanel.open) closeAuthPanel();
           });
         }
         if (updateMoreBtn) {
@@ -2362,6 +2500,9 @@
         const historyPanel = document.getElementById("historyPanel");
         const reportModeWrap = document.getElementById("reportModeWrap");
         const reportModeToggle = document.getElementById("reportModeToggle");
+        const topPanels = document.getElementById("topPanels");
+        const topMenuContent = document.getElementById("topMenuContent");
+        const menuToggleBtn = document.getElementById("menuToggleBtn");
 
         if (!supabaseClient) {
           status.textContent = "Supabase未設定";
@@ -2377,6 +2518,21 @@
           const next = panel.hidden;
           panel.hidden = !next ? true : false;
           toggleBtn.setAttribute("aria-expanded", next ? "true" : "false");
+          if (topPanels) topPanels.hidden = false;
+          if (topMenuContent) topMenuContent.hidden = false;
+          if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "true");
+          const closeMenuTargets = () => {
+            ["updateInfo", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel"].forEach((id) => {
+              const el = document.getElementById(id);
+              if (el && el.tagName === "DETAILS") {
+                el.open = false;
+                el.hidden = true;
+              }
+            });
+          };
+          if (!panel.hidden) {
+            closeMenuTargets();
+          }
         });
 
         supabaseClient.auth.getSession().then(({ data }) => {
@@ -2496,8 +2652,16 @@
             status.textContent = `ログイン中: ${user.email} (${roleLabel})`;
             form.hidden = true;
             actions.hidden = false;
-            toggleBtn.textContent = `ログイン中（${roleLabel}）`;
-            toggleBtn.setAttribute("aria-label", `ログイン中（${roleLabel}）`);
+            const shortRoleLabel =
+              state.currentRole === "unapproved"
+                ? "未承認"
+                : state.currentRole === "student"
+                ? "生徒"
+                : state.currentRole === "teacher"
+                ? "教師"
+                : "管理者";
+            toggleBtn.textContent = shortRoleLabel;
+            toggleBtn.setAttribute("aria-label", `ログイン中（${shortRoleLabel}）`);
             if (historyPanel) historyPanel.hidden = !isRoleAtLeast("teacher");
             if (proposalPanel) proposalPanel.hidden = !isRoleAtLeast("teacher");
             if (tagDisablePanel) tagDisablePanel.hidden = !isRoleAtLeast("teacher");
