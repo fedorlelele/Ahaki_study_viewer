@@ -56,6 +56,31 @@
         display: none;
       }
       @media (max-width: 520px) {
+        body {
+          padding-top: 0;
+        }
+        .top-nav {
+          height: 0;
+          border-bottom: none;
+          padding: 0;
+        }
+        .site-title {
+          display: none;
+        }
+        .top-nav-actions {
+          position: fixed;
+          top: 8px;
+          right: 8px;
+          z-index: 1001;
+          background: transparent;
+        }
+        .top-panels {
+          top: 0;
+          max-height: 100vh;
+        }
+        .top-panels:not([hidden]) {
+          top: 0;
+        }
         .site-title-full {
           display: none;
         }
@@ -2284,6 +2309,42 @@
               }
             });
           });
+          const closeTopPanels = () => {
+            if (topMenuContent) topMenuContent.hidden = true;
+            if (topPanels) topPanels.hidden = true;
+            if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "false");
+            closeMenuTargets();
+            closeAuthPanel();
+          };
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeTopPanels();
+          });
+          document.addEventListener("click", (e) => {
+            const target = e.target;
+            if (
+              topPanels &&
+              !topPanels.hidden &&
+              target instanceof Node &&
+              !topPanels.contains(target) &&
+              target !== menuToggleBtn
+            ) {
+              closeTopPanels();
+            }
+          });
+          const header = document.querySelector("header");
+          if (header && topPanels) {
+            header.addEventListener("click", (e) => {
+              if (topPanels.hidden) return;
+              const target = e.target;
+              if (
+                target instanceof Node &&
+                !topPanels.contains(target) &&
+                target !== menuToggleBtn
+              ) {
+                closeTopPanels();
+              }
+            });
+          }
         }
         if (updateInfo) {
           updateInfo.addEventListener("toggle", () => {
