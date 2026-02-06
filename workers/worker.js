@@ -152,6 +152,10 @@ async function handleAi(request, env) {
   if (!serial) {
     return jsonResponse({ message: "serial is required" }, 400);
   }
+  const exists = await hasDeepDive(env, serial);
+  if (exists) {
+    return jsonResponse({ message: "深掘り解説は既に保存されています。" }, 409);
+  }
   const model = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
   const limit = await checkRateLimit(env, getRateLimitActor(request, user));
   if (!limit.ok) {
@@ -188,6 +192,22 @@ async function handleAi(request, env) {
     created_by: user && user.id ? user.id : null
   });
   return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags });
+}
+
+async function hasDeepDive(env, serial) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial&serial=eq.${encodeURIComponent(serial)}&limit=1`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) return false;
+  const rows = await resp.json();
+  return Array.isArray(rows) && rows.length > 0;
 }
 
 async function handleQuestionQa(request, env) {
@@ -560,7 +580,7 @@ async function fetchDeepDive(env, serial) {
 
 async function fetchDeepDiveIndex(env) {
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial`,
+    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial,updated_at&order=updated_at.desc`,
     {
       headers: {
         apikey: env.SUPABASE_ANON_KEY,
@@ -575,7 +595,16 @@ async function fetchDeepDiveIndex(env) {
   }
   const rows = await resp.json();
   const serials = Array.isArray(rows) ? rows.map(row => row.serial).filter(Boolean) : [];
-  return jsonResponse({ serials });
+  const latestBySerial = {};
+  if (Array.isArray(rows)) {
+    rows.forEach((row) => {
+      if (!row || !row.serial || !row.updated_at) return;
+      if (!latestBySerial[row.serial] || row.updated_at > latestBySerial[row.serial]) {
+        latestBySerial[row.serial] = row.updated_at;
+      }
+    });
+  }
+  return jsonResponse({ serials, latest_by_serial: latestBySerial });
 }
 
 async function upsertDeepDive(env, record) {

@@ -990,6 +990,7 @@
         <option value="desc" selected>新しい順</option>
         <option value="asc">古い順</option>
         <option value="qa_desc">Q&A追加順</option>
+        <option value="deep_dive_desc">深掘り解説追加順</option>
         <option value="frequent_desc">頻出順</option>
         <option value="frequent_asc">頻出（低い順）</option>
         <option value="count_desc">回答数が多い順</option>
@@ -1051,6 +1052,7 @@
         qaLiked: new Set()
         ,deepDiveSerials: new Set()
         ,deepDiveSerialsLoaded: false
+        ,deepDiveLatestBySerial: {}
         ,qaSerials: new Set()
         ,qaSerialsLoaded: false
         ,qaLatestBySerial: {}
@@ -1176,6 +1178,9 @@
               if (latestMs > 0) {
                 state.qaLatestBySerial[q.serial] = new Date(latestMs).toISOString();
               }
+            }
+            if (q && q.serial && q.deep_dive && q.deep_dive.updated_at) {
+              state.deepDiveLatestBySerial[q.serial] = q.deep_dive.updated_at;
             }
           });
           state.qaSerials = qaSet;
@@ -1337,6 +1342,17 @@
           .then(data => {
             const serials = Array.isArray(data.serials) ? data.serials : [];
             state.deepDiveSerials = new Set(serials);
+            const latest = data && data.latest_by_serial ? data.latest_by_serial : {};
+            if (latest && typeof latest === "object") {
+              Object.keys(latest).forEach((serial) => {
+                const ts = latest[serial];
+                if (!ts) return;
+                const prev = state.deepDiveLatestBySerial[serial];
+                if (!prev || ts > prev) {
+                  state.deepDiveLatestBySerial[serial] = ts;
+                }
+              });
+            }
             state.deepDiveSerialsLoaded = true;
           })
           .catch(() => {
@@ -1557,6 +1573,11 @@
           const stats = getStats(q);
           return stats.count ? stats.correct / stats.count : 0;
         };
+        const getDeepDiveLatestMs = (q) => {
+          const ts = state.deepDiveLatestBySerial[q.serial] || "";
+          const ms = Date.parse(ts);
+          return Number.isFinite(ms) ? ms : 0;
+        };
         const getQaLatestMs = (q) => {
           const ts = state.qaLatestBySerial[q.serial] || "";
           const ms = Date.parse(ts);
@@ -1598,6 +1619,16 @@
           filtered.sort((a, b) => {
             const qaDiff = getQaLatestMs(b) - getQaLatestMs(a);
             if (qaDiff !== 0) return qaDiff;
+            const sessionDiff = (Number(b.exam_session) || 0) - (Number(a.exam_session) || 0);
+            if (sessionDiff !== 0) return sessionDiff;
+            const orderA = state.orderIndexBySerial[a.serial] || 0;
+            const orderB = state.orderIndexBySerial[b.serial] || 0;
+            return orderA - orderB;
+          });
+        } else if (sortSession === "deep_dive_desc") {
+          filtered.sort((a, b) => {
+            const deepDiff = getDeepDiveLatestMs(b) - getDeepDiveLatestMs(a);
+            if (deepDiff !== 0) return deepDiff;
             const sessionDiff = (Number(b.exam_session) || 0) - (Number(a.exam_session) || 0);
             if (sessionDiff !== 0) return sessionDiff;
             const orderA = state.orderIndexBySerial[a.serial] || 0;
@@ -2581,7 +2612,7 @@
             });
           };
 
-          const hasDeepDive =
+          let hasDeepDive =
             (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) ||
             state.deepDiveSerials.has(q.serial);
           if (hasDeepDive) {
@@ -2619,12 +2650,17 @@
 
           if (canUseAiGeneration()) {
             const deepDiveGenBtn = document.createElement("button");
-            deepDiveGenBtn.textContent = "深掘り解説を生成";
-            deepDiveGenBtn.setAttribute(
-              "aria-label",
-              "深掘り解説と関連タグを生成"
-            );
-            deepDiveGenBtn.addEventListener("click", async () => {
+            if (hasDeepDive) {
+              deepDiveGenBtn.textContent = "深掘り解説は生成済み";
+              deepDiveGenBtn.disabled = true;
+              deepDiveGenBtn.setAttribute("aria-label", "深掘り解説は既に生成済みです");
+            } else {
+              deepDiveGenBtn.textContent = "深掘り解説を生成";
+              deepDiveGenBtn.setAttribute(
+                "aria-label",
+                "深掘り解説と関連タグを生成"
+              );
+              deepDiveGenBtn.addEventListener("click", async () => {
               if (!window.AI_API_BASE) {
                 alert("AI_API_BASE が設定されていません。");
                 return;
@@ -2677,13 +2713,19 @@
                   });
                   deepDiveTags.appendChild(chip);
                 });
+                state.deepDiveSerials.add(q.serial);
+                hasDeepDive = true;
+                deepDiveGenBtn.textContent = "深掘り解説は生成済み";
+                deepDiveGenBtn.disabled = true;
+                deepDiveGenBtn.setAttribute("aria-label", "深掘り解説は既に生成済みです");
               } catch (err) {
                 deepDiveStatus.textContent = "生成に失敗しました。";
                 deepDiveBody.textContent = String(err || "");
               } finally {
-                deepDiveGenBtn.disabled = false;
+                if (!hasDeepDive) deepDiveGenBtn.disabled = false;
               }
-            });
+              });
+            }
             actions.appendChild(deepDiveGenBtn);
           }
           const retryBtn = document.createElement("button");
@@ -4944,6 +4986,7 @@
             asc: "古い順",
             desc: "新しい順",
             qa_desc: "Q&A追加順",
+            deep_dive_desc: "深掘り解説追加順",
             frequent_desc: "頻出順",
             frequent_asc: "頻出（低い順）",
             count_desc: "回答数が多い順",
