@@ -300,6 +300,10 @@
         color: var(--ink);
         border-color: var(--accent);
       }
+      .chip-link:disabled {
+        opacity: 0.65;
+        cursor: default;
+      }
       .report-btn.reported {
         background: #ffe7ea;
         border-color: #b00020;
@@ -339,6 +343,14 @@
       }
       .qa-reload:hover {
         color: var(--accent);
+      }
+      .qa-answer {
+        margin-top: 6px;
+        padding: 8px 10px;
+        border-left: 3px solid #0b7a5c;
+        background: #f4fbf8;
+        white-space: pre-wrap;
+        line-height: 1.7;
       }
       .deep-dive-panel {
         margin-top: 12px;
@@ -987,6 +999,28 @@
 
       function isRoleAtLeast(role) {
         return state.roleRank >= roleRank(role);
+      }
+
+      function applyTopMenuRoleVisibility() {
+        const requiredRoleByTarget = {
+          answerTrendPanel: "teacher",
+          historyPanel: "teacher",
+          proposalPanel: "teacher",
+          tagDisablePanel: "teacher"
+        };
+        document.querySelectorAll("#topMenuContent [data-menu-target]").forEach((btn) => {
+          const targetId = btn.getAttribute("data-menu-target");
+          const requiredRole = requiredRoleByTarget[targetId] || "guest";
+          const visible = requiredRole === "guest" ? true : isRoleAtLeast(requiredRole);
+          btn.hidden = !visible;
+          if (!visible && targetId) {
+            const panel = document.getElementById(targetId);
+            if (panel && panel.tagName === "DETAILS") {
+              panel.open = false;
+              panel.hidden = true;
+            }
+          }
+        });
       }
 
       function isTeacherUser(user) {
@@ -2095,13 +2129,22 @@
               meta.className = "note";
               const likeBtn = document.createElement("button");
               likeBtn.className = "chip-link";
-              likeBtn.setAttribute("aria-label", "いいねを付ける");
+              const likeKey = getQaLikeKey(q.serial, item);
+              if (state.qaLiked.has(likeKey)) {
+                likeBtn.disabled = true;
+                likeBtn.setAttribute("aria-label", "いいね済み");
+              } else {
+                likeBtn.setAttribute("aria-label", "いいねを付ける");
+              }
               likeBtn.textContent = `👍 ${likeCount}`;
               likeBtn.addEventListener("click", () => {
-                if (state.qaLiked.has(item.id)) return;
-                state.qaLiked.add(item.id);
+                if (state.qaLiked.has(likeKey)) return;
+                state.qaLiked.add(likeKey);
+                saveQaLikedState();
                 likeCount += 1;
                 likeBtn.textContent = `👍 ${likeCount}`;
+                likeBtn.disabled = true;
+                likeBtn.setAttribute("aria-label", "いいね済み");
                 if (!item.id) return;
                 fetch(`${window.AI_API_BASE}/ai/question_qa/like`, {
                   method: "POST",
@@ -2114,7 +2157,7 @@
               meta.appendChild(likeBtn);
               meta.appendChild(viewSpan);
               const aBox = document.createElement("div");
-              aBox.className = "note";
+              aBox.className = "note qa-answer";
               aBox.hidden = true;
               qBtn.addEventListener("click", async () => {
                 aBox.hidden = !aBox.hidden;
@@ -2472,6 +2515,7 @@
       function init() {
         loadAnsweredState();
         loadTagVisibility();
+        loadQaLikedState();
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
@@ -2493,6 +2537,7 @@
         });
 
         initAuthUI();
+        applyTopMenuRoleVisibility();
         const menuToggleBtn = document.getElementById("menuToggleBtn");
         const topMenuContent = document.getElementById("topMenuContent");
         const topPanels = document.getElementById("topPanels");
@@ -2926,6 +2971,8 @@
           if (answerTrendPanel) answerTrendPanel.hidden = true;
           if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
+          applyTopMenuRoleVisibility();
+          loadQaLikedState();
           renderResults(filterQuestions());
           return;
         }
@@ -2971,6 +3018,8 @@
             state.reportMode = false;
             if (reportModeToggle) reportModeToggle.checked = false;
             document.body.classList.remove("report-mode");
+            applyTopMenuRoleVisibility();
+            loadQaLikedState();
           }
         renderResults(filterQuestions());
       }
@@ -4219,6 +4268,45 @@
       function saveAnsweredState() {
         const key = "answeredSerials";
         localStorage.setItem(key, JSON.stringify(state.answeredMap));
+      }
+
+      function getQaLikeActorId() {
+        if (state.teacherSession && state.teacherSession.user && state.teacherSession.user.id) {
+          return `user:${state.teacherSession.user.id}`;
+        }
+        return `anon:${getAnonId()}`;
+      }
+
+      function getQaLikedStorageKey() {
+        return `qaLiked:${getQaLikeActorId()}`;
+      }
+
+      function getQaLikeKey(serial, item) {
+        if (item && item.id) return `id:${item.id}`;
+        const question = item && item.question ? item.question : "";
+        const answer = item && item.answer ? item.answer : "";
+        return `fallback:${serial || ""}:${question}:${answer}`;
+      }
+
+      function loadQaLikedState() {
+        state.qaLiked = new Set();
+        const key = getQaLikedStorageKey();
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        try {
+          const values = JSON.parse(raw);
+          if (Array.isArray(values)) {
+            values.forEach((value) => {
+              if (typeof value === "string" && value) state.qaLiked.add(value);
+            });
+          }
+        } catch (_err) {
+          localStorage.removeItem(key);
+        }
+      }
+
+      function saveQaLikedState() {
+        localStorage.setItem(getQaLikedStorageKey(), JSON.stringify(Array.from(state.qaLiked)));
       }
 
       function loadTagVisibility() {
