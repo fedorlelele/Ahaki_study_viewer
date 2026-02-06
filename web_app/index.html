@@ -151,8 +151,8 @@
         font-size: 14px;
       }
       .controls {
-        display: grid;
-        grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr auto auto;
+        display: flex;
+        flex-direction: column;
         gap: 10px;
         padding: 14px 24px 20px;
       }
@@ -170,6 +170,58 @@
         color: #fff;
         border: none;
         cursor: pointer;
+      }
+      .search-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .search-row #keyword {
+        flex: 1;
+        min-width: 260px;
+      }
+      .search-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: nowrap;
+      }
+      .search-actions button {
+        white-space: nowrap;
+        min-width: 84px;
+      }
+      .controls details.inline {
+        margin-top: 0;
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 8px 10px;
+      }
+      .controls details.inline > summary {
+        list-style: none;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .controls details.inline > summary::-webkit-details-marker {
+        display: none;
+      }
+      .controls details.inline[open] > summary {
+        margin-bottom: 8px;
+      }
+      .controls details.inline .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .controls details.inline .row:last-child {
+        margin-bottom: 0;
+      }
+      .controls details.inline label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
       }
       .toolbar button {
         padding: 6px 10px;
@@ -740,8 +792,17 @@
         to { opacity: 1; transform: translateY(0); }
       }
       @media (max-width: 900px) {
-        .controls {
-          grid-template-columns: 1fr;
+        .search-row {
+          flex-wrap: wrap;
+        }
+        .search-row #keyword {
+          min-width: 100%;
+        }
+        .search-actions {
+          width: 100%;
+        }
+        .search-actions button {
+          flex: 1;
         }
       }
     </style>
@@ -875,7 +936,13 @@
       <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
     </div>
     <div class="controls" role="search" aria-label="検索と絞り込み">
-      <input id="keyword" type="text" placeholder="キーワード検索（例: #解剖学 筋）" aria-label="キーワード検索" />
+      <div class="search-row">
+        <input id="keyword" type="text" placeholder="キーワード検索（例: #解剖学 筋）" aria-label="キーワード検索" />
+        <div class="search-actions">
+          <button id="searchBtn" aria-label="検索を実行">検索</button>
+          <button id="resetBtn" aria-label="検索条件をリセット">リセット</button>
+        </div>
+      </div>
       <details class="inline">
         <summary>詳細設定</summary>
         <div class="row">
@@ -904,8 +971,6 @@
           <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
         </div>
       </details>
-      <button id="searchBtn" aria-label="検索を実行">検索</button>
-      <button id="resetBtn" aria-label="検索条件をリセット">リセット</button>
     </div>
 
     <div class="toolbar main">
