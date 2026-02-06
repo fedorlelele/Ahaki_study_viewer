@@ -823,6 +823,7 @@
           <div class="top-menu" role="navigation" aria-label="メニュー">
             <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
             <button type="button" data-menu-target="updateInfo">更新情報</button>
+            <button type="button" data-menu-target="settingsPanel">設定</button>
             <button type="button" data-menu-target="userReadme">利用ガイド</button>
             <button type="button" data-menu-target="answerTrendPanel">回答数の推移</button>
             <button type="button" data-menu-target="historyPanel">編集履歴</button>
@@ -838,6 +839,17 @@
           <ul class="update-list" id="updateList"></ul>
           <button id="updateMoreBtn" type="button">さらに表示</button>
           <div class="note" id="updateEmpty" hidden>更新情報はありません。</div>
+        </div>
+        </details>
+        <details class="inline" id="settingsPanel" hidden>
+        <summary>設定</summary>
+        <div class="edit-panel">
+          <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
+          <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
+          <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
+          <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
+          <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
+          <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
         </div>
         </details>
         <details class="inline" id="userReadme" hidden>
@@ -954,14 +966,14 @@
         </div>
       </div>
       <details class="inline">
-        <summary>詳細設定</summary>
+        <summary>詳細フィルタ</summary>
         <div class="row">
           <select id="subjectSelect" aria-label="科目の選択"><option value="">科目</option></select>
           <select id="subtopicSelect" aria-label="小項目の選択"><option value="">小項目</option></select>
           <select id="examTypeSelect" aria-label="試験種別の選択">
             <option value="">種別</option>
-            <option value="A">A</option>
-            <option value="B">B</option>
+            <option value="A">あん摩マッサージ指圧師</option>
+            <option value="B">はり師・きゅう師</option>
           </select>
           <input id="sessionFrom" type="number" min="1" placeholder="回数From" aria-label="試験回数の開始" />
           <input id="sessionTo" type="number" min="1" placeholder="回数To" aria-label="試験回数の終了" />
@@ -969,16 +981,6 @@
         <div class="row">
           <label><input type="checkbox" id="onlyDeepDive" /> 深掘り解説あり</label>
           <label><input type="checkbox" id="onlyQa" /> Q&Aあり</label>
-        </div>
-        <div class="row">
-          <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
-          <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
-        </div>
-        <div class="row">
-          <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
-          <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
-          <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
-          <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
         </div>
       </details>
     </div>
@@ -2828,6 +2830,7 @@
         const topPanels = document.getElementById("topPanels");
         const menuTargetIds = [
           "updateInfo",
+          "settingsPanel",
           "userReadme",
           "answerTrendPanel",
           "historyPanel",
@@ -2918,6 +2921,12 @@
             }
           });
         }
+        const settingsPanel = document.getElementById("settingsPanel");
+        if (settingsPanel) {
+          settingsPanel.addEventListener("toggle", () => {
+            if (settingsPanel.open) closeAuthPanel();
+          });
+        }
         const userReadme = document.getElementById("userReadme");
         if (userReadme) {
           userReadme.addEventListener("toggle", () => {
@@ -2976,6 +2985,7 @@
           document.getElementById("sortSession").value = "desc";
           document.getElementById("showAnswered").checked = false;
           document.getElementById("onlyFrequent").checked = false;
+          saveTagVisibility();
           updateSubtopicOptions("");
           renderResults(filterQuestions());
         });
@@ -2999,6 +3009,7 @@
           renderResults(filterQuestions());
         });
         document.getElementById("showAnswered").addEventListener("change", () => {
+          saveTagVisibility();
           renderResults(filterQuestions());
         });
         document.getElementById("showTagsToggle").addEventListener("change", (e) => {
@@ -3021,9 +3032,11 @@
           renderResults(filterQuestions());
         });
         document.getElementById("toggleAnswer").addEventListener("change", () => {
+          saveTagVisibility();
           renderResults(filterQuestions());
         });
         document.getElementById("toggleExplanation").addEventListener("change", () => {
+          saveTagVisibility();
           renderResults(filterQuestions());
         });
 
@@ -3031,10 +3044,9 @@
         if (reportModeToggle) {
           reportModeToggle.addEventListener("change", () => {
             state.reportMode = reportModeToggle.checked;
+            saveTagVisibility();
             document.body.classList.toggle("report-mode", state.reportMode);
           });
-          reportModeToggle.checked = false;
-          document.body.classList.remove("report-mode");
         }
 
       document.getElementById("copyAllBtn").addEventListener("click", async () => {
@@ -3159,7 +3171,7 @@
           if (topMenuContent) topMenuContent.hidden = false;
           if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "true");
           const closeMenuTargets = () => {
-            ["updateInfo", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel"].forEach((id) => {
+            ["updateInfo", "settingsPanel", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel"].forEach((id) => {
               const el = document.getElementById(id);
               if (el && el.tagName === "DETAILS") {
                 el.open = false;
@@ -3265,6 +3277,7 @@
           if (answerTrendPanel) answerTrendPanel.hidden = true;
           if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
+          loadTagVisibility();
           applyTopMenuRoleVisibility();
           loadQaLikedState();
           renderResults(filterQuestions());
@@ -3276,10 +3289,6 @@
         state.teacherSession = isRoleAtLeast("teacher") ? session : null;
         if (user) {
             if (state.teacherUserId !== user.id) {
-              const answerToggle = document.getElementById("toggleAnswer");
-              const explanationToggle = document.getElementById("toggleExplanation");
-              if (answerToggle) answerToggle.checked = false;
-              if (explanationToggle) explanationToggle.checked = true;
               state.teacherUserId = user.id;
             }
             const roleLabel =
@@ -3310,9 +3319,6 @@
             if (answerTrendPanel) answerTrendPanel.hidden = !isRoleAtLeast("teacher");
             if (adminLink) adminLink.hidden = !isRoleAtLeast("teacher");
             if (reportModeWrap) reportModeWrap.hidden = isRoleAtLeast("teacher");
-            state.reportMode = false;
-            if (reportModeToggle) reportModeToggle.checked = false;
-            document.body.classList.remove("report-mode");
             applyTopMenuRoleVisibility();
             loadQaLikedState();
             if (isRoleAtLeast("admin")) {
@@ -4608,23 +4614,52 @@
       }
 
       function loadTagVisibility() {
+        const answerRaw = localStorage.getItem("showAnswer");
+        const explanationRaw = localStorage.getItem("showExplanation");
+        const answeredRaw = localStorage.getItem("showAnswered");
         const tagsRaw = localStorage.getItem("showTags");
         const subsRaw = localStorage.getItem("showSubtopics");
+        const reportRaw = localStorage.getItem("reportMode");
+        const answerToggle = document.getElementById("toggleAnswer");
+        const explanationToggle = document.getElementById("toggleExplanation");
+        const answeredToggle = document.getElementById("showAnswered");
         if (tagsRaw !== null) {
           state.showTags = tagsRaw === "true";
         }
         if (subsRaw !== null) {
           state.showSubtopics = subsRaw === "true";
         }
+        if (answerRaw !== null && answerToggle) {
+          answerToggle.checked = answerRaw === "true";
+        }
+        if (explanationRaw !== null && explanationToggle) {
+          explanationToggle.checked = explanationRaw === "true";
+        }
+        if (answeredRaw !== null && answeredToggle) {
+          answeredToggle.checked = answeredRaw === "true";
+        }
+        if (reportRaw !== null) {
+          state.reportMode = reportRaw === "true";
+        }
         const tagsToggle = document.getElementById("showTagsToggle");
         const subsToggle = document.getElementById("showSubtopicsToggle");
+        const reportModeToggle = document.getElementById("reportModeToggle");
         if (tagsToggle) tagsToggle.checked = state.showTags;
         if (subsToggle) subsToggle.checked = state.showSubtopics;
+        if (reportModeToggle) reportModeToggle.checked = state.reportMode;
+        document.body.classList.toggle("report-mode", state.reportMode);
       }
 
       function saveTagVisibility() {
+        const answerToggle = document.getElementById("toggleAnswer");
+        const explanationToggle = document.getElementById("toggleExplanation");
+        const answeredToggle = document.getElementById("showAnswered");
         localStorage.setItem("showTags", String(state.showTags));
         localStorage.setItem("showSubtopics", String(state.showSubtopics));
+        if (answerToggle) localStorage.setItem("showAnswer", String(answerToggle.checked));
+        if (explanationToggle) localStorage.setItem("showExplanation", String(explanationToggle.checked));
+        if (answeredToggle) localStorage.setItem("showAnswered", String(answeredToggle.checked));
+        localStorage.setItem("reportMode", String(state.reportMode));
       }
 
       function initAnswerTrendPanel() {
