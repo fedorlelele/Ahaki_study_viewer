@@ -989,6 +989,7 @@
         <option value="">並び替え</option>
         <option value="desc" selected>新しい順</option>
         <option value="asc">古い順</option>
+        <option value="qa_desc">Q&A追加順</option>
         <option value="frequent_desc">頻出順</option>
         <option value="frequent_asc">頻出（低い順）</option>
         <option value="count_desc">回答数が多い順</option>
@@ -1052,6 +1053,7 @@
         ,deepDiveSerialsLoaded: false
         ,qaSerials: new Set()
         ,qaSerialsLoaded: false
+        ,qaLatestBySerial: {}
         ,aiPublicGeneration: false
       };
 
@@ -1167,6 +1169,13 @@
           questions.forEach((q) => {
             if (q && Array.isArray(q.qa_list) && q.qa_list.length) {
               qaSet.add(q.serial);
+              const latestMs = q.qa_list
+                .map((item) => Date.parse(item && item.created_at ? item.created_at : ""))
+                .filter((ms) => Number.isFinite(ms))
+                .reduce((max, cur) => Math.max(max, cur), 0);
+              if (latestMs > 0) {
+                state.qaLatestBySerial[q.serial] = new Date(latestMs).toISOString();
+              }
             }
           });
           state.qaSerials = qaSet;
@@ -1347,6 +1356,17 @@
             const merged = new Set(state.qaSerials);
             serials.forEach((s) => merged.add(s));
             state.qaSerials = merged;
+            const latest = data && data.latest_by_serial ? data.latest_by_serial : {};
+            if (latest && typeof latest === "object") {
+              Object.keys(latest).forEach((serial) => {
+                const ts = latest[serial];
+                if (!ts) return;
+                const prev = state.qaLatestBySerial[serial];
+                if (!prev || ts > prev) {
+                  state.qaLatestBySerial[serial] = ts;
+                }
+              });
+            }
             state.qaSerialsLoaded = true;
           })
           .catch(() => {
@@ -1537,6 +1557,11 @@
           const stats = getStats(q);
           return stats.count ? stats.correct / stats.count : 0;
         };
+        const getQaLatestMs = (q) => {
+          const ts = state.qaLatestBySerial[q.serial] || "";
+          const ms = Date.parse(ts);
+          return Number.isFinite(ms) ? ms : 0;
+        };
         if (sortSession === "asc") {
           filtered.sort((a, b) => {
             const sessionDiff = (a.exam_session || 0) - (b.exam_session || 0);
@@ -1569,6 +1594,16 @@
           filtered.sort((a, b) => (Number(b.frequent_score) || 0) - (Number(a.frequent_score) || 0));
         } else if (sortSession === "frequent_asc") {
           filtered.sort((a, b) => (Number(a.frequent_score) || 0) - (Number(b.frequent_score) || 0));
+        } else if (sortSession === "qa_desc") {
+          filtered.sort((a, b) => {
+            const qaDiff = getQaLatestMs(b) - getQaLatestMs(a);
+            if (qaDiff !== 0) return qaDiff;
+            const sessionDiff = (Number(b.exam_session) || 0) - (Number(a.exam_session) || 0);
+            if (sessionDiff !== 0) return sessionDiff;
+            const orderA = state.orderIndexBySerial[a.serial] || 0;
+            const orderB = state.orderIndexBySerial[b.serial] || 0;
+            return orderA - orderB;
+          });
         }
         return filtered;
       }
@@ -4908,6 +4943,7 @@
           const sortLabels = {
             asc: "古い順",
             desc: "新しい順",
+            qa_desc: "Q&A追加順",
             frequent_desc: "頻出順",
             frequent_asc: "頻出（低い順）",
             count_desc: "回答数が多い順",
