@@ -74,12 +74,32 @@ async function handleAdmin(request, env) {
     return listRoleChanges(env, limit);
   }
 
+  if (path === "/admin/ai_generation") {
+    if (!isRoleAtLeast(role, "admin")) {
+      return jsonResponse({ message: "Forbidden" }, 403);
+    }
+    if (request.method === "GET") {
+      const enabled = await getAiGenerationEnabled(env);
+      return jsonResponse({ ok: true, public_generation: enabled });
+    }
+    if (request.method === "POST") {
+      const body = await readJson(request);
+      const enabled = Boolean(body.public_generation);
+      return setAiGenerationEnabled(env, enabled, user);
+    }
+    return jsonResponse({ message: "Method not allowed" }, 405);
+  }
+
   return jsonResponse({ message: "Not found" }, 404);
 }
 
 async function handleAi(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
+  if (request.method === "GET" && path === "/ai/config") {
+    const enabled = await getAiGenerationEnabled(env);
+    return jsonResponse({ public_generation: enabled });
+  }
   if (request.method === "GET" && path === "/ai/deep_dive_index") {
     return fetchDeepDiveIndex(env);
   }
@@ -118,9 +138,9 @@ async function handleAi(request, env) {
     return jsonResponse({ message: "Method not allowed" }, 405);
   }
   const user = await authenticate(request, env);
-  if (!user) return jsonResponse({ message: "Unauthorized" }, 401);
-  const role = getRole(user);
-  if (!isRoleAtLeast(role, "admin")) {
+  const role = user ? getRole(user) : "";
+  const allowPublic = await getAiGenerationEnabled(env);
+  if (!allowPublic && !isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
   const body = await readJson(request);
@@ -133,7 +153,7 @@ async function handleAi(request, env) {
     return jsonResponse({ message: "serial is required" }, 400);
   }
   const model = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, user.id);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user));
   if (!limit.ok) {
     return jsonResponse({ message: limit.message }, 429);
   }
@@ -165,16 +185,16 @@ async function handleAi(request, env) {
     serial,
     explanation: parsed.explanation || "",
     tags: parsed.tags || [],
-    created_by: user.id || null
+    created_by: user && user.id ? user.id : null
   });
   return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags });
 }
 
 async function handleQuestionQa(request, env) {
   const user = await authenticate(request, env);
-  if (!user) return jsonResponse({ message: "Unauthorized" }, 401);
-  const role = getRole(user);
-  if (!isRoleAtLeast(role, "admin")) {
+  const role = user ? getRole(user) : "";
+  const allowPublic = await getAiGenerationEnabled(env);
+  if (!allowPublic && !isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
   const body = await readJson(request);
@@ -185,7 +205,7 @@ async function handleQuestionQa(request, env) {
   }
   const prompt = buildQuestionQaPrompt(body);
   const model = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, user.id);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user));
   if (!limit.ok) {
     return jsonResponse({ message: limit.message }, 429);
   }
@@ -219,7 +239,7 @@ async function handleQuestionQa(request, env) {
     status,
     question: parsed.question || question,
     answer: parsed.answer || "",
-    created_by: user.id || null
+    created_by: user && user.id ? user.id : null
   });
   return jsonResponse({
     status,
@@ -419,6 +439,73 @@ function roleRank(role) {
   if (role === "teacher") return 2;
   if (role === "student") return 1;
   return 0;
+}
+
+function isPublicGenerationEnabled(env) {
+  const value = String(env.AI_PUBLIC_GENERATION || "").toLowerCase().trim();
+  return value === "1" || value === "true" || value === "on" || value === "yes";
+}
+
+async function getAiGenerationEnabled(env) {
+  const fallback = isPublicGenerationEnabled(env);
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/app_settings?select=setting_key,setting_value&setting_key=eq.ai_public_generation&limit=1`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) return fallback;
+  const rows = await resp.json();
+  const row = rows && rows[0] ? rows[0] : null;
+  if (!row || row.setting_value === undefined || row.setting_value === null) return fallback;
+  if (typeof row.setting_value === "boolean") return row.setting_value;
+  const text = String(row.setting_value).toLowerCase().trim();
+  return text === "1" || text === "true" || text === "on" || text === "yes";
+}
+
+async function setAiGenerationEnabled(env, enabled, actor) {
+  const key = "ai_public_generation";
+  await fetch(`${env.SUPABASE_URL}/rest/v1/app_settings?setting_key=eq.${encodeURIComponent(key)}`, {
+    method: "DELETE",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  const payload = {
+    setting_key: key,
+    setting_value: enabled,
+    updated_at: new Date().toISOString(),
+    updated_by: actor?.id || null
+  };
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/app_settings`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase update failed", detail }, 500);
+  }
+  return jsonResponse({ ok: true, public_generation: enabled });
+}
+
+function getRateLimitActor(request, user) {
+  if (user && user.id) return `user:${user.id}`;
+  const ip =
+    request.headers.get("CF-Connecting-IP") ||
+    (request.headers.get("X-Forwarded-For") || "").split(",")[0].trim() ||
+    "";
+  return ip ? `ip:${ip}` : "anon";
 }
 
 function parseDeepDive(text) {

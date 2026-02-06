@@ -828,6 +828,7 @@
             <button type="button" data-menu-target="historyPanel">編集履歴</button>
             <button type="button" data-menu-target="proposalPanel">修正提案一覧</button>
             <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
+            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
             <a href="./simple.html">かんたんビューへのリンク</a>
           </div>
         </div>
@@ -902,6 +903,14 @@
           <div id="disabledTagList"></div>
         </div>
         </details>
+        <details class="inline" id="aiGenerationPanel" hidden>
+        <summary>AI機能公開</summary>
+        <div class="edit-panel">
+          <label><input type="checkbox" id="aiPublicGenerationToggle" /> AI生成機能を全ユーザーへ一時公開</label>
+          <button id="aiPublicGenerationSaveBtn" type="button">保存</button>
+          <div class="note" id="aiPublicGenerationStatus">状態を確認中...</div>
+        </div>
+        </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -934,6 +943,7 @@
     <div class="intro">
       <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
       <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
+      <div class="note" id="aiPublicNotice" hidden>AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。</div>
     </div>
     <div class="controls" role="search" aria-label="検索と絞り込み">
       <div class="search-row">
@@ -999,6 +1009,7 @@
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
+      const ADMIN_API_BASE = window.ADMIN_API_BASE || window.AI_API_BASE || "";
       const supabaseClient =
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -1041,6 +1052,7 @@
         ,deepDiveSerialsLoaded: false
         ,qaSerials: new Set()
         ,qaSerialsLoaded: false
+        ,aiPublicGeneration: false
       };
 
       function normalizeRole(role) {
@@ -1066,12 +1078,23 @@
         return state.roleRank >= roleRank(role);
       }
 
+      function canUseAiGeneration() {
+        return isRoleAtLeast("admin") || state.aiPublicGeneration;
+      }
+
+      function updateAiPublicNotice() {
+        const el = document.getElementById("aiPublicNotice");
+        if (!el) return;
+        el.hidden = !state.aiPublicGeneration;
+      }
+
       function applyTopMenuRoleVisibility() {
         const requiredRoleByTarget = {
           answerTrendPanel: "teacher",
           historyPanel: "teacher",
           proposalPanel: "teacher",
-          tagDisablePanel: "teacher"
+          tagDisablePanel: "teacher",
+          aiGenerationPanel: "admin"
         };
         document.querySelectorAll("#topMenuContent [data-menu-target]").forEach((btn) => {
           const targetId = btn.getAttribute("data-menu-target");
@@ -1177,6 +1200,122 @@
           .catch(() => {
             state.updateLog = [];
           });
+      }
+
+      function loadAiConfig() {
+        if (!window.AI_API_BASE) {
+          state.aiPublicGeneration = false;
+          updateAiPublicNotice();
+          return Promise.resolve();
+        }
+        return fetch(`${window.AI_API_BASE}/ai/config`)
+          .then(r => (r.ok ? r.json() : { public_generation: false }))
+          .then(data => {
+            state.aiPublicGeneration = Boolean(data && data.public_generation);
+            updateAiPublicNotice();
+          })
+          .catch(() => {
+            state.aiPublicGeneration = false;
+            updateAiPublicNotice();
+          });
+      }
+
+      async function loadAdminAiGenerationSetting() {
+        const statusEl = document.getElementById("aiPublicGenerationStatus");
+        const toggleEl = document.getElementById("aiPublicGenerationToggle");
+        const saveBtn = document.getElementById("aiPublicGenerationSaveBtn");
+        if (!statusEl || !toggleEl || !saveBtn) return;
+        if (!isRoleAtLeast("admin")) {
+          statusEl.textContent = "管理者のみ操作できます。";
+          saveBtn.disabled = true;
+          return;
+        }
+        if (!ADMIN_API_BASE || !supabaseClient) {
+          statusEl.textContent = "API設定がありません。";
+          saveBtn.disabled = true;
+          return;
+        }
+        const { data } = await supabaseClient.auth.getSession();
+        const session = data && data.session ? data.session : null;
+        if (!session || !session.access_token) {
+          statusEl.textContent = "管理者ログインが必要です。";
+          saveBtn.disabled = true;
+          return;
+        }
+        statusEl.textContent = "状態を取得中...";
+        saveBtn.disabled = true;
+        try {
+          const resp = await fetch(`${ADMIN_API_BASE}/admin/ai_generation`, {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
+          });
+          const payload = await resp.json();
+          if (!resp.ok || !payload || payload.ok !== true) {
+            statusEl.textContent = "状態の取得に失敗しました。";
+            return;
+          }
+          state.aiPublicGeneration = Boolean(payload.public_generation);
+          toggleEl.checked = state.aiPublicGeneration;
+          updateAiPublicNotice();
+          statusEl.textContent = state.aiPublicGeneration ? "現在: 公開中" : "現在: 管理者限定";
+          renderResults(filterQuestions());
+        } catch (_err) {
+          statusEl.textContent = "状態の取得に失敗しました。";
+        } finally {
+          saveBtn.disabled = false;
+        }
+      }
+
+      function initAiGenerationPanel() {
+        const panel = document.getElementById("aiGenerationPanel");
+        const toggleEl = document.getElementById("aiPublicGenerationToggle");
+        const saveBtn = document.getElementById("aiPublicGenerationSaveBtn");
+        const statusEl = document.getElementById("aiPublicGenerationStatus");
+        if (!panel || !toggleEl || !saveBtn || !statusEl) return;
+        panel.addEventListener("toggle", () => {
+          if (panel.open) {
+            loadAdminAiGenerationSetting();
+          }
+        });
+        saveBtn.addEventListener("click", async () => {
+          if (!isRoleAtLeast("admin")) return;
+          if (!ADMIN_API_BASE || !supabaseClient) {
+            statusEl.textContent = "API設定がありません。";
+            return;
+          }
+          const { data } = await supabaseClient.auth.getSession();
+          const session = data && data.session ? data.session : null;
+          if (!session || !session.access_token) {
+            statusEl.textContent = "管理者ログインが必要です。";
+            return;
+          }
+          saveBtn.disabled = true;
+          statusEl.textContent = "保存中...";
+          try {
+            const resp = await fetch(`${ADMIN_API_BASE}/admin/ai_generation`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({ public_generation: Boolean(toggleEl.checked) })
+            });
+            const payload = await resp.json();
+            if (!resp.ok || !payload || payload.ok !== true) {
+              statusEl.textContent = "保存に失敗しました。";
+              return;
+            }
+            state.aiPublicGeneration = Boolean(payload.public_generation);
+            updateAiPublicNotice();
+            statusEl.textContent = state.aiPublicGeneration ? "現在: 公開中" : "現在: 管理者限定";
+            renderResults(filterQuestions());
+          } catch (_err) {
+            statusEl.textContent = "保存に失敗しました。";
+          } finally {
+            saveBtn.disabled = false;
+          }
+        });
       }
 
       function loadDeepDiveSerials() {
@@ -2278,7 +2417,7 @@
           };
           qaLoadBtn.addEventListener("click", loadQaItems);
           qaActions.appendChild(qaLoadBtn);
-          if (isRoleAtLeast("admin")) {
+          if (canUseAiGeneration()) {
             const qaInput = document.createElement("textarea");
             qaInput.placeholder = "この問題について質問を入力";
             qaInput.style.width = "100%";
@@ -2300,21 +2439,24 @@
                 qaHeader.textContent = "AI_API_BASE が設定されていません。";
                 return;
               }
-              const { data } = await supabaseClient.auth.getSession();
-              const session = data && data.session ? data.session : null;
-              if (!session || !session.access_token) {
+              let token = "";
+              if (supabaseClient) {
+                const { data } = await supabaseClient.auth.getSession();
+                const session = data && data.session ? data.session : null;
+                token = session && session.access_token ? session.access_token : "";
+              }
+              if (!state.aiPublicGeneration && !token) {
                 qaHeader.textContent = "管理者ログインが必要です。";
                 return;
               }
               qaHeader.textContent = "生成中...";
               qaSend.disabled = true;
               try {
+                const headers = { "Content-Type": "application/json" };
+                if (token) headers.Authorization = `Bearer ${token}`;
                 const resp = await fetch(`${window.AI_API_BASE}/ai/question_qa`, {
                   method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`
-                  },
+                  headers,
                   body: JSON.stringify({
                     serial: q.serial,
                     question,
@@ -2440,25 +2582,25 @@
             actions.appendChild(deepDiveViewBtn);
           }
 
-          if (isRoleAtLeast("admin")) {
+          if (canUseAiGeneration()) {
             const deepDiveGenBtn = document.createElement("button");
-            deepDiveGenBtn.textContent = "深掘り解説を生成（管理者）";
+            deepDiveGenBtn.textContent = "深掘り解説を生成";
             deepDiveGenBtn.setAttribute(
               "aria-label",
-              "深掘り解説と関連タグを生成（管理者限定）"
+              "深掘り解説と関連タグを生成"
             );
             deepDiveGenBtn.addEventListener("click", async () => {
               if (!window.AI_API_BASE) {
                 alert("AI_API_BASE が設定されていません。");
                 return;
               }
-              if (!supabaseClient) {
-                alert("Supabaseが設定されていません。");
-                return;
+              let token = "";
+              if (supabaseClient) {
+                const { data } = await supabaseClient.auth.getSession();
+                const session = data && data.session ? data.session : null;
+                token = session && session.access_token ? session.access_token : "";
               }
-              const { data } = await supabaseClient.auth.getSession();
-              const session = data && data.session ? data.session : null;
-              if (!session || !session.access_token) {
+              if (!state.aiPublicGeneration && !token) {
                 alert("管理者ログインが必要です。");
                 return;
               }
@@ -2469,12 +2611,11 @@
               deepDiveGenBtn.disabled = true;
               try {
                 const prompt = buildDeepDiveApiPrompt(q, expText);
+                const headers = { "Content-Type": "application/json" };
+                if (token) headers.Authorization = `Bearer ${token}`;
                 const resp = await fetch(`${window.AI_API_BASE}/ai/deep_dive`, {
                   method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`
-                  },
+                  headers,
                   body: JSON.stringify({
                     serial: q.serial,
                     prompt,
@@ -2581,6 +2722,7 @@
         loadAnsweredState();
         loadTagVisibility();
         loadQaLikedState();
+        updateAiPublicNotice();
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
@@ -2591,7 +2733,7 @@
             renderUpdateLog(3);
           }
         });
-        Promise.all([loadData(), loadDisabledTags(), loadDeepDiveSerials(), loadQaSerials()]).then(() => {
+        Promise.all([loadData(), loadDisabledTags(), loadAiConfig(), loadDeepDiveSerials(), loadQaSerials()]).then(() => {
           computeFrequentScores();
           populateSelect(
             document.getElementById("subjectSelect"),
@@ -2602,6 +2744,7 @@
         });
 
         initAuthUI();
+        initAiGenerationPanel();
         applyTopMenuRoleVisibility();
         const menuToggleBtn = document.getElementById("menuToggleBtn");
         const topMenuContent = document.getElementById("topMenuContent");
@@ -2612,7 +2755,8 @@
           "answerTrendPanel",
           "historyPanel",
           "proposalPanel",
-          "tagDisablePanel"
+          "tagDisablePanel",
+          "aiGenerationPanel"
         ];
         const closeAuthPanel = () => {
           const panel = document.getElementById("teacherAuth");
@@ -2725,6 +2869,12 @@
         if (tagDisablePanel) {
           tagDisablePanel.addEventListener("toggle", () => {
             if (tagDisablePanel.open) closeAuthPanel();
+          });
+        }
+        const aiGenerationPanel = document.getElementById("aiGenerationPanel");
+        if (aiGenerationPanel) {
+          aiGenerationPanel.addEventListener("toggle", () => {
+            if (aiGenerationPanel.open) closeAuthPanel();
           });
         }
         if (updateMoreBtn) {
@@ -2932,7 +3082,7 @@
           if (topMenuContent) topMenuContent.hidden = false;
           if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "true");
           const closeMenuTargets = () => {
-            ["updateInfo", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel"].forEach((id) => {
+            ["updateInfo", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel"].forEach((id) => {
               const el = document.getElementById(id);
               if (el && el.tagName === "DETAILS") {
                 el.open = false;
@@ -3018,6 +3168,7 @@
         state.editRequestsLoaded = new Set();
         const proposalPanel = document.getElementById("proposalPanel");
         const tagDisablePanel = document.getElementById("tagDisablePanel");
+        const aiGenerationPanel = document.getElementById("aiGenerationPanel");
         const answerTrendPanel = document.getElementById("answerTrendPanel");
         const adminLink = document.getElementById("adminLink");
         if (!user) {
@@ -3033,6 +3184,7 @@
           if (historyPanel) historyPanel.hidden = true;
           if (proposalPanel) proposalPanel.hidden = true;
           if (tagDisablePanel) tagDisablePanel.hidden = true;
+          if (aiGenerationPanel) aiGenerationPanel.hidden = true;
           if (answerTrendPanel) answerTrendPanel.hidden = true;
           if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
@@ -3077,6 +3229,7 @@
             if (historyPanel) historyPanel.hidden = !isRoleAtLeast("teacher");
             if (proposalPanel) proposalPanel.hidden = !isRoleAtLeast("teacher");
             if (tagDisablePanel) tagDisablePanel.hidden = !isRoleAtLeast("teacher");
+            if (aiGenerationPanel) aiGenerationPanel.hidden = !isRoleAtLeast("admin");
             if (answerTrendPanel) answerTrendPanel.hidden = !isRoleAtLeast("teacher");
             if (adminLink) adminLink.hidden = !isRoleAtLeast("teacher");
             if (reportModeWrap) reportModeWrap.hidden = isRoleAtLeast("teacher");
@@ -3085,6 +3238,9 @@
             document.body.classList.remove("report-mode");
             applyTopMenuRoleVisibility();
             loadQaLikedState();
+            if (isRoleAtLeast("admin")) {
+              loadAdminAiGenerationSetting();
+            }
           }
         renderResults(filterQuestions());
       }
