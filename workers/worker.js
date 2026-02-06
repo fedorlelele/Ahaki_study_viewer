@@ -355,7 +355,7 @@ async function fetchQuestionQa(env, serial) {
 
 async function fetchQuestionQaIndex(env) {
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/question_qa?select=serial&status=eq.ok&limit=10000`,
+    `${env.SUPABASE_URL}/rest/v1/question_qa?select=serial,created_at&status=eq.ok&order=created_at.desc&limit=10000`,
     {
       headers: {
         apikey: env.SUPABASE_ANON_KEY,
@@ -371,7 +371,16 @@ async function fetchQuestionQaIndex(env) {
   const rows = await resp.json();
   const serials = Array.isArray(rows) ? rows.map(row => row.serial).filter(Boolean) : [];
   const unique = Array.from(new Set(serials));
-  return jsonResponse({ serials: unique });
+  const latestBySerial = {};
+  if (Array.isArray(rows)) {
+    rows.forEach((row) => {
+      if (!row || !row.serial || !row.created_at) return;
+      if (!latestBySerial[row.serial] || row.created_at > latestBySerial[row.serial]) {
+        latestBySerial[row.serial] = row.created_at;
+      }
+    });
+  }
+  return jsonResponse({ serials: unique, latest_by_serial: latestBySerial });
 }
 
 async function incrementQaCounter(env, body, field) {
