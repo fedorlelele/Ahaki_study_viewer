@@ -1181,7 +1181,10 @@
               state.deepDiveLatestBySerial[q.serial] = q.deep_dive.updated_at;
             }
           });
-          state.qaSerials = qaSet;
+          // Keep server-side index entries even if this local JSON load finishes later.
+          const mergedQaSet = new Set(state.qaSerials);
+          qaSet.forEach((serial) => mergedQaSet.add(serial));
+          state.qaSerials = mergedQaSet;
           state.indexBySubject = bySubject;
           state.indexBySubtopic = bySubtopic;
           state.subtopicsBySubject = buildSubtopicsBySubject(questions);
