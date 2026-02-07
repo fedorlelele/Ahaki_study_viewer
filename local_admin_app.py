@@ -187,6 +187,16 @@ HTML_PAGE = """<!doctype html>
       <h2>進捗レポート</h2>
       <button id="loadProgress">進捗を表示</button>
       <div id="progressResult"></div>
+      <h3>タグ辞書状況</h3>
+      <button id="loadTagDictStatus">タグ辞書状況を表示</button>
+      <div id="tagDictResult"></div>
+      <h3>タグ説明一覧</h3>
+      <div class="row">
+        <input id="tagDictQuery" type="text" placeholder="タグ名・説明文で検索（任意）" />
+        <input id="tagDictLimit" type="number" min="1" max="2000" value="200" />
+        <button id="loadTagDictItems">タグ説明を表示</button>
+      </div>
+      <div id="tagDictItemsResult"></div>
     </div>
 
     <div class="section" data-section="build" hidden>
@@ -200,6 +210,7 @@ HTML_PAGE = """<!doctype html>
         <button id="syncOverrides">Supabase差分をSQLiteに同期</button>
         <button id="syncDeepDive">深掘り解説をSQLiteに同期</button>
         <button id="syncQa">Q&AをSQLiteに同期</button>
+        <button id="syncTagViews">タグ閲覧数をSQLiteに同期</button>
       </div>
       <pre id="buildResult"></pre>
     </div>
@@ -690,6 +701,21 @@ HTML_PAGE = """<!doctype html>
         document.getElementById("progressResult").innerHTML = renderProgress(data);
       });
 
+      document.getElementById("loadTagDictStatus").addEventListener("click", async () => {
+        const resp = await fetch("/api/tag_dictionary_status");
+        const data = await resp.json();
+        document.getElementById("tagDictResult").innerHTML = renderTagDictionaryStatus(data);
+      });
+
+      document.getElementById("loadTagDictItems").addEventListener("click", async () => {
+        const q = document.getElementById("tagDictQuery").value.trim();
+        const limit = document.getElementById("tagDictLimit").value || "200";
+        const endpoint = "/api/tag_dictionary_items?q=" + encodeURIComponent(q) + "&limit=" + encodeURIComponent(limit);
+        const resp = await fetch(endpoint);
+        const data = await resp.json();
+        document.getElementById("tagDictItemsResult").innerHTML = renderTagDictionaryItems(data);
+      });
+
       document.getElementById("buildWeb").addEventListener("click", async () => {
         const result = document.getElementById("buildResult");
         result.textContent = "生成中...";
@@ -737,6 +763,18 @@ HTML_PAGE = """<!doctype html>
         const endpoint = since
           ? "/api/sync/question_qa?since=" + encodeURIComponent(since)
           : "/api/sync/question_qa";
+        const resp = await fetch(endpoint, { method: "POST" });
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("syncTagViews").addEventListener("click", async () => {
+        const result = document.getElementById("buildResult");
+        const since = document.getElementById("syncSince").value.trim();
+        result.textContent = "同期中...";
+        const endpoint = since
+          ? "/api/sync/tag_views?since=" + encodeURIComponent(since)
+          : "/api/sync/tag_views";
         const resp = await fetch(endpoint, { method: "POST" });
         const data = await resp.json();
         result.textContent = data.message || "完了しました。";
@@ -957,6 +995,57 @@ HTML_PAGE = """<!doctype html>
           " / 小項目 " + data.subtopic_assigned + "</div>" +
           "<table border='1' cellspacing='0' cellpadding='4'>" +
             "<thead><tr><th>科目</th><th>総数</th><th>解説</th><th>タグ</th><th>小項目</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>";
+      }
+
+      function renderTagDictionaryStatus(data) {
+        if (!data || !data.total_tags) return "<div>データがありません。</div>";
+        var aliases = data.aliases || {};
+        var merge = data.merge || {};
+        var missing = Array.isArray(data.missing_descriptions) ? data.missing_descriptions : [];
+        var rows = "";
+        (data.by_subject || []).forEach(function(item) {
+          rows += "<tr>" +
+            "<td>" + item.subject + "</td>" +
+            "<td>" + item.tag_count + "</td>" +
+            "</tr>";
+        });
+        var missingHtml = missing.length
+          ? "<div style='margin-top:8px;'>説明未作成タグ（先頭30件）: " + missing.join(", ") + "</div>"
+          : "<div style='margin-top:8px;'>説明未作成タグ: なし</div>";
+        return "<div>全タグ: " + data.total_tags +
+          " / 説明完了: " + data.described_tags +
+          " / 完了率: " + data.described_percent + "%</div>" +
+          "<div>同義語: 承認済み " + (aliases.approved || 0) +
+          " / 未承認 " + (aliases.pending || 0) +
+          " / 結合待ち " + (merge.pending || 0) +
+          " / 結合済み目安 " + (merge.done || 0) + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4' style='margin-top:8px;'>" +
+            "<thead><tr><th>科目</th><th>タグ出現数</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody>" +
+          "</table>" +
+          missingHtml;
+      }
+
+      function renderTagDictionaryItems(data) {
+        if (!data || !data.items) return "<div>データがありません。</div>";
+        if (!data.items.length) return "<div>該当するタグ説明がありません。</div>";
+        var rows = "";
+        data.items.forEach(function(item) {
+          var aliases = (item.aliases || []).join(", ");
+          rows += "<tr>" +
+            "<td>" + escapeHtml(item.tag) + "</td>" +
+            "<td><details><summary>" + escapeHtml(item.description).slice(0, 80) + "</summary><div>" + escapeHtml(item.description) + "</div></details></td>" +
+            "<td>" + escapeHtml(aliases || "(なし)") + "</td>" +
+            "<td>" + item.related_question_count + "</td>" +
+            "<td>" + escapeHtml(item.source_model || "") + "</td>" +
+            "<td>" + escapeHtml(item.updated_at || "") + "</td>" +
+            "</tr>";
+        });
+        return "<div>件数: " + data.count + "</div>" +
+          "<table border='1' cellspacing='0' cellpadding='4'>" +
+            "<thead><tr><th>タグ</th><th>説明</th><th>同義語</th><th>関連問題数</th><th>生成モデル</th><th>更新日時</th></tr></thead>" +
             "<tbody>" + rows + "</tbody>" +
           "</table>";
       }
@@ -1739,6 +1828,20 @@ class Handler(BaseHTTPRequestHandler):
             payload = build_progress(self.server.db_path)
             self._send_json(payload)
             return
+        if parsed.path == "/api/tag_dictionary_status":
+            payload = build_tag_dictionary_status(self.server.db_path)
+            self._send_json(payload)
+            return
+        if parsed.path == "/api/tag_dictionary_items":
+            params = parse_qs(parsed.query)
+            query = (params.get("q", [""])[0] or "").strip()
+            try:
+                limit = int(params.get("limit", ["200"])[0] or 200)
+            except ValueError:
+                limit = 200
+            payload = build_tag_dictionary_items(self.server.db_path, query, limit)
+            self._send_json(payload)
+            return
         if parsed.path == "/api/history":
             payload = build_history(self.server.db_path)
             self._send_json(payload)
@@ -2026,6 +2129,12 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             since = (params.get("since", [""])[0] or "").strip()
             result = sync_supabase_question_qa(self.server.db_path, since)
+            self._send_json(result)
+            return
+        if parsed.path == "/api/sync/tag_views":
+            params = parse_qs(parsed.query)
+            since = (params.get("since", [""])[0] or "").strip()
+            result = sync_supabase_tag_views(self.server.db_path, since)
             self._send_json(result)
             return
 
@@ -2516,6 +2625,200 @@ def build_progress(db_path):
     }
 
 
+def build_tag_dictionary_status(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    full_tags = set()
+    tags_by_subject = {}
+
+    tag_rows = cursor.execute(
+        """
+        SELECT t.label, s.name
+        FROM question_tags qt
+        JOIN tags t ON t.id = qt.tag_id
+        JOIN questions q ON q.id = qt.question_id
+        LEFT JOIN subjects s ON s.id = q.subject_id
+        """
+    ).fetchall()
+    for label, subject in tag_rows:
+        tag = " ".join(str(label or "").split()).strip()
+        if not tag:
+            continue
+        full_tags.add(tag)
+        if subject:
+            tags_by_subject.setdefault(subject, set()).add(tag)
+
+    try:
+        dd_rows = cursor.execute(
+            "SELECT tags_json FROM deep_dive_explanations WHERE tags_json IS NOT NULL AND tags_json != ''"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        dd_rows = []
+    for (tags_json,) in dd_rows:
+        try:
+            values = json.loads(tags_json or "[]")
+        except json.JSONDecodeError:
+            values = []
+        for value in values:
+            tag = " ".join(str(value or "").split()).strip()
+            if tag:
+                full_tags.add(tag)
+
+    try:
+        description_rows = cursor.execute(
+            "SELECT canonical_label, description FROM tag_descriptions"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        description_rows = []
+    description_map = {
+        " ".join(str(label or "").split()).strip(): " ".join(str(desc or "").split()).strip()
+        for label, desc in description_rows
+    }
+
+    described = sum(1 for tag in full_tags if description_map.get(tag))
+    total_tags = len(full_tags)
+    described_percent = round((described * 100.0 / total_tags), 1) if total_tags else 0.0
+
+    try:
+        alias_rows = cursor.execute(
+            "SELECT alias, canonical_label, approved FROM tag_aliases"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        alias_rows = []
+
+    approved = 0
+    pending = 0
+    approved_merge_total = 0
+    for alias, canonical, approved_flag in alias_rows:
+        alias_label = " ".join(str(alias or "").split()).strip()
+        canonical_label = " ".join(str(canonical or "").split()).strip()
+        if int(approved_flag or 0) == 1:
+            approved += 1
+            if alias_label and canonical_label and alias_label != canonical_label:
+                approved_merge_total += 1
+        else:
+            pending += 1
+
+    tag_label_rows = cursor.execute("SELECT label FROM tags").fetchall()
+    current_tag_labels = {" ".join(str(row[0] or "").split()).strip() for row in tag_label_rows}
+    merge_pending = 0
+    for alias, canonical, approved_flag in alias_rows:
+        if int(approved_flag or 0) != 1:
+            continue
+        alias_label = " ".join(str(alias or "").split()).strip()
+        canonical_label = " ".join(str(canonical or "").split()).strip()
+        if not alias_label or not canonical_label or alias_label == canonical_label:
+            continue
+        if alias_label in current_tag_labels and canonical_label in current_tag_labels:
+            merge_pending += 1
+    merge_done = max(0, approved_merge_total - merge_pending)
+
+    missing_descriptions = sorted(
+        [tag for tag in full_tags if not description_map.get(tag)]
+    )[:30]
+
+    by_subject = []
+    for subject, tags in sorted(tags_by_subject.items(), key=lambda x: x[0]):
+        by_subject.append({"subject": subject, "tag_count": len(tags)})
+
+    conn.close()
+    return {
+        "total_tags": total_tags,
+        "described_tags": described,
+        "described_percent": described_percent,
+        "aliases": {"approved": approved, "pending": pending},
+        "merge": {"pending": merge_pending, "done": merge_done},
+        "missing_descriptions": missing_descriptions,
+        "by_subject": by_subject,
+    }
+
+
+def build_tag_dictionary_items(db_path, query, limit):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    limit_value = max(1, min(int(limit or 200), 2000))
+    like_query = f"%{query}%" if query else ""
+
+    try:
+        if like_query:
+            rows = cursor.execute(
+                """
+                SELECT canonical_label, description, source_model, updated_at
+                FROM tag_descriptions
+                WHERE canonical_label LIKE ? OR description LIKE ?
+                ORDER BY updated_at DESC, canonical_label
+                LIMIT ?
+                """,
+                (like_query, like_query, limit_value),
+            ).fetchall()
+        else:
+            rows = cursor.execute(
+                """
+                SELECT canonical_label, description, source_model, updated_at
+                FROM tag_descriptions
+                ORDER BY updated_at DESC, canonical_label
+                LIMIT ?
+                """,
+                (limit_value,),
+            ).fetchall()
+    except sqlite3.OperationalError:
+        conn.close()
+        return {"count": 0, "items": []}
+
+    alias_map = {}
+    try:
+        alias_rows = cursor.execute(
+            """
+            SELECT alias, canonical_label, approved
+            FROM tag_aliases
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        alias_rows = []
+    for alias, canonical_label, approved in alias_rows:
+        if int(approved or 0) != 1:
+            continue
+        alias_label = " ".join(str(alias or "").split()).strip()
+        canonical = " ".join(str(canonical_label or "").split()).strip()
+        if not alias_label or not canonical:
+            continue
+        alias_map.setdefault(canonical, []).append(alias_label)
+
+    usage_rows = cursor.execute(
+        """
+        SELECT t.label, COUNT(DISTINCT qt.question_id)
+        FROM question_tags qt
+        JOIN tags t ON t.id = qt.tag_id
+        GROUP BY t.label
+        """
+    ).fetchall()
+    usage_map = {
+        " ".join(str(label or "").split()).strip(): int(count or 0)
+        for label, count in usage_rows
+    }
+
+    items = []
+    for canonical_label, description, source_model, updated_at in rows:
+        canonical = " ".join(str(canonical_label or "").split()).strip()
+        aliases = sorted(alias_map.get(canonical, []))
+        related_count = usage_map.get(canonical, 0)
+        for alias in aliases:
+            related_count += usage_map.get(alias, 0)
+        items.append(
+            {
+                "tag": canonical,
+                "description": str(description or ""),
+                "aliases": aliases,
+                "related_question_count": related_count,
+                "source_model": str(source_model or ""),
+                "updated_at": str(updated_at or ""),
+            }
+        )
+    conn.close()
+    return {"count": len(items), "items": items}
+
+
 def build_history(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -2759,6 +3062,40 @@ def ensure_update_log_table_db(db_path):
             date TEXT PRIMARY KEY,
             count INTEGER NOT NULL DEFAULT 0
         )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def ensure_tag_dictionary_tables(db_path):
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS tag_descriptions (
+            canonical_label TEXT PRIMARY KEY,
+            description TEXT NOT NULL DEFAULT '',
+            source_model TEXT DEFAULT '',
+            updated_at TEXT DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS tag_aliases (
+            alias TEXT PRIMARY KEY,
+            canonical_label TEXT NOT NULL,
+            confidence REAL DEFAULT 0.0,
+            approved INTEGER NOT NULL DEFAULT 1,
+            source_model TEXT DEFAULT '',
+            updated_at TEXT DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS tag_view_stats (
+            tag_label TEXT PRIMARY KEY,
+            view_count INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT DEFAULT ''
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tag_aliases_canonical
+            ON tag_aliases(canonical_label);
         """
     )
     conn.commit()
@@ -3070,6 +3407,33 @@ def fetch_supabase_question_qa(since=None, limit=500):
     return rows, ""
 
 
+def fetch_supabase_tag_view_stats(since=None, limit=500):
+    cfg = supabase_config()
+    if not cfg:
+        return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    select = "tag,view_count,updated_at"
+    offset = 0
+    rows = []
+    while True:
+        query = (
+            f"?select={quote(select)}&order=updated_at.asc&limit={limit}"
+            f"&offset={offset}"
+        )
+        if since:
+            query += f"&updated_at=gte.{quote(since)}"
+        payload, error = supabase_request("GET", "tag_view_stats", query)
+        if error:
+            return None, error
+        batch = json.loads(payload) if payload else []
+        if not batch:
+            break
+        rows.extend(batch)
+        if len(batch) < limit:
+            break
+        offset += limit
+    return rows, ""
+
+
 def mark_supabase_overrides_synced(serials, synced_at):
     if not serials:
         return "", ""
@@ -3369,6 +3733,58 @@ def sync_supabase_question_qa(db_path, since):
     conn.close()
     return {
         "message": f"Q&Aを同期しました。新規 {inserted} 件 / 更新 {updated} 件",
+        "counts": {"inserted": inserted, "updated": updated},
+        "since": since or "",
+    }
+
+
+def sync_supabase_tag_views(db_path, since):
+    rows, error = fetch_supabase_tag_view_stats(since or None)
+    if error:
+        return {"message": error, "counts": {}}
+    if not rows:
+        return {"message": "タグ閲覧数の差分はありません。", "counts": {}}
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tag_view_stats (
+          tag_label TEXT PRIMARY KEY,
+          view_count INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT DEFAULT ''
+        )
+        """
+    )
+    cursor = conn.cursor()
+    inserted = 0
+    updated = 0
+    for row in rows:
+        tag_label = " ".join(str(row.get("tag") or "").split()).strip()
+        if not tag_label:
+            continue
+        view_count = int(row.get("view_count") or 0)
+        updated_at = row.get("updated_at") or ""
+        existed = cursor.execute(
+            "SELECT 1 FROM tag_view_stats WHERE tag_label = ? LIMIT 1",
+            (tag_label,),
+        ).fetchone()
+        cursor.execute(
+            """
+            INSERT INTO tag_view_stats(tag_label, view_count, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(tag_label) DO UPDATE SET
+              view_count=excluded.view_count,
+              updated_at=excluded.updated_at
+            """,
+            (tag_label, view_count, updated_at),
+        )
+        if existed:
+            updated += 1
+        else:
+            inserted += 1
+    conn.commit()
+    conn.close()
+    return {
+        "message": f"タグ閲覧数を同期しました。新規 {inserted} 件 / 更新 {updated} 件",
         "counts": {"inserted": inserted, "updated": updated},
         "since": since or "",
     }
@@ -4046,6 +4462,7 @@ def main():
     server.downloads_dir = args.downloads
     ensure_feedback_table(db_path)
     ensure_update_log_table_db(db_path)
+    ensure_tag_dictionary_tables(db_path)
 
     print(f"Server running: http://{args.host}:{args.port}")
     try:

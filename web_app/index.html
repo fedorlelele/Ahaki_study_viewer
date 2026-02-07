@@ -336,6 +336,24 @@
       .tag-label {
         font-weight: 600;
       }
+      .tag-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .tagline-break {
+        flex-basis: 100%;
+        height: 0;
+      }
+      .tag-more {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--muted);
+        border-radius: 999px;
+        font-size: 12px;
+        padding: 2px 8px;
+        cursor: pointer;
+      }
       .chip-link {
         display: inline-block;
         margin: 2px 6px 0 0;
@@ -355,6 +373,35 @@
       .chip-link:disabled {
         opacity: 0.65;
         cursor: default;
+      }
+      .tag-description {
+        width: 100%;
+        margin-top: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 8px 10px;
+        line-height: 1.7;
+      }
+      .tag-description-title {
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .tag-description-text {
+        margin-top: 4px;
+        color: #1f2937;
+        white-space: pre-wrap;
+      }
+      .tag-description-meta {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .tag-description-filters {
+        margin-top: 6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
       }
       .report-btn.reported {
         background: #ffe7ea;
@@ -1122,6 +1169,8 @@
         ,qaSerials: new Set()
         ,qaSerialsLoaded: false
         ,qaLatestBySerial: {}
+        ,tagCatalogByTag: {}
+        ,tagViewCounts: {}
         ,aiPublicGeneration: false
         ,progressSelfBySerial: {}
         ,progressSelfList: []
@@ -1661,10 +1710,20 @@
         return Promise.all([
           fetch("../output/web/questions.json").then(r => r.json()),
           fetch("../output/web/index/index_by_subject.json").then(r => r.json()),
-          fetch("../output/web/index/index_by_subtopic.json").then(r => r.json())
-        ]).then(([questions, bySubject, bySubtopic]) => {
+          fetch("../output/web/index/index_by_subtopic.json").then(r => r.json()),
+          fetch("../output/web/index/tag_catalog.json").then(r => (r.ok ? r.json() : []))
+        ]).then(([questions, bySubject, bySubtopic, tagCatalog]) => {
           state.questions = questions;
           state.questionBySerial = {};
+          state.tagCatalogByTag = {};
+          (Array.isArray(tagCatalog) ? tagCatalog : []).forEach((item) => {
+            const tag = item && item.tag ? String(item.tag).trim() : "";
+            if (!tag) return;
+            state.tagCatalogByTag[tag] = item;
+            if (typeof item.view_count === "number") {
+              state.tagViewCounts[tag] = item.view_count;
+            }
+          });
           const qaSet = new Set();
           questions.forEach((q) => {
             if (q && q.serial) state.questionBySerial[q.serial] = q;
@@ -2490,23 +2549,114 @@
           tagsLabel.className = "tag-label";
           tagsLabel.textContent = "タグ:";
           tags.appendChild(tagsLabel);
-          const tagList = q.tags || [];
-          if (!tagList.length) {
-            const span = document.createElement("span");
-            span.textContent = "(なし)";
-            tags.appendChild(span);
-          } else {
-            tagList.forEach(tag => {
+          const tagList = filterDisabledTags(q.tags || []);
+          const sortedTags = tagList.slice().sort((a, b) => {
+            const diff = getTagViewCount(b) - getTagViewCount(a);
+            if (diff !== 0) return diff;
+            return String(a).localeCompare(String(b), "ja");
+          });
+          const tagItems = document.createElement("div");
+          tagItems.className = "tag-items";
+          tags.appendChild(tagItems);
+          const tagDesc = document.createElement("div");
+          tagDesc.className = "tag-description";
+          tagDesc.hidden = true;
+          const renderTagDescription = (tag) => {
+            const meta = state.tagCatalogByTag[tag] || {};
+            const relatedCount =
+              typeof meta.related_count === "number" ? meta.related_count : 0;
+            const viewCount = getTagViewCount(tag);
+            tagDesc.textContent = "";
+            const title = document.createElement("div");
+            title.className = "tag-description-title";
+            title.textContent = `タグ: ${tag}`;
+            tagDesc.appendChild(title);
+            const body = document.createElement("div");
+            body.className = "tag-description-text";
+            body.textContent =
+              (meta.description || "").trim() || "このタグの説明は未登録です。";
+            tagDesc.appendChild(body);
+            const info = document.createElement("div");
+            info.className = "tag-description-meta";
+            info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${viewCount}`;
+            tagDesc.appendChild(info);
+            const filters = document.createElement("div");
+            filters.className = "tag-description-filters";
+            const tagFilter = document.createElement("button");
+            tagFilter.className = "chip-link";
+            tagFilter.textContent = "このタグで検索";
+            tagFilter.addEventListener("click", () => {
+              applyFilters({ keyword: `#${tag}` });
+            });
+            filters.appendChild(tagFilter);
+            (meta.subjects || []).slice(0, 5).forEach((subjectName) => {
+              const btn = document.createElement("button");
+              btn.className = "chip-link";
+              btn.textContent = `科目:${subjectName}`;
+              btn.addEventListener("click", () => {
+                applyFilters({ subject: subjectName, subtopic: "" });
+              });
+              filters.appendChild(btn);
+            });
+            (meta.subtopics || []).slice(0, 8).forEach((subtopicName) => {
+              const btn = document.createElement("button");
+              btn.className = "chip-link";
+              btn.textContent = `小項目:${subtopicName}`;
+              btn.addEventListener("click", () => {
+                applyFilters({ subtopic: subtopicName });
+              });
+              filters.appendChild(btn);
+            });
+            (meta.related_serials || []).slice(0, 5).forEach((serial) => {
+              const btn = document.createElement("button");
+              btn.className = "chip-link";
+              btn.textContent = serial;
+              btn.addEventListener("click", () => {
+                applyFilters({ keyword: serial });
+              });
+              filters.appendChild(btn);
+            });
+            if (filters.childNodes.length) {
+              tagDesc.appendChild(filters);
+            }
+            tagDesc.hidden = false;
+            incrementTagViewCount(tag, (count) => {
+              info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${count}`;
+            });
+          };
+          let showAllTags = false;
+          const renderTagButtons = () => {
+            tagItems.textContent = "";
+            const visible = showAllTags ? sortedTags : sortedTags.slice(0, 3);
+            visible.forEach((tag) => {
               const link = document.createElement("button");
               link.className = "chip-link";
               link.textContent = tag;
-              link.setAttribute("aria-label", `タグ ${tag} で絞り込み`);
+              link.setAttribute("aria-label", `タグ ${tag} の説明を表示`);
               link.addEventListener("click", () => {
-                applyFilters({ keyword: `#${tag}` });
+                renderTagDescription(tag);
               });
-              tags.appendChild(link);
+              tagItems.appendChild(link);
             });
+            if (sortedTags.length > 3) {
+              const moreBtn = document.createElement("button");
+              moreBtn.className = "tag-more";
+              moreBtn.textContent = showAllTags ? "表示を減らす" : `すべて表示 (${sortedTags.length})`;
+              moreBtn.addEventListener("click", () => {
+                showAllTags = !showAllTags;
+                renderTagButtons();
+              });
+              tagItems.appendChild(moreBtn);
+            }
+          };
+          if (!sortedTags.length) {
+            const span = document.createElement("span");
+            span.textContent = "(なし)";
+            tagItems.appendChild(span);
+          } else {
+            renderTagButtons();
           }
+          tags.appendChild(tagDesc);
           if (!isTeacher) {
             const tagDetails = document.createElement("details");
             tagDetails.className = "inline inline-details";
@@ -3314,7 +3464,7 @@
         function renderBatch(batch) {
           const frag = document.createDocumentFragment();
           batch.forEach(item => {
-            appendCard(applyOverridesToQuestion(item), frag);
+            appendCard(item, frag);
           });
           container.appendChild(frag);
         }
@@ -3333,7 +3483,9 @@
             renderResults(filterQuestions());
             return;
           }
-          renderBatch(batch);
+          const resolvedBatch = batch.map(item => applyOverridesToQuestion(item));
+          await ensureTagViewCountsForQuestions(resolvedBatch);
+          renderBatch(resolvedBatch);
           more.disabled = false;
           updateLabel();
           if (idx >= subset.length) {
@@ -5248,6 +5400,70 @@
 
       function saveQaLikedState() {
         localStorage.setItem(getQaLikedStorageKey(), JSON.stringify(Array.from(state.qaLiked)));
+      }
+
+      function getTagViewCount(tag) {
+        const value = state.tagViewCounts[tag];
+        return Number.isFinite(value) ? value : 0;
+      }
+
+      function chunkArray(items, size) {
+        const chunks = [];
+        for (let i = 0; i < items.length; i += size) {
+          chunks.push(items.slice(i, i + size));
+        }
+        return chunks;
+      }
+
+      async function ensureTagViewCounts(tags) {
+        if (!window.AI_API_BASE) return;
+        const unique = Array.from(
+          new Set((tags || []).map((item) => String(item || "").trim()).filter(Boolean))
+        );
+        const pending = unique.filter((tag) => state.tagViewCounts[tag] === undefined);
+        if (!pending.length) return;
+        const batches = chunkArray(pending, 100);
+        await Promise.all(
+          batches.map(async (batch) => {
+            const url = `${window.AI_API_BASE}/ai/tag_views?tags=${encodeURIComponent(batch.join(","))}`;
+            const resp = await fetch(url);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const counts = data && data.counts ? data.counts : {};
+            Object.keys(counts).forEach((tag) => {
+              state.tagViewCounts[tag] = Number(counts[tag] || 0);
+            });
+          })
+        );
+      }
+
+      async function ensureTagViewCountsForQuestions(questions) {
+        const tags = [];
+        (questions || []).forEach((q) => {
+          filterDisabledTags(q && q.tags ? q.tags : []).forEach((tag) => tags.push(tag));
+        });
+        await ensureTagViewCounts(tags);
+      }
+
+      function incrementTagViewCount(tag, onDone) {
+        if (!tag) return;
+        const current = getTagViewCount(tag);
+        const next = current + 1;
+        state.tagViewCounts[tag] = next;
+        if (typeof onDone === "function") onDone(next);
+        if (!window.AI_API_BASE) return;
+        fetch(`${window.AI_API_BASE}/ai/tag_view`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tag }),
+        })
+          .then((resp) => (resp.ok ? resp.json() : null))
+          .then((payload) => {
+            if (!payload || typeof payload.view_count !== "number") return;
+            state.tagViewCounts[tag] = payload.view_count;
+            if (typeof onDone === "function") onDone(payload.view_count);
+          })
+          .catch(() => {});
       }
 
       function loadTagVisibility() {

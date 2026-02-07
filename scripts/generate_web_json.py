@@ -114,7 +114,7 @@ def load_explanations(conn):
 def load_tags(conn):
     rows = conn.execute(
         """
-        SELECT qt.question_id, t.label
+        SELECT DISTINCT qt.question_id, t.label
         FROM question_tags qt
         JOIN tags t ON t.id = qt.tag_id
         ORDER BY t.label
@@ -138,6 +138,67 @@ def load_subtopics(conn):
     data = {}
     for question_id, name in rows:
         data.setdefault(question_id, []).append(name)
+    return data
+
+
+def load_tag_dictionary(conn):
+    descriptions = {}
+    alias_to_canonical = {}
+    aliases_by_canonical = {}
+    try:
+        rows = conn.execute(
+            """
+            SELECT canonical_label, description
+            FROM tag_descriptions
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    for canonical_label, description in rows:
+        label = str(canonical_label or "").strip()
+        if not label:
+            continue
+        descriptions[label] = str(description or "").strip()
+    try:
+        alias_rows = conn.execute(
+            """
+            SELECT alias, canonical_label, approved
+            FROM tag_aliases
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        alias_rows = []
+    for alias, canonical_label, approved in alias_rows:
+        if int(approved or 0) != 1:
+            continue
+        alias_label = str(alias or "").strip()
+        canonical = str(canonical_label or "").strip()
+        if not alias_label or not canonical:
+            continue
+        alias_to_canonical[alias_label] = canonical
+        aliases_by_canonical.setdefault(canonical, set()).add(alias_label)
+    aliases_by_canonical = {
+        key: sorted(values) for key, values in aliases_by_canonical.items()
+    }
+    return descriptions, alias_to_canonical, aliases_by_canonical
+
+
+def load_tag_view_stats(conn):
+    try:
+        rows = conn.execute(
+            """
+            SELECT tag_label, view_count
+            FROM tag_view_stats
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    data = {}
+    for tag_label, view_count in rows:
+        label = str(tag_label or "").strip()
+        if not label:
+            continue
+        data[label] = int(view_count or 0)
     return data
 
 
@@ -308,6 +369,12 @@ def main():
     subtopics = load_subtopics(conn)
     deep_dive = load_deep_dive(conn)
     qa_map = load_question_qa(conn)
+    (
+        tag_descriptions,
+        tag_alias_to_canonical,
+        tag_aliases_by_canonical,
+    ) = load_tag_dictionary(conn)
+    tag_view_stats = load_tag_view_stats(conn)
     update_log = load_explanation_update_log(conn)
     conn.close()
 
@@ -336,7 +403,7 @@ def main():
             "explanation_latest": latest_exp,
             "explanation_latest_source": latest_source,
             "explanations": exp_list_sorted,
-            "tags": tags.get(qid, []),
+            "tags": list(dict.fromkeys(tags.get(qid, []))),
             "subtopics": subtopics.get(qid, []),
             "deep_dive": deep_dive.get(q["serial"]) or None,
             "qa_list": qa_map.get(q["serial"], []),
@@ -460,6 +527,7 @@ def main():
     index_by_subject = {}
     index_by_tag = {}
     index_by_subtopic = {}
+    tag_catalog = {}
 
     for record in output:
         serial = record["serial"]
@@ -468,6 +536,26 @@ def main():
 
         for tag in record["tags"]:
             index_by_tag.setdefault(tag, []).append(serial)
+            canonical = tag_alias_to_canonical.get(tag, tag)
+            item = tag_catalog.setdefault(
+                tag,
+                {
+                    "tag": tag,
+                    "canonical_tag": canonical,
+                    "description": tag_descriptions.get(canonical, ""),
+                    "aliases": tag_aliases_by_canonical.get(canonical, []),
+                    "view_count": int(tag_view_stats.get(tag, 0)),
+                    "related_count": 0,
+                    "subjects": set(),
+                    "subtopics": set(),
+                },
+            )
+            item["related_count"] += 1
+            if subject:
+                item["subjects"].add(subject)
+            for subtopic in record["subtopics"]:
+                if subtopic:
+                    item["subtopics"].add(subtopic)
 
         for subtopic in record["subtopics"]:
             index_by_subtopic.setdefault(subtopic, []).append(serial)
@@ -482,6 +570,18 @@ def main():
     )
     (index_dir / "index_by_subtopic.json").write_text(
         json.dumps(index_by_subtopic, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    for item in tag_catalog.values():
+        item["subjects"] = sorted(item["subjects"])
+        item["subtopics"] = sorted(item["subtopics"])
+        item["related_serials"] = (index_by_tag.get(item["tag"], []) or [])[:5]
+    ordered_tag_catalog = sorted(
+        tag_catalog.values(),
+        key=lambda x: (-int(x.get("view_count", 0)), -int(x.get("related_count", 0)), x["tag"]),
+    )
+    (index_dir / "tag_catalog.json").write_text(
+        json.dumps(ordered_tag_catalog, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 

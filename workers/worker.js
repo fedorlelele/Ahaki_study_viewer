@@ -129,6 +129,17 @@ async function handleAi(request, env) {
     const body = await readJson(request);
     return incrementQaCounter(env, body, "like_count");
   }
+  if (path === "/ai/tag_views" && request.method === "GET") {
+    const tags = (url.searchParams.get("tags") || "")
+      .split(",")
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return fetchTagViewCounts(env, tags);
+  }
+  if (path === "/ai/tag_view" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementTagView(env, body);
+  }
   if (request.method === "GET" && path === "/ai/deep_dive") {
     const serial = (url.searchParams.get("serial") || "").trim();
     if (!serial) {
@@ -612,6 +623,91 @@ async function incrementQaCounter(env, body, field) {
   return jsonResponse({ ok: true, [field]: next });
 }
 
+function buildInClause(values) {
+  const quoted = values.map((value) => `"${String(value).replace(/"/g, '\\"')}"`).join(",");
+  return encodeURIComponent(`(${quoted})`);
+}
+
+async function fetchTagViewCounts(env, tags) {
+  const clean = Array.isArray(tags)
+    ? tags.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  if (!clean.length) return jsonResponse({ counts: {} });
+  const query =
+    `${env.SUPABASE_URL}/rest/v1/tag_view_stats` +
+    `?select=tag,view_count&tag=in.${buildInClause(clean)}`;
+  const resp = await fetch(query, {
+    headers: {
+      apikey: env.SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = (await resp.json()) || [];
+  const counts = {};
+  clean.forEach((tag) => {
+    counts[tag] = 0;
+  });
+  rows.forEach((row) => {
+    const tag = String(row.tag || "").trim();
+    if (!tag) return;
+    counts[tag] = Number(row.view_count || 0);
+  });
+  return jsonResponse({ counts });
+}
+
+async function incrementTagView(env, body) {
+  const tag = String(body && body.tag ? body.tag : "").trim();
+  if (!tag) return jsonResponse({ message: "tag required" }, 400);
+  const selectUrl =
+    `${env.SUPABASE_URL}/rest/v1/tag_view_stats` +
+    `?select=tag,view_count&tag=eq.${encodeURIComponent(tag)}&limit=1`;
+  const resp = await fetch(selectUrl, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!resp.ok) return jsonResponse({ message: "Supabase fetch failed" }, 500);
+  const rows = (await resp.json()) || [];
+  const current = rows[0] ? Number(rows[0].view_count || 0) : 0;
+  const next = current + 1;
+  const now = new Date().toISOString();
+  if (!rows.length) {
+    const insert = await fetch(`${env.SUPABASE_URL}/rest/v1/tag_view_stats`, {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({ tag, view_count: next, updated_at: now })
+    });
+    if (!insert.ok) return jsonResponse({ message: "Supabase insert failed" }, 500);
+    return jsonResponse({ ok: true, tag, view_count: next });
+  }
+  const update = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/tag_view_stats?tag=eq.${encodeURIComponent(tag)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ view_count: next, updated_at: now })
+    }
+  );
+  if (!update.ok) return jsonResponse({ message: "Supabase update failed" }, 500);
+  return jsonResponse({ ok: true, tag, view_count: next });
+}
+
 const PROGRESS_STATUSES = new Set(["unstarted", "in_progress", "mastered", "needs_review"]);
 
 function normalizeProgressStatus(status) {
@@ -631,11 +727,6 @@ function plusDaysIso(baseIso, days) {
   const date = new Date(baseIso || Date.now());
   date.setDate(date.getDate() + Number(days || 0));
   return date.toISOString();
-}
-
-function buildInClause(values) {
-  const quoted = values.map((value) => `"${String(value).replace(/"/g, '\\"')}"`).join(",");
-  return encodeURIComponent(`(${quoted})`);
 }
 
 async function fetchUserProgressBySerials(env, userId, serials) {

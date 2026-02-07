@@ -172,9 +172,33 @@ def init_db(conn):
             FOREIGN KEY (subtopic_id) REFERENCES subtopics(id)
         );
 
+        CREATE TABLE IF NOT EXISTS tag_descriptions (
+            canonical_label TEXT PRIMARY KEY,
+            description TEXT NOT NULL DEFAULT '',
+            source_model TEXT DEFAULT '',
+            updated_at TEXT DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS tag_aliases (
+            alias TEXT PRIMARY KEY,
+            canonical_label TEXT NOT NULL,
+            confidence REAL DEFAULT 0.0,
+            approved INTEGER NOT NULL DEFAULT 1,
+            source_model TEXT DEFAULT '',
+            updated_at TEXT DEFAULT '',
+            FOREIGN KEY (canonical_label) REFERENCES tag_descriptions(canonical_label)
+        );
+
+        CREATE TABLE IF NOT EXISTS tag_view_stats (
+            tag_label TEXT PRIMARY KEY,
+            view_count INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT DEFAULT ''
+        );
+
         CREATE INDEX IF NOT EXISTS idx_questions_serial ON questions(serial);
         CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);
         CREATE INDEX IF NOT EXISTS idx_question_tags_tag ON question_tags(tag_id);
+        CREATE INDEX IF NOT EXISTS idx_tag_aliases_canonical ON tag_aliases(canonical_label);
         """
     )
 
