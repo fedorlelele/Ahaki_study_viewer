@@ -679,12 +679,70 @@
       }
       .user-readme {
         margin: 6px 0;
-        padding: 10px 12px;
+        padding: 12px 14px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
-        font-size: 12px;
-        white-space: pre-wrap;
+        font-size: 13px;
+        line-height: 1.75;
+      }
+      .user-readme > :first-child {
+        margin-top: 0;
+      }
+      .user-readme > :last-child {
+        margin-bottom: 0;
+      }
+      .user-readme h1,
+      .user-readme h2,
+      .user-readme h3 {
+        line-height: 1.4;
+        margin: 1em 0 0.45em;
+      }
+      .user-readme h1 {
+        font-size: 18px;
+      }
+      .user-readme h2 {
+        font-size: 16px;
+      }
+      .user-readme h3 {
+        font-size: 14px;
+      }
+      .user-readme p,
+      .user-readme ul,
+      .user-readme ol {
+        margin: 0.55em 0;
+      }
+      .user-readme ul,
+      .user-readme ol {
+        padding-left: 1.5em;
+      }
+      .user-readme li {
+        margin: 0.2em 0;
+      }
+      .user-readme code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.95em;
+        background: #f5f7fa;
+        border: 1px solid #e4e9f0;
+        border-radius: 4px;
+        padding: 0.1em 0.3em;
+      }
+      .user-readme pre {
+        overflow-x: auto;
+        background: #f5f7fa;
+        border: 1px solid #e4e9f0;
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin: 0.7em 0;
+      }
+      .user-readme pre code {
+        background: transparent;
+        border: 0;
+        padding: 0;
+      }
+      .user-readme a {
+        color: #145aa8;
+        text-decoration: underline;
       }
       details.inline {
         margin-top: 8px;
@@ -1120,7 +1178,7 @@
         <details class="inline" id="userReadme" hidden>
         <summary>利用ガイド</summary>
         <div class="card-actions">
-          <pre class="user-readme" id="userReadmeText">読み込み中...</pre>
+          <article class="user-readme" id="userReadmeText">読み込み中...</article>
         </div>
         </details>
         <details class="inline" id="answerTrendPanel" hidden>
@@ -1278,6 +1336,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="./config.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
@@ -2136,17 +2195,26 @@
         return fetch("./USER_README.md")
           .then(r => (r.ok ? r.text() : "利用ガイドを読み込めませんでした。"))
           .then(text => {
-            const target = document.getElementById("userReadmeText");
-            if (target) {
-              target.textContent = text;
-            }
+            renderUserReadmeMarkdown(text);
           })
           .catch(() => {
-            const target = document.getElementById("userReadmeText");
-            if (target) {
-              target.textContent = "利用ガイドを読み込めませんでした。";
-            }
+            renderUserReadmeMarkdown("利用ガイドを読み込めませんでした。");
           });
+      }
+
+      function renderUserReadmeMarkdown(text) {
+        const target = document.getElementById("userReadmeText");
+        if (!target) return;
+        const source = String(text || "");
+        if (window.marked && typeof window.marked.parse === "function") {
+          const escaped = source.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          target.innerHTML = window.marked.parse(escaped, {
+            gfm: true,
+            breaks: true
+          });
+          return;
+        }
+        target.textContent = source;
       }
 
       function renderUpdateLog(targetCount) {

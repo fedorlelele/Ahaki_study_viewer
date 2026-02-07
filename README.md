@@ -1,288 +1,192 @@
-# Ahaki_study_viewer
+# Ahaki Study Viewer
 
-国試テキスト（UTF-16のTXT）から、問題データを整理して SQLite / JSON へ保存し、
-解説・タグ・小項目（サブトピック）を追加していくためのスクリプト群です。
+あん摩マッサージ指圧師・はり師きゅう師国家試験の問題データを管理し、学習用WebUIとして公開するプロジェクトです。
 
-## 前提
-- Python 3
-- pandas
+## 1. システム概要
 
-## ディレクトリ構成
-- `kokushitxt/` : 元のTXTファイル
-- `output/` : 生成物（SQLite / JSON など）
-- `convert_ahaki_to_json.py` : 既存のTXT -> Excel/JS 変換
-- `build_ahaki_sqlite.py` : TXT -> SQLite + 1問1JSON 生成
-- `scripts/generate_explanation_template.py` : 解説用JSONLテンプレ生成
-- `scripts/import_explanations.py` : 解説JSONLのSQLite取り込み
-- `scripts/generate_tag_template.py` : タグ用JSONLテンプレ生成
-- `scripts/import_tags.py` : タグJSONLのSQLite取り込み
-- `scripts/generate_subtopic_catalog.py` : 科目ごとの小項目カタログ雛形生成
-- `scripts/generate_subtopic_assignment_template.py` : 小項目割当用JSONL生成
-- `scripts/import_subtopics.py` : 小項目JSONLのSQLite取り込み
-- `config/subtopics_catalog.json` : 小項目カタログ（管理対象）
-- `scripts/generate_web_json.py` : WebUI用JSON生成
-- `local_admin_app.py` : ローカル管理画面
-- `web_app/` : WebUI
-- `samples/` : サンプル・プロンプト素材
-- `resources/` : プロンプト用のサンプルJSONLなど（管理対象）
+- 基本データ: `output/ahaki.sqlite`
+- 公開用データ: `output/web/questions.json` と `output/web/index/*.json`
+- WebUI:
+  - 開発用: `web_app/index.html`
+  - GitHub Pages用: `docs/web_app/index.html`
+- クラウド差分:
+  - `Supabase` (回答ログ、修正提案、進捗、Q&A、深掘り解説、権限)
+  - `Cloudflare Worker` (Supabase/Gemini API中継と権限制御)
 
-## 1. SQLite生成（元TXTから）
-```
+`SQLite` を基盤にしつつ、ユーザー操作で増える情報は Supabase 側に保持する構成です。
+
+## 2. 主な機能
+
+- 問題検索
+  - キーワード、`#タグ`、シリアル、科目、小項目、試験種別、回数範囲
+  - 並び替え: 新旧、回答統計、頻出、Q&A追加順、深掘り解説追加順、復習優先順
+- 学習機能
+  - 回答・正誤表示
+  - 検索結果コピー、問題単位コピー、深掘り用プロンプトコピー
+  - かんたんビュー (`web_app/simple.html`)
+- 進捗管理 (ログインユーザー)
+  - 未着手 / 理解済み / 要復習
+  - 復習キュー、弱点小項目、週目標
+  - 端末ローカル回答履歴の取り込み
+- 編集・レビュー
+  - 修正提案の投稿、教師/管理者による確認・反映
+  - 編集履歴、タグ無効化
+- AI連携
+  - 深掘り解説生成
+  - 問題ごとのQ&A生成
+  - 管理者による AI機能の一時公開切り替え
+- タグ辞書
+  - タグ説明生成
+  - 同義語結合
+  - 全タグ文字列を使った自動タグ補完
+
+## 3. 権限モデル
+
+- `guest`: 閲覧中心
+- `student`: `guest` + 学習進捗
+- `teacher`: `student` + 修正提案管理・履歴確認・タグ無効化・回答推移確認
+- `admin`: `teacher` + 権限管理 + AI公開切替 + 管理機能全体
+
+## 4. ディレクトリ構成
+
+- `build_ahaki_sqlite.py`: TXTからSQLiteを再構築
+- `local_admin_app.py`: ローカル管理画面
+- `scripts/`: 変換・テンプレ生成・インポート・JSON生成・タグ辞書関連
+- `workers/worker.js`: Cloudflare Worker
+- `workers/sql/`: Supabaseテーブル/ポリシー作成SQL
+- `web_app/`: 開発用WebUI
+- `docs/`: Pages公開物 (`scripts/prepare_pages.sh` で再生成)
+- `config/subtopics_catalog.json`: 小項目カタログ
+- `config/update_notes.json`: 更新情報ソース
+- `output/`: SQLiteとWeb用生成物
+
+## 5. セットアップ
+
+### 5.1 前提
+
+- Python 3.9+
+- `pandas` (必要スクリプトで使用)
+
+### 5.2 初期生成
+
+```bash
 python build_ahaki_sqlite.py
-```
-出力:
-- `output/ahaki.sqlite`
-- `output/questions_json/`（1問1JSON）
-
-## 2. 解説の追加（JSONL）
-### 2-1. テンプレ生成（10問）
-```
-python scripts/generate_explanation_template.py --limit 10 \
-  --out output/explanations_batch.jsonl \
-  --prompt-out output/explanations_batch_prompt.txt
-```
-
-### 2-2. LLMで解説を埋める
-- `explanations_batch_prompt.txt` をWeb版に貼り付け
-- `explanations_batch_filled.jsonl` として保存
-
-### 2-3. SQLiteに取り込み
-```
-python scripts/import_explanations.py --infile output/explanations_batch_filled.jsonl
-```
-
-## 3. タグ付け（JSONL）
-### 3-1. テンプレ生成（10問）
-```
-python scripts/generate_tag_template.py --limit 10 \
-  --out output/tags_batch.jsonl \
-  --prompt-out output/tags_batch_prompt.txt
-```
-
-### 3-2. LLMでタグを埋める
-- `tags_batch_prompt.txt` をWeb版に貼り付け
-- `tags_batch_filled.jsonl` として保存
-
-### 3-3. SQLiteに取り込み
-```
-python scripts/import_tags.py --infile output/tags_batch_filled.jsonl
-```
-
-## 4. 小項目（サブトピック）
-### 4-1. 科目ごとの候補リスト作成
-```
-python scripts/generate_subtopic_catalog.py --out config/subtopics_catalog.json
-```
-`config/subtopics_catalog.json` を編集して、科目ごとに候補リストを記入します。
-
-### 4-2. 割り当て用JSONL生成
-```
-python scripts/generate_subtopic_assignment_template.py --limit 10 \
-  --catalog config/subtopics_catalog.json \
-  --out output/subtopics_batch.jsonl \
-  --prompt-out output/subtopics_batch_prompt.txt
-```
-
-### 4-3. LLMで小項目を割り当て
-- `subtopics_batch_prompt.txt` をWeb版に貼り付け
-- `subtopics_batch_filled.jsonl` として保存
-
-### 4-4. SQLiteに取り込み
-```
-python scripts/import_subtopics.py --infile output/subtopics_batch_filled.jsonl
-```
-
-## SQLite確認（例）
-```
-sqlite3 output/ahaki.sqlite
-.tables
-SELECT q.serial, s.name, q.stem
-FROM questions q
-LEFT JOIN subjects s ON q.subject_id = s.id
-LIMIT 5;
-```
-
-## 補足
-- LLMの出力は「JSONLファイルとして保存して返す」指定になっています。
-- 既存データを壊さず、追記型で解説・タグ・小項目を蓄積します。
-- `output/` は生成物のため `.gitignore` で除外しています。
-
-## 5. Webアプリ簡易ビュー
-`web_app/index.html` に検索・絞り込み・コピー機能を備えた簡易ビューがあります。
-
-### 起動方法
-```
-python -m http.server 8000
-```
-ブラウザで `http://127.0.0.1:8000/web_app/` を開いてください。
-※ 事前に `scripts/generate_web_json.py` を実行し、`output/web/` にJSONを生成しておく必要があります。
-
-### Supabase設定（WebUI）
-`web_app/config.example.js` を `web_app/config.js` にコピーして、
-Supabaseの `Publishable key` と `Project URL` を設定してください。
-`web_app/config.js` は `.gitignore` で除外されています。
-
-### アカウントと権限
-- サインアップは共通フォームから行い、初期状態は未承認です。
-- 権限（生徒/教師/管理者）は管理者または教師が付与します。
-- 管理者はWebUIの「管理画面を開く」からユーザー権限を変更できます。
-
-## 7. GitHub Pagesで公開
-GitHub Pagesを使う場合は `docs/` に公開用ファイルを生成します。
-
-```
-python scripts/generate_web_json.py
+python scripts/generate_web_json.py --db output/ahaki.sqlite --out output/web/questions.json --index-dir output/web/index
 bash scripts/prepare_pages.sh
 ```
 
-GitHubのSettings → Pagesで `docs/` を公開対象に設定し、公開URLの
-`/web_app/` を開くとWebUIが表示されます。
+### 5.3 WebUI設定
 
-## Supabase テーブル（編集提案）
-編集提案を保存するために `edit_requests` を追加します。
+`web_app/config.example.js` を `web_app/config.js` として配置し、以下を設定します。
 
-```sql
-create table if not exists edit_requests (
-  id bigint generated by default as identity primary key,
-  serial text not null,
-  kind text not null,
-  payload jsonb not null default '{}'::jsonb,
-  note text,
-  status text not null default 'open',
-  created_at timestamptz default now(),
-  created_by text,
-  created_email text
-);
+- `window.SUPABASE_URL`
+- `window.SUPABASE_KEY` (Publishable key)
+- `window.AI_API_BASE` (Cloudflare Worker URL)
+- `window.ADMIN_API_BASE` (必要時。未設定なら `AI_API_BASE` を利用)
 
-alter table edit_requests enable row level security;
+`web_app/config.js` は機密情報を含むため Git 管理しません。
 
-create policy "teacher insert edit_requests"
-  on edit_requests for insert
-  with check (true);
+## 6. ローカル起動
+
+### 6.1 WebUI
+
+```bash
+python -m http.server 8000
 ```
 
-## Supabase テーブル（報告コメント）
-報告コメントを保存するために `feedback` に `comment` 列を追加します。
+- `http://127.0.0.1:8000/web_app/`
 
-```sql
-alter table feedback add column if not exists comment text;
-```
+### 6.2 ローカル管理画面
 
-## Supabase テーブル（差分同期）
-WebUIで教師が反映した修正は `question_overrides` に保存されます。ローカルSQLiteへ反映する場合は管理画面から同期してください。
-
-### question_overrides
-- `serial` (text, PK)
-- `explanation` (text)
-- `explanation_source` (text)
-- `tags` (text[])
-- `subtopics` (text[])
-- `updated_at` (timestamp)
-- `updated_by` (uuid)
-- `synced_at` (timestamp, SQLite同期済みフラグ)
-
-`synced_at` を追加するSQL:
-```sql
-alter table question_overrides add column if not exists synced_at timestamptz;
-```
-
-### override_history
-- `serial` (text)
-- `kind` (text: explanation/tags/subtopics)
-- `before_data` (jsonb)
-- `after_data` (jsonb)
-- `approved_by` (uuid)
-- `created_at` (timestamp)
-
-### 同期手順（Supabase → SQLite）
-1. ローカル管理画面を起動
-2. 「ファイル生成」タブ → 「Supabase差分をSQLiteに同期」を実行
-3. 必要に応じて `updated_at` の開始時刻を指定
-
-注意:
-- 同期はSQLiteのみ更新します。WebUI表示用JSONは別途「Web表示用ファイルを生成」で再生成してください。
-- WebUIは `synced_at` が空の差分のみを読み込みます。
-
-### 機能
-- キーワード検索（空白区切りのAND検索）
-- シリアル検索（A01-001 / a01001 / カンマ区切り対応）
-- タグ検索はキーワードに `#タグ名` を指定
-- 科目/小項目/試験種別/回数の絞り込み、回数ソート
-- 頻出ラベル（タグの出現頻度で自動判定）と頻出順の並び替え
-- 正答表示 / 正答・解説表示の切り替え
-- 解説は最新版を表示し、バージョン選択で切り替え可能
-- 症例文（case_text）の表示に対応
-- 解説・タグ・小項目の要修正報告ボタン
-- 検索結果全体のコピー（検索条件付き）
-- 各問題の個別コピー
-- 回答済みラベルの表示
-- タグ/小項目をクリックして関連問題にジャンプ
-- 更新情報は `output/web/update_log.json` に反映（解説追加数は自動集計、手動更新は `config/update_notes.json` に追記）
-
-### ショートカットキー
-- `/` キーワード入力へ移動
-- `s` 科目セレクトへ移動
-- `u` 小項目セレクトへ移動
-- `f` 検索実行
-- `r` リセット
-- `a` 正答表示の切替
-- `e` 正答・解説表示の切替
-
-## 6. ローカル管理画面（local_admin_app.py）
-解説・タグ・小項目のプロンプト生成/インポート/進捗確認などを行うローカルUIです。
-
-### 起動
-```
+```bash
 python local_admin_app.py --port 8001
 ```
 
-### 主な機能
-- プロンプト一括生成（ダウンロード or クリップボード）
-- 解説/タグ/小項目の生成対象を個別に選択
-- 新しい順/古い順、試験種別/回数/科目のフィルタ
-- 解説/タグ/小項目の個別インポート
-- フォルダ指定の一括インポート
-  - `explanations_batch_filled.jsonl`
-  - `tags_batch_filled.jsonl`
-  - `subtopics_batch_filled.jsonl`
-- ダウンロードフォルダ一括インポート（`*_batch_filled*.jsonl`）
-- クリップボード貼り付けインポート
-- 進捗レポート表示
-- 履歴表示（最新20件）
-- 検索・プレビュー
-- 未設定一覧（JSON表示/CSVダウンロード）
-- 報告一覧の確認、プロンプト対象へのセット、報告フラグ消去
-- 報告一覧はSupabaseのfeedbackを参照（SUPABASE_URL / SUPABASE_SERVICE_KEYが必要）
-- 解説/タグ/小項目のインポート時に該当報告フラグを自動消去（Supabase側も消去）
-- 編集提案（edit_requests）を一覧表示し、SQLiteへ反映／却下が可能
-- WebUI用ファイル生成 / 一括生成
+- `http://127.0.0.1:8001/`
 
-### WebUI反映について
-管理画面からのインポート時に、WebUI用ファイル（`output/web/`）を
-自動で再生成します。WebUIの表示が古い場合はブラウザを強制リロードしてください。
+## 7. 日常運用フロー
 
-## 7. Gemini APIでの一括自動生成（CLI）
-Gemini 3 Flash preview（思考モード）で、解説・タグ・小項目の一括生成を
-20問単位で実行し、JSONLを自動インポートします。
+1. `SQLite` を更新 (インポート、手修正、スクリプト処理)
+2. Web用JSONを再生成
+3. Pages公開物を再生成
+4. `docs/` をコミットして `main` に push
 
-### 事前準備
-`.env` にAPIキーを保存（gitignore済み）。
+```bash
+python scripts/generate_web_json.py --db output/ahaki.sqlite --out output/web/questions.json --index-dir output/web/index
+bash scripts/prepare_pages.sh
 ```
+
+## 8. JSONL運用 (解説・タグ・小項目)
+
+### 8.1 テンプレート生成
+
+```bash
+python scripts/generate_explanation_template.py --limit 20 --out output/explanations_batch.jsonl --prompt-out output/explanations_batch_prompt.txt
+python scripts/generate_tag_template.py --limit 20 --out output/tags_batch.jsonl --prompt-out output/tags_batch_prompt.txt
+python scripts/generate_subtopic_assignment_template.py --limit 20 --catalog config/subtopics_catalog.json --out output/subtopics_batch.jsonl --prompt-out output/subtopics_batch_prompt.txt
+```
+
+### 8.2 インポート
+
+```bash
+python scripts/import_explanations.py --infile output/explanations_batch_filled.jsonl
+python scripts/import_tags.py --infile output/tags_batch_filled.jsonl
+python scripts/import_subtopics.py --infile output/subtopics_batch_filled.jsonl
+```
+
+## 9. タグ辞書と自動タグ補完
+
+### 9.1 タグ説明生成 + 同義語結合
+
+```bash
+python scripts/build_tag_dictionary_with_gemini.py --db output/ahaki.sqlite --batch-size 8 --apply-merge
+```
+
+### 9.2 全タグから機械的にタグ補完
+
+```bash
+python scripts/auto_assign_tags_from_full_tags.py --db output/ahaki.sqlite
+```
+
+## 10. Gemini API一括生成 (CLI)
+
+Geminiで解説・タグ・小項目を20問単位で生成し、自動インポートします。
+
+`.env` 例:
+
+```env
 GEMINI_API_KEY=YOUR_KEY
 ```
 
-### 実行例
-```
+実行例:
+
+```bash
 python scripts/run_gemini_combined.py --limit 20 --batches 3 --sleep-seconds 20
 ```
 
-### 主なオプション
-- `--batches` : 実行回数（1回=20問）
-- `--sleep-seconds` : バッチ間の待機秒数（無料枠対策）
-- `--max-per-day` : 1日あたりの上限回数（既定25）
-- `--model` : 使用モデルID（既定 `gemini-3.0-flash-preview`）
-- `--thinking-budget` : 思考モードの予算（0で無効）
-- `--unannotated` / `--all` : 未設定のみ / 既存を含む
-- `--rebuild-web` / `--no-rebuild-web` : WebUI用データ再生成の有無
+主なオプション:
 
-実行履歴は `output/gemini_usage.json` に記録されます。
+- `--batches`: 実行回数 (`0` で上限到達まで)
+- `--sleep-seconds`: バッチ間待機秒数
+- `--max-per-day`: 1日上限
+- `--model`: 使用モデル
+- `--thinking-budget`: 思考予算
+- `--rebuild-web` / `--no-rebuild-web`: JSON再生成の有無
+
+## 11. バックアップ
+
+最重要は `output/ahaki.sqlite` です。  
+この1ファイルがあれば主要データの復旧が可能です。
+
+## 12. トラブルシュート
+
+- `fatal: ... .git/index.lock`
+  - `rm -f .git/index.lock`
+- Pagesが古い表示
+  1. `generate_web_json.py` を再実行
+  2. `prepare_pages.sh` を再実行
+  3. ブラウザを強制リロード
+- Supabase差分が反映されない
+  - `web_app/config.js` のURL/キーを確認
+  - Worker URLとRLS設定を確認
+
