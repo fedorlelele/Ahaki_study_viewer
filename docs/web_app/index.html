@@ -30,6 +30,81 @@
         min-height: 100vh;
         padding-top: 56px;
       }
+      .skip-link {
+        position: absolute;
+        left: 12px;
+        top: -44px;
+        z-index: 2000;
+        background: #fff;
+        color: var(--ink);
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        text-decoration: none;
+      }
+      .skip-link:focus {
+        top: 8px;
+      }
+      .sr-only {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        border: 0 !important;
+      }
+      body.high-contrast {
+        --bg-1: #ffffff;
+        --bg-2: #edf2f7;
+        --ink: #050505;
+        --muted: #111827;
+        --accent: #004ea2;
+        --line: #1f2937;
+      }
+      body[data-font-scale="large"] .controls input,
+      body[data-font-scale="large"] .controls select,
+      body[data-font-scale="large"] .controls button,
+      body[data-font-scale="large"] .toolbar button,
+      body[data-font-scale="large"] .toolbar select,
+      body[data-font-scale="large"] .choice-btn,
+      body[data-font-scale="large"] .stem,
+      body[data-font-scale="large"] .answer,
+      body[data-font-scale="large"] .explanation,
+      body[data-font-scale="large"] .tagline,
+      body[data-font-scale="large"] .meta {
+        font-size: 16px;
+      }
+      body[data-font-scale="xlarge"] .controls input,
+      body[data-font-scale="xlarge"] .controls select,
+      body[data-font-scale="xlarge"] .controls button,
+      body[data-font-scale="xlarge"] .toolbar button,
+      body[data-font-scale="xlarge"] .toolbar select,
+      body[data-font-scale="xlarge"] .choice-btn,
+      body[data-font-scale="xlarge"] .stem,
+      body[data-font-scale="xlarge"] .answer,
+      body[data-font-scale="xlarge"] .explanation,
+      body[data-font-scale="xlarge"] .tagline,
+      body[data-font-scale="xlarge"] .meta {
+        font-size: 18px;
+      }
+      body.ui-mode-accessible .card {
+        box-shadow: none;
+      }
+      body.ui-mode-accessible .top-menu button,
+      body.ui-mode-accessible .top-menu a,
+      body.ui-mode-accessible .controls button,
+      body.ui-mode-accessible .toolbar button,
+      body.ui-mode-accessible .toolbar select,
+      body.ui-mode-accessible .choice-btn,
+      body.ui-mode-accessible .chip-link {
+        min-height: 44px;
+      }
+      body.ui-mode-accessible .choice-btn {
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
       header {
         padding: 16px 24px 10px;
       }
@@ -119,14 +194,15 @@
       }
       .top-menu button,
       .top-menu a {
-        padding: 6px 10px;
+        padding: 8px 10px;
         border-radius: 8px;
         border: 2px solid var(--line);
         background: #fff;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 13px;
         color: var(--ink);
         text-decoration: none;
+        min-height: 40px;
       }
       .top-menu button:hover,
       .top-menu a:hover {
@@ -159,11 +235,12 @@
       .controls input,
       .controls select,
       .controls button {
-        padding: 10px 12px;
+        padding: 11px 12px;
         border: 2px solid var(--line);
         border-radius: 10px;
         background: #fff;
-        font-size: 14px;
+        font-size: 15px;
+        min-height: 44px;
       }
       .controls button {
         background: var(--accent);
@@ -224,20 +301,22 @@
         gap: 6px;
       }
       .toolbar button {
-        padding: 6px 10px;
+        padding: 8px 12px;
         border-radius: 8px;
         border: 2px solid var(--line);
         background: #fff;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 13px;
+        min-height: 40px;
       }
       .toolbar select {
-        padding: 6px 10px;
+        padding: 8px 12px;
         border-radius: 8px;
         border: 2px solid var(--line);
         background: #fff;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 13px;
+        min-height: 40px;
       }
       .toolbar {
         padding: 0 24px 18px;
@@ -250,6 +329,13 @@
       .toolbar.main {
         flex-wrap: wrap;
         gap: 10px;
+      }
+      .section-title {
+        margin: 0 0 4px;
+        font-size: 18px;
+      }
+      .filter-summary {
+        flex-basis: 100%;
       }
       .toolbar .auth-panel {
         margin-top: 0;
@@ -365,6 +451,19 @@
         font-size: 12px;
         text-decoration: none;
         cursor: pointer;
+      }
+      .tag-chip {
+        position: relative;
+      }
+      .tag-chip.has-description {
+        border-color: #8fa6bf;
+      }
+      .tag-chip.has-description::after {
+        content: "●";
+        font-size: 8px;
+        color: #617a93;
+        margin-left: 5px;
+        vertical-align: middle;
       }
       .chip-link:hover {
         color: var(--ink);
@@ -532,6 +631,45 @@
       }
       .card-actions {
         margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .card-actions details.inline {
+        margin-top: 0;
+      }
+      .card-actions > button,
+      .card-actions details.inline > summary.inline-summary {
+        min-height: 40px;
+      }
+      .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .action-btn.icon-only,
+      details.inline > summary.inline-summary.action-summary.icon-only {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0;
+        justify-content: center;
+        gap: 0;
+      }
+      .action-icon {
+        font-size: 14px;
+        line-height: 1;
+      }
+      .action-btn.icon-only .action-icon,
+      details.inline > summary.inline-summary.action-summary.icon-only .action-icon {
+        font-size: 17px;
+      }
+      details.inline > summary.inline-summary.action-summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
       }
       .note {
         color: var(--muted);
@@ -887,6 +1025,8 @@
     </style>
   </head>
   <body>
+    <a class="skip-link" href="#mainContent">本文へスキップ</a>
+    <div id="srStatus" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <header>
       <div class="top-nav">
         <h1 class="site-title" aria-label="Ahaki Study Viewer">
@@ -899,7 +1039,7 @@
       </div>
       <div id="topPanels" class="top-panels" hidden>
         <div id="topMenuContent" hidden>
-          <div class="top-menu" role="navigation" aria-label="メニュー">
+          <nav class="top-menu" aria-label="メニュー">
             <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
             <button type="button" data-menu-target="updateInfo">更新情報</button>
             <button type="button" data-menu-target="settingsPanel">設定</button>
@@ -911,7 +1051,7 @@
             <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
             <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
             <a href="./simple.html">かんたんビューへのリンク</a>
-          </div>
+          </nav>
         </div>
         <details class="inline" id="updateInfo" hidden>
         <summary>更新情報</summary>
@@ -924,6 +1064,18 @@
         <details class="inline" id="settingsPanel" hidden>
         <summary>設定</summary>
         <div class="edit-panel">
+          <label for="uiModeSelect">表示モード</label>
+          <select id="uiModeSelect" aria-label="表示モード">
+            <option value="standard">標準</option>
+            <option value="accessible">アクセシブル</option>
+          </select>
+          <label for="fontScaleSelect">文字サイズ</label>
+          <select id="fontScaleSelect" aria-label="文字サイズ">
+            <option value="normal">標準</option>
+            <option value="large">大</option>
+            <option value="xlarge">特大</option>
+          </select>
+          <label><input type="checkbox" id="highContrastToggle" /> 高コントラスト表示</label>
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
           <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
           <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
@@ -1057,9 +1209,9 @@
       </div>
     </header>
 
-    <main role="main" aria-label="学習ビュー">
+    <main id="mainContent" role="main" aria-label="学習ビュー">
     <div class="intro">
-      <div class="subtitle">検索・絞り込み・学習用の簡易ビュー</div>
+      <h2 class="section-title">検索・絞り込み・学習用の簡易ビュー</h2>
       <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
       <div class="note" id="aiPublicNotice" hidden>AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。</div>
     </div>
@@ -1112,6 +1264,7 @@
         <option value="rate_asc">正答率が低い順</option>
       </select>
       <span id="countInfo" aria-live="polite"></span>
+      <div id="filterSummary" class="note filter-summary"></div>
     </div>
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
@@ -1171,6 +1324,7 @@
         ,qaLatestBySerial: {}
         ,tagCatalogByTag: {}
         ,tagViewCounts: {}
+        ,tagViewedSession: new Set()
         ,aiPublicGeneration: false
         ,progressSelfBySerial: {}
         ,progressSelfList: []
@@ -1182,6 +1336,9 @@
         ,progressSelectedUserId: ""
         ,progressQueueAll: []
         ,progressLoading: false
+        ,uiMode: "standard"
+        ,fontScale: "normal"
+        ,highContrast: false
       };
 
       function normalizeRole(role) {
@@ -1209,6 +1366,18 @@
 
       function canUseAiGeneration() {
         return isRoleAtLeast("admin") || state.aiPublicGeneration;
+      }
+
+      function announceStatus(message) {
+        const el = document.getElementById("srStatus");
+        if (!el) return;
+        el.textContent = message || "";
+      }
+
+      function applyUiPreferences() {
+        document.body.classList.toggle("ui-mode-accessible", state.uiMode === "accessible");
+        document.body.classList.toggle("high-contrast", !!state.highContrast);
+        document.body.setAttribute("data-font-scale", state.fontScale || "normal");
       }
 
       function updateAiPublicNotice() {
@@ -2237,7 +2406,11 @@
         const isTeacher = state.roleRank >= 2;
         const showAnswer = document.getElementById("toggleAnswer").checked;
         const showExplanation = document.getElementById("toggleExplanation").checked;
-        document.getElementById("countInfo").textContent = `件数: ${list.length}`;
+        const countText = `件数: ${list.length}`;
+        document.getElementById("countInfo").textContent = countText;
+        const summaryEl = document.getElementById("filterSummary");
+        if (summaryEl) summaryEl.textContent = buildFilterHeader();
+        announceStatus(countText);
         const sortSession = document.getElementById("sortSession").value;
         const isStatSort = [
           "count_desc",
@@ -2561,7 +2734,14 @@
           const tagDesc = document.createElement("div");
           tagDesc.className = "tag-description";
           tagDesc.hidden = true;
+          let currentTagDescription = "";
           const renderTagDescription = (tag) => {
+            if (!tag) return;
+            if (!tagDesc.hidden && currentTagDescription === tag) {
+              tagDesc.hidden = true;
+              currentTagDescription = "";
+              return;
+            }
             const meta = state.tagCatalogByTag[tag] || {};
             const relatedCount =
               typeof meta.related_count === "number" ? meta.related_count : 0;
@@ -2620,19 +2800,34 @@
               tagDesc.appendChild(filters);
             }
             tagDesc.hidden = false;
-            incrementTagViewCount(tag, (count) => {
-              info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${count}`;
-            });
+            currentTagDescription = tag;
+            if (!state.tagViewedSession.has(tag)) {
+              state.tagViewedSession.add(tag);
+              saveTagViewedSessionState();
+              incrementTagViewCount(tag, (count) => {
+                info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${count}`;
+              });
+            }
           };
           let showAllTags = false;
           const renderTagButtons = () => {
             tagItems.textContent = "";
             const visible = showAllTags ? sortedTags : sortedTags.slice(0, 3);
             visible.forEach((tag) => {
+              const meta = state.tagCatalogByTag[tag] || {};
+              const hasDescription = Boolean((meta.description || "").trim());
               const link = document.createElement("button");
-              link.className = "chip-link";
+              link.className = hasDescription ? "chip-link tag-chip has-description" : "chip-link tag-chip";
               link.textContent = tag;
-              link.setAttribute("aria-label", `タグ ${tag} の説明を表示`);
+              link.setAttribute(
+                "aria-label",
+                hasDescription
+                  ? `タグ ${tag}（説明あり）の説明を表示`
+                  : `タグ ${tag} の説明を表示`
+              );
+              if (hasDescription) {
+                link.title = "説明あり";
+              }
               link.addEventListener("click", () => {
                 renderTagDescription(tag);
               });
@@ -3270,23 +3465,54 @@
 
           const actions = document.createElement("div");
           actions.className = "card-actions";
+          const setActionButtonLabel = (btn, icon, label) => {
+            btn.textContent = "";
+            const iconSpan = document.createElement("span");
+            iconSpan.className = "action-icon";
+            iconSpan.setAttribute("aria-hidden", "true");
+            iconSpan.textContent = icon;
+            const textSpan = document.createElement("span");
+            textSpan.textContent = label;
+            btn.appendChild(iconSpan);
+            btn.appendChild(textSpan);
+          };
           const copyBtn = document.createElement("button");
-          copyBtn.textContent = "この問題をコピー";
+          copyBtn.className = "action-btn icon-only";
+          setActionButtonLabel(copyBtn, "⧉", "");
           copyBtn.setAttribute("aria-label", "この問題をクリップボードにコピー");
+          copyBtn.setAttribute("title", "問題をコピー");
           copyBtn.addEventListener("click", () => {
             const mode = getCopyMode();
             const text = formatQuestionForCopy(q, mode);
             copyToClipboard(text);
           });
           actions.appendChild(copyBtn);
-          const deepDiveBtn = document.createElement("button");
-          deepDiveBtn.textContent = "深掘りプロンプトをコピー";
-          deepDiveBtn.setAttribute("aria-label", "深掘り用プロンプトをクリップボードにコピー");
-          deepDiveBtn.addEventListener("click", () => {
+
+          const extraDetails = document.createElement("details");
+          extraDetails.className = "inline";
+          const extraSummary = document.createElement("summary");
+          extraSummary.className = "inline-summary action-summary icon-only";
+          extraSummary.setAttribute("aria-label", "追加操作");
+          extraSummary.setAttribute("title", "追加操作");
+          extraSummary.textContent = "";
+          const extraIcon = document.createElement("span");
+          extraIcon.className = "action-icon";
+          extraIcon.setAttribute("aria-hidden", "true");
+          extraIcon.textContent = "☰";
+          extraSummary.appendChild(extraIcon);
+          extraDetails.appendChild(extraSummary);
+          const extraPanel = document.createElement("div");
+          extraPanel.className = "edit-panel";
+
+          const deepDivePromptBtn = document.createElement("button");
+          deepDivePromptBtn.className = "action-btn";
+          setActionButtonLabel(deepDivePromptBtn, "✎", "プロンプト");
+          deepDivePromptBtn.setAttribute("aria-label", "深掘り用プロンプトをクリップボードにコピー");
+          deepDivePromptBtn.addEventListener("click", () => {
             const text = formatDeepDivePrompt(q);
             copyToClipboard(text);
           });
-          actions.appendChild(deepDiveBtn);
+          extraPanel.appendChild(deepDivePromptBtn);
           const deepDivePanel = document.createElement("div");
           deepDivePanel.className = "deep-dive-panel";
           deepDivePanel.hidden = true;
@@ -3321,11 +3547,14 @@
           let hasDeepDive =
             (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) ||
             state.deepDiveSerials.has(q.serial);
-          if (hasDeepDive) {
-            const deepDiveViewBtn = document.createElement("button");
-            deepDiveViewBtn.textContent = "深掘り解説を見る";
-            deepDiveViewBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
-            deepDiveViewBtn.addEventListener("click", () => {
+          const deepDiveMainBtn = document.createElement("button");
+          deepDiveMainBtn.className = "action-btn";
+
+          const runDeepDiveView = () => {
+              if (!deepDivePanel.hidden) {
+                deepDivePanel.hidden = true;
+                return;
+              }
               if (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) {
                 renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || []);
                 return;
@@ -3350,23 +3579,9 @@
                 .catch(() => {
                   deepDiveStatus.textContent = "読み込みに失敗しました。";
                 });
-            });
-            actions.appendChild(deepDiveViewBtn);
-          }
+          };
 
-          if (canUseAiGeneration()) {
-            const deepDiveGenBtn = document.createElement("button");
-            if (hasDeepDive) {
-              deepDiveGenBtn.textContent = "深掘り解説は生成済み";
-              deepDiveGenBtn.disabled = true;
-              deepDiveGenBtn.setAttribute("aria-label", "深掘り解説は既に生成済みです");
-            } else {
-              deepDiveGenBtn.textContent = "深掘り解説を生成";
-              deepDiveGenBtn.setAttribute(
-                "aria-label",
-                "深掘り解説と関連タグを生成"
-              );
-              deepDiveGenBtn.addEventListener("click", async () => {
+          const runDeepDiveGenerate = async () => {
               if (!window.AI_API_BASE) {
                 alert("AI_API_BASE が設定されていません。");
                 return;
@@ -3385,7 +3600,7 @@
               deepDiveStatus.textContent = "生成中...";
               deepDiveBody.textContent = "";
               deepDiveTags.textContent = "";
-              deepDiveGenBtn.disabled = true;
+              deepDiveMainBtn.disabled = true;
               try {
                 const prompt = buildDeepDiveApiPrompt(q, expText);
                 const headers = { "Content-Type": "application/json" };
@@ -3421,23 +3636,44 @@
                 });
                 state.deepDiveSerials.add(q.serial);
                 hasDeepDive = true;
-                deepDiveGenBtn.textContent = "深掘り解説は生成済み";
-                deepDiveGenBtn.disabled = true;
-                deepDiveGenBtn.setAttribute("aria-label", "深掘り解説は既に生成済みです");
+                updateDeepDiveMainButton();
               } catch (err) {
                 deepDiveStatus.textContent = "生成に失敗しました。";
                 deepDiveBody.textContent = String(err || "");
               } finally {
-                if (!hasDeepDive) deepDiveGenBtn.disabled = false;
+                if (!hasDeepDive) deepDiveMainBtn.disabled = false;
               }
-              });
+          };
+
+          const updateDeepDiveMainButton = () => {
+            deepDiveMainBtn.hidden = false;
+            deepDiveMainBtn.disabled = false;
+            if (hasDeepDive) {
+              setActionButtonLabel(deepDiveMainBtn, "◎", "深掘り解説");
+              deepDiveMainBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
+              deepDiveMainBtn.onclick = runDeepDiveView;
+              return;
             }
-            actions.appendChild(deepDiveGenBtn);
+            if (canUseAiGeneration()) {
+              setActionButtonLabel(deepDiveMainBtn, "◎", "深掘り生成");
+              deepDiveMainBtn.setAttribute("aria-label", "深掘り解説と関連タグを生成");
+              deepDiveMainBtn.onclick = runDeepDiveGenerate;
+              return;
+            }
+            deepDiveMainBtn.hidden = true;
+          };
+
+          updateDeepDiveMainButton();
+          if (!deepDiveMainBtn.hidden) {
+            extraPanel.appendChild(deepDiveMainBtn);
+          }
+          if (extraPanel.childNodes.length) {
+            extraDetails.appendChild(extraPanel);
+            actions.appendChild(extraDetails);
           }
           const retryBtn = document.createElement("button");
           retryBtn.textContent = "再回答";
           retryBtn.className = "retry-btn";
-          retryBtn.disabled = !answered;
           retryBtn.setAttribute("aria-label", "この問題を再回答する");
           retryBtn.addEventListener("click", () => {
             const scrollY = window.scrollY;
@@ -3447,7 +3683,9 @@
               window.scrollTo(0, scrollY);
             });
           });
-          actions.appendChild(retryBtn);
+          if (answered) {
+            actions.appendChild(retryBtn);
+          }
           card.appendChild(actions);
           card.appendChild(deepDivePanel);
 
@@ -3507,6 +3745,7 @@
         loadAnsweredState();
         loadTagVisibility();
         loadQaLikedState();
+        loadTagViewedSessionState();
         updateAiPublicNotice();
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
@@ -3806,6 +4045,31 @@
           saveTagVisibility();
           renderResults(filterQuestions());
         });
+        const uiModeSelect = document.getElementById("uiModeSelect");
+        if (uiModeSelect) {
+          uiModeSelect.addEventListener("change", (e) => {
+            state.uiMode = e.target.value === "accessible" ? "accessible" : "standard";
+            saveTagVisibility();
+            renderResults(filterQuestions());
+          });
+        }
+        const fontScaleSelect = document.getElementById("fontScaleSelect");
+        if (fontScaleSelect) {
+          fontScaleSelect.addEventListener("change", (e) => {
+            const next = e.target.value;
+            state.fontScale = next === "large" || next === "xlarge" ? next : "normal";
+            saveTagVisibility();
+            renderResults(filterQuestions());
+          });
+        }
+        const highContrastToggle = document.getElementById("highContrastToggle");
+        if (highContrastToggle) {
+          highContrastToggle.addEventListener("change", (e) => {
+            state.highContrast = !!e.target.checked;
+            saveTagVisibility();
+            renderResults(filterQuestions());
+          });
+        }
 
         const reportModeToggle = document.getElementById("reportModeToggle");
         if (reportModeToggle) {
@@ -5402,6 +5666,29 @@
         localStorage.setItem(getQaLikedStorageKey(), JSON.stringify(Array.from(state.qaLiked)));
       }
 
+      function loadTagViewedSessionState() {
+        state.tagViewedSession = new Set();
+        const raw = sessionStorage.getItem("tagViewedSession");
+        if (!raw) return;
+        try {
+          const values = JSON.parse(raw);
+          if (Array.isArray(values)) {
+            values.forEach((value) => {
+              if (typeof value === "string" && value) state.tagViewedSession.add(value);
+            });
+          }
+        } catch (_err) {
+          sessionStorage.removeItem("tagViewedSession");
+        }
+      }
+
+      function saveTagViewedSessionState() {
+        sessionStorage.setItem(
+          "tagViewedSession",
+          JSON.stringify(Array.from(state.tagViewedSession))
+        );
+      }
+
       function getTagViewCount(tag) {
         const value = state.tagViewCounts[tag];
         return Number.isFinite(value) ? value : 0;
@@ -5473,6 +5760,9 @@
         const tagsRaw = localStorage.getItem("showTags");
         const subsRaw = localStorage.getItem("showSubtopics");
         const reportRaw = localStorage.getItem("reportMode");
+        const modeRaw = localStorage.getItem("uiMode");
+        const fontRaw = localStorage.getItem("fontScale");
+        const contrastRaw = localStorage.getItem("highContrast");
         const answerToggle = document.getElementById("toggleAnswer");
         const explanationToggle = document.getElementById("toggleExplanation");
         const answeredToggle = document.getElementById("showAnswered");
@@ -5494,13 +5784,29 @@
         if (reportRaw !== null) {
           state.reportMode = reportRaw === "true";
         }
+        if (modeRaw === "standard" || modeRaw === "accessible") {
+          state.uiMode = modeRaw;
+        }
+        if (fontRaw === "normal" || fontRaw === "large" || fontRaw === "xlarge") {
+          state.fontScale = fontRaw;
+        }
+        if (contrastRaw !== null) {
+          state.highContrast = contrastRaw === "true";
+        }
         const tagsToggle = document.getElementById("showTagsToggle");
         const subsToggle = document.getElementById("showSubtopicsToggle");
         const reportModeToggle = document.getElementById("reportModeToggle");
+        const modeSelect = document.getElementById("uiModeSelect");
+        const fontSelect = document.getElementById("fontScaleSelect");
+        const contrastToggle = document.getElementById("highContrastToggle");
         if (tagsToggle) tagsToggle.checked = state.showTags;
         if (subsToggle) subsToggle.checked = state.showSubtopics;
         if (reportModeToggle) reportModeToggle.checked = state.reportMode;
+        if (modeSelect) modeSelect.value = state.uiMode;
+        if (fontSelect) fontSelect.value = state.fontScale;
+        if (contrastToggle) contrastToggle.checked = state.highContrast;
         document.body.classList.toggle("report-mode", state.reportMode);
+        applyUiPreferences();
       }
 
       function saveTagVisibility() {
@@ -5513,6 +5819,10 @@
         if (explanationToggle) localStorage.setItem("showExplanation", String(explanationToggle.checked));
         if (answeredToggle) localStorage.setItem("showAnswered", String(answeredToggle.checked));
         localStorage.setItem("reportMode", String(state.reportMode));
+        localStorage.setItem("uiMode", state.uiMode);
+        localStorage.setItem("fontScale", state.fontScale);
+        localStorage.setItem("highContrast", String(state.highContrast));
+        applyUiPreferences();
       }
 
       function initAnswerTrendPanel() {
@@ -5862,7 +6172,15 @@
         if (keyword) parts.push(`キーワード: ${keyword}`);
         if (subject) parts.push(`科目: ${subject}`);
         if (subtopic) parts.push(`小項目: ${subtopic}`);
-        if (examType) parts.push(`種別: ${examType}`);
+        if (examType) {
+          const examTypeLabel =
+            examType === "A"
+              ? "あん摩マッサージ指圧師"
+              : examType === "B"
+              ? "はり師・きゅう師"
+              : examType;
+          parts.push(`種別: ${examTypeLabel}`);
+        }
         if (sessionFrom || sessionTo) {
           const fromLabel = sessionFrom ? `${sessionFrom}回` : "";
           const toLabel = sessionTo ? `${sessionTo}回` : "";

@@ -416,12 +416,14 @@ def main():
 
     saved = 0
     batch_list = list(iter_chunks(targets, args.batch_size))
+    api_error = ""
     for batch_idx, tag_batch in enumerate(batch_list, start=1):
         prompt = build_prompt(tag_batch)
         payload, error = call_gemini(api_key, args.model, prompt, args.max_output_tokens)
         if error:
+            api_error = error
             print(f"[{batch_idx}/{len(batch_list)}] batch ERROR: {error}")
-            continue
+            break
         text = extract_text(payload)
         parsed_map = parse_batch_result(text, tag_batch)
         batch_saved = 0
@@ -440,6 +442,11 @@ def main():
         )
         if args.sleep_seconds > 0:
             time.sleep(args.sleep_seconds)
+
+    if api_error:
+        conn.commit()
+        conn.close()
+        raise SystemExit(f"APIエラーのため停止しました: {api_error}")
 
     merged = 0
     deep_dive_tags_updated = 0

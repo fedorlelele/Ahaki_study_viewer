@@ -1000,10 +1000,12 @@ HTML_PAGE = """<!doctype html>
       }
 
       function renderTagDictionaryStatus(data) {
-        if (!data || !data.total_tags) return "<div>データがありません。</div>";
+        if (!data || typeof data.total_tags !== "number") return "<div>データがありません。</div>";
         var aliases = data.aliases || {};
         var merge = data.merge || {};
-        var missing = Array.isArray(data.missing_descriptions) ? data.missing_descriptions : [];
+        var missing = Array.isArray(data.effective_missing_descriptions)
+          ? data.effective_missing_descriptions
+          : [];
         var rows = "";
         (data.by_subject || []).forEach(function(item) {
           rows += "<tr>" +
@@ -1012,11 +1014,15 @@ HTML_PAGE = """<!doctype html>
             "</tr>";
         });
         var missingHtml = missing.length
-          ? "<div style='margin-top:8px;'>説明未作成タグ（先頭30件）: " + missing.join(", ") + "</div>"
+          ? "<div style='margin-top:8px;'>生成が必要なタグ（結合後・先頭30件）: " + missing.join(", ") + "</div>"
           : "<div style='margin-top:8px;'>説明未作成タグ: なし</div>";
         return "<div>全タグ: " + data.total_tags +
           " / 説明完了: " + data.described_tags +
           " / 完了率: " + data.described_percent + "%</div>" +
+          "<div>生成対象（結合後）: " + (data.effective_total_tags || 0) +
+          " / 説明完了: " + (data.effective_described_tags || 0) +
+          " / 残り必要生成: " + (data.effective_remaining_required || 0) +
+          " / 結合で除外: " + (data.effective_excluded_by_alias || 0) + "</div>" +
           "<div>同義語: 承認済み " + (aliases.approved || 0) +
           " / 未承認 " + (aliases.pending || 0) +
           " / 結合待ち " + (merge.pending || 0) +
@@ -2690,6 +2696,7 @@ def build_tag_dictionary_status(db_path):
     approved = 0
     pending = 0
     approved_merge_total = 0
+    approved_alias_map = {}
     for alias, canonical, approved_flag in alias_rows:
         alias_label = " ".join(str(alias or "").split()).strip()
         canonical_label = " ".join(str(canonical or "").split()).strip()
@@ -2697,6 +2704,7 @@ def build_tag_dictionary_status(db_path):
             approved += 1
             if alias_label and canonical_label and alias_label != canonical_label:
                 approved_merge_total += 1
+                approved_alias_map[alias_label] = canonical_label
         else:
             pending += 1
 
@@ -2714,9 +2722,37 @@ def build_tag_dictionary_status(db_path):
             merge_pending += 1
     merge_done = max(0, approved_merge_total - merge_pending)
 
-    missing_descriptions = sorted(
-        [tag for tag in full_tags if not description_map.get(tag)]
+    def resolve_canonical(label):
+        current = " ".join(str(label or "").split()).strip()
+        visited = set()
+        while current and current in approved_alias_map and current not in visited:
+            visited.add(current)
+            nxt = " ".join(str(approved_alias_map.get(current) or "").split()).strip()
+            if not nxt or nxt == current:
+                break
+            current = nxt
+        return current
+
+    effective_target_tags = set()
+    for tag in full_tags:
+        canonical = resolve_canonical(tag)
+        if canonical:
+            effective_target_tags.add(canonical)
+
+    effective_total_tags = len(effective_target_tags)
+    effective_described_tags = sum(1 for tag in effective_target_tags if description_map.get(tag))
+    effective_described_percent = (
+        round((effective_described_tags * 100.0 / effective_total_tags), 1)
+        if effective_total_tags
+        else 0.0
+    )
+    effective_remaining_required = max(0, effective_total_tags - effective_described_tags)
+    effective_excluded_by_alias = max(0, total_tags - effective_total_tags)
+    effective_missing_descriptions = sorted(
+        [tag for tag in effective_target_tags if not description_map.get(tag)]
     )[:30]
+
+    missing_descriptions = sorted([tag for tag in full_tags if not description_map.get(tag)])[:30]
 
     by_subject = []
     for subject, tags in sorted(tags_by_subject.items(), key=lambda x: x[0]):
@@ -2730,6 +2766,12 @@ def build_tag_dictionary_status(db_path):
         "aliases": {"approved": approved, "pending": pending},
         "merge": {"pending": merge_pending, "done": merge_done},
         "missing_descriptions": missing_descriptions,
+        "effective_total_tags": effective_total_tags,
+        "effective_described_tags": effective_described_tags,
+        "effective_described_percent": effective_described_percent,
+        "effective_remaining_required": effective_remaining_required,
+        "effective_excluded_by_alias": effective_excluded_by_alias,
+        "effective_missing_descriptions": effective_missing_descriptions,
         "by_subject": by_subject,
     }
 
