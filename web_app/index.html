@@ -978,10 +978,6 @@
           <input id="sessionFrom" type="number" min="1" placeholder="回数From" aria-label="試験回数の開始" />
           <input id="sessionTo" type="number" min="1" placeholder="回数To" aria-label="試験回数の終了" />
         </div>
-        <div class="row">
-          <label><input type="checkbox" id="onlyDeepDive" /> 深掘り解説あり</label>
-          <label><input type="checkbox" id="onlyQa" /> Q&Aあり</label>
-        </div>
       </details>
     </div>
 
@@ -1506,8 +1502,6 @@
         const needExplanation = false;
         const needTags = false;
         const needSubtopics = false;
-        const onlyDeepDive = document.getElementById("onlyDeepDive").checked;
-        const onlyQa = document.getElementById("onlyQa").checked;
         const showAnswered = document.getElementById("showAnswered").checked;
         const sessionFrom = sessionFromRaw ? Number(sessionFromRaw) : null;
         const sessionTo = sessionToRaw ? Number(sessionToRaw) : null;
@@ -1546,16 +1540,6 @@
         if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
           if (!showAnswered && hasAnswered(effective.serial)) return false;
           // filters removed (all questions are populated)
-          if (
-            onlyDeepDive &&
-            !(
-              (effective.deep_dive &&
-                (effective.deep_dive.explanation || (effective.deep_dive.tags || []).length)) ||
-              state.deepDiveSerials.has(effective.serial)
-            )
-          )
-            return false;
-          if (onlyQa && !state.qaSerials.has(effective.serial)) return false;
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
           if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
           if (!terms.length) return true;
@@ -1618,7 +1602,8 @@
         } else if (sortSession === "frequent_asc") {
           filtered.sort((a, b) => (Number(a.frequent_score) || 0) - (Number(b.frequent_score) || 0));
         } else if (sortSession === "qa_desc") {
-          filtered.sort((a, b) => {
+          const qaOnly = filtered.filter(q => state.qaSerials.has(q.serial));
+          qaOnly.sort((a, b) => {
             const qaDiff = getQaLatestMs(b) - getQaLatestMs(a);
             if (qaDiff !== 0) return qaDiff;
             const sessionDiff = (Number(b.exam_session) || 0) - (Number(a.exam_session) || 0);
@@ -1627,8 +1612,14 @@
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
+          return qaOnly;
         } else if (sortSession === "deep_dive_desc") {
-          filtered.sort((a, b) => {
+          const deepOnly = filtered.filter(q => {
+            if (state.deepDiveSerials.has(q.serial)) return true;
+            const dd = q.deep_dive;
+            return Boolean(dd && (dd.explanation || (dd.tags || []).length));
+          });
+          deepOnly.sort((a, b) => {
             const deepDiff = getDeepDiveLatestMs(b) - getDeepDiveLatestMs(a);
             if (deepDiff !== 0) return deepDiff;
             const sessionDiff = (Number(b.exam_session) || 0) - (Number(a.exam_session) || 0);
@@ -1637,6 +1628,7 @@
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
+          return deepOnly;
         }
         return filtered;
       }
@@ -3020,15 +3012,6 @@
         document.getElementById("showSubtopicsToggle").addEventListener("change", (e) => {
           state.showSubtopics = e.target.checked;
           saveTagVisibility();
-          renderResults(filterQuestions());
-        });
-        document.getElementById("onlyDeepDive").addEventListener("change", () => {
-          renderResults(filterQuestions());
-        });
-        document.getElementById("onlyQa").addEventListener("change", async (e) => {
-          if (e.target.checked) {
-            await ensureQaSerialsLoaded();
-          }
           renderResults(filterQuestions());
         });
         document.getElementById("toggleAnswer").addEventListener("change", () => {
