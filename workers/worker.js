@@ -284,7 +284,7 @@ async function handleProgress(request, env) {
           ? now
           : status === "mastered"
             ? plusDaysIso(now, 7)
-            : prev?.next_review_at || null,
+            : null,
       updated_at: now
     };
     const saved = await upsertUserProgress(env, next);
@@ -300,15 +300,7 @@ async function handleProgress(request, env) {
     const prev = current && current[0] ? current[0] : null;
     const attemptCount = Number(prev?.attempt_count || 0) + 1;
     const correctCount = Number(prev?.correct_count || 0) + (isCorrect ? 1 : 0);
-    const accuracy = attemptCount > 0 ? correctCount / attemptCount : 0;
-    let status = normalizeProgressStatus(prev?.status) || "unstarted";
-    if (!isCorrect) {
-      status = "needs_review";
-    } else if (attemptCount >= 3 && accuracy >= 0.8) {
-      status = "mastered";
-    } else {
-      status = "in_progress";
-    }
+    const status = isCorrect ? "mastered" : "needs_review";
     const now = new Date().toISOString();
     const nextReviewAt =
       status === "needs_review"
@@ -329,6 +321,41 @@ async function handleProgress(request, env) {
     };
     const saved = await upsertUserProgress(env, next);
     return jsonResponse({ ok: true, item: saved });
+  }
+
+  if (path === "/progress/import_local" && request.method === "POST") {
+    const body = await readJson(request);
+    const items = Array.isArray(body.items) ? body.items : [];
+    const dedup = {};
+    items.forEach((item) => {
+      const serial = String(item && item.serial ? item.serial : "").trim();
+      if (!serial) return;
+      dedup[serial] = Boolean(item && item.is_correct);
+    });
+    const serials = Object.keys(dedup);
+    if (!serials.length) return jsonResponse({ ok: true, inserted: 0, items: [] });
+    const existing = await fetchUserProgressBySerials(env, user.id, serials);
+    const existingSet = new Set((existing || []).map((row) => row.serial));
+    const now = new Date().toISOString();
+    const pending = [];
+    serials.forEach((serial) => {
+      if (existingSet.has(serial)) return;
+      const isCorrect = dedup[serial];
+      pending.push({
+        user_id: user.id,
+        serial,
+        status: isCorrect ? "mastered" : "needs_review",
+        attempt_count: 1,
+        correct_count: isCorrect ? 1 : 0,
+        last_answered_at: now,
+        last_is_correct: isCorrect,
+        next_review_at: isCorrect ? plusDaysIso(now, 7) : now,
+        updated_at: now
+      });
+    });
+    if (!pending.length) return jsonResponse({ ok: true, inserted: 0, items: [] });
+    const inserted = await upsertUserProgressMany(env, pending);
+    return jsonResponse({ ok: true, inserted: inserted.length, items: inserted });
   }
 
     return jsonResponse({ message: "Not found" }, 404);
@@ -589,6 +616,7 @@ const PROGRESS_STATUSES = new Set(["unstarted", "in_progress", "mastered", "need
 
 function normalizeProgressStatus(status) {
   const value = String(status || "").trim().toLowerCase();
+  if (value === "in_progress") return "mastered";
   return PROGRESS_STATUSES.has(value) ? value : "";
 }
 
@@ -628,7 +656,12 @@ async function fetchUserProgressBySerials(env, userId, serials) {
     }
   });
   if (!resp.ok) return [];
-  return (await resp.json()) || [];
+  const rows = (await resp.json()) || [];
+  rows.forEach((row) => {
+    if (!row) return;
+    row.status = normalizeProgressStatus(row.status) || "unstarted";
+  });
+  return rows;
 }
 
 async function fetchAllUserProgress(env, userId) {
@@ -645,7 +678,12 @@ async function fetchAllUserProgress(env, userId) {
     }
   });
   if (!resp.ok) return [];
-  return (await resp.json()) || [];
+  const rows = (await resp.json()) || [];
+  rows.forEach((row) => {
+    if (!row) return;
+    row.status = normalizeProgressStatus(row.status) || "unstarted";
+  });
+  return rows;
 }
 
 async function upsertUserProgress(env, payload) {
@@ -665,6 +703,25 @@ async function upsertUserProgress(env, payload) {
   }
   const rows = await resp.json();
   return rows && rows[0] ? rows[0] : payload;
+}
+
+async function upsertUserProgressMany(env, payloads) {
+  if (!Array.isArray(payloads) || !payloads.length) return [];
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/user_progress`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation"
+    },
+    body: JSON.stringify(payloads)
+  });
+  if (!resp.ok) {
+    const detail = await resp.text();
+    throw new Error(`progress batch upsert failed: ${detail}`);
+  }
+  return (await resp.json()) || [];
 }
 
 async function fetchUserGoals(env, userId) {

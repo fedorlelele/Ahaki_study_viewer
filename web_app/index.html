@@ -469,9 +469,6 @@
       .progress-badge.unstarted {
         background: #f3f4f6;
       }
-      .progress-badge.in_progress {
-        background: #e0f2fe;
-      }
       .progress-badge.mastered {
         background: #dcfce7;
       }
@@ -912,6 +909,7 @@
           <div class="note">弱点小項目（上位10）</div>
           <div class="proposal-list-wide" id="progressWeakness"></div>
           <div class="note">復習キュー</div>
+          <button id="progressQueueShowAllBtn" type="button">復習キューをすべて表示</button>
           <div class="proposal-list-wide" id="progressQueue"></div>
         </div>
         </details>
@@ -1043,7 +1041,6 @@
           <select id="progressStateFilter" aria-label="進捗ステータスで絞り込み" hidden>
             <option value="">進捗</option>
             <option value="unstarted">未着手</option>
-            <option value="in_progress">学習中</option>
             <option value="mastered">理解済み</option>
             <option value="needs_review">要復習</option>
           </select>
@@ -1136,6 +1133,7 @@
         ,progressUserSummaries: []
         ,progressUsers: []
         ,progressSelectedUserId: ""
+        ,progressQueueAll: []
         ,progressLoading: false
       };
 
@@ -1197,7 +1195,6 @@
       }
 
       function getProgressStatusLabel(status) {
-        if (status === "in_progress") return "学習中";
         if (status === "mastered") return "理解済み";
         if (status === "needs_review") return "要復習";
         return "未着手";
@@ -1252,6 +1249,7 @@
         state.progressUserSummaries = [];
         state.progressUsers = [];
         state.progressSelectedUserId = "";
+        state.progressQueueAll = [];
       }
 
       function rowsToProgressMap(rows) {
@@ -1266,6 +1264,7 @@
       function buildWeakSubtopics(rows) {
         const scoreByName = {};
         const countByName = {};
+        const subjectByName = {};
         (rows || []).forEach((row) => {
           const serial = row && row.serial ? row.serial : "";
           if (!serial) return;
@@ -1276,22 +1275,50 @@
           const missRate = attempts > 0 ? (attempts - correct) / attempts : 0;
           let weight = 0;
           if (row.status === "needs_review") weight += 2;
-          if (row.status === "in_progress") weight += 1;
+          if (row.status === "unstarted") weight += 0.5;
           weight += missRate * 2;
           q.subtopics.forEach((name) => {
             if (!name) return;
-            scoreByName[name] = (scoreByName[name] || 0) + weight;
-            countByName[name] = (countByName[name] || 0) + 1;
+            const key = `${q.subject || "未分類"}||${name}`;
+            scoreByName[key] = (scoreByName[key] || 0) + weight;
+            countByName[key] = (countByName[key] || 0) + 1;
+            subjectByName[key] = q.subject || "未分類";
           });
         });
         return Object.keys(scoreByName)
-          .map((name) => ({
-            name,
-            score: Number(scoreByName[name] || 0),
-            count: Number(countByName[name] || 0)
+          .map((key) => ({
+            key,
+            subject: subjectByName[key] || "未分類",
+            name: key.split("||")[1] || key,
+            score: Number(scoreByName[key] || 0),
+            count: Number(countByName[key] || 0)
           }))
           .sort((a, b) => (b.score - a.score) || (b.count - a.count))
           .slice(0, 10);
+      }
+
+      function buildReviewQueueFromProgress(rows) {
+        const now = Date.now();
+        return (rows || [])
+          .filter((row) => {
+            if (!row || !row.serial) return false;
+            if (row.status === "needs_review") return true;
+            const next = row.next_review_at ? Date.parse(row.next_review_at) : 0;
+            return next > 0 && next <= now;
+          })
+          .map((row) => {
+            const attempts = Number(row.attempt_count || 0);
+            const correct = Number(row.correct_count || 0);
+            const missRate = attempts > 0 ? (attempts - correct) / attempts : 0;
+            return { ...row, miss_rate: missRate };
+          })
+          .sort((a, b) => {
+            if (a.status === "needs_review" && b.status !== "needs_review") return -1;
+            if (b.status === "needs_review" && a.status !== "needs_review") return 1;
+            const missDiff = Number(b.miss_rate || 0) - Number(a.miss_rate || 0);
+            if (missDiff !== 0) return missDiff;
+            return String(b.updated_at || "").localeCompare(String(a.updated_at || ""));
+          });
       }
 
       function renderProgressPanel() {
@@ -1309,8 +1336,8 @@
           const by = summary.by_status || {};
           const rate = summary.accuracy ? Math.round(summary.accuracy * 100) : 0;
           summaryEl.textContent =
-            `進捗: 未着手 ${by.unstarted || 0} / 学習中 ${by.in_progress || 0} / ` +
-            `理解済み ${by.mastered || 0} / 要復習 ${by.needs_review || 0} / 正答率 ${rate}%`;
+            `進捗: 未着手 ${by.unstarted || 0} / 理解済み ${by.mastered || 0} / ` +
+            `要復習 ${by.needs_review || 0} / 正答率 ${rate}%`;
         }
 
         if (isRoleAtLeast("teacher")) {
@@ -1355,16 +1382,17 @@
           weaknessEl.textContent = "まだ十分なデータがありません。";
         } else {
           weaknessEl.innerHTML = weak
-            .map((item) => `${item.name} / スコア ${item.score.toFixed(2)} / 対象 ${item.count}問`)
+            .map((item) => `${item.subject} / ${item.name} / スコア ${item.score.toFixed(2)} / 対象 ${item.count}問`)
             .join("<br>");
         }
 
-        const queue = (state.progressPanelSummary && state.progressPanelSummary.review_queue) || [];
+        const queue = buildReviewQueueFromProgress(state.progressPanelList);
+        state.progressQueueAll = queue;
         if (!queue.length) {
           queueEl.textContent = "復習キューはありません。";
         } else {
           queueEl.innerHTML = "";
-          queue.forEach((item) => {
+          queue.slice(0, 100).forEach((item) => {
             const row = document.createElement("div");
             row.className = "proposal-row";
             const btn = document.createElement("button");
@@ -1514,6 +1542,68 @@
         } catch (_err) {
           // Ignore answer sync errors to keep solving flow uninterrupted.
         }
+      }
+
+      async function syncLocalAnsweredToProgress() {
+        try {
+          if (!isRoleAtLeast("student")) return;
+          const serials = Object.keys(state.answeredMap || {});
+          if (!serials.length) return;
+          const pendingItems = await findPendingLocalProgressItems(serials);
+          if (!pendingItems.length) return;
+          const preview = pendingItems
+            .slice(0, 5)
+            .map((item) => item.serial)
+            .join(", ");
+          const confirmMessage =
+            `この端末の回答履歴で未取り込みの ${pendingItems.length} 件があります。\n` +
+            `学習進捗に取り込みますか？\n` +
+            (preview ? `例: ${preview}${pendingItems.length > 5 ? " ..." : ""}` : "");
+          if (!window.confirm(confirmMessage)) return;
+          const chunkSize = 200;
+          for (let i = 0; i < pendingItems.length; i += chunkSize) {
+            const chunk = pendingItems.slice(i, i + chunkSize);
+            try {
+              const payload = await progressApiRequest("/progress/import_local", {
+                method: "POST",
+                body: {
+                  items: chunk
+                }
+              });
+              const rows = (payload && payload.items) || [];
+              rows.forEach((row) => {
+                if (!row || !row.serial) return;
+                state.progressSelfBySerial[row.serial] = row;
+              });
+            } catch (_err) {
+              // Ignore import errors to avoid blocking login flow.
+            }
+          }
+        } catch (err) {
+          console.warn("ローカル回答の進捗取り込み確認に失敗しました。", err);
+        }
+      }
+
+      async function findPendingLocalProgressItems(serials) {
+        const chunkSize = 200;
+        const existingSet = new Set();
+        for (let i = 0; i < serials.length; i += chunkSize) {
+          const chunk = serials.slice(i, i + chunkSize);
+          const payload = await progressApiRequest("/progress/bulk", {
+            method: "POST",
+            body: { serials: chunk }
+          });
+          const rows = (payload && payload.items) || [];
+          rows.forEach((row) => {
+            if (row && row.serial) existingSet.add(row.serial);
+          });
+        }
+        return serials
+          .filter((serial) => !existingSet.has(serial))
+          .map((serial) => ({
+            serial,
+            is_correct: Boolean(state.answeredMap[serial] && state.answeredMap[serial].isCorrect)
+          }));
       }
 
       function applyProgressFilterVisibility() {
@@ -2000,7 +2090,6 @@
           const missRate = attempts > 0 ? (attempts - correct) / attempts : 0;
           let score = 0;
           if (status === "needs_review") score = 4;
-          else if (status === "in_progress") score = 3;
           else if (status === "unstarted") score = 1;
           else score = 0;
           return { score, missRate };
@@ -2118,7 +2207,7 @@
           const meta = document.createElement("div");
           meta.className = "meta";
           meta.textContent = `${q.serial} / ${q.subject} / 第${q.exam_session}回`;
-          if (hasAnswered(q.serial)) {
+          if (hasAnswered(q.serial) && !isRoleAtLeast("student")) {
             const answered = document.createElement("span");
             answered.className = "frequent-badge level-1";
             answered.textContent = "回答済み";
@@ -2163,32 +2252,10 @@
 
             const controls = document.createElement("span");
             controls.className = "progress-inline-controls";
-            const select = document.createElement("select");
-            [
-              { value: "unstarted", label: "未着手" },
-              { value: "in_progress", label: "学習中" },
-              { value: "mastered", label: "理解済み" },
-              { value: "needs_review", label: "要復習" }
-            ].forEach((item) => {
-              const opt = document.createElement("option");
-              opt.value = item.value;
-              opt.textContent = item.label;
-              select.appendChild(opt);
-            });
-            select.value = status;
-            controls.appendChild(select);
-
-            const saveBtn = document.createElement("button");
-            saveBtn.type = "button";
-            saveBtn.textContent = "進捗更新";
-            saveBtn.addEventListener("click", () => {
-              updateProgressStatus(q.serial, select.value);
-            });
-            controls.appendChild(saveBtn);
-
             const reviewBtn = document.createElement("button");
             reviewBtn.type = "button";
             reviewBtn.textContent = "要復習";
+            reviewBtn.disabled = status === "needs_review";
             reviewBtn.addEventListener("click", () => {
               updateProgressStatus(q.serial, "needs_review");
             });
@@ -3526,6 +3593,17 @@
             }
           });
         }
+        const progressQueueShowAllBtn = document.getElementById("progressQueueShowAllBtn");
+        if (progressQueueShowAllBtn) {
+          progressQueueShowAllBtn.addEventListener("click", () => {
+            const serials = (state.progressQueueAll || []).map((item) => item.serial).filter(Boolean);
+            if (!serials.length) {
+              alert("復習キューはありません。");
+              return;
+            }
+            applyFilters({ keyword: serials.join(",") });
+          });
+        }
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
@@ -3538,7 +3616,6 @@
           document.getElementById("sessionTo").value = "";
           document.getElementById("progressStateFilter").value = "";
           document.getElementById("sortSession").value = "desc";
-          document.getElementById("showAnswered").checked = false;
           saveTagVisibility();
           updateSubtopicOptions("");
           renderResults(filterQuestions());
@@ -3880,6 +3957,7 @@
             }
           }
         if (isRoleAtLeast("student")) {
+          await syncLocalAnsweredToProgress();
           if (isRoleAtLeast("teacher")) {
             await loadProgressUsers();
           } else {
