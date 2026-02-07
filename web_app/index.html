@@ -451,6 +451,43 @@
         font-size: 12px;
         color: var(--muted);
       }
+      .progress-line {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+      }
+      .progress-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+      .progress-badge.unstarted {
+        background: #f3f4f6;
+      }
+      .progress-badge.in_progress {
+        background: #e0f2fe;
+      }
+      .progress-badge.mastered {
+        background: #dcfce7;
+      }
+      .progress-badge.needs_review {
+        background: #fee2e2;
+      }
+      .progress-inline-controls {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .progress-inline-controls select,
+      .progress-inline-controls button {
+        font-size: 12px;
+        padding: 4px 6px;
+      }
       .card-actions {
         margin-top: 10px;
       }
@@ -824,6 +861,7 @@
             <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
             <button type="button" data-menu-target="updateInfo">更新情報</button>
             <button type="button" data-menu-target="settingsPanel">設定</button>
+            <button type="button" data-menu-target="progressPanel">学習進捗</button>
             <button type="button" data-menu-target="userReadme">利用ガイド</button>
             <button type="button" data-menu-target="answerTrendPanel">回答数の推移</button>
             <button type="button" data-menu-target="historyPanel">編集履歴</button>
@@ -850,6 +888,31 @@
           <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
           <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
           <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
+        </div>
+        </details>
+        <details class="inline" id="progressPanel" hidden>
+        <summary>学習進捗</summary>
+        <div class="history-panel">
+          <div class="history-controls">
+            <select id="progressUserSelect" hidden>
+              <option value="">ユーザーを選択</option>
+            </select>
+            <button id="progressRefreshBtn" type="button">再読み込み</button>
+          </div>
+          <div class="note" id="progressSummary">読み込み中...</div>
+          <div class="note" id="progressTeamTitle" hidden>学習者サマリー</div>
+          <div class="proposal-list-wide" id="progressTeamList" hidden></div>
+          <div class="history-controls">
+            <input id="progressGoalAnswered" type="number" min="0" placeholder="週の回答目標" />
+            <input id="progressGoalReview" type="number" min="0" placeholder="週の復習目標" />
+            <input id="progressGoalMastery" type="number" min="0" max="100" placeholder="理解済み目標(%)" />
+            <button id="progressGoalSaveBtn" type="button">目標を保存</button>
+          </div>
+          <div class="note" id="progressGoalStatus"></div>
+          <div class="note">弱点小項目（上位10）</div>
+          <div class="proposal-list-wide" id="progressWeakness"></div>
+          <div class="note">復習キュー</div>
+          <div class="proposal-list-wide" id="progressQueue"></div>
         </div>
         </details>
         <details class="inline" id="userReadme" hidden>
@@ -977,6 +1040,13 @@
           </select>
           <input id="sessionFrom" type="number" min="1" placeholder="回数From" aria-label="試験回数の開始" />
           <input id="sessionTo" type="number" min="1" placeholder="回数To" aria-label="試験回数の終了" />
+          <select id="progressStateFilter" aria-label="進捗ステータスで絞り込み" hidden>
+            <option value="">進捗</option>
+            <option value="unstarted">未着手</option>
+            <option value="in_progress">学習中</option>
+            <option value="mastered">理解済み</option>
+            <option value="needs_review">要復習</option>
+          </select>
         </div>
       </details>
     </div>
@@ -989,6 +1059,7 @@
         <option value="asc">古い順</option>
         <option value="qa_desc">Q&A追加順</option>
         <option value="deep_dive_desc">深掘り解説追加順</option>
+        <option value="review_desc">復習優先順</option>
         <option value="frequent_desc">頻出順</option>
         <option value="frequent_asc">頻出（低い順）</option>
         <option value="count_desc">回答数が多い順</option>
@@ -1022,9 +1093,11 @@
         indexBySubject: {},
         indexBySubtopic: {},
         subtopicsBySubject: {},
+        questionBySerial: {},
         answeredMap: {},
         sessionAnswered: {},
         subtopicCatalog: {},
+        authSession: null,
         teacherSession: null,
         teacherUserId: null,
         updateLog: [],
@@ -1055,6 +1128,15 @@
         ,qaSerialsLoaded: false
         ,qaLatestBySerial: {}
         ,aiPublicGeneration: false
+        ,progressSelfBySerial: {}
+        ,progressSelfList: []
+        ,progressPanelList: []
+        ,progressPanelSummary: null
+        ,progressPanelGoals: null
+        ,progressUserSummaries: []
+        ,progressUsers: []
+        ,progressSelectedUserId: ""
+        ,progressLoading: false
       };
 
       function normalizeRole(role) {
@@ -1092,6 +1174,7 @@
 
       function applyTopMenuRoleVisibility() {
         const requiredRoleByTarget = {
+          progressPanel: "student",
           answerTrendPanel: "teacher",
           historyPanel: "teacher",
           proposalPanel: "teacher",
@@ -1111,6 +1194,334 @@
             }
           }
         });
+      }
+
+      function getProgressStatusLabel(status) {
+        if (status === "in_progress") return "学習中";
+        if (status === "mastered") return "理解済み";
+        if (status === "needs_review") return "要復習";
+        return "未着手";
+      }
+
+      function getProgressApiBase() {
+        return window.AI_API_BASE || ADMIN_API_BASE || "";
+      }
+
+      async function getAuthAccessToken() {
+        if (state.authSession && state.authSession.access_token) {
+          return state.authSession.access_token;
+        }
+        if (!supabaseClient) return "";
+        const { data } = await supabaseClient.auth.getSession();
+        state.authSession = data && data.session ? data.session : null;
+        return state.authSession && state.authSession.access_token
+          ? state.authSession.access_token
+          : "";
+      }
+
+      async function progressApiRequest(path, options = {}) {
+        const base = getProgressApiBase();
+        if (!base) return null;
+        const token = await getAuthAccessToken();
+        if (!token) return null;
+        const method = options.method || "GET";
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(options.headers || {})
+        };
+        const resp = await fetch(`${base}${path}`, {
+          method,
+          headers,
+          body: options.body ? JSON.stringify(options.body) : undefined
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          const msg = payload && payload.message ? payload.message : `HTTP ${resp.status}`;
+          throw new Error(msg);
+        }
+        return payload;
+      }
+
+      function resetProgressState() {
+        state.progressSelfBySerial = {};
+        state.progressSelfList = [];
+        state.progressPanelList = [];
+        state.progressPanelSummary = null;
+        state.progressPanelGoals = null;
+        state.progressUserSummaries = [];
+        state.progressUsers = [];
+        state.progressSelectedUserId = "";
+      }
+
+      function rowsToProgressMap(rows) {
+        const map = {};
+        (rows || []).forEach((row) => {
+          if (!row || !row.serial) return;
+          map[row.serial] = row;
+        });
+        return map;
+      }
+
+      function buildWeakSubtopics(rows) {
+        const scoreByName = {};
+        const countByName = {};
+        (rows || []).forEach((row) => {
+          const serial = row && row.serial ? row.serial : "";
+          if (!serial) return;
+          const q = state.questionBySerial[serial];
+          if (!q || !Array.isArray(q.subtopics) || !q.subtopics.length) return;
+          const attempts = Number(row.attempt_count || 0);
+          const correct = Number(row.correct_count || 0);
+          const missRate = attempts > 0 ? (attempts - correct) / attempts : 0;
+          let weight = 0;
+          if (row.status === "needs_review") weight += 2;
+          if (row.status === "in_progress") weight += 1;
+          weight += missRate * 2;
+          q.subtopics.forEach((name) => {
+            if (!name) return;
+            scoreByName[name] = (scoreByName[name] || 0) + weight;
+            countByName[name] = (countByName[name] || 0) + 1;
+          });
+        });
+        return Object.keys(scoreByName)
+          .map((name) => ({
+            name,
+            score: Number(scoreByName[name] || 0),
+            count: Number(countByName[name] || 0)
+          }))
+          .sort((a, b) => (b.score - a.score) || (b.count - a.count))
+          .slice(0, 10);
+      }
+
+      function renderProgressPanel() {
+        const summaryEl = document.getElementById("progressSummary");
+        const weaknessEl = document.getElementById("progressWeakness");
+        const queueEl = document.getElementById("progressQueue");
+        const goalStatusEl = document.getElementById("progressGoalStatus");
+        const teamTitle = document.getElementById("progressTeamTitle");
+        const teamList = document.getElementById("progressTeamList");
+        if (!summaryEl || !weaknessEl || !queueEl || !goalStatusEl || !teamTitle || !teamList) return;
+        const summary = state.progressPanelSummary;
+        if (!summary) {
+          summaryEl.textContent = "ログイン後に進捗が表示されます。";
+        } else {
+          const by = summary.by_status || {};
+          const rate = summary.accuracy ? Math.round(summary.accuracy * 100) : 0;
+          summaryEl.textContent =
+            `進捗: 未着手 ${by.unstarted || 0} / 学習中 ${by.in_progress || 0} / ` +
+            `理解済み ${by.mastered || 0} / 要復習 ${by.needs_review || 0} / 正答率 ${rate}%`;
+        }
+
+        if (isRoleAtLeast("teacher")) {
+          teamTitle.hidden = false;
+          teamList.hidden = false;
+          const rows = state.progressUserSummaries || [];
+          if (!rows.length) {
+            teamList.textContent = "集計データはありません。";
+          } else {
+            teamList.innerHTML = "";
+            const userMap = {};
+            (state.progressUsers || []).forEach((user) => {
+              if (user && user.id) userMap[user.id] = user;
+            });
+            rows.slice(0, 20).forEach((row) => {
+              const div = document.createElement("div");
+              div.className = "proposal-row";
+              const user = userMap[row.user_id];
+              const label = user && user.email ? user.email : row.user_id;
+              const rate = row.accuracy ? Math.round(row.accuracy * 100) : 0;
+              div.textContent =
+                `${label} / 要復習 ${row.review_due || 0} / 回答 ${row.total_attempts || 0} / 正答率 ${rate}%`;
+              teamList.appendChild(div);
+            });
+          }
+        } else {
+          teamTitle.hidden = true;
+          teamList.hidden = true;
+          teamList.textContent = "";
+        }
+
+        const goal = state.progressPanelGoals || {};
+        const ga = document.getElementById("progressGoalAnswered");
+        const gr = document.getElementById("progressGoalReview");
+        const gm = document.getElementById("progressGoalMastery");
+        if (ga) ga.value = goal.weekly_answer_target || 0;
+        if (gr) gr.value = goal.weekly_review_target || 0;
+        if (gm) gm.value = goal.target_mastery_rate || 0;
+
+        const weak = buildWeakSubtopics(state.progressPanelList);
+        if (!weak.length) {
+          weaknessEl.textContent = "まだ十分なデータがありません。";
+        } else {
+          weaknessEl.innerHTML = weak
+            .map((item) => `${item.name} / スコア ${item.score.toFixed(2)} / 対象 ${item.count}問`)
+            .join("<br>");
+        }
+
+        const queue = (state.progressPanelSummary && state.progressPanelSummary.review_queue) || [];
+        if (!queue.length) {
+          queueEl.textContent = "復習キューはありません。";
+        } else {
+          queueEl.innerHTML = "";
+          queue.forEach((item) => {
+            const row = document.createElement("div");
+            row.className = "proposal-row";
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = item.serial;
+            btn.addEventListener("click", () => {
+              applyFilters({ keyword: item.serial });
+            });
+            const meta = document.createElement("span");
+            meta.style.marginLeft = "8px";
+            meta.textContent = `${getProgressStatusLabel(item.status)} / 回答 ${item.attempt_count || 0}`;
+            row.appendChild(btn);
+            row.appendChild(meta);
+            queueEl.appendChild(row);
+          });
+        }
+      }
+
+      function syncProgressUserSelect() {
+        const select = document.getElementById("progressUserSelect");
+        if (!select) return;
+        const canSelectOther = isRoleAtLeast("teacher");
+        select.hidden = !canSelectOther;
+        if (!canSelectOther) return;
+        const current = state.progressSelectedUserId || "";
+        select.innerHTML = "";
+        const users = state.progressUsers || [];
+        users.forEach((user) => {
+          const opt = document.createElement("option");
+          opt.value = user.id || "";
+          const roleLabel =
+            user.role === "admin"
+              ? "管理者"
+              : user.role === "teacher"
+                ? "教師"
+                : user.role === "student"
+                  ? "生徒"
+                  : "未承認";
+          opt.textContent = `${user.email || user.id} (${roleLabel})`;
+          select.appendChild(opt);
+        });
+        if (current) select.value = current;
+      }
+
+      async function loadProgressUsers() {
+        if (!isRoleAtLeast("teacher")) return;
+        const base = getProgressApiBase();
+        const token = await getAuthAccessToken();
+        if (!base || !token) return;
+        const resp = await fetch(`${base}/admin/users?limit=500`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok || !payload || !Array.isArray(payload.users)) return;
+        state.progressUsers = payload.users;
+        syncProgressUserSelect();
+        try {
+          const summary = await progressApiRequest("/progress/users_summary");
+          state.progressUserSummaries = (summary && summary.items) || [];
+        } catch (_err) {
+          state.progressUserSummaries = [];
+        }
+      }
+
+      async function loadProgressDataForUser(userId) {
+        if (!userId) return;
+        state.progressLoading = true;
+        try {
+          const query = `?user_id=${encodeURIComponent(userId)}`;
+          const [listPayload, summaryPayload, goalsPayload, queuePayload] = await Promise.all([
+            progressApiRequest(`/progress/list${query}`),
+            progressApiRequest(`/progress/summary${query}`),
+            progressApiRequest(`/progress/goals${query}`),
+            progressApiRequest(`/progress/review_queue${query}&limit=20`)
+          ]);
+          const list = (listPayload && listPayload.items) || [];
+          const summary = (summaryPayload && summaryPayload.summary) || null;
+          const goals = (goalsPayload && goalsPayload.goals) || null;
+          const queue = (queuePayload && queuePayload.items) || [];
+          state.progressPanelList = list;
+          state.progressPanelGoals = goals;
+          state.progressPanelSummary = summary
+            ? { ...summary, review_queue: queue }
+            : { by_status: {}, review_queue: queue, accuracy: 0 };
+          if (state.authSession && state.authSession.user && userId === state.authSession.user.id) {
+            state.progressSelfList = list;
+            state.progressSelfBySerial = rowsToProgressMap(list);
+          }
+          renderProgressPanel();
+        } catch (err) {
+          const summaryEl = document.getElementById("progressSummary");
+          if (summaryEl) summaryEl.textContent = `進捗の取得に失敗: ${err.message}`;
+        } finally {
+          state.progressLoading = false;
+        }
+      }
+
+      async function updateProgressStatus(serial, status) {
+        if (!serial || !status) return;
+        try {
+          const payload = await progressApiRequest("/progress/status", {
+            method: "POST",
+            body: { serial, status }
+          });
+          if (payload && payload.item) {
+            state.progressSelfBySerial[serial] = payload.item;
+            const idx = state.progressSelfList.findIndex((item) => item.serial === serial);
+            if (idx >= 0) {
+              state.progressSelfList[idx] = payload.item;
+            } else {
+              state.progressSelfList.push(payload.item);
+            }
+            if (
+              state.progressSelectedUserId &&
+              state.authSession &&
+              state.authSession.user &&
+              state.progressSelectedUserId === state.authSession.user.id
+            ) {
+              state.progressPanelList = state.progressSelfList.slice();
+              renderProgressPanel();
+            }
+            renderResults(filterQuestions());
+          }
+        } catch (err) {
+          alert(`進捗更新に失敗しました: ${err.message}`);
+        }
+      }
+
+      async function sendProgressAnswer(serial, isCorrect) {
+        if (!serial || !isRoleAtLeast("student")) return;
+        try {
+          const payload = await progressApiRequest("/progress/answer", {
+            method: "POST",
+            body: { serial, is_correct: Boolean(isCorrect) }
+          });
+          if (payload && payload.item) {
+            state.progressSelfBySerial[serial] = payload.item;
+            const idx = state.progressSelfList.findIndex((item) => item.serial === serial);
+            if (idx >= 0) {
+              state.progressSelfList[idx] = payload.item;
+            } else {
+              state.progressSelfList.push(payload.item);
+            }
+          }
+        } catch (_err) {
+          // Ignore answer sync errors to keep solving flow uninterrupted.
+        }
+      }
+
+      function applyProgressFilterVisibility() {
+        const el = document.getElementById("progressStateFilter");
+        if (!el) return;
+        const visible = isRoleAtLeast("student");
+        el.hidden = !visible;
+        if (!visible) el.value = "";
       }
 
       function isTeacherUser(user) {
@@ -1165,8 +1576,10 @@
           fetch("../output/web/index/index_by_subtopic.json").then(r => r.json())
         ]).then(([questions, bySubject, bySubtopic]) => {
           state.questions = questions;
+          state.questionBySerial = {};
           const qaSet = new Set();
           questions.forEach((q) => {
+            if (q && q.serial) state.questionBySerial[q.serial] = q;
             if (q && Array.isArray(q.qa_list) && q.qa_list.length) {
               qaSet.add(q.serial);
               const latestMs = q.qa_list
@@ -1501,6 +1914,7 @@
         const examType = document.getElementById("examTypeSelect").value;
         const sessionFromRaw = document.getElementById("sessionFrom").value;
         const sessionToRaw = document.getElementById("sessionTo").value;
+        const progressStateFilter = document.getElementById("progressStateFilter").value;
         const sortSession = document.getElementById("sortSession").value;
         const needExplanation = false;
         const needTags = false;
@@ -1539,9 +1953,14 @@
           const effective = applyOverridesToQuestion(q);
           if (serialSet && !serialSet.has(effective.serial)) return false;
           if (examType && !effective.serial.startsWith(examType)) return false;
-        if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
-        if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
+          if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
+          if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
           if (!showAnswered && hasAnswered(effective.serial)) return false;
+          if (progressStateFilter) {
+            const row = state.progressSelfBySerial[effective.serial];
+            const status = row && row.status ? row.status : "unstarted";
+            if (status !== progressStateFilter) return false;
+          }
           // filters removed (all questions are populated)
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
           if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
@@ -1571,6 +1990,20 @@
           const ts = state.qaLatestBySerial[q.serial] || "";
           const ms = Date.parse(ts);
           return Number.isFinite(ms) ? ms : 0;
+        };
+        const getReviewPriority = (q) => {
+          const row = state.progressSelfBySerial[q.serial];
+          if (!row) return { score: 1, missRate: 0 };
+          const status = row.status || "unstarted";
+          const attempts = Number(row.attempt_count || 0);
+          const correct = Number(row.correct_count || 0);
+          const missRate = attempts > 0 ? (attempts - correct) / attempts : 0;
+          let score = 0;
+          if (status === "needs_review") score = 4;
+          else if (status === "in_progress") score = 3;
+          else if (status === "unstarted") score = 1;
+          else score = 0;
+          return { score, missRate };
         };
         if (sortSession === "asc") {
           filtered.sort((a, b) => {
@@ -1632,6 +2065,20 @@
             return orderA - orderB;
           });
           return deepOnly;
+        } else if (sortSession === "review_desc") {
+          filtered.sort((a, b) => {
+            const pa = getReviewPriority(a);
+            const pb = getReviewPriority(b);
+            const scoreDiff = pb.score - pa.score;
+            if (scoreDiff !== 0) return scoreDiff;
+            const missDiff = pb.missRate - pa.missRate;
+            if (missDiff !== 0) return missDiff;
+            const sessionDiff = (Number(b.exam_session) || 0) - (Number(a.exam_session) || 0);
+            if (sessionDiff !== 0) return sessionDiff;
+            const orderA = state.orderIndexBySerial[a.serial] || 0;
+            const orderB = state.orderIndexBySerial[b.serial] || 0;
+            return orderA - orderB;
+          });
         }
         return filtered;
       }
@@ -1695,6 +2142,61 @@
             }
           }
           card.appendChild(meta);
+
+          if (isRoleAtLeast("student")) {
+            const row = state.progressSelfBySerial[q.serial] || null;
+            const status = row && row.status ? row.status : "unstarted";
+            const attempts = Number(row && row.attempt_count ? row.attempt_count : 0);
+            const correct = Number(row && row.correct_count ? row.correct_count : 0);
+            const progressLine = document.createElement("div");
+            progressLine.className = "progress-line";
+
+            const badge = document.createElement("span");
+            badge.className = `progress-badge ${status}`;
+            badge.textContent = getProgressStatusLabel(status);
+            progressLine.appendChild(badge);
+
+            const stats = document.createElement("span");
+            const rate = attempts > 0 ? Math.round((correct / attempts) * 100) : 0;
+            stats.textContent = `回答 ${attempts} / 正答率 ${rate}%`;
+            progressLine.appendChild(stats);
+
+            const controls = document.createElement("span");
+            controls.className = "progress-inline-controls";
+            const select = document.createElement("select");
+            [
+              { value: "unstarted", label: "未着手" },
+              { value: "in_progress", label: "学習中" },
+              { value: "mastered", label: "理解済み" },
+              { value: "needs_review", label: "要復習" }
+            ].forEach((item) => {
+              const opt = document.createElement("option");
+              opt.value = item.value;
+              opt.textContent = item.label;
+              select.appendChild(opt);
+            });
+            select.value = status;
+            controls.appendChild(select);
+
+            const saveBtn = document.createElement("button");
+            saveBtn.type = "button";
+            saveBtn.textContent = "進捗更新";
+            saveBtn.addEventListener("click", () => {
+              updateProgressStatus(q.serial, select.value);
+            });
+            controls.appendChild(saveBtn);
+
+            const reviewBtn = document.createElement("button");
+            reviewBtn.type = "button";
+            reviewBtn.textContent = "要復習";
+            reviewBtn.addEventListener("click", () => {
+              updateProgressStatus(q.serial, "needs_review");
+            });
+            controls.appendChild(reviewBtn);
+
+            progressLine.appendChild(controls);
+            card.appendChild(progressLine);
+          }
 
           if (q.case_text) {
             const caseText = document.createElement("div");
@@ -2826,6 +3328,7 @@
         const menuTargetIds = [
           "updateInfo",
           "settingsPanel",
+          "progressPanel",
           "userReadme",
           "answerTrendPanel",
           "historyPanel",
@@ -2922,6 +3425,12 @@
             if (settingsPanel.open) closeAuthPanel();
           });
         }
+        const progressPanel = document.getElementById("progressPanel");
+        if (progressPanel) {
+          progressPanel.addEventListener("toggle", () => {
+            if (progressPanel.open) closeAuthPanel();
+          });
+        }
         const userReadme = document.getElementById("userReadme");
         if (userReadme) {
           userReadme.addEventListener("toggle", () => {
@@ -2967,6 +3476,56 @@
         initHistoryPanel();
         initProposalPanel();
         initTagDisablePanel();
+        applyProgressFilterVisibility();
+
+        const progressRefreshBtn = document.getElementById("progressRefreshBtn");
+        if (progressRefreshBtn) {
+          progressRefreshBtn.addEventListener("click", async () => {
+            const userId =
+              state.progressSelectedUserId ||
+              (state.authSession && state.authSession.user ? state.authSession.user.id : "");
+            if (!userId) return;
+            await loadProgressDataForUser(userId);
+            renderResults(filterQuestions());
+          });
+        }
+        const progressUserSelect = document.getElementById("progressUserSelect");
+        if (progressUserSelect) {
+          progressUserSelect.addEventListener("change", async () => {
+            const userId = progressUserSelect.value;
+            if (!userId) return;
+            state.progressSelectedUserId = userId;
+            await loadProgressDataForUser(userId);
+            renderProgressPanel();
+          });
+        }
+        const progressGoalSaveBtn = document.getElementById("progressGoalSaveBtn");
+        if (progressGoalSaveBtn) {
+          progressGoalSaveBtn.addEventListener("click", async () => {
+            const statusEl = document.getElementById("progressGoalStatus");
+            const userId =
+              state.progressSelectedUserId ||
+              (state.authSession && state.authSession.user ? state.authSession.user.id : "");
+            if (!userId) return;
+            const body = {
+              user_id: userId,
+              weekly_answer_target: Number(document.getElementById("progressGoalAnswered").value || 0),
+              weekly_review_target: Number(document.getElementById("progressGoalReview").value || 0),
+              target_mastery_rate: Number(document.getElementById("progressGoalMastery").value || 0)
+            };
+            if (statusEl) statusEl.textContent = "保存中...";
+            try {
+              const payload = await progressApiRequest("/progress/goals", {
+                method: "POST",
+                body
+              });
+              state.progressPanelGoals = payload && payload.goals ? payload.goals : body;
+              if (statusEl) statusEl.textContent = "保存しました。";
+            } catch (err) {
+              if (statusEl) statusEl.textContent = `保存失敗: ${err.message}`;
+            }
+          });
+        }
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
@@ -2977,9 +3536,9 @@
           document.getElementById("examTypeSelect").value = "";
           document.getElementById("sessionFrom").value = "";
           document.getElementById("sessionTo").value = "";
+          document.getElementById("progressStateFilter").value = "";
           document.getElementById("sortSession").value = "desc";
           document.getElementById("showAnswered").checked = false;
-          document.getElementById("onlyFrequent").checked = false;
           saveTagVisibility();
           updateSubtopicOptions("");
           renderResults(filterQuestions());
@@ -2998,6 +3557,9 @@
           renderResults(filterQuestions());
         });
         document.getElementById("sessionTo").addEventListener("input", () => {
+          renderResults(filterQuestions());
+        });
+        document.getElementById("progressStateFilter").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
         document.getElementById("sortSession").addEventListener("change", () => {
@@ -3157,7 +3719,7 @@
           if (topMenuContent) topMenuContent.hidden = false;
           if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "true");
           const closeMenuTargets = () => {
-            ["updateInfo", "settingsPanel", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel"].forEach((id) => {
+            ["updateInfo", "settingsPanel", "progressPanel", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel"].forEach((id) => {
               const el = document.getElementById(id);
               if (el && el.tagName === "DETAILS") {
                 el.open = false;
@@ -3237,7 +3799,7 @@
           message.textContent = "ログアウトしました。";
         });
 
-      function updateAuthUI(session) {
+      async function updateAuthUI(session) {
         const user = session && session.user ? session.user : null;
         state.editRequestsBySerial = {};
         state.editRequestsLoaded = new Set();
@@ -3249,8 +3811,10 @@
         if (!user) {
           state.currentRole = "guest";
           state.roleRank = 0;
+          state.authSession = null;
           state.teacherSession = null;
           state.teacherUserId = null;
+          resetProgressState();
           status.textContent = "未ログイン";
           form.hidden = false;
           actions.hidden = true;
@@ -3263,6 +3827,8 @@
           if (answerTrendPanel) answerTrendPanel.hidden = true;
           if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
+          applyProgressFilterVisibility();
+          renderProgressPanel();
           loadTagVisibility();
           applyTopMenuRoleVisibility();
           loadQaLikedState();
@@ -3272,6 +3838,7 @@
         const role = getUserRole(user);
         state.currentRole = role || "unapproved";
         state.roleRank = roleRank(role);
+        state.authSession = session || null;
         state.teacherSession = isRoleAtLeast("teacher") ? session : null;
         if (user) {
             if (state.teacherUserId !== user.id) {
@@ -3306,11 +3873,26 @@
             if (adminLink) adminLink.hidden = !isRoleAtLeast("teacher");
             if (reportModeWrap) reportModeWrap.hidden = isRoleAtLeast("teacher");
             applyTopMenuRoleVisibility();
+            applyProgressFilterVisibility();
             loadQaLikedState();
             if (isRoleAtLeast("admin")) {
               loadAdminAiGenerationSetting();
             }
           }
+        if (isRoleAtLeast("student")) {
+          if (isRoleAtLeast("teacher")) {
+            await loadProgressUsers();
+          } else {
+            state.progressUsers = [];
+          }
+          state.progressSelectedUserId = user.id;
+          syncProgressUserSelect();
+          await loadProgressDataForUser(user.id);
+          renderProgressPanel();
+        } else {
+          resetProgressState();
+          renderProgressPanel();
+        }
         renderResults(filterQuestions());
       }
       }
@@ -4505,6 +5087,7 @@
               }
             });
         }
+        sendProgressAnswer(question.serial, isCorrect);
       }
 
       function hasAnswered(serial) {
@@ -4561,8 +5144,8 @@
       }
 
       function getQaLikeActorId() {
-        if (state.teacherSession && state.teacherSession.user && state.teacherSession.user.id) {
-          return `user:${state.teacherSession.user.id}`;
+        if (state.authSession && state.authSession.user && state.authSession.user.id) {
+          return `user:${state.authSession.user.id}`;
         }
         return `anon:${getAnonId()}`;
       }
@@ -4988,9 +5571,9 @@
         const examType = document.getElementById("examTypeSelect").value;
         const sessionFrom = document.getElementById("sessionFrom").value;
         const sessionTo = document.getElementById("sessionTo").value;
+        const progressState = document.getElementById("progressStateFilter").value;
         const sortSession = document.getElementById("sortSession").value;
         const showAnswered = document.getElementById("showAnswered").checked;
-        const onlyFrequent = document.getElementById("onlyFrequent").checked;
         const parts = [];
         if (keyword) parts.push(`キーワード: ${keyword}`);
         if (subject) parts.push(`科目: ${subject}`);
@@ -5002,12 +5585,14 @@
           const range = [fromLabel, toLabel].filter(Boolean).join("〜");
           parts.push(`回数範囲: ${range || "指定なし"}`);
         }
+        if (progressState) parts.push(`進捗: ${getProgressStatusLabel(progressState)}`);
         if (sortSession) {
           const sortLabels = {
             asc: "古い順",
             desc: "新しい順",
             qa_desc: "Q&A追加順",
             deep_dive_desc: "深掘り解説追加順",
+            review_desc: "復習優先順",
             frequent_desc: "頻出順",
             frequent_asc: "頻出（低い順）",
             count_desc: "回答数が多い順",
@@ -5020,7 +5605,6 @@
           const label = sortLabels[sortSession] || "新しい順";
           parts.push(`並び替え: ${label}`);
         }
-        if (onlyFrequent) parts.push("頻出のみ");
         if (showAnswered) parts.push("回答済みを表示");
         return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
       }

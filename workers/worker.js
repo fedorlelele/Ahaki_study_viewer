@@ -20,6 +20,9 @@ export default {
       if (path.startsWith("/ai/")) {
         return handleAi(request, env);
       }
+      if (path.startsWith("/progress/")) {
+        return handleProgress(request, env);
+      }
       return jsonResponse({ message: "Not found" }, 404);
     } catch (_err) {
       return jsonResponse({ message: "Internal error" }, 500);
@@ -192,6 +195,152 @@ async function handleAi(request, env) {
     created_by: user && user.id ? user.id : null
   });
   return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags });
+}
+
+async function handleProgress(request, env) {
+  try {
+    const user = await authenticate(request, env);
+    if (!user) return jsonResponse({ message: "Unauthorized" }, 401);
+    const role = getRole(user);
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+  if (path === "/progress/bulk" && request.method === "POST") {
+    const body = await readJson(request);
+    const targetUserId = resolveProgressTargetUserId(body.user_id, user, role);
+    if (!targetUserId) return jsonResponse({ message: "Forbidden" }, 403);
+    const serials = Array.isArray(body.serials)
+      ? body.serials.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const items = await fetchUserProgressBySerials(env, targetUserId, serials);
+    return jsonResponse({ ok: true, items });
+  }
+
+  if (path === "/progress/list" && request.method === "GET") {
+    const targetUserId = resolveProgressTargetUserId(url.searchParams.get("user_id"), user, role);
+    if (!targetUserId) return jsonResponse({ message: "Forbidden" }, 403);
+    const items = await fetchAllUserProgress(env, targetUserId);
+    return jsonResponse({ ok: true, items });
+  }
+
+  if (path === "/progress/summary" && request.method === "GET") {
+    const targetUserId = resolveProgressTargetUserId(url.searchParams.get("user_id"), user, role);
+    if (!targetUserId) return jsonResponse({ message: "Forbidden" }, 403);
+    const summary = await buildProgressSummary(env, targetUserId);
+    return jsonResponse({ ok: true, summary });
+  }
+
+  if (path === "/progress/users_summary" && request.method === "GET") {
+    if (!isRoleAtLeast(role, "teacher")) return jsonResponse({ message: "Forbidden" }, 403);
+    const items = await buildUsersProgressSummary(env);
+    return jsonResponse({ ok: true, items });
+  }
+
+  if (path === "/progress/review_queue" && request.method === "GET") {
+    const targetUserId = resolveProgressTargetUserId(url.searchParams.get("user_id"), user, role);
+    if (!targetUserId) return jsonResponse({ message: "Forbidden" }, 403);
+    const limit = Math.max(1, Math.min(100, Number(url.searchParams.get("limit") || "20")));
+    const items = await buildReviewQueue(env, targetUserId, limit);
+    return jsonResponse({ ok: true, items });
+  }
+
+  if (path === "/progress/goals" && request.method === "GET") {
+    const targetUserId = resolveProgressTargetUserId(url.searchParams.get("user_id"), user, role);
+    if (!targetUserId) return jsonResponse({ message: "Forbidden" }, 403);
+    const goals = await fetchUserGoals(env, targetUserId);
+    return jsonResponse({ ok: true, goals });
+  }
+
+  if (path === "/progress/goals" && request.method === "POST") {
+    const body = await readJson(request);
+    const targetUserId = resolveProgressTargetUserId(body.user_id, user, role);
+    if (!targetUserId) return jsonResponse({ message: "Forbidden" }, 403);
+    const goals = await upsertUserGoals(env, targetUserId, body);
+    return jsonResponse({ ok: true, goals });
+  }
+
+  if (path === "/progress/status" && request.method === "POST") {
+    const body = await readJson(request);
+    const targetUserId = resolveProgressTargetUserId(body.user_id, user, role);
+    if (!targetUserId) return jsonResponse({ message: "Forbidden" }, 403);
+    const serial = String(body.serial || "").trim();
+    const status = normalizeProgressStatus(body.status);
+    if (!serial || !status) {
+      return jsonResponse({ message: "serial と status は必須です。" }, 400);
+    }
+    const current = await fetchUserProgressBySerials(env, targetUserId, [serial]);
+    const prev = current && current[0] ? current[0] : null;
+    const now = new Date().toISOString();
+    const next = {
+      user_id: targetUserId,
+      serial,
+      status,
+      attempt_count: Number(prev?.attempt_count || 0),
+      correct_count: Number(prev?.correct_count || 0),
+      last_answered_at: prev?.last_answered_at || null,
+      last_is_correct: prev?.last_is_correct ?? null,
+      next_review_at:
+        status === "needs_review"
+          ? now
+          : status === "mastered"
+            ? plusDaysIso(now, 7)
+            : prev?.next_review_at || null,
+      updated_at: now
+    };
+    const saved = await upsertUserProgress(env, next);
+    return jsonResponse({ ok: true, item: saved });
+  }
+
+  if (path === "/progress/answer" && request.method === "POST") {
+    const body = await readJson(request);
+    const serial = String(body.serial || "").trim();
+    const isCorrect = Boolean(body.is_correct);
+    if (!serial) return jsonResponse({ message: "serial は必須です。" }, 400);
+    const current = await fetchUserProgressBySerials(env, user.id, [serial]);
+    const prev = current && current[0] ? current[0] : null;
+    const attemptCount = Number(prev?.attempt_count || 0) + 1;
+    const correctCount = Number(prev?.correct_count || 0) + (isCorrect ? 1 : 0);
+    const accuracy = attemptCount > 0 ? correctCount / attemptCount : 0;
+    let status = normalizeProgressStatus(prev?.status) || "unstarted";
+    if (!isCorrect) {
+      status = "needs_review";
+    } else if (attemptCount >= 3 && accuracy >= 0.8) {
+      status = "mastered";
+    } else {
+      status = "in_progress";
+    }
+    const now = new Date().toISOString();
+    const nextReviewAt =
+      status === "needs_review"
+        ? now
+        : status === "mastered"
+          ? plusDaysIso(now, 7)
+          : plusDaysIso(now, 2);
+    const next = {
+      user_id: user.id,
+      serial,
+      status,
+      attempt_count: attemptCount,
+      correct_count: correctCount,
+      last_answered_at: now,
+      last_is_correct: isCorrect,
+      next_review_at: nextReviewAt,
+      updated_at: now
+    };
+    const saved = await upsertUserProgress(env, next);
+    return jsonResponse({ ok: true, item: saved });
+  }
+
+    return jsonResponse({ message: "Not found" }, 404);
+  } catch (err) {
+    return jsonResponse(
+      {
+        message: "Progress API error",
+        detail: err && err.message ? err.message : String(err || "")
+      },
+      500
+    );
+  }
 }
 
 async function hasDeepDive(env, serial) {
@@ -434,6 +583,245 @@ async function incrementQaCounter(env, body, field) {
   );
   if (!update.ok) return jsonResponse({ message: "Supabase update failed" }, 500);
   return jsonResponse({ ok: true, [field]: next });
+}
+
+const PROGRESS_STATUSES = new Set(["unstarted", "in_progress", "mastered", "needs_review"]);
+
+function normalizeProgressStatus(status) {
+  const value = String(status || "").trim().toLowerCase();
+  return PROGRESS_STATUSES.has(value) ? value : "";
+}
+
+function resolveProgressTargetUserId(requestedUserId, user, role) {
+  const requested = String(requestedUserId || "").trim();
+  if (!requested || requested === user.id) return user.id;
+  if (!isRoleAtLeast(role, "teacher")) return "";
+  return requested;
+}
+
+function plusDaysIso(baseIso, days) {
+  const date = new Date(baseIso || Date.now());
+  date.setDate(date.getDate() + Number(days || 0));
+  return date.toISOString();
+}
+
+function buildInClause(values) {
+  const quoted = values.map((value) => `"${String(value).replace(/"/g, '\\"')}"`).join(",");
+  return encodeURIComponent(`(${quoted})`);
+}
+
+async function fetchUserProgressBySerials(env, userId, serials) {
+  const cleanSerials = Array.isArray(serials)
+    ? serials.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  if (!cleanSerials.length) return [];
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/user_progress` +
+    `?select=user_id,serial,status,attempt_count,correct_count,last_answered_at,last_is_correct,next_review_at,updated_at,created_at` +
+    `&user_id=eq.${encodeURIComponent(userId)}` +
+    `&serial=in.${buildInClause(cleanSerials)}`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!resp.ok) return [];
+  return (await resp.json()) || [];
+}
+
+async function fetchAllUserProgress(env, userId) {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/user_progress` +
+    `?select=user_id,serial,status,attempt_count,correct_count,last_answered_at,last_is_correct,next_review_at,updated_at,created_at` +
+    `&user_id=eq.${encodeURIComponent(userId)}` +
+    `&order=updated_at.desc&limit=20000`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!resp.ok) return [];
+  return (await resp.json()) || [];
+}
+
+async function upsertUserProgress(env, payload) {
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/user_progress`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const detail = await resp.text();
+    throw new Error(`progress upsert failed: ${detail}`);
+  }
+  const rows = await resp.json();
+  return rows && rows[0] ? rows[0] : payload;
+}
+
+async function fetchUserGoals(env, userId) {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/user_goals` +
+    `?select=user_id,weekly_answer_target,weekly_review_target,target_mastery_rate,updated_at,created_at` +
+    `&user_id=eq.${encodeURIComponent(userId)}&limit=1`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!resp.ok) return null;
+  const rows = await resp.json();
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function upsertUserGoals(env, userId, body) {
+  const payload = {
+    user_id: userId,
+    weekly_answer_target: Math.max(0, Number(body.weekly_answer_target || 0)),
+    weekly_review_target: Math.max(0, Number(body.weekly_review_target || 0)),
+    target_mastery_rate: Math.max(0, Math.min(100, Number(body.target_mastery_rate || 0))),
+    updated_at: new Date().toISOString()
+  };
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/user_goals`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const detail = await resp.text();
+    throw new Error(`goals upsert failed: ${detail}`);
+  }
+  const rows = await resp.json();
+  return rows && rows[0] ? rows[0] : payload;
+}
+
+async function buildProgressSummary(env, userId) {
+  const items = await fetchAllUserProgress(env, userId);
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const byStatus = {
+    unstarted: 0,
+    in_progress: 0,
+    mastered: 0,
+    needs_review: 0
+  };
+  let totalAttempts = 0;
+  let totalCorrect = 0;
+  let weekAnswered = 0;
+  let reviewDue = 0;
+  items.forEach((row) => {
+    const status = normalizeProgressStatus(row.status) || "unstarted";
+    byStatus[status] = (byStatus[status] || 0) + 1;
+    totalAttempts += Number(row.attempt_count || 0);
+    totalCorrect += Number(row.correct_count || 0);
+    const answeredAt = row.last_answered_at ? Date.parse(row.last_answered_at) : 0;
+    if (answeredAt && now - answeredAt <= weekMs) weekAnswered += 1;
+    const nextReviewAt = row.next_review_at ? Date.parse(row.next_review_at) : 0;
+    if (status === "needs_review" || (nextReviewAt && nextReviewAt <= now)) {
+      reviewDue += 1;
+    }
+  });
+  const goals = await fetchUserGoals(env, userId);
+  return {
+    user_id: userId,
+    total_items: items.length,
+    by_status: byStatus,
+    total_attempts: totalAttempts,
+    total_correct: totalCorrect,
+    accuracy: totalAttempts > 0 ? totalCorrect / totalAttempts : 0,
+    weekly_answered: weekAnswered,
+    review_due: reviewDue,
+    goals: goals || null
+  };
+}
+
+async function buildUsersProgressSummary(env) {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/user_progress` +
+    `?select=user_id,status,attempt_count,correct_count,last_answered_at,next_review_at&limit=50000`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!resp.ok) return [];
+  const rows = (await resp.json()) || [];
+  const now = Date.now();
+  const map = {};
+  rows.forEach((row) => {
+    const userId = row.user_id || "";
+    if (!userId) return;
+    if (!map[userId]) {
+      map[userId] = {
+        user_id: userId,
+        total_items: 0,
+        review_due: 0,
+        total_attempts: 0,
+        total_correct: 0
+      };
+    }
+    const target = map[userId];
+    target.total_items += 1;
+    target.total_attempts += Number(row.attempt_count || 0);
+    target.total_correct += Number(row.correct_count || 0);
+    const status = normalizeProgressStatus(row.status) || "unstarted";
+    const nextReviewAt = row.next_review_at ? Date.parse(row.next_review_at) : 0;
+    if (status === "needs_review" || (nextReviewAt && nextReviewAt <= now)) {
+      target.review_due += 1;
+    }
+  });
+  return Object.values(map)
+    .map((item) => ({
+      ...item,
+      accuracy: item.total_attempts > 0 ? item.total_correct / item.total_attempts : 0
+    }))
+    .sort((a, b) => (b.review_due - a.review_due) || (b.total_attempts - a.total_attempts));
+}
+
+async function buildReviewQueue(env, userId, limit) {
+  const items = await fetchAllUserProgress(env, userId);
+  const now = Date.now();
+  const queued = items
+    .filter((row) => {
+      const status = normalizeProgressStatus(row.status) || "unstarted";
+      if (status === "needs_review") return true;
+      const nextReviewAt = row.next_review_at ? Date.parse(row.next_review_at) : 0;
+      return nextReviewAt > 0 && nextReviewAt <= now;
+    })
+    .map((row) => {
+      const attempts = Number(row.attempt_count || 0);
+      const correct = Number(row.correct_count || 0);
+      const missRate = attempts > 0 ? (attempts - correct) / attempts : 0;
+      return { ...row, miss_rate: missRate };
+    })
+    .sort((a, b) => {
+      const statusA = normalizeProgressStatus(a.status);
+      const statusB = normalizeProgressStatus(b.status);
+      if (statusA === "needs_review" && statusB !== "needs_review") return -1;
+      if (statusB === "needs_review" && statusA !== "needs_review") return 1;
+      const missDiff = Number(b.miss_rate || 0) - Number(a.miss_rate || 0);
+      if (missDiff !== 0) return missDiff;
+      return String(b.updated_at || "").localeCompare(String(a.updated_at || ""));
+    })
+    .slice(0, limit);
+  return queued;
 }
 
 async function authenticate(request, env) {
