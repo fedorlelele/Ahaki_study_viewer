@@ -385,17 +385,6 @@
         gap: 8px;
         margin-top: 8px;
       }
-      .qa-reload {
-        border: none;
-        background: transparent;
-        color: var(--muted);
-        font-size: 12px;
-        padding: 2px 4px;
-        cursor: pointer;
-      }
-      .qa-reload:hover {
-        color: var(--accent);
-      }
       .qa-answer {
         margin-top: 6px;
         padding: 8px 10px;
@@ -414,8 +403,17 @@
         line-height: 1.6;
       }
       .deep-dive-panel pre {
+        margin: 10px 0 0;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f9fbfd;
+        color: #0f172a;
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.9;
         white-space: pre-wrap;
-        margin: 8px 0 0;
+        word-break: break-word;
       }
       .deep-dive-tags {
         margin-top: 8px;
@@ -2942,9 +2940,6 @@
           qaSection.appendChild(qaList);
           const qaActions = document.createElement("div");
           qaActions.className = "proposal-actions";
-          const qaLoadBtn = document.createElement("button");
-          qaLoadBtn.textContent = "再読み込み";
-          qaLoadBtn.className = "qa-reload";
           const renderQaItems = (items) => {
             qaList.textContent = "";
             const list = Array.isArray(items) ? items : [];
@@ -3023,7 +3018,6 @@
               return;
             }
             qaHeader.textContent = "読み込み中...";
-            qaLoadBtn.disabled = true;
             try {
               const resp = await fetch(
                 `${window.AI_API_BASE}/ai/question_qa?serial=${encodeURIComponent(q.serial)}`
@@ -3043,12 +3037,8 @@
               renderQaItems(merged);
             } catch (_err) {
               qaHeader.textContent = "読み込みに失敗しました。";
-            } finally {
-              qaLoadBtn.disabled = false;
             }
           };
-          qaLoadBtn.addEventListener("click", loadQaItems);
-          qaActions.appendChild(qaLoadBtn);
           if (canUseAiGeneration()) {
             const qaInput = document.createElement("textarea");
             qaInput.placeholder = "この問題について質問を入力";
