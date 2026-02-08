@@ -3175,6 +3175,14 @@
               });
             }
           };
+          let renderDeepDiveTagDescription = null;
+          const openTagDescriptionFromDeepDive = (tag) => {
+            if (typeof renderDeepDiveTagDescription === "function") {
+              renderDeepDiveTagDescription(tag);
+              return;
+            }
+            renderTagDescription(tag);
+          };
           let showAllTags = false;
           const renderTagButtons = () => {
             tagItems.textContent = "";
@@ -3927,6 +3935,98 @@
           const deepDiveTags = document.createElement("div");
           deepDiveTags.className = "deep-dive-tags";
           deepDivePanel.appendChild(deepDiveTags);
+          const deepDiveTagDesc = document.createElement("div");
+          deepDiveTagDesc.className = "tag-description";
+          deepDiveTagDesc.hidden = true;
+          deepDivePanel.appendChild(deepDiveTagDesc);
+          let currentDeepDiveTagDescription = "";
+          renderDeepDiveTagDescription = (tag) => {
+            if (!tag) return;
+            if (!deepDiveTagDesc.hidden && currentDeepDiveTagDescription === tag) {
+              deepDiveTagDesc.hidden = true;
+              currentDeepDiveTagDescription = "";
+              return;
+            }
+            const meta = state.tagCatalogByTag[tag] || {};
+            const allRelatedSerials = getRelatedSerialsForTag(tag);
+            const relatedCount = allRelatedSerials.length
+              ? allRelatedSerials.length
+              : (typeof meta.related_count === "number" ? meta.related_count : 0);
+            const viewCount = getTagViewCount(tag);
+            deepDiveTagDesc.textContent = "";
+            const title = document.createElement("div");
+            title.className = "tag-description-title";
+            title.textContent = `タグ: ${tag}`;
+            deepDiveTagDesc.appendChild(title);
+            const body = document.createElement("div");
+            body.className = "tag-description-text";
+            renderMarkdownToElement(
+              body,
+              (meta.description || "").trim() || "このタグの説明は未登録です。"
+            );
+            deepDiveTagDesc.appendChild(body);
+            const info = document.createElement("div");
+            info.className = "tag-description-meta";
+            info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${viewCount}`;
+            deepDiveTagDesc.appendChild(info);
+            const equivalentTags = getEquivalentTagsForTerm(tag).filter((label) => label !== tag);
+            if (equivalentTags.length) {
+              const merged = document.createElement("div");
+              merged.className = "tag-description-meta";
+              merged.textContent = `同義語(結合): ${equivalentTags.join(", ")}`;
+              deepDiveTagDesc.appendChild(merged);
+            }
+            const filters = document.createElement("div");
+            filters.className = "tag-description-filters";
+            const tagFilter = document.createElement("button");
+            tagFilter.className = "chip-link";
+            tagFilter.textContent = "このタグで検索";
+            tagFilter.addEventListener("click", () => {
+              applyTagSearch(tag);
+            });
+            filters.appendChild(tagFilter);
+            (meta.subjects || []).slice(0, 5).forEach((subjectName) => {
+              const btn = document.createElement("button");
+              btn.className = "chip-link";
+              btn.textContent = `科目:${subjectName}`;
+              btn.addEventListener("click", () => {
+                applyFilters({ subject: subjectName, subtopic: "" });
+              });
+              filters.appendChild(btn);
+            });
+            (meta.subtopics || []).slice(0, 8).forEach((subtopicName) => {
+              const btn = document.createElement("button");
+              btn.className = "chip-link";
+              btn.textContent = `小項目:${subtopicName}`;
+              btn.addEventListener("click", () => {
+                applyFilters({ subtopic: subtopicName });
+              });
+              filters.appendChild(btn);
+            });
+            allRelatedSerials.slice(0, 5).forEach((serial) => {
+              const btn = document.createElement("button");
+              btn.className = "chip-link";
+              btn.textContent = serial;
+              btn.addEventListener("click", () => {
+                resetNonKeywordFilters();
+                applyFilters({ keyword: serial });
+              });
+              filters.appendChild(btn);
+            });
+            if (filters.childNodes.length) {
+              deepDiveTagDesc.appendChild(filters);
+            }
+            deepDiveTagDesc.hidden = false;
+            currentDeepDiveTagDescription = tag;
+            if (!state.tagViewedSession.has(tag)) {
+              state.tagViewedSession.add(tag);
+              saveTagViewedSessionState();
+              incrementTagViewCount(tag, (count) => {
+                info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${count}`;
+              });
+            }
+            deepDiveTagDesc.scrollIntoView({ block: "nearest" });
+          };
           const deepDiveMeta = document.createElement("div");
           deepDiveMeta.className = "note inline-meta";
           const deepDiveCopyBtn = document.createElement("button");
@@ -3952,13 +4052,27 @@
             deepDiveCopyBtn.disabled = !deepDiveRawText;
             renderMarkdownToElement(deepDiveBody, deepDiveRawText);
             deepDiveTags.textContent = "";
+            deepDiveTagDesc.hidden = true;
+            currentDeepDiveTagDescription = "";
             (tags || []).forEach(tag => {
+                  const meta = state.tagCatalogByTag[tag] || {};
+                  const hasDescription = Boolean((meta.description || "").trim());
                   const chip = document.createElement("button");
-                  chip.className = "chip-link";
+                  chip.className = hasDescription
+                    ? "chip-link tag-chip has-description"
+                    : "chip-link tag-chip";
                   chip.textContent = tag;
-                  chip.setAttribute("aria-label", `タグ ${tag} の説明を表示`);
+                  chip.setAttribute(
+                    "aria-label",
+                    hasDescription
+                      ? `タグ ${tag}（説明あり）の説明を表示`
+                      : `タグ ${tag} の説明を表示`
+                  );
+                  if (hasDescription) {
+                    chip.title = "説明あり";
+                  }
                   chip.addEventListener("click", () => {
-                    renderTagDescription(tag);
+                    openTagDescriptionFromDeepDive(tag);
                   });
                   deepDiveTags.appendChild(chip);
                 });
@@ -3990,6 +4104,8 @@
               deepDiveCopyBtn.disabled = true;
               deepDiveBody.innerHTML = "";
               deepDiveTags.textContent = "";
+              deepDiveTagDesc.hidden = true;
+              currentDeepDiveTagDescription = "";
               fetch(`${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`)
                 .then(r => (r.ok ? r.json() : Promise.reject(r)))
                 .then(payload => {
@@ -4026,6 +4142,8 @@
               deepDiveCopyBtn.disabled = true;
               deepDiveBody.innerHTML = "";
               deepDiveTags.textContent = "";
+              deepDiveTagDesc.hidden = true;
+              currentDeepDiveTagDescription = "";
               deepDiveMainBtn.disabled = true;
               try {
                 const prompt = buildDeepDiveApiPrompt(q, expText);
