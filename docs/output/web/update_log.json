@@ -1,6 +1,11 @@
 [
   {
     "date": "2026/02/08",
+    "text": "解説を2件追加しました。",
+    "kind": "explanation"
+  },
+  {
+    "date": "2026/02/08",
     "text": "READMEと利用ガイドを最新仕様に合わせて全面更新し、WebUIで利用ガイドをMarkdown表示できるようにしました。",
     "kind": "note"
   },

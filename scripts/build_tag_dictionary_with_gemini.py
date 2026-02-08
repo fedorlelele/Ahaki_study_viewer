@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import sqlite3
 import time
 from datetime import datetime
@@ -378,10 +379,43 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Build tag descriptions and aliases with Gemini.")
     parser.add_argument("--db", default="output/ahaki.sqlite", help="SQLite path.")
     parser.add_argument("--model", default="gemini-3-flash-preview", help="Gemini model.")
-    parser.add_argument("--api-key", default="", help="Override GEMINI_API_KEY.")
-    parser.add_argument("--limit", type=int, default=0, help="Process first N tags (0=all).")
+    parser.add_argument("--api-key", default="", help="Override API key directly.")
+    parser.add_argument(
+        "--api-key-source",
+        default="free",
+        choices=["auto", "paid", "free", "legacy"],
+        help=(
+            "API key source. auto=GEMINI_API_KEY_PAID -> GEMINI_API_KEY_FREE -> GEMINI_API_KEY, "
+            "paid=GEMINI_API_KEY_PAID, free=GEMINI_API_KEY_FREE (fallback GEMINI_API_KEY), "
+            "legacy=GEMINI_API_KEY only."
+        ),
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Process first N target tags after filtering (0=all).",
+    )
     parser.add_argument("--batch-size", type=int, default=6, help="Tags per API request.")
+    parser.add_argument(
+        "--max-requests",
+        type=int,
+        default=0,
+        help="Maximum Gemini API requests per run (0=unlimited).",
+    )
     parser.add_argument("--sleep-seconds", type=float, default=1.5, help="Sleep between requests.")
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=3,
+        help="Retries per batch when API request fails.",
+    )
+    parser.add_argument(
+        "--retry-sleep-seconds",
+        type=float,
+        default=15.0,
+        help="Base wait seconds before retrying failed API requests.",
+    )
     parser.add_argument("--max-output-tokens", type=int, default=4096, help="Gemini maxOutputTokens.")
     parser.add_argument("--overwrite", action="store_true", help="Rebuild existing descriptions.")
     parser.add_argument("--apply-merge", action="store_true", help="Apply approved alias merge to tags/question_tags.")
@@ -389,20 +423,54 @@ def parse_args():
     return parser.parse_args()
 
 
+def resolve_api_key(args):
+    if args.api_key:
+        return args.api_key, "cli"
+    if args.api_key_source == "paid":
+        return os.environ.get("GEMINI_API_KEY_PAID", ""), "GEMINI_API_KEY_PAID"
+    if args.api_key_source == "free":
+        return (
+            os.environ.get("GEMINI_API_KEY_FREE", "") or os.environ.get("GEMINI_API_KEY", ""),
+            "GEMINI_API_KEY_FREE/GEMINI_API_KEY",
+        )
+    if args.api_key_source == "legacy":
+        return os.environ.get("GEMINI_API_KEY", ""), "GEMINI_API_KEY"
+    # auto
+    return (
+        os.environ.get("GEMINI_API_KEY_PAID", "")
+        or os.environ.get("GEMINI_API_KEY_FREE", "")
+        or os.environ.get("GEMINI_API_KEY", ""),
+        "auto",
+    )
+
+
+def _retry_wait_seconds(error_text, base_wait):
+    text = str(error_text or "")
+    match = re.search(r"retry in\s+([0-9]+(?:\.[0-9]+)?)s", text, flags=re.IGNORECASE)
+    if match:
+        try:
+            return max(float(base_wait), float(match.group(1)) + 0.5)
+        except Exception:
+            pass
+    return float(base_wait)
+
+
 def main():
     args = parse_args()
     repo_root = Path(__file__).resolve().parent.parent
     load_env(repo_root / ".env")
-    api_key = args.api_key or os.environ.get("GEMINI_API_KEY", "")
+    api_key, api_key_label = resolve_api_key(args)
     if not api_key:
-        raise SystemExit("GEMINI_API_KEY is not set.")
+        raise SystemExit(
+            "API key is not set. Set one of GEMINI_API_KEY_PAID / GEMINI_API_KEY_FREE / GEMINI_API_KEY "
+            "or pass --api-key."
+        )
+    print(f"API key source: {api_key_label}")
 
     conn = sqlite3.connect(args.db)
     ensure_tables(conn)
     alias_map = load_approved_alias_map(conn)
     all_tags = collect_full_tags(conn, alias_map=alias_map)
-    if args.limit > 0:
-        all_tags = all_tags[: args.limit]
 
     if not args.overwrite:
         existing = {
@@ -414,6 +482,11 @@ def main():
         targets = [tag for tag in all_tags if tag not in existing]
     else:
         targets = all_tags
+
+    if args.limit > 0:
+        targets = targets[: args.limit]
+    if args.max_requests > 0:
+        targets = targets[: args.max_requests * args.batch_size]
 
     if args.dry_run:
         print(f"targets={len(targets)}")
@@ -427,7 +500,21 @@ def main():
     api_error = ""
     for batch_idx, tag_batch in enumerate(batch_list, start=1):
         prompt = build_prompt(tag_batch)
-        payload, error = call_gemini(api_key, args.model, prompt, args.max_output_tokens)
+        payload = {}
+        error = ""
+        for attempt in range(args.max_retries + 1):
+            payload, error = call_gemini(api_key, args.model, prompt, args.max_output_tokens)
+            if not error:
+                break
+            if attempt >= args.max_retries:
+                break
+            wait = _retry_wait_seconds(error, args.retry_sleep_seconds)
+            print(
+                f"[{batch_idx}/{len(batch_list)}] batch ERROR (retry {attempt + 1}/{args.max_retries}): {error}"
+            )
+            print(f"  waiting {wait:.1f}s before retry...")
+            if wait > 0:
+                time.sleep(wait)
         if error:
             api_error = error
             print(f"[{batch_idx}/{len(batch_list)}] batch ERROR: {error}")

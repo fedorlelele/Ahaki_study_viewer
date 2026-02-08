@@ -1319,6 +1319,7 @@
         <summary>AI機能公開</summary>
         <div class="edit-panel">
           <label><input type="checkbox" id="aiPublicGenerationToggle" /> AI生成機能を全ユーザーへ一時公開</label>
+          <label><input type="checkbox" id="aiAdminPaidGenerationToggle" /> 管理者ログイン時に従量課金キーを使用</label>
           <button id="aiPublicGenerationSaveBtn" type="button">保存</button>
           <div class="note" id="aiPublicGenerationStatus">状態を確認中...</div>
         </div>
@@ -1471,6 +1472,7 @@
         ,tagViewCounts: {}
         ,tagViewedSession: new Set()
         ,aiPublicGeneration: false
+        ,aiAdminPaidGeneration: false
         ,progressSelfBySerial: {}
         ,progressSelfList: []
         ,progressPanelList: []
@@ -1528,6 +1530,11 @@
       function updateAiPublicNotice() {
         const el = document.getElementById("aiPublicNotice");
         if (!el) return;
+        if (state.aiPublicGeneration && isRoleAtLeast("admin") && state.aiAdminPaidGeneration) {
+          el.textContent = "AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。管理者ログイン時は従量課金キーを使用します。";
+        } else {
+          el.textContent = "AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。";
+        }
         el.hidden = !state.aiPublicGeneration;
       }
 
@@ -2160,17 +2167,20 @@
       function loadAiConfig() {
         if (!window.AI_API_BASE) {
           state.aiPublicGeneration = false;
+          state.aiAdminPaidGeneration = false;
           updateAiPublicNotice();
           return Promise.resolve();
         }
         return fetch(`${window.AI_API_BASE}/ai/config`)
-          .then(r => (r.ok ? r.json() : { public_generation: false }))
+          .then(r => (r.ok ? r.json() : { public_generation: false, admin_paid_generation: false }))
           .then(data => {
             state.aiPublicGeneration = Boolean(data && data.public_generation);
+            state.aiAdminPaidGeneration = Boolean(data && data.admin_paid_generation);
             updateAiPublicNotice();
           })
           .catch(() => {
             state.aiPublicGeneration = false;
+            state.aiAdminPaidGeneration = false;
             updateAiPublicNotice();
           });
       }
@@ -2178,8 +2188,9 @@
       async function loadAdminAiGenerationSetting() {
         const statusEl = document.getElementById("aiPublicGenerationStatus");
         const toggleEl = document.getElementById("aiPublicGenerationToggle");
+        const paidToggleEl = document.getElementById("aiAdminPaidGenerationToggle");
         const saveBtn = document.getElementById("aiPublicGenerationSaveBtn");
-        if (!statusEl || !toggleEl || !saveBtn) return;
+        if (!statusEl || !toggleEl || !paidToggleEl || !saveBtn) return;
         if (!isRoleAtLeast("admin")) {
           statusEl.textContent = "管理者のみ操作できます。";
           saveBtn.disabled = true;
@@ -2211,9 +2222,12 @@
             return;
           }
           state.aiPublicGeneration = Boolean(payload.public_generation);
+          state.aiAdminPaidGeneration = Boolean(payload.admin_paid_generation);
           toggleEl.checked = state.aiPublicGeneration;
+          paidToggleEl.checked = state.aiAdminPaidGeneration;
           updateAiPublicNotice();
-          statusEl.textContent = state.aiPublicGeneration ? "現在: 公開中" : "現在: 管理者限定";
+          statusEl.textContent =
+            `現在: ${state.aiPublicGeneration ? "公開中" : "管理者限定"} / 管理者従量課金: ${state.aiAdminPaidGeneration ? "ON" : "OFF"}`;
           renderResults(filterQuestions());
         } catch (_err) {
           statusEl.textContent = "状態の取得に失敗しました。";
@@ -2225,9 +2239,10 @@
       function initAiGenerationPanel() {
         const panel = document.getElementById("aiGenerationPanel");
         const toggleEl = document.getElementById("aiPublicGenerationToggle");
+        const paidToggleEl = document.getElementById("aiAdminPaidGenerationToggle");
         const saveBtn = document.getElementById("aiPublicGenerationSaveBtn");
         const statusEl = document.getElementById("aiPublicGenerationStatus");
-        if (!panel || !toggleEl || !saveBtn || !statusEl) return;
+        if (!panel || !toggleEl || !paidToggleEl || !saveBtn || !statusEl) return;
         panel.addEventListener("toggle", () => {
           if (panel.open) {
             loadAdminAiGenerationSetting();
@@ -2254,7 +2269,10 @@
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${session.access_token}`
               },
-              body: JSON.stringify({ public_generation: Boolean(toggleEl.checked) })
+              body: JSON.stringify({
+                public_generation: Boolean(toggleEl.checked),
+                admin_paid_generation: Boolean(paidToggleEl.checked)
+              })
             });
             const payload = await resp.json();
             if (!resp.ok || !payload || payload.ok !== true) {
@@ -2262,8 +2280,10 @@
               return;
             }
             state.aiPublicGeneration = Boolean(payload.public_generation);
+            state.aiAdminPaidGeneration = Boolean(payload.admin_paid_generation);
             updateAiPublicNotice();
-            statusEl.textContent = state.aiPublicGeneration ? "現在: 公開中" : "現在: 管理者限定";
+            statusEl.textContent =
+              `現在: ${state.aiPublicGeneration ? "公開中" : "管理者限定"} / 管理者従量課金: ${state.aiAdminPaidGeneration ? "ON" : "OFF"}`;
             renderResults(filterQuestions());
           } catch (_err) {
             statusEl.textContent = "保存に失敗しました。";
@@ -3739,7 +3759,7 @@
                 const session = data && data.session ? data.session : null;
                 token = session && session.access_token ? session.access_token : "";
               }
-              if (!state.aiPublicGeneration && !token) {
+              if (!state.aiPublicGeneration && !isRoleAtLeast("admin")) {
                 qaHeader.textContent = "管理者ログインが必要です。";
                 return;
               }
@@ -3943,7 +3963,7 @@
                 const session = data && data.session ? data.session : null;
                 token = session && session.access_token ? session.access_token : "";
               }
-              if (!state.aiPublicGeneration && !token) {
+              if (!state.aiPublicGeneration && !isRoleAtLeast("admin")) {
                 alert("管理者ログインが必要です。");
                 return;
               }

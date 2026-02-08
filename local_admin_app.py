@@ -189,6 +189,8 @@ HTML_PAGE = """<!doctype html>
       <div id="progressResult"></div>
       <h3>タグ辞書状況</h3>
       <button id="loadTagDictStatus">タグ辞書状況を表示</button>
+      <button id="resolveTagDictMerge">結合待ちを解消</button>
+      <div id="tagDictMergeResult" class="note"></div>
       <div id="tagDictResult"></div>
       <h3>タグ説明一覧</h3>
       <div class="row">
@@ -705,6 +707,17 @@ HTML_PAGE = """<!doctype html>
         const resp = await fetch("/api/tag_dictionary_status");
         const data = await resp.json();
         document.getElementById("tagDictResult").innerHTML = renderTagDictionaryStatus(data);
+      });
+
+      document.getElementById("resolveTagDictMerge").addEventListener("click", async () => {
+        const resultEl = document.getElementById("tagDictMergeResult");
+        resultEl.textContent = "実行中...";
+        const resp = await fetch("/api/tag_dictionary_resolve_merge", { method: "POST" });
+        const data = await resp.json();
+        resultEl.textContent = data.message || "完了しました。";
+        const statusResp = await fetch("/api/tag_dictionary_status");
+        const statusData = await statusResp.json();
+        document.getElementById("tagDictResult").innerHTML = renderTagDictionaryStatus(statusData);
       });
 
       document.getElementById("loadTagDictItems").addEventListener("click", async () => {
@@ -2119,6 +2132,11 @@ class Handler(BaseHTTPRequestHandler):
             message = run_build_all(self.server.repo_root)
             self._send_json({"message": message})
             return
+        if parsed.path == "/api/tag_dictionary_resolve_merge":
+            result = resolve_tag_dictionary_merge(self.server.db_path)
+            web_message = run_build_web(self.server.repo_root)
+            self._send_json({"message": f"{result['message']} / {web_message}"})
+            return
         if parsed.path == "/api/sync/overrides":
             params = parse_qs(parsed.query)
             since = (params.get("since", [""])[0] or "").strip()
@@ -3142,6 +3160,301 @@ def ensure_tag_dictionary_tables(db_path):
     )
     conn.commit()
     conn.close()
+
+
+def clean_tag_label(value):
+    return " ".join(str(value or "").split()).strip()
+
+
+def resolve_alias_label(label, alias_map):
+    current = clean_tag_label(label)
+    seen = set()
+    while current and current in alias_map and current not in seen:
+        seen.add(current)
+        nxt = clean_tag_label(alias_map.get(current))
+        if not nxt or nxt == current:
+            break
+        current = nxt
+    return current
+
+
+def canonicalize_tag_list(values, alias_map):
+    result = []
+    seen = set()
+    for value in values:
+        raw = clean_tag_label(value)
+        if not raw:
+            continue
+        canonical = resolve_alias_label(raw, alias_map) if alias_map else raw
+        if not canonical or canonical in seen:
+            continue
+        seen.add(canonical)
+        result.append(canonical)
+    return result
+
+
+def compute_merge_pending_count(conn):
+    tag_rows = conn.execute("SELECT label FROM tags").fetchall()
+    current_tags = {clean_tag_label(row[0]) for row in tag_rows}
+    alias_rows = conn.execute(
+        "SELECT alias, canonical_label, approved FROM tag_aliases"
+    ).fetchall()
+    pending = 0
+    for alias, canonical, approved in alias_rows:
+        if int(approved or 0) != 1:
+            continue
+        alias_label = clean_tag_label(alias)
+        canonical_label = clean_tag_label(canonical)
+        if not alias_label or not canonical_label or alias_label == canonical_label:
+            continue
+        if alias_label in current_tags and canonical_label in current_tags:
+            pending += 1
+    return pending
+
+
+def choose_component_root(component, usage_map, described_set):
+    labels = sorted(component)
+    labels.sort(
+        key=lambda label: (
+            -int(label in described_set),
+            -int(usage_map.get(label, 0)),
+            len(label),
+            label,
+        )
+    )
+    return labels[0] if labels else ""
+
+
+def rebuild_approved_aliases(conn):
+    rows = conn.execute(
+        "SELECT alias, canonical_label, approved FROM tag_aliases"
+    ).fetchall()
+    approved_pairs = []
+    for alias, canonical, approved in rows:
+        if int(approved or 0) != 1:
+            continue
+        alias_label = clean_tag_label(alias)
+        canonical_label = clean_tag_label(canonical)
+        if not alias_label or not canonical_label or alias_label == canonical_label:
+            continue
+        approved_pairs.append((alias_label, canonical_label))
+    if not approved_pairs:
+        return {}, 0, 0
+
+    usage_rows = conn.execute(
+        """
+        SELECT t.label, COUNT(*)
+        FROM question_tags qt
+        JOIN tags t ON t.id = qt.tag_id
+        GROUP BY t.label
+        """
+    ).fetchall()
+    usage_map = {clean_tag_label(label): int(count or 0) for label, count in usage_rows}
+
+    try:
+        described_rows = conn.execute(
+            "SELECT canonical_label FROM tag_descriptions WHERE TRIM(description) != ''"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        described_rows = []
+    described_set = {clean_tag_label(row[0]) for row in described_rows}
+
+    neighbors = {}
+    for alias_label, canonical_label in approved_pairs:
+        neighbors.setdefault(alias_label, set()).add(canonical_label)
+        neighbors.setdefault(canonical_label, set()).add(alias_label)
+
+    visited = set()
+    alias_map = {}
+    component_count = 0
+    for start in sorted(neighbors.keys()):
+        if start in visited:
+            continue
+        stack = [start]
+        component = set()
+        while stack:
+            node = stack.pop()
+            if node in visited:
+                continue
+            visited.add(node)
+            component.add(node)
+            for nxt in neighbors.get(node, set()):
+                if nxt not in visited:
+                    stack.append(nxt)
+        if not component:
+            continue
+        component_count += 1
+        root = choose_component_root(component, usage_map, described_set)
+        for label in component:
+            if label == root:
+                continue
+            alias_map[label] = root
+
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    conn.execute("DELETE FROM tag_aliases WHERE approved = 1")
+    for alias_label in sorted(alias_map.keys()):
+        canonical_label = alias_map[alias_label]
+        conn.execute(
+            """
+            INSERT INTO tag_aliases(alias, canonical_label, confidence, approved, source_model, updated_at)
+            VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(alias) DO UPDATE SET
+              canonical_label = excluded.canonical_label,
+              confidence = excluded.confidence,
+              approved = excluded.approved,
+              source_model = excluded.source_model,
+              updated_at = excluded.updated_at
+            """,
+            (alias_label, canonical_label, 0.9, "alias_normalize", now),
+        )
+    return alias_map, len(approved_pairs), component_count
+
+
+def backfill_canonical_descriptions(conn, alias_map):
+    if not alias_map:
+        return 0
+    try:
+        rows = conn.execute(
+            "SELECT canonical_label, description FROM tag_descriptions"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return 0
+    description_map = {
+        clean_tag_label(label): str(description or "").strip()
+        for label, description in rows
+        if clean_tag_label(label)
+    }
+    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    updated = 0
+    candidates = {}
+    for alias_label, canonical_label in alias_map.items():
+        alias_description = description_map.get(alias_label, "")
+        canonical_description = description_map.get(canonical_label, "")
+        if canonical_description or not alias_description:
+            continue
+        prev = candidates.get(canonical_label, "")
+        if len(alias_description) > len(prev):
+            candidates[canonical_label] = alias_description
+    for canonical_label, description in candidates.items():
+        conn.execute(
+            """
+            INSERT INTO tag_descriptions(canonical_label, description, source_model, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(canonical_label) DO UPDATE SET
+              description = excluded.description,
+              source_model = excluded.source_model,
+              updated_at = excluded.updated_at
+            """,
+            (canonical_label, description, "alias_backfill", now),
+        )
+        updated += 1
+    return updated
+
+
+def apply_alias_merge_to_questions(conn, alias_map):
+    moved = 0
+    deleted_tags = 0
+    for alias_label in sorted(alias_map.keys()):
+        canonical_label = resolve_alias_label(alias_map.get(alias_label), alias_map)
+        if not alias_label or not canonical_label or alias_label == canonical_label:
+            continue
+        alias_row = conn.execute(
+            "SELECT id FROM tags WHERE label = ?",
+            (alias_label,),
+        ).fetchone()
+        if not alias_row:
+            continue
+        canonical_row = conn.execute(
+            "SELECT id FROM tags WHERE label = ?",
+            (canonical_label,),
+        ).fetchone()
+        if not canonical_row:
+            conn.execute("INSERT OR IGNORE INTO tags(label) VALUES (?)", (canonical_label,))
+            canonical_row = conn.execute(
+                "SELECT id FROM tags WHERE label = ?",
+                (canonical_label,),
+            ).fetchone()
+        alias_id = int(alias_row[0])
+        canonical_id = int(canonical_row[0])
+        if alias_id == canonical_id:
+            continue
+        question_rows = conn.execute(
+            "SELECT DISTINCT question_id FROM question_tags WHERE tag_id = ?",
+            (alias_id,),
+        ).fetchall()
+        for (question_id,) in question_rows:
+            before = conn.execute(
+                """
+                SELECT 1 FROM question_tags
+                WHERE question_id = ? AND tag_id = ? AND source = 'alias_merge'
+                """,
+                (question_id, canonical_id),
+            ).fetchone()
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO question_tags(question_id, tag_id, source)
+                VALUES (?, ?, ?)
+                """,
+                (question_id, canonical_id, "alias_merge"),
+            )
+            if before is None:
+                moved += 1
+        conn.execute("DELETE FROM question_tags WHERE tag_id = ?", (alias_id,))
+        conn.execute("DELETE FROM tags WHERE id = ?", (alias_id,))
+        deleted_tags += 1
+    return moved, deleted_tags
+
+
+def apply_alias_merge_to_deep_dive(conn, alias_map):
+    if not alias_map:
+        return 0
+    try:
+        rows = conn.execute(
+            """
+            SELECT serial, tags_json
+            FROM deep_dive_explanations
+            WHERE tags_json IS NOT NULL AND tags_json != ''
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    updated = 0
+    for serial, tags_json in rows:
+        try:
+            raw_tags = json.loads(tags_json or "[]")
+        except json.JSONDecodeError:
+            raw_tags = []
+        before = canonicalize_tag_list(raw_tags, {})
+        after = canonicalize_tag_list(raw_tags, alias_map)
+        if after == before:
+            continue
+        conn.execute(
+            "UPDATE deep_dive_explanations SET tags_json = ? WHERE serial = ?",
+            (json.dumps(after, ensure_ascii=False), serial),
+        )
+        updated += 1
+    return updated
+
+
+def resolve_tag_dictionary_merge(db_path):
+    conn = sqlite3.connect(db_path)
+    pending_before = compute_merge_pending_count(conn)
+    alias_map, approved_pairs, component_count = rebuild_approved_aliases(conn)
+    descriptions_backfilled = backfill_canonical_descriptions(conn, alias_map)
+    moved, deleted_tags = apply_alias_merge_to_questions(conn, alias_map)
+    deep_dive_updated = apply_alias_merge_to_deep_dive(conn, alias_map)
+    pending_after = compute_merge_pending_count(conn)
+    conn.commit()
+    conn.close()
+    message = (
+        "結合待ち解消を実行しました: "
+        f"結合待ち {pending_before} -> {pending_after} / "
+        f"同義語ペア {approved_pairs} / グループ {component_count} / "
+        f"移動リンク {moved} / 削除タグ {deleted_tags} / "
+        f"深掘りタグ更新 {deep_dive_updated} / "
+        f"説明補完 {descriptions_backfilled}"
+    )
+    return {"message": message}
 
 
 def add_explanation_update(conn, count):

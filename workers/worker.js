@@ -83,12 +83,19 @@ async function handleAdmin(request, env) {
     }
     if (request.method === "GET") {
       const enabled = await getAiGenerationEnabled(env);
-      return jsonResponse({ ok: true, public_generation: enabled });
+      const adminPaid = await getAiAdminPaidEnabled(env);
+      return jsonResponse({ ok: true, public_generation: enabled, admin_paid_generation: adminPaid });
     }
     if (request.method === "POST") {
       const body = await readJson(request);
-      const enabled = Boolean(body.public_generation);
-      return setAiGenerationEnabled(env, enabled, user);
+      const updates = {};
+      if (Object.prototype.hasOwnProperty.call(body, "public_generation")) {
+        updates.public_generation = Boolean(body.public_generation);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "admin_paid_generation")) {
+        updates.admin_paid_generation = Boolean(body.admin_paid_generation);
+      }
+      return setAiGenerationSettings(env, updates, user);
     }
     return jsonResponse({ message: "Method not allowed" }, 405);
   }
@@ -101,7 +108,8 @@ async function handleAi(request, env) {
   const path = url.pathname;
   if (request.method === "GET" && path === "/ai/config") {
     const enabled = await getAiGenerationEnabled(env);
-    return jsonResponse({ public_generation: enabled });
+    const adminPaid = await getAiAdminPaidEnabled(env);
+    return jsonResponse({ public_generation: enabled, admin_paid_generation: adminPaid });
   }
   if (request.method === "GET" && path === "/ai/deep_dive_index") {
     return fetchDeepDiveIndex(env);
@@ -170,9 +178,13 @@ async function handleAi(request, env) {
   if (exists) {
     return jsonResponse({ message: "深掘り解説は既に保存されています。" }, 409);
   }
-  const requestedModel = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const gemini = await resolveGeminiRoute(env, role);
+  if (!gemini.apiKey) {
+    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+  }
+  const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user));
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
   if (!limit.ok) {
     return jsonResponse({ message: limit.message }, 429);
   }
@@ -186,7 +198,7 @@ async function handleAi(request, env) {
   };
   const callGemini = (model) =>
     fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -207,13 +219,14 @@ async function handleAi(request, env) {
         {
           message: "Gemini API rate limit",
           model: usedModel,
+          mode: gemini.mode,
           detail: parsedError.detail
         },
         429
       );
     }
     return jsonResponse(
-      { message: "Gemini API error", model: usedModel, detail: parsedError.detail },
+      { message: "Gemini API error", model: usedModel, mode: gemini.mode, detail: parsedError.detail },
       500
     );
   }
@@ -227,7 +240,7 @@ async function handleAi(request, env) {
     tags: parsed.tags || [],
     created_by: user && user.id ? user.id : null
   });
-  return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags });
+  return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags, mode: gemini.mode });
 }
 
 async function handleProgress(request, env) {
@@ -470,9 +483,13 @@ async function handleQuestionQa(request, env) {
     return jsonResponse({ message: "serial and question are required" }, 400);
   }
   const prompt = buildQuestionQaPrompt(body);
-  const requestedModel = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const gemini = await resolveGeminiRoute(env, role);
+  if (!gemini.apiKey) {
+    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+  }
+  const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user));
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
   if (!limit.ok) {
     return jsonResponse({ message: limit.message }, 429);
   }
@@ -486,7 +503,7 @@ async function handleQuestionQa(request, env) {
   };
   const callGemini = (model) =>
     fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -507,6 +524,7 @@ async function handleQuestionQa(request, env) {
         {
           message: "Gemini API rate limit",
           model: usedModel,
+          mode: gemini.mode,
           detail: parsedError.detail
         },
         429
@@ -516,6 +534,7 @@ async function handleQuestionQa(request, env) {
       {
         message: "Gemini API error",
         model: usedModel,
+        mode: gemini.mode,
         detail: parsedError.detail
       },
       500
@@ -536,7 +555,8 @@ async function handleQuestionQa(request, env) {
   return jsonResponse({
     status,
     question: parsed.question || question,
-    answer: parsed.answer || ""
+    answer: parsed.answer || "",
+    mode: gemini.mode
   });
 }
 
@@ -1098,10 +1118,14 @@ function isPublicGenerationEnabled(env) {
   return value === "1" || value === "true" || value === "on" || value === "yes";
 }
 
-async function getAiGenerationEnabled(env) {
-  const fallback = isPublicGenerationEnabled(env);
+function isAdminPaidGenerationEnabled(env) {
+  const value = String(env.AI_ADMIN_PAID_GENERATION || "").toLowerCase().trim();
+  return value === "1" || value === "true" || value === "on" || value === "yes";
+}
+
+async function getAppSettingBool(env, key, fallback) {
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/app_settings?select=setting_key,setting_value&setting_key=eq.ai_public_generation&limit=1`,
+    `${env.SUPABASE_URL}/rest/v1/app_settings?select=setting_key,setting_value&setting_key=eq.${encodeURIComponent(key)}&limit=1`,
     {
       headers: {
         apikey: env.SUPABASE_SERVICE_KEY,
@@ -1119,8 +1143,7 @@ async function getAiGenerationEnabled(env) {
   return text === "1" || text === "true" || text === "on" || text === "yes";
 }
 
-async function setAiGenerationEnabled(env, enabled, actor) {
-  const key = "ai_public_generation";
+async function setAppSettingBool(env, key, enabled, actor) {
   await fetch(`${env.SUPABASE_URL}/rest/v1/app_settings?setting_key=eq.${encodeURIComponent(key)}`, {
     method: "DELETE",
     headers: {
@@ -1146,9 +1169,55 @@ async function setAiGenerationEnabled(env, enabled, actor) {
   });
   if (!resp.ok) {
     const detail = await resp.text();
-    return jsonResponse({ message: "Supabase update failed", detail }, 500);
+    throw new Error(detail || "Supabase update failed");
   }
-  return jsonResponse({ ok: true, public_generation: enabled });
+}
+
+async function getAiGenerationEnabled(env) {
+  const fallback = isPublicGenerationEnabled(env);
+  return getAppSettingBool(env, "ai_public_generation", fallback);
+}
+
+async function getAiAdminPaidEnabled(env) {
+  const fallback = isAdminPaidGenerationEnabled(env);
+  return getAppSettingBool(env, "ai_admin_paid_generation", fallback);
+}
+
+async function setAiGenerationSettings(env, updates, actor) {
+  try {
+    let publicGeneration = await getAiGenerationEnabled(env);
+    let adminPaidGeneration = await getAiAdminPaidEnabled(env);
+    if (Object.prototype.hasOwnProperty.call(updates, "public_generation")) {
+      publicGeneration = Boolean(updates.public_generation);
+      await setAppSettingBool(env, "ai_public_generation", publicGeneration, actor);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "admin_paid_generation")) {
+      adminPaidGeneration = Boolean(updates.admin_paid_generation);
+      await setAppSettingBool(env, "ai_admin_paid_generation", adminPaidGeneration, actor);
+    }
+    return jsonResponse({
+      ok: true,
+      public_generation: publicGeneration,
+      admin_paid_generation: adminPaidGeneration
+    });
+  } catch (err) {
+    return jsonResponse({ message: "Supabase update failed", detail: String(err.message || err) }, 500);
+  }
+}
+
+async function resolveGeminiRoute(env, role) {
+  const adminPaidEnabled = await getAiAdminPaidEnabled(env);
+  const hasPaidKey = Boolean(env.GEMINI_API_KEY_PAID);
+  const usePaid = role === "admin" && adminPaidEnabled && hasPaidKey;
+  const apiKey = usePaid ? env.GEMINI_API_KEY_PAID : env.GEMINI_API_KEY_FREE || env.GEMINI_API_KEY;
+  const defaultModel = usePaid
+    ? env.GEMINI_MODEL_PAID || env.GEMINI_MODEL || "gemini-3-flash-preview"
+    : env.GEMINI_MODEL_FREE || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  return {
+    mode: usePaid ? "paid" : "free",
+    apiKey,
+    defaultModel
+  };
 }
 
 function getRateLimitActor(request, user) {
@@ -1424,15 +1493,22 @@ function jsonResponse(payload, status = 200) {
   });
 }
 
-async function checkRateLimit(env, userId) {
-  if (!env.RATE_LIMIT_PER_DAY && !env.RATE_LIMIT_PER_MIN) {
+async function checkRateLimit(env, userId, mode = "free") {
+  const isPaid = mode === "paid";
+  const daySetting = isPaid
+    ? env.PAID_RATE_LIMIT_PER_DAY || env.RATE_LIMIT_PER_DAY
+    : env.RATE_LIMIT_PER_DAY;
+  const minSetting = isPaid
+    ? env.PAID_RATE_LIMIT_PER_MIN || env.RATE_LIMIT_PER_MIN
+    : env.RATE_LIMIT_PER_MIN;
+  if (!daySetting && !minSetting) {
     return { ok: true };
   }
   const now = new Date();
   const dayKey = `${userId}:${now.toISOString().slice(0, 10)}`;
   const minKey = `${userId}:${now.toISOString().slice(0, 16)}`;
-  const dayLimit = Number(env.RATE_LIMIT_PER_DAY || 0);
-  const minLimit = Number(env.RATE_LIMIT_PER_MIN || 0);
+  const dayLimit = Number(daySetting || 0);
+  const minLimit = Number(minSetting || 0);
 
   if (dayLimit > 0) {
     const allowed = await bumpRate(dayKey, dayLimit, 60 * 60 * 24);
