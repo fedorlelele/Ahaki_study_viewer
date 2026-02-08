@@ -170,7 +170,8 @@ async function handleAi(request, env) {
   if (exists) {
     return jsonResponse({ message: "深掘り解説は既に保存されています。" }, 409);
   }
-  const model = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const requestedModel = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const fallbackModel = "gemini-3-flash-preview";
   const limit = await checkRateLimit(env, getRateLimitActor(request, user));
   if (!limit.ok) {
     return jsonResponse({ message: limit.message }, 429);
@@ -183,17 +184,38 @@ async function handleAi(request, env) {
       }
     ]
   };
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }
-  );
+  const callGemini = (model) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+  let usedModel = requestedModel;
+  let resp = await callGemini(usedModel);
+  if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
+    usedModel = fallbackModel;
+    resp = await callGemini(usedModel);
+  }
   if (!resp.ok) {
     const errorText = await resp.text();
-    return jsonResponse({ message: "Gemini API error", detail: errorText }, 500);
+    const parsedError = parseGeminiError(errorText);
+    if (isGeminiRateLimit(resp.status, parsedError)) {
+      return jsonResponse(
+        {
+          message: "Gemini API rate limit",
+          model: usedModel,
+          detail: parsedError.detail
+        },
+        429
+      );
+    }
+    return jsonResponse(
+      { message: "Gemini API error", model: usedModel, detail: parsedError.detail },
+      500
+    );
   }
   const data = await resp.json();
   const text =
@@ -397,6 +419,43 @@ async function hasDeepDive(env, serial) {
   return Array.isArray(rows) && rows.length > 0;
 }
 
+function parseGeminiError(errorText) {
+  const raw = String(errorText || "");
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (_err) {
+    parsed = null;
+  }
+  const detail =
+    (parsed &&
+      parsed.error &&
+      (parsed.error.message || parsed.error.status || parsed.error.code)) ||
+    raw;
+  const status =
+    (parsed && parsed.error && (parsed.error.status || "")) ||
+    "";
+  return {
+    raw,
+    detail: String(detail || ""),
+    status: String(status || "")
+  };
+}
+
+function isGeminiRateLimit(respStatus, parsedError) {
+  if (respStatus === 429) return true;
+  const detail = String(parsedError?.detail || "").toLowerCase();
+  const status = String(parsedError?.status || "").toUpperCase();
+  return (
+    status === "RESOURCE_EXHAUSTED" ||
+    detail.includes("resource_exhausted") ||
+    detail.includes("quota") ||
+    detail.includes("rate limit") ||
+    detail.includes("too many requests") ||
+    detail.includes("429")
+  );
+}
+
 async function handleQuestionQa(request, env) {
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
@@ -411,7 +470,8 @@ async function handleQuestionQa(request, env) {
     return jsonResponse({ message: "serial and question are required" }, 400);
   }
   const prompt = buildQuestionQaPrompt(body);
-  const model = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const requestedModel = body.model || env.GEMINI_MODEL || "gemini-3-flash-preview";
+  const fallbackModel = "gemini-3-flash-preview";
   const limit = await checkRateLimit(env, getRateLimitActor(request, user));
   if (!limit.ok) {
     return jsonResponse({ message: limit.message }, 429);
@@ -424,17 +484,42 @@ async function handleQuestionQa(request, env) {
       }
     ]
   };
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }
-  );
+  const callGemini = (model) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+  let usedModel = requestedModel;
+  let resp = await callGemini(usedModel);
+  if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
+    usedModel = fallbackModel;
+    resp = await callGemini(usedModel);
+  }
   if (!resp.ok) {
     const errorText = await resp.text();
-    return jsonResponse({ message: "Gemini API error", detail: errorText }, 500);
+    const parsedError = parseGeminiError(errorText);
+    if (isGeminiRateLimit(resp.status, parsedError)) {
+      return jsonResponse(
+        {
+          message: "Gemini API rate limit",
+          model: usedModel,
+          detail: parsedError.detail
+        },
+        429
+      );
+    }
+    return jsonResponse(
+      {
+        message: "Gemini API error",
+        model: usedModel,
+        detail: parsedError.detail
+      },
+      500
+    );
   }
   const data = await resp.json();
   const text =
@@ -492,10 +577,12 @@ function buildQuestionQaPrompt(body) {
     "- 無関係なら status=irrelevant とし、answerは空でよい",
     "- 関係がある場合は status=ok",
     "- questionは自然な日本語に整形する",
+    "- answerはMarkdownで作成する（見出し・箇条書き・太字を適切に使う）",
     "- answerは短くしすぎず、学習が深まる説明にする",
-    "- answerは次の流れで書く: 1)結論 2)理由・機序 3)各選択肢の判断ポイント 4)臨床での見方や注意点",
+    "- answerは次の流れで書く: 1)結論 2)理由・機序 3)各選択肢の判断ポイント 4)臨床での見方や注意点 5)覚え方や確認問題",
+    "- 見出し例: 「## 結論」「## 理由と機序」「## 選択肢の判断」「## つまずきやすい点」",
     "- 必要に応じて症例文の情報(年齢・症状・所見)を引用して根拠を示す",
-    "- 回答は日本語で、目安として300〜700文字程度",
+    "- 回答は日本語で、目安として500〜1200文字程度",
     "- 冗長な前置きや免責だけの文章は避ける",
     "- 断定できない内容は推測と明記する"
   ].join("\n");

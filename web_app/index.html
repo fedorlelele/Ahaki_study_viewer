@@ -530,8 +530,14 @@
         padding: 8px 10px;
         border-left: 3px solid #0b7a5c;
         background: #f4fbf8;
-        white-space: pre-wrap;
         line-height: 1.7;
+      }
+      .qa-meta {
+        margin-top: 6px;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
       }
       .deep-dive-panel {
         margin-top: 12px;
@@ -542,18 +548,90 @@
         font-size: 13px;
         line-height: 1.6;
       }
-      .deep-dive-panel pre {
+      .deep-dive-body {
         margin: 10px 0 0;
         padding: 12px 14px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #f9fbfd;
         color: #0f172a;
-        font-family: inherit;
         font-size: 14px;
         line-height: 1.9;
-        white-space: pre-wrap;
         word-break: break-word;
+      }
+      .inline-meta {
+        margin-top: 8px;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .icon-mini-btn {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        min-height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+      }
+      .icon-mini-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .markdown-body > :first-child {
+        margin-top: 0;
+      }
+      .markdown-body > :last-child {
+        margin-bottom: 0;
+      }
+      .markdown-body h1,
+      .markdown-body h2,
+      .markdown-body h3,
+      .markdown-body h4 {
+        margin: 0.8em 0 0.35em;
+        line-height: 1.45;
+      }
+      .markdown-body h1 { font-size: 1.1em; }
+      .markdown-body h2 { font-size: 1.05em; }
+      .markdown-body h3 { font-size: 1em; }
+      .markdown-body p,
+      .markdown-body ul,
+      .markdown-body ol {
+        margin: 0.45em 0;
+      }
+      .markdown-body ul,
+      .markdown-body ol {
+        padding-left: 1.5em;
+      }
+      .markdown-body li {
+        margin: 0.2em 0;
+      }
+      .markdown-body code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.95em;
+        background: #eef2f7;
+        border-radius: 4px;
+        padding: 0.1em 0.28em;
+      }
+      .markdown-body pre {
+        margin: 0.6em 0;
+        padding: 10px 12px;
+        border: 1px solid #dbe3ec;
+        border-radius: 6px;
+        background: #f8fbff;
+        overflow-x: auto;
+      }
+      .markdown-body pre code {
+        background: transparent;
+        padding: 0;
       }
       .deep-dive-tags {
         margin-top: 8px;
@@ -2202,19 +2280,44 @@
           });
       }
 
-      function renderUserReadmeMarkdown(text) {
-        const target = document.getElementById("userReadmeText");
-        if (!target) return;
-        const source = String(text || "");
+      function escapeHtmlForMarkdown(text) {
+        return String(text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+
+      function markdownToHtml(text) {
+        const escaped = escapeHtmlForMarkdown(text);
         if (window.marked && typeof window.marked.parse === "function") {
-          const escaped = source.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-          target.innerHTML = window.marked.parse(escaped, {
+          return window.marked.parse(escaped, {
             gfm: true,
             breaks: true
           });
-          return;
         }
-        target.textContent = source;
+        return escaped.replace(/\n/g, "<br>");
+      }
+
+      function renderMarkdownToElement(target, text) {
+        if (!target) return;
+        target.classList.add("markdown-body");
+        target.innerHTML = markdownToHtml(text);
+      }
+
+      function parseApiErrorText(rawText, fallbackStatus) {
+        const raw = String(rawText || "");
+        try {
+          const data = JSON.parse(raw);
+          const msg =
+            (data && (data.detail || data.message || data.error)) ||
+            raw;
+          return String(msg || fallbackStatus || "API error");
+        } catch (_err) {
+          return raw || fallbackStatus || "API error";
+        }
+      }
+
+      function renderUserReadmeMarkdown(text) {
+        const target = document.getElementById("userReadmeText");
+        if (!target) return;
+        renderMarkdownToElement(target, text);
       }
 
       function renderUpdateLog(targetCount) {
@@ -3377,7 +3480,15 @@
               let likeCount = item.like_count || 0;
               let viewCount = item.view_count || 0;
               const meta = document.createElement("div");
-              meta.className = "note";
+              meta.className = "note qa-meta";
+              const copyBtn = document.createElement("button");
+              copyBtn.className = "icon-mini-btn";
+              copyBtn.textContent = "⧉";
+              copyBtn.setAttribute("aria-label", "Q&A回答をコピー");
+              copyBtn.setAttribute("title", "回答をコピー");
+              copyBtn.addEventListener("click", () => {
+                copyToClipboard(item.answer || "");
+              });
               const likeBtn = document.createElement("button");
               likeBtn.className = "chip-link";
               const likeKey = getQaLikeKey(q.serial, item);
@@ -3405,6 +3516,7 @@
               });
               const viewSpan = document.createElement("span");
               viewSpan.textContent = `閲覧 ${viewCount}`;
+              meta.appendChild(copyBtn);
               meta.appendChild(likeBtn);
               meta.appendChild(viewSpan);
               const aBox = document.createElement("div");
@@ -3412,8 +3524,9 @@
               aBox.hidden = true;
               qBtn.addEventListener("click", async () => {
                 aBox.hidden = !aBox.hidden;
-                if (!state.qaViewed.has(item.id)) {
-                  state.qaViewed.add(item.id);
+                const viewKey = getQaViewKey(q.serial, item);
+                if (!state.qaViewed.has(viewKey)) {
+                  state.qaViewed.add(viewKey);
                   viewCount += 1;
                   viewSpan.textContent = `閲覧 ${viewCount}`;
                   if (item.id) {
@@ -3425,7 +3538,7 @@
                   }
                 }
               });
-              aBox.textContent = item.answer || "";
+              renderMarkdownToElement(aBox, item.answer || "");
               entry.appendChild(qBtn);
               entry.appendChild(meta);
               entry.appendChild(aBox);
@@ -3506,12 +3619,16 @@
                     stem: q.stem || "",
                     choices: q.choices || [],
                     answer: formatAnswerLabel(q) || "",
-                    explanation: expText || ""
+                    explanation: expText || "",
+                    model: "gemini-3-flash-preview"
                   })
                 });
                 const payload = await resp.json();
                 if (!resp.ok) {
-                  qaHeader.textContent = "生成に失敗しました。";
+                  const detail =
+                    (payload && (payload.detail || payload.message || payload.error)) ||
+                    `HTTP ${resp.status}`;
+                  qaHeader.textContent = `生成に失敗しました: ${String(detail).slice(0, 160)}`;
                   return;
                 }
                 if (payload.status === "irrelevant") {
@@ -3594,18 +3711,36 @@
           const deepDiveStatus = document.createElement("div");
           deepDiveStatus.className = "note";
           deepDivePanel.appendChild(deepDiveStatus);
-          const deepDiveBody = document.createElement("pre");
+          const deepDiveBody = document.createElement("div");
+          deepDiveBody.className = "deep-dive-body markdown-body";
           deepDivePanel.appendChild(deepDiveBody);
           const deepDiveTags = document.createElement("div");
           deepDiveTags.className = "deep-dive-tags";
           deepDivePanel.appendChild(deepDiveTags);
+          const deepDiveMeta = document.createElement("div");
+          deepDiveMeta.className = "note inline-meta";
+          const deepDiveCopyBtn = document.createElement("button");
+          deepDiveCopyBtn.className = "icon-mini-btn";
+          deepDiveCopyBtn.textContent = "⧉";
+          deepDiveCopyBtn.setAttribute("aria-label", "深掘り解説をコピー");
+          deepDiveCopyBtn.setAttribute("title", "深掘り解説をコピー");
+          deepDiveCopyBtn.disabled = true;
+          deepDiveMeta.appendChild(deepDiveCopyBtn);
+          deepDivePanel.appendChild(deepDiveMeta);
+          let deepDiveRawText = "";
+          deepDiveCopyBtn.addEventListener("click", () => {
+            if (!deepDiveRawText) return;
+            copyToClipboard(deepDiveRawText);
+          });
           const showDeepDivePanel = () => {
             deepDivePanel.hidden = false;
           };
           const renderDeepDive = (explanationText, tags) => {
             showDeepDivePanel();
             deepDiveStatus.textContent = "保存済みの深掘り解説";
-            deepDiveBody.textContent = explanationText || "";
+            deepDiveRawText = explanationText || "";
+            deepDiveCopyBtn.disabled = !deepDiveRawText;
+            renderMarkdownToElement(deepDiveBody, deepDiveRawText);
             deepDiveTags.textContent = "";
             (tags || []).forEach(tag => {
               const chip = document.createElement("button");
@@ -3640,7 +3775,9 @@
               }
               showDeepDivePanel();
               deepDiveStatus.textContent = "読み込み中...";
-              deepDiveBody.textContent = "";
+              deepDiveRawText = "";
+              deepDiveCopyBtn.disabled = true;
+              deepDiveBody.innerHTML = "";
               deepDiveTags.textContent = "";
               fetch(`${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`)
                 .then(r => (r.ok ? r.json() : Promise.reject(r)))
@@ -3673,7 +3810,9 @@
               }
               showDeepDivePanel();
               deepDiveStatus.textContent = "生成中...";
-              deepDiveBody.textContent = "";
+              deepDiveRawText = "";
+              deepDiveCopyBtn.disabled = true;
+              deepDiveBody.innerHTML = "";
               deepDiveTags.textContent = "";
               deepDiveMainBtn.disabled = true;
               try {
@@ -3691,30 +3830,21 @@
                 });
                 if (!resp.ok) {
                   const errorText = await resp.text();
-                  throw new Error(errorText || "API error");
+                  throw new Error(parseApiErrorText(errorText, `HTTP ${resp.status}`));
                 }
                 const payload = await resp.json();
                 const text = (payload && payload.text) || "";
                 const parsed = parseDeepDiveResponse(text);
+                renderDeepDive(parsed.explanation || text || "", parsed.tags || []);
                 deepDiveStatus.textContent = "生成完了";
-                deepDiveBody.textContent = parsed.explanation || text || "";
-                deepDiveTags.textContent = "";
-                (parsed.tags || []).forEach(tag => {
-                  const chip = document.createElement("button");
-                  chip.className = "chip-link";
-                  chip.textContent = tag;
-                  chip.setAttribute("aria-label", `タグ ${tag} で絞り込み`);
-                  chip.addEventListener("click", () => {
-                    applyFilters({ keyword: `#${tag}` });
-                  });
-                  deepDiveTags.appendChild(chip);
-                });
                 state.deepDiveSerials.add(q.serial);
                 hasDeepDive = true;
                 updateDeepDiveMainButton();
               } catch (err) {
                 deepDiveStatus.textContent = "生成に失敗しました。";
-                deepDiveBody.textContent = String(err || "");
+                deepDiveRawText = String(err || "");
+                deepDiveCopyBtn.disabled = !deepDiveRawText;
+                renderMarkdownToElement(deepDiveBody, deepDiveRawText);
               } finally {
                 if (!hasDeepDive) deepDiveMainBtn.disabled = false;
               }
@@ -5719,6 +5849,10 @@
         return `fallback:${serial || ""}:${question}:${answer}`;
       }
 
+      function getQaViewKey(serial, item) {
+        return getQaLikeKey(serial, item);
+      }
+
       function loadQaLikedState() {
         state.qaLiked = new Set();
         const key = getQaLikedStorageKey();
@@ -6375,11 +6509,14 @@
         lines.push(explanationText || "（なし）");
         lines.push("");
         lines.push("【出力形式（厳守）】");
-        lines.push("深掘り解説:");
-        lines.push("- Level 1: 直感的で短い要点（初学者向け）");
-        lines.push("- Level 2: 病態・原因・根拠を丁寧に説明（中級）");
-        lines.push("- Level 3: 鑑別、関連疾患、臨床応用、周辺知識（上級）");
-        lines.push("- Level 4: よくある誤解や落とし穴、試験の引っかけポイント（発展）");
+        lines.push("explanation には Markdown 文字列を入れること。");
+        lines.push("Markdownの推奨構成:");
+        lines.push("## Level 1 要点（初学者向け）");
+        lines.push("## Level 2 理由・機序（中級）");
+        lines.push("## Level 3 鑑別・関連疾患・臨床応用（上級）");
+        lines.push("## Level 4 落とし穴と試験対策（発展）");
+        lines.push("## 1分復習チェック");
+        lines.push("- 3〜5個の確認ポイントを箇条書きで示す");
         lines.push("");
         lines.push("関連タグ:");
         lines.push("- タグ1");
@@ -6389,9 +6526,11 @@
         lines.push("【ルール】");
         lines.push("- 既存解説と矛盾しないこと");
         lines.push("- 説明は長くても良い（疑問が解決し、興味が持てる内容を優先）");
+        lines.push("- explanation は見出し・箇条書き・強調を使い、読みやすく構成する");
         lines.push("- 試験で問われやすい観点を盛り込むこと");
         lines.push("- 余計な断定を避け、根拠や理由を言語化すること");
         lines.push("- タグは8〜15個程度、具体的な医学用語で");
+        lines.push("- 出力は日本語。目安 900〜2400 文字程度");
         lines.push("");
         lines.push("出力は次のJSONのみを返してください。");
         lines.push("{\"explanation\":\"...\",\"tags\":[\"...\",\"...\"]}");
