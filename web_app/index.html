@@ -483,7 +483,6 @@
       .tag-description-text {
         margin-top: 4px;
         color: #1f2937;
-        white-space: pre-wrap;
       }
       .tag-description-meta {
         margin-top: 6px;
@@ -1430,6 +1429,7 @@
       const state = {
         questions: [],
         indexBySubject: {},
+        indexByTag: {},
         indexBySubtopic: {},
         subtopicsBySubject: {},
         questionBySerial: {},
@@ -1467,6 +1467,7 @@
         ,qaSerialsLoaded: false
         ,qaLatestBySerial: {}
         ,tagCatalogByTag: {}
+        ,tagEquivalentByNormalized: {}
         ,tagViewCounts: {}
         ,tagViewedSession: new Set()
         ,aiPublicGeneration: false
@@ -1984,6 +1985,69 @@
           .replace(/[‐‑‒–—―−ーｰ－]/g, "-");
       }
 
+      function normalizeTagKey(value) {
+        return normalizeAscii(String(value || "")).trim().toLowerCase();
+      }
+
+      function buildTagEquivalentMap() {
+        const mapping = {};
+        const addGroup = (labels) => {
+          const uniq = Array.from(
+            new Set(
+              (labels || [])
+                .map((label) => String(label || "").trim())
+                .filter(Boolean)
+            )
+          );
+          if (!uniq.length) return;
+          const keys = Array.from(
+            new Set(uniq.map((label) => normalizeTagKey(label)).filter(Boolean))
+          );
+          keys.forEach((key) => {
+            if (!mapping[key]) mapping[key] = new Set();
+            uniq.forEach((label) => mapping[key].add(label));
+          });
+        };
+        Object.keys(state.tagCatalogByTag || {}).forEach((tag) => {
+          const item = state.tagCatalogByTag[tag] || {};
+          addGroup([
+            item.tag || tag,
+            item.canonical_tag || tag,
+            ...(Array.isArray(item.aliases) ? item.aliases : [])
+          ]);
+        });
+        Object.keys(state.indexByTag || {}).forEach((tag) => {
+          addGroup([tag]);
+        });
+        const out = {};
+        Object.keys(mapping).forEach((key) => {
+          out[key] = Array.from(mapping[key]).sort((a, b) => a.localeCompare(b, "ja"));
+        });
+        return out;
+      }
+
+      function getEquivalentTagsForTerm(term) {
+        const key = normalizeTagKey(term);
+        if (!key) return [];
+        const found = state.tagEquivalentByNormalized[key] || [];
+        if (found.length) return found;
+        return [String(term || "").trim()].filter(Boolean);
+      }
+
+      function getRelatedSerialsForTag(tag) {
+        const equivalents = getEquivalentTagsForTerm(tag);
+        const set = new Set();
+        equivalents.forEach((label) => {
+          (state.indexByTag[label] || []).forEach((serial) => set.add(serial));
+        });
+        return Array.from(set).sort((a, b) => {
+          const ia = Number.isFinite(state.orderIndexBySerial[a]) ? state.orderIndexBySerial[a] : 10 ** 9;
+          const ib = Number.isFinite(state.orderIndexBySerial[b]) ? state.orderIndexBySerial[b] : 10 ** 9;
+          if (ia !== ib) return ia - ib;
+          return String(a).localeCompare(String(b), "ja");
+        });
+      }
+
       function normalizeSerialTerm(raw) {
         if (!raw) return "";
         let text = normalizeAscii(raw).toUpperCase();
@@ -2023,11 +2087,13 @@
         return Promise.all([
           fetch("../output/web/questions.json").then(r => r.json()),
           fetch("../output/web/index/index_by_subject.json").then(r => r.json()),
+          fetch("../output/web/index/index_by_tag.json").then(r => (r.ok ? r.json() : {})),
           fetch("../output/web/index/index_by_subtopic.json").then(r => r.json()),
           fetch("../output/web/index/tag_catalog.json").then(r => (r.ok ? r.json() : []))
-        ]).then(([questions, bySubject, bySubtopic, tagCatalog]) => {
+        ]).then(([questions, bySubject, byTag, bySubtopic, tagCatalog]) => {
           state.questions = questions;
           state.questionBySerial = {};
+          state.indexByTag = byTag || {};
           state.tagCatalogByTag = {};
           (Array.isArray(tagCatalog) ? tagCatalog : []).forEach((item) => {
             const tag = item && item.tag ? String(item.tag).trim() : "";
@@ -2037,6 +2103,7 @@
               state.tagViewCounts[tag] = item.view_count;
             }
           });
+          state.tagEquivalentByNormalized = buildTagEquivalentMap();
           const qaSet = new Set();
           questions.forEach((q) => {
             if (q && q.serial) state.questionBySerial[q.serial] = q;
@@ -2383,6 +2450,37 @@
         });
       }
 
+      function resetNonKeywordFilters() {
+        document.getElementById("subjectSelect").value = "";
+        updateSubtopicOptions("");
+        document.getElementById("subtopicSelect").value = "";
+        document.getElementById("examTypeSelect").value = "";
+        document.getElementById("sessionFrom").value = "";
+        document.getElementById("sessionTo").value = "";
+        document.getElementById("progressStateFilter").value = "";
+      }
+
+      function applyTagSearch(tag) {
+        const keywordInput = document.getElementById("keyword");
+        resetNonKeywordFilters();
+        keywordInput.value = `#${tag}`;
+        renderResults(filterQuestions());
+      }
+
+      function getKeywordTagTerms() {
+        const keyword = document.getElementById("keyword").value || "";
+        return Array.from(
+          new Set(
+            keyword
+              .split(/[\s,]+/)
+              .map((term) => normalizeAscii(term).trim())
+              .filter((term) => term.startsWith("#"))
+              .map((term) => normalizeTagKey(term.slice(1)))
+              .filter(Boolean)
+          )
+        );
+      }
+
       function applyFilters({ subject, subtopic, keyword }) {
         const subjectSelect = document.getElementById("subjectSelect");
         const subtopicSelect = document.getElementById("subtopicSelect");
@@ -2427,7 +2525,8 @@
         terms.forEach(term => {
           const lowered = normalizeAscii(term).toLowerCase();
           if (lowered.startsWith("#")) {
-            tagTerms.push(lowered.slice(1));
+            const normalizedTag = normalizeTagKey(lowered.slice(1));
+            if (normalizedTag) tagTerms.push(normalizedTag);
             return;
           }
           const serial = normalizeSerialTerm(term);
@@ -2466,7 +2565,14 @@
             (effective.tags || []).join(" "),
             (effective.subtopics || []).join(" ")
           ].join(" ").toLowerCase();
-          const tagMatch = tagTerms.every(tag => (effective.tags || []).join(" ").toLowerCase().includes(tag));
+          const questionTags = effective.tags || [];
+          const tagMatch = tagTerms.every((tagTerm) =>
+            questionTags.some((questionTag) =>
+              getEquivalentTagsForTerm(questionTag).some(
+                (candidate) => normalizeTagKey(candidate) === tagTerm
+              )
+            )
+          );
           const textMatch = textTerms.every(term => hay.includes(term));
           return tagMatch && textMatch;
         });
@@ -2921,8 +3027,10 @@
               return;
             }
             const meta = state.tagCatalogByTag[tag] || {};
-            const relatedCount =
-              typeof meta.related_count === "number" ? meta.related_count : 0;
+            const allRelatedSerials = getRelatedSerialsForTag(tag);
+            const relatedCount = allRelatedSerials.length
+              ? allRelatedSerials.length
+              : (typeof meta.related_count === "number" ? meta.related_count : 0);
             const viewCount = getTagViewCount(tag);
             tagDesc.textContent = "";
             const title = document.createElement("div");
@@ -2931,20 +3039,29 @@
             tagDesc.appendChild(title);
             const body = document.createElement("div");
             body.className = "tag-description-text";
-            body.textContent =
-              (meta.description || "").trim() || "このタグの説明は未登録です。";
+            renderMarkdownToElement(
+              body,
+              (meta.description || "").trim() || "このタグの説明は未登録です。"
+            );
             tagDesc.appendChild(body);
             const info = document.createElement("div");
             info.className = "tag-description-meta";
             info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${viewCount}`;
             tagDesc.appendChild(info);
+            const equivalentTags = getEquivalentTagsForTerm(tag).filter((label) => label !== tag);
+            if (equivalentTags.length) {
+              const merged = document.createElement("div");
+              merged.className = "tag-description-meta";
+              merged.textContent = `同義語(結合): ${equivalentTags.join(", ")}`;
+              tagDesc.appendChild(merged);
+            }
             const filters = document.createElement("div");
             filters.className = "tag-description-filters";
             const tagFilter = document.createElement("button");
             tagFilter.className = "chip-link";
             tagFilter.textContent = "このタグで検索";
             tagFilter.addEventListener("click", () => {
-              applyFilters({ keyword: `#${tag}` });
+              applyTagSearch(tag);
             });
             filters.appendChild(tagFilter);
             (meta.subjects || []).slice(0, 5).forEach((subjectName) => {
@@ -2965,11 +3082,12 @@
               });
               filters.appendChild(btn);
             });
-            (meta.related_serials || []).slice(0, 5).forEach((serial) => {
+            allRelatedSerials.slice(0, 5).forEach((serial) => {
               const btn = document.createElement("button");
               btn.className = "chip-link";
               btn.textContent = serial;
               btn.addEventListener("click", () => {
+                resetNonKeywordFilters();
                 applyFilters({ keyword: serial });
               });
               filters.appendChild(btn);
@@ -3028,6 +3146,27 @@
             tagItems.appendChild(span);
           } else {
             renderTagButtons();
+          }
+          const activeTagTerms = getKeywordTagTerms();
+          if (activeTagTerms.length && sortedTags.length) {
+            const mergedHints = new Set();
+            sortedTags.forEach((tag) => {
+              const equivalents = getEquivalentTagsForTerm(tag);
+              const equivalentKeys = equivalents.map((label) => normalizeTagKey(label));
+              if (!activeTagTerms.some((term) => equivalentKeys.includes(term))) return;
+              equivalents.forEach((label) => {
+                if (label !== tag) mergedHints.add(label);
+              });
+            });
+            if (mergedHints.size) {
+              const hint = document.createElement("div");
+              hint.className = "note";
+              const values = Array.from(mergedHints).sort((a, b) => a.localeCompare(b, "ja"));
+              const preview = values.slice(0, 8);
+              const suffix = values.length > 8 ? ` ほか${values.length - 8}件` : "";
+              hint.textContent = `同義語(結合タグ): ${preview.join(", ")}${suffix}`;
+              tags.appendChild(hint);
+            }
           }
           tags.appendChild(tagDesc);
           if (!isTeacher) {
@@ -3743,15 +3882,15 @@
             renderMarkdownToElement(deepDiveBody, deepDiveRawText);
             deepDiveTags.textContent = "";
             (tags || []).forEach(tag => {
-              const chip = document.createElement("button");
-              chip.className = "chip-link";
-              chip.textContent = tag;
-              chip.setAttribute("aria-label", `タグ ${tag} で絞り込み`);
-              chip.addEventListener("click", () => {
-                applyFilters({ keyword: `#${tag}` });
-              });
-              deepDiveTags.appendChild(chip);
-            });
+                  const chip = document.createElement("button");
+                  chip.className = "chip-link";
+                  chip.textContent = tag;
+                  chip.setAttribute("aria-label", `タグ ${tag} の説明を表示`);
+                  chip.addEventListener("click", () => {
+                    renderTagDescription(tag);
+                  });
+                  deepDiveTags.appendChild(chip);
+                });
           };
 
           let hasDeepDive =
@@ -6378,6 +6517,29 @@
         const showAnswered = document.getElementById("showAnswered").checked;
         const parts = [];
         if (keyword) parts.push(`キーワード: ${keyword}`);
+        if (keyword) {
+          const terms = keyword
+            .split(/[\s,]+/)
+            .map((term) => term.trim())
+            .filter(Boolean);
+          const tagExpand = [];
+          terms.forEach((term) => {
+            const lowered = normalizeAscii(term).toLowerCase();
+            if (!lowered.startsWith("#")) return;
+            const normalized = normalizeTagKey(lowered.slice(1));
+            if (!normalized) return;
+            const canonicalTerm = lowered.slice(1).trim();
+            const equivalents = getEquivalentTagsForTerm(canonicalTerm).filter(
+              (label) => normalizeTagKey(label) !== normalized
+            );
+            if (equivalents.length) {
+              tagExpand.push(`${canonicalTerm}: ${equivalents.join(", ")}`);
+            }
+          });
+          if (tagExpand.length) {
+            parts.push(`同義語展開: ${tagExpand.join(" / ")}`);
+          }
+        }
         if (subject) parts.push(`科目: ${subject}`);
         if (subtopic) parts.push(`小項目: ${subtopic}`);
         if (examType) {

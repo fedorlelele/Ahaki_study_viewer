@@ -140,7 +140,8 @@ def build_prompt(tags):
             *tag_lines,
             "",
             "制約:",
-            "- 説明は日本語で2〜4文。",
+            "- 説明はMarkdownで作成する（見出し・箇条書き・強調を必要に応じて使用）。",
+            "- 説明は日本語で2〜6行程度。冗長にしない。",
             "- 対象は医療系国家試験学習者。",
             "- 同義語候補は表記ゆれ・略称・同義語のみ。曖昧語は除く。",
             "- 無理に同義語を作らない。",
@@ -200,6 +201,13 @@ def _normalize_aliases(values):
     return aliases
 
 
+def _normalize_markdown_description(value):
+    text = str(value or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    while "\n\n\n" in text:
+        text = text.replace("\n\n\n", "\n\n")
+    return text
+
+
 def parse_result(text):
     if not text:
         return {"description": "", "aliases": []}
@@ -207,11 +215,11 @@ def parse_result(text):
         start = text.index("{")
         end = text.rindex("}")
         data = json.loads(text[start : end + 1])
-        description = " ".join(str(data.get("description") or "").split()).strip()
+        description = _normalize_markdown_description(data.get("description") or "")
         aliases = _normalize_aliases(data.get("aliases") or [])
         return {"description": description, "aliases": aliases}
     except Exception:
-        fallback = " ".join(text.split()).strip()
+        fallback = _normalize_markdown_description(text)
         return {"description": fallback, "aliases": []}
 
 
@@ -252,7 +260,7 @@ def parse_batch_result(text, expected_tags):
         tag = " ".join(str(item.get("tag") or "").split()).strip()
         if tag not in expected_set:
             continue
-        description = " ".join(str(item.get("description") or "").split()).strip()
+        description = _normalize_markdown_description(item.get("description") or "")
         aliases = _normalize_aliases(item.get("aliases") or [])
         parsed[tag] = {"description": description, "aliases": aliases}
     return parsed
