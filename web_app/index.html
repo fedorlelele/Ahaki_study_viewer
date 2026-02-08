@@ -1471,6 +1471,8 @@
         ,tagEquivalentByNormalized: {}
         ,tagViewCounts: {}
         ,tagViewedSession: new Set()
+        ,pinnedSerials: new Set()
+        ,pinnedSerialOrder: []
         ,aiPublicGeneration: false
         ,aiAdminPaidGeneration: false
         ,progressSelfBySerial: {}
@@ -2041,6 +2043,33 @@
         return [String(term || "").trim()].filter(Boolean);
       }
 
+      function pinSerialForSession(serial) {
+        const key = String(serial || "").trim();
+        if (!key) return;
+        if (!state.pinnedSerials.has(key)) {
+          state.pinnedSerials.add(key);
+          state.pinnedSerialOrder.push(key);
+        } else {
+          state.pinnedSerialOrder = state.pinnedSerialOrder.filter((value) => value !== key);
+          state.pinnedSerialOrder.push(key);
+        }
+        if (state.pinnedSerialOrder.length > 200) {
+          const removed = state.pinnedSerialOrder.shift();
+          if (removed) state.pinnedSerials.delete(removed);
+        }
+      }
+
+      function isPinnedSerial(serial) {
+        return state.pinnedSerials.has(String(serial || "").trim());
+      }
+
+      function pinSortIndex(serial) {
+        const key = String(serial || "").trim();
+        const idx = state.pinnedSerialOrder.indexOf(key);
+        if (idx < 0) return Number.MAX_SAFE_INTEGER;
+        return state.pinnedSerialOrder.length - idx;
+      }
+
       function getRelatedSerialsForTag(tag) {
         const equivalents = getEquivalentTagsForTerm(tag);
         const set = new Set();
@@ -2564,15 +2593,16 @@
 
         const filtered = state.questions.filter(q => {
           const effective = applyOverridesToQuestion(q);
+          const pinned = isPinnedSerial(effective.serial);
           if (serialSet && !serialSet.has(effective.serial)) return false;
           if (examType && !effective.serial.startsWith(examType)) return false;
           if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
           if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
-          if (!showAnswered && hasAnswered(effective.serial)) return false;
+          if (!pinned && !showAnswered && hasAnswered(effective.serial)) return false;
           if (progressStateFilter) {
             const row = state.progressSelfBySerial[effective.serial];
             const status = row && row.status ? row.status : "unstarted";
-            if (status !== progressStateFilter) return false;
+            if (!pinned && status !== progressStateFilter) return false;
           }
           // filters removed (all questions are populated)
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
@@ -2596,6 +2626,20 @@
           const textMatch = textTerms.every(term => hay.includes(term));
           return tagMatch && textMatch;
         });
+        const movePinnedToFront = (list) => {
+          if (!list.length || !state.pinnedSerials.size) return list;
+          const pinned = [];
+          const rest = [];
+          list.forEach((item) => {
+            if (isPinnedSerial(item.serial)) {
+              pinned.push(item);
+            } else {
+              rest.push(item);
+            }
+          });
+          pinned.sort((a, b) => pinSortIndex(b.serial) - pinSortIndex(a.serial));
+          return pinned.concat(rest);
+        };
         const getStats = (q) => state.answerStatsBySerial[q.serial] || { count: 0, correct: 0 };
         const getRate = (q) => {
           const stats = getStats(q);
@@ -2667,7 +2711,10 @@
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
-          return qaOnly;
+          const pinnedOnly = filtered.filter(
+            (q) => isPinnedSerial(q.serial) && !qaOnly.some((row) => row.serial === q.serial)
+          );
+          return movePinnedToFront(pinnedOnly.concat(qaOnly));
         } else if (sortSession === "deep_dive_desc") {
           const deepOnly = filtered.filter(q => {
             if (state.deepDiveSerials.has(q.serial)) return true;
@@ -2683,7 +2730,10 @@
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
-          return deepOnly;
+          const pinnedOnly = filtered.filter(
+            (q) => isPinnedSerial(q.serial) && !deepOnly.some((row) => row.serial === q.serial)
+          );
+          return movePinnedToFront(pinnedOnly.concat(deepOnly));
         } else if (sortSession === "review_desc") {
           filtered.sort((a, b) => {
             const pa = getReviewPriority(a);
@@ -2699,7 +2749,7 @@
             return orderA - orderB;
           });
         }
-        return filtered;
+        return movePinnedToFront(filtered);
       }
 
       function renderResults(list) {
@@ -3749,6 +3799,7 @@
             qaSend.addEventListener("click", async () => {
               const question = qaInput.value.trim();
               if (!question) return;
+              pinSerialForSession(q.serial);
               if (!window.AI_API_BASE) {
                 qaHeader.textContent = "AI_API_BASE が設定されていません。";
                 return;
@@ -3920,6 +3971,7 @@
           deepDiveMainBtn.className = "action-btn";
 
           const runDeepDiveView = () => {
+              pinSerialForSession(q.serial);
               if (!deepDivePanel.hidden) {
                 deepDivePanel.hidden = true;
                 return;
@@ -3953,6 +4005,7 @@
           };
 
           const runDeepDiveGenerate = async () => {
+              pinSerialForSession(q.serial);
               if (!window.AI_API_BASE) {
                 alert("AI_API_BASE が設定されていません。");
                 return;
@@ -5888,6 +5941,7 @@
         if (hasSessionAnswered(question.serial)) {
           return;
         }
+        pinSerialForSession(question.serial);
         const correctIndices = getAnswerIndices(question);
         const isCorrect = isAnswerCorrect(question, Number(selectedIndex));
         const buttons = button.closest("ol")?.querySelectorAll(".choice-btn") || [];
