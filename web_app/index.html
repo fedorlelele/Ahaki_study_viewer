@@ -3701,10 +3701,12 @@
               const copyBtn = document.createElement("button");
               copyBtn.className = "icon-mini-btn";
               copyBtn.textContent = "⧉";
-              copyBtn.setAttribute("aria-label", "Q&A回答をコピー");
-              copyBtn.setAttribute("title", "回答をコピー");
+              copyBtn.setAttribute("aria-label", "Q&Aをコピー");
+              copyBtn.setAttribute("title", "質問と回答をコピー");
               copyBtn.addEventListener("click", () => {
-                copyToClipboard(item.answer || "");
+                const qText = (item.question || "（質問なし）").trim();
+                const aText = (item.answer || "（回答なし）").trim();
+                copyToClipboard(`質問\n${qText}\n\n回答\n${aText}`);
               });
               const likeBtn = document.createElement("button");
               likeBtn.className = "chip-link";
