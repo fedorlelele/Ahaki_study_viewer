@@ -202,6 +202,28 @@ def load_tag_view_stats(conn):
     return data
 
 
+def load_tag_relations(conn):
+    try:
+        rows = conn.execute(
+            """
+            SELECT tag_label, related_tag_label, relation_type
+            FROM tag_relations
+            """
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    data = {}
+    for tag_label, related_tag_label, relation_type in rows:
+        if str(relation_type or "").strip() not in {"", "related"}:
+            continue
+        left = str(tag_label or "").strip()
+        right = str(related_tag_label or "").strip()
+        if not left or not right or left == right:
+            continue
+        data.setdefault(left, set()).add(right)
+    return {key: sorted(values) for key, values in data.items()}
+
+
 def load_explanation_update_log(conn):
     try:
         rows = conn.execute(
@@ -375,6 +397,7 @@ def main():
         tag_aliases_by_canonical,
     ) = load_tag_dictionary(conn)
     tag_view_stats = load_tag_view_stats(conn)
+    tag_relations = load_tag_relations(conn)
     update_log = load_explanation_update_log(conn)
     conn.close()
 
@@ -548,6 +571,7 @@ def main():
                     "related_count": 0,
                     "subjects": set(),
                     "subtopics": set(),
+                    "related_tags": set(),
                 },
             )
             item["related_count"] += 1
@@ -573,6 +597,19 @@ def main():
         encoding="utf-8",
     )
     for item in tag_catalog.values():
+        relation_labels = set()
+        for key in {item.get("tag"), item.get("canonical_tag")}:
+            if not key:
+                continue
+            for related in tag_relations.get(key, []):
+                canonical_related = tag_alias_to_canonical.get(related, related)
+                canonical_related = str(canonical_related or "").strip()
+                if not canonical_related:
+                    continue
+                if canonical_related in {item.get("tag"), item.get("canonical_tag")}:
+                    continue
+                relation_labels.add(canonical_related)
+        item["related_tags"] = sorted(relation_labels)
         item["subjects"] = sorted(item["subjects"])
         item["subtopics"] = sorted(item["subtopics"])
         item["related_serials"] = (index_by_tag.get(item["tag"], []) or [])[:5]

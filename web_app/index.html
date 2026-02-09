@@ -251,6 +251,21 @@
         white-space: nowrap;
         min-width: 84px;
       }
+      .tag-disambiguation {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff;
+        font-size: 13px;
+      }
+      .tag-disambiguation .note {
+        margin: 0 0 6px;
+      }
+      .tag-disambiguation-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
       .controls details.inline {
         margin-top: 0;
         border: 2px solid var(--line);
@@ -1366,6 +1381,7 @@
           <button id="resetBtn" aria-label="検索条件をリセット">リセット</button>
         </div>
       </div>
+      <div id="tagDisambiguationBox" class="tag-disambiguation" hidden aria-live="polite"></div>
       <details class="inline">
         <summary>詳細フィルタ</summary>
         <div class="row">
@@ -2516,6 +2532,92 @@
         renderResults(filterQuestions());
       }
 
+      function extractKeywordHashTerms() {
+        const keyword = document.getElementById("keyword").value || "";
+        const terms = keyword
+          .split(/[\s,]+/)
+          .map((term) => normalizeAscii(term).trim())
+          .filter((term) => term.startsWith("#"));
+        const out = [];
+        const seen = new Set();
+        terms.forEach((term) => {
+          const raw = term.slice(1).trim();
+          const normalized = normalizeTagKey(raw);
+          if (!normalized || seen.has(normalized)) return;
+          seen.add(normalized);
+          out.push({ raw, normalized });
+        });
+        return out;
+      }
+
+      function findTagDisambiguationCandidates(normalizedTerm) {
+        if (!normalizedTerm) return [];
+        const labels = new Set([
+          ...Object.keys(state.tagCatalogByTag || {}),
+          ...Object.keys(state.indexByTag || {})
+        ]);
+        const candidates = Array.from(labels).filter((label) => {
+          const normalizedLabel = normalizeTagKey(label);
+          if (!normalizedLabel) return false;
+          if (normalizedLabel === normalizedTerm) return false;
+          return normalizedLabel.startsWith(normalizedTerm);
+        });
+        return candidates.sort((a, b) => a.localeCompare(b, "ja"));
+      }
+
+      function applyTagDisambiguationSelection(targetNormalized, selectedTag) {
+        const keywordInput = document.getElementById("keyword");
+        const parts = (keywordInput.value || "").split(/([\s,]+)/);
+        const replaced = parts.map((part) => {
+          const trimmed = normalizeAscii(part).trim();
+          if (!trimmed.startsWith("#")) return part;
+          const normalized = normalizeTagKey(trimmed.slice(1));
+          if (normalized !== targetNormalized) return part;
+          return `#${selectedTag}`;
+        });
+        keywordInput.value = replaced.join("");
+        renderResults(filterQuestions());
+        keywordInput.focus();
+      }
+
+      function renderTagDisambiguationHints() {
+        const box = document.getElementById("tagDisambiguationBox");
+        if (!box) return;
+        box.innerHTML = "";
+        const terms = extractKeywordHashTerms();
+        const hints = [];
+        terms.forEach(({ raw, normalized }) => {
+          const candidates = findTagDisambiguationCandidates(normalized);
+          if (candidates.length < 2) return;
+          hints.push({ raw, normalized, candidates });
+        });
+        if (!hints.length) {
+          box.hidden = true;
+          return;
+        }
+        hints.forEach((hint) => {
+          const note = document.createElement("div");
+          note.className = "note";
+          note.textContent = `#${hint.raw} は曖昧です。候補を選択してください。`;
+          box.appendChild(note);
+          const actions = document.createElement("div");
+          actions.className = "tag-disambiguation-actions";
+          hint.candidates.slice(0, 8).forEach((candidate) => {
+            const btn = document.createElement("button");
+            btn.className = "chip-link";
+            btn.type = "button";
+            btn.textContent = `#${candidate}`;
+            btn.setAttribute("aria-label", `タグ ${candidate} を選択`);
+            btn.addEventListener("click", () => {
+              applyTagDisambiguationSelection(hint.normalized, candidate);
+            });
+            actions.appendChild(btn);
+          });
+          box.appendChild(actions);
+        });
+        box.hidden = false;
+      }
+
       function getKeywordTagTerms() {
         const keyword = document.getElementById("keyword").value || "";
         return Array.from(
@@ -2764,6 +2866,7 @@
         document.getElementById("countInfo").textContent = countText;
         const summaryEl = document.getElementById("filterSummary");
         if (summaryEl) summaryEl.textContent = buildFilterHeader();
+        renderTagDisambiguationHints();
         announceStatus(countText);
         const sortSession = document.getElementById("sortSession").value;
         const isStatSort = [
@@ -3124,6 +3227,23 @@
               merged.className = "tag-description-meta";
               merged.textContent = `同義語(結合): ${equivalentTags.join(", ")}`;
               tagDesc.appendChild(merged);
+            }
+            const relatedTags = (meta.related_tags || [])
+              .map((label) => String(label || "").trim())
+              .filter((label) => label && label !== tag);
+            if (relatedTags.length) {
+              const relatedBox = document.createElement("div");
+              relatedBox.className = "tag-description-filters";
+              relatedTags.slice(0, 8).forEach((relatedTag) => {
+                const btn = document.createElement("button");
+                btn.className = "chip-link";
+                btn.textContent = `関連:${relatedTag}`;
+                btn.addEventListener("click", () => {
+                  renderTagDescription(relatedTag);
+                });
+                relatedBox.appendChild(btn);
+              });
+              tagDesc.appendChild(relatedBox);
             }
             const filters = document.createElement("div");
             filters.className = "tag-description-filters";
@@ -3978,6 +4098,23 @@
               merged.textContent = `同義語(結合): ${equivalentTags.join(", ")}`;
               deepDiveTagDesc.appendChild(merged);
             }
+            const relatedTags = (meta.related_tags || [])
+              .map((label) => String(label || "").trim())
+              .filter((label) => label && label !== tag);
+            if (relatedTags.length) {
+              const relatedBox = document.createElement("div");
+              relatedBox.className = "tag-description-filters";
+              relatedTags.slice(0, 8).forEach((relatedTag) => {
+                const btn = document.createElement("button");
+                btn.className = "chip-link";
+                btn.textContent = `関連:${relatedTag}`;
+                btn.addEventListener("click", () => {
+                  renderDeepDiveTagDescription(relatedTag);
+                });
+                relatedBox.appendChild(btn);
+              });
+              deepDiveTagDesc.appendChild(relatedBox);
+            }
             const filters = document.createElement("div");
             filters.className = "tag-description-filters";
             const tagFilter = document.createElement("button");
@@ -4631,6 +4768,9 @@
           if (e.key === "Enter") {
             renderResults(filterQuestions());
           }
+        });
+        document.getElementById("keyword").addEventListener("input", () => {
+          renderTagDisambiguationHints();
         });
         document.addEventListener("keydown", (e) => {
           const active = document.activeElement;

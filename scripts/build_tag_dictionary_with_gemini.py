@@ -418,6 +418,16 @@ def parse_args():
     )
     parser.add_argument("--max-output-tokens", type=int, default=4096, help="Gemini maxOutputTokens.")
     parser.add_argument("--overwrite", action="store_true", help="Rebuild existing descriptions.")
+    parser.add_argument(
+        "--only-tags",
+        default="",
+        help="Comma-separated tag labels to process exclusively.",
+    )
+    parser.add_argument(
+        "--only-tags-file",
+        default="",
+        help="Text file path with one tag label per line to process exclusively.",
+    )
     parser.add_argument("--apply-merge", action="store_true", help="Apply approved alias merge to tags/question_tags.")
     parser.add_argument("--dry-run", action="store_true", help="Print target tags only.")
     return parser.parse_args()
@@ -455,6 +465,20 @@ def _retry_wait_seconds(error_text, base_wait):
     return float(base_wait)
 
 
+def _read_only_tags(path):
+    labels = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                labels.append(line)
+    except OSError as exc:
+        raise SystemExit(f"--only-tags-file を読み込めませんでした: {path} ({exc})")
+    return labels
+
+
 def main():
     args = parse_args()
     repo_root = Path(__file__).resolve().parent.parent
@@ -471,6 +495,26 @@ def main():
     ensure_tables(conn)
     alias_map = load_approved_alias_map(conn)
     all_tags = collect_full_tags(conn, alias_map=alias_map)
+    all_tags_set = set(all_tags)
+
+    requested_only = []
+    if args.only_tags:
+        requested_only.extend([s.strip() for s in args.only_tags.split(",") if s.strip()])
+    if args.only_tags_file:
+        requested_only.extend(_read_only_tags(args.only_tags_file))
+    requested_only = canonicalize_label_list(requested_only, alias_map={})
+
+    if requested_only:
+        missing = [tag for tag in requested_only if tag not in all_tags_set]
+        if missing:
+            print(f"warning: tags not found and ignored: {len(missing)}")
+            for label in missing[:20]:
+                print(f"  - {label}")
+            if len(missing) > 20:
+                print(f"  ... and {len(missing) - 20} more")
+        base_targets = [tag for tag in requested_only if tag in all_tags_set]
+    else:
+        base_targets = all_tags
 
     if not args.overwrite:
         existing = {
@@ -479,9 +523,9 @@ def main():
                 "SELECT canonical_label FROM tag_descriptions WHERE description != ''"
             ).fetchall()
         }
-        targets = [tag for tag in all_tags if tag not in existing]
+        targets = [tag for tag in base_targets if tag not in existing]
     else:
-        targets = all_tags
+        targets = base_targets
 
     if args.limit > 0:
         targets = targets[: args.limit]

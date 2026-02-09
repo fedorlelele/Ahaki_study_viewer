@@ -1,0 +1,407 @@
+{
+  "subject_groups": {
+    "tcm": [
+      "東洋医学概論",
+      "東洋医学臨床論",
+      "経絡経穴概論",
+      "あん摩マッサージ指圧理論",
+      "はり理論",
+      "きゅう理論"
+    ],
+    "western": [
+      "解剖学",
+      "生理学",
+      "病理学概論",
+      "臨床医学総論",
+      "臨床医学各論",
+      "リハビリテーション医学",
+      "医療概論",
+      "衛生学・公衆衛生学",
+      "総合問題",
+      "関係法規"
+    ]
+  },
+  "unlink_alias_rules": [
+    {
+      "alias_label": "大腸",
+      "canonical_label": "伝導の官"
+    },
+    {
+      "alias_label": "肺",
+      "canonical_label": "相傅の官"
+    },
+    {
+      "alias_label": "膀胱",
+      "canonical_label": "州都の官"
+    },
+    {
+      "alias_label": "肝",
+      "canonical_label": "肝臓"
+    },
+    {
+      "alias_label": "腎",
+      "canonical_label": "腎臓"
+    }
+  ],
+  "split_rules": [
+    {
+      "source_tag": "心",
+      "targets": [
+        {
+          "label": "心（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "心（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "心（西洋医学）"
+    },
+    {
+      "source_tag": "肺",
+      "targets": [
+        {
+          "label": "肺（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "肺（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "肺（西洋医学）"
+    },
+    {
+      "source_tag": "肝",
+      "targets": [
+        {
+          "label": "肝（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "肝（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "肝（西洋医学）"
+    },
+    {
+      "source_tag": "脾",
+      "targets": [
+        {
+          "label": "脾（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "脾（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "脾（西洋医学）"
+    },
+    {
+      "source_tag": "腎",
+      "targets": [
+        {
+          "label": "腎（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "腎（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "腎（西洋医学）"
+    },
+    {
+      "source_tag": "胆",
+      "targets": [
+        {
+          "label": "胆（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "胆（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "胆（西洋医学）"
+    },
+    {
+      "source_tag": "小腸",
+      "targets": [
+        {
+          "label": "小腸（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "小腸（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "小腸（西洋医学）"
+    },
+    {
+      "source_tag": "胃",
+      "targets": [
+        {
+          "label": "胃（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "胃（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "胃（西洋医学）"
+    },
+    {
+      "source_tag": "大腸",
+      "targets": [
+        {
+          "label": "大腸（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "大腸（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "大腸（西洋医学）"
+    },
+    {
+      "source_tag": "膀胱",
+      "targets": [
+        {
+          "label": "膀胱（東洋医学）",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "膀胱（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "膀胱（西洋医学）"
+    },
+    {
+      "source_tag": "伝導の官",
+      "targets": [
+        {
+          "label": "伝導の官",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "大腸（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "大腸（西洋医学）"
+    },
+    {
+      "source_tag": "相傅の官",
+      "targets": [
+        {
+          "label": "相傅の官",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "肺（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "肺（西洋医学）"
+    },
+    {
+      "source_tag": "州都の官",
+      "targets": [
+        {
+          "label": "州都の官",
+          "groups": [
+            "tcm"
+          ]
+        },
+        {
+          "label": "膀胱（西洋医学）",
+          "groups": [
+            "western"
+          ]
+        }
+      ],
+      "default_label": "膀胱（西洋医学）"
+    }
+  ],
+  "copy_rules": [],
+  "rename_rules": [
+    {
+      "old_label": "成人病",
+      "new_label": "生活習慣病"
+    },
+    {
+      "old_label": "君主之官",
+      "new_label": "君主の官"
+    },
+    {
+      "old_label": "相傅之官",
+      "new_label": "相傅の官"
+    },
+    {
+      "old_label": "将軍之官",
+      "new_label": "将軍の官"
+    },
+    {
+      "old_label": "倉廩之官",
+      "new_label": "倉廩の官"
+    },
+    {
+      "old_label": "作強之官",
+      "new_label": "作強の官"
+    },
+    {
+      "old_label": "臣使之官",
+      "new_label": "臣使の官"
+    },
+    {
+      "old_label": "中正之官",
+      "new_label": "中正の官"
+    },
+    {
+      "old_label": "受盛之官",
+      "new_label": "受盛の官"
+    },
+    {
+      "old_label": "傳導之官",
+      "new_label": "伝導の官"
+    },
+    {
+      "old_label": "決瀆之官",
+      "new_label": "決瀆の官"
+    },
+    {
+      "old_label": "州都之官",
+      "new_label": "州都の官"
+    }
+  ],
+  "related_rules": [
+    {
+      "tag_label": "君主の官",
+      "related_tag_label": "心（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "相傅の官",
+      "related_tag_label": "肺（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "将軍の官",
+      "related_tag_label": "肝（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "倉廩の官",
+      "related_tag_label": "脾（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "倉廩の官",
+      "related_tag_label": "胃（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "作強の官",
+      "related_tag_label": "腎（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "臣使の官",
+      "related_tag_label": "心包",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "中正の官",
+      "related_tag_label": "胆（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "受盛の官",
+      "related_tag_label": "小腸（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "伝導の官",
+      "related_tag_label": "大腸（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "決瀆の官",
+      "related_tag_label": "三焦",
+      "relation_type": "related",
+      "bidirectional": true
+    },
+    {
+      "tag_label": "州都の官",
+      "related_tag_label": "膀胱（東洋医学）",
+      "relation_type": "related",
+      "bidirectional": true
+    }
+  ]
+}
