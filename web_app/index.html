@@ -1267,6 +1267,7 @@
           <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
           <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
           <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
+          <label id="editModeWrap" hidden><input type="checkbox" id="editModeToggle" /> 編集モード</label>
         </div>
         </details>
         <details class="inline" id="progressPanel" hidden>
@@ -1557,6 +1558,7 @@
         ,uiMode: "standard"
         ,fontScale: "normal"
         ,highContrast: false
+        ,editMode: false
       };
 
       function normalizeRole(role) {
@@ -3061,6 +3063,7 @@
         container.innerHTML = "";
         moreContainer.innerHTML = "";
         const isTeacher = state.roleRank >= 2;
+        const canTeacherEdit = isTeacher && state.editMode;
         const showAnswer = document.getElementById("toggleAnswer").checked;
         const showExplanation = document.getElementById("toggleExplanation").checked;
         const countText = `件数: ${list.length}`;
@@ -3192,7 +3195,7 @@
             caseDetails.appendChild(casePanel);
             card.appendChild(caseDetails);
           }
-          if (isTeacher) {
+          if (canTeacherEdit) {
             const caseDetails = document.createElement("details");
             caseDetails.className = "inline inline-details";
             const caseSummary = document.createElement("summary");
@@ -3252,7 +3255,7 @@
             stemDetails.appendChild(stemPanel);
             card.appendChild(stemDetails);
           }
-          if (isTeacher) {
+          if (canTeacherEdit) {
             const stemDetails = document.createElement("details");
             stemDetails.className = "inline inline-details";
             const stemSummary = document.createElement("summary");
@@ -3338,7 +3341,7 @@
             choiceDetails.appendChild(choicePanel);
             card.appendChild(choiceDetails);
           }
-          if (isTeacher) {
+          if (canTeacherEdit) {
             const choiceDetails = document.createElement("details");
             choiceDetails.className = "inline inline-details";
             const choiceSummary = document.createElement("summary");
@@ -3612,7 +3615,7 @@
             tagDetails.appendChild(tagPanel);
             tags.appendChild(tagDetails);
           }
-          if (isTeacher) {
+          if (canTeacherEdit) {
             const tagDetails = document.createElement("details");
             tagDetails.className = "inline inline-details";
             const tagSummary = document.createElement("summary");
@@ -3730,7 +3733,7 @@
             subDetails.appendChild(subPanel);
             subs.appendChild(subDetails);
           }
-          if (isTeacher) {
+          if (canTeacherEdit) {
             const subDetails = document.createElement("details");
             subDetails.className = "inline inline-details";
             const subSummary = document.createElement("summary");
@@ -3815,7 +3818,7 @@
             answerDetails.appendChild(answerPanel);
             card.appendChild(answerDetails);
           }
-          if (isTeacher) {
+          if (canTeacherEdit) {
             const answerDetails = document.createElement("details");
             answerDetails.className = "inline inline-details";
             const answerSummary = document.createElement("summary");
@@ -3923,7 +3926,7 @@
             expDetails.appendChild(expPanel);
             expHeader.appendChild(expDetails);
           }
-          if (isTeacher) {
+          if (canTeacherEdit) {
             const source = q.explanation_latest_source || "";
             const teacherLabel = formatExplanationLabel(source);
             expTitle.textContent = expText ? `解説${teacherLabel}:` : "解説: (未登録)";
@@ -4585,7 +4588,7 @@
           more.disabled = true;
           const statsLoaded = state.answerStatsLoaded.has("*");
           await ensureOverridesLoaded(batch.map(item => item.serial));
-          if (isTeacher) {
+          if (canTeacherEdit) {
             await ensureEditRequestsLoaded(batch.map(item => item.serial));
           }
           await ensureAnswerStatsLoaded(batch.map(item => item.serial));
@@ -4962,6 +4965,14 @@
             document.body.classList.toggle("report-mode", state.reportMode);
           });
         }
+        const editModeToggle = document.getElementById("editModeToggle");
+        if (editModeToggle) {
+          editModeToggle.addEventListener("change", () => {
+            state.editMode = editModeToggle.checked;
+            saveTagVisibility();
+            renderResults(filterQuestions());
+          });
+        }
 
       document.getElementById("copyAllBtn").addEventListener("click", async () => {
         const list = filterQuestions();
@@ -5065,6 +5076,8 @@
         const historyPanel = document.getElementById("historyPanel");
         const reportModeWrap = document.getElementById("reportModeWrap");
         const reportModeToggle = document.getElementById("reportModeToggle");
+        const editModeWrap = document.getElementById("editModeWrap");
+        const editModeToggle = document.getElementById("editModeToggle");
         const topPanels = document.getElementById("topPanels");
         const topMenuContent = document.getElementById("topMenuContent");
         const menuToggleBtn = document.getElementById("menuToggleBtn");
@@ -5076,6 +5089,7 @@
           toggleBtn.hidden = true;
           if (historyPanel) historyPanel.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = true;
+          if (editModeWrap) editModeWrap.hidden = true;
           return;
         }
 
@@ -5197,6 +5211,7 @@
           if (answerTrendPanel) answerTrendPanel.hidden = true;
           if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
+          if (editModeWrap) editModeWrap.hidden = true;
           applyProgressFilterVisibility();
           applyAnsweredFilterVisibility();
           renderProgressPanel();
@@ -5244,6 +5259,13 @@
             if (answerTrendPanel) answerTrendPanel.hidden = !isRoleAtLeast("teacher");
             if (adminLink) adminLink.hidden = !isRoleAtLeast("teacher");
             if (reportModeWrap) reportModeWrap.hidden = isRoleAtLeast("teacher");
+            if (editModeWrap) {
+              const canEditToggle = isRoleAtLeast("teacher");
+              editModeWrap.hidden = !canEditToggle;
+              if (editModeToggle) {
+                editModeToggle.checked = state.editMode;
+              }
+            }
             applyTopMenuRoleVisibility();
             applyProgressFilterVisibility();
             applyAnsweredFilterVisibility();
@@ -6656,6 +6678,7 @@
         const tagsRaw = localStorage.getItem("showTags");
         const subsRaw = localStorage.getItem("showSubtopics");
         const reportRaw = localStorage.getItem("reportMode");
+        const editModeRaw = localStorage.getItem("editMode");
         const modeRaw = localStorage.getItem("uiMode");
         const fontRaw = localStorage.getItem("fontScale");
         const contrastRaw = localStorage.getItem("highContrast");
@@ -6687,6 +6710,9 @@
         if (reportRaw !== null) {
           state.reportMode = reportRaw === "true";
         }
+        if (editModeRaw !== null) {
+          state.editMode = editModeRaw === "true";
+        }
         if (modeRaw === "standard" || modeRaw === "accessible") {
           state.uiMode = modeRaw;
         }
@@ -6699,12 +6725,14 @@
         const tagsToggle = document.getElementById("showTagsToggle");
         const subsToggle = document.getElementById("showSubtopicsToggle");
         const reportModeToggle = document.getElementById("reportModeToggle");
+        const editModeToggle = document.getElementById("editModeToggle");
         const modeSelect = document.getElementById("uiModeSelect");
         const fontSelect = document.getElementById("fontScaleSelect");
         const contrastToggle = document.getElementById("highContrastToggle");
         if (tagsToggle) tagsToggle.checked = state.showTags;
         if (subsToggle) subsToggle.checked = state.showSubtopics;
         if (reportModeToggle) reportModeToggle.checked = state.reportMode;
+        if (editModeToggle) editModeToggle.checked = state.editMode;
         if (modeSelect) modeSelect.value = state.uiMode;
         if (fontSelect) fontSelect.value = state.fontScale;
         if (contrastToggle) contrastToggle.checked = state.highContrast;
@@ -6722,6 +6750,7 @@
         if (explanationToggle) localStorage.setItem("showExplanation", String(explanationToggle.checked));
         if (answeredFilterEl) localStorage.setItem("answeredFilter", answeredFilterEl.value);
         localStorage.setItem("reportMode", String(state.reportMode));
+        localStorage.setItem("editMode", String(state.editMode));
         localStorage.setItem("uiMode", state.uiMode);
         localStorage.setItem("fontScale", state.fontScale);
         localStorage.setItem("highContrast", String(state.highContrast));
