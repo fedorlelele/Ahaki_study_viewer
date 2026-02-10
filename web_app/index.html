@@ -967,6 +967,34 @@
         padding: 4px 8px;
         font-size: 12px;
       }
+      .ai-usage-summary {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px;
+      }
+      .ai-usage-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+      .ai-usage-card h4 {
+        margin: 0 0 6px;
+        font-size: 13px;
+      }
+      .ai-usage-card table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .ai-usage-card td {
+        padding: 2px 0;
+      }
+      .ai-usage-card td:last-child {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
       .proposal-panel {
         margin-top: 10px;
       }
@@ -1207,6 +1235,7 @@
             <button type="button" data-menu-target="proposalPanel">修正提案一覧</button>
             <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
             <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
+            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
             <a href="./simple.html">かんたんビューへのリンク</a>
           </nav>
         </div>
@@ -1235,7 +1264,6 @@
           <label><input type="checkbox" id="highContrastToggle" /> 高コントラスト表示</label>
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
           <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
-          <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
           <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
           <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
           <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
@@ -1339,6 +1367,28 @@
           <div class="note" id="aiPublicGenerationStatus">状態を確認中...</div>
         </div>
         </details>
+        <details class="inline" id="aiUsagePanel" hidden>
+        <summary>API使用状況</summary>
+        <div class="history-panel">
+          <div class="history-controls">
+            <label for="aiUsageDays">集計期間</label>
+            <select id="aiUsageDays">
+              <option value="7">7日</option>
+              <option value="14">14日</option>
+              <option value="30" selected>30日</option>
+              <option value="60">60日</option>
+              <option value="90">90日</option>
+            </select>
+            <button id="aiUsageRefreshBtn" type="button">再読み込み</button>
+          </div>
+          <div class="note" id="aiUsageStatus">未取得</div>
+          <div class="ai-usage-summary" id="aiUsageSummary"></div>
+          <div class="note">日別集計（free / paid）</div>
+          <div class="proposal-list-wide" id="aiUsageDaily"></div>
+          <div class="note">用途別集計（free / paid）</div>
+          <div class="proposal-list-wide" id="aiUsageEndpoint"></div>
+        </div>
+        </details>
       <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -1399,6 +1449,11 @@
             <option value="unstarted">未着手</option>
             <option value="mastered">理解済み</option>
             <option value="needs_review">要復習</option>
+          </select>
+          <select id="answeredFilter" aria-label="回答済み問題の表示">
+            <option value="all">回答: すべて表示</option>
+            <option value="hide_answered">回答: 回答済みを非表示</option>
+            <option value="only_answered">回答: 回答済みのみ表示</option>
           </select>
         </div>
       </details>
@@ -1487,8 +1542,6 @@
         ,tagEquivalentByNormalized: {}
         ,tagViewCounts: {}
         ,tagViewedSession: new Set()
-        ,pinnedSerials: new Set()
-        ,pinnedSerialOrder: []
         ,aiPublicGeneration: false
         ,aiAdminPaidGeneration: false
         ,progressSelfBySerial: {}
@@ -1563,7 +1616,8 @@
           historyPanel: "teacher",
           proposalPanel: "teacher",
           tagDisablePanel: "teacher",
-          aiGenerationPanel: "admin"
+          aiGenerationPanel: "admin",
+          aiUsagePanel: "admin"
         };
         document.querySelectorAll("#topMenuContent [data-menu-target]").forEach((btn) => {
           const targetId = btn.getAttribute("data-menu-target");
@@ -2000,6 +2054,14 @@
         if (!visible) el.value = "";
       }
 
+      function applyAnsweredFilterVisibility() {
+        const el = document.getElementById("answeredFilter");
+        if (!el) return;
+        const visible = !isRoleAtLeast("student");
+        el.hidden = !visible;
+        if (!visible) el.value = "all";
+      }
+
       function isTeacherUser(user) {
         return roleRank(getUserRole(user)) >= 2;
       }
@@ -2057,33 +2119,6 @@
         const found = state.tagEquivalentByNormalized[key] || [];
         if (found.length) return found;
         return [String(term || "").trim()].filter(Boolean);
-      }
-
-      function pinSerialForSession(serial) {
-        const key = String(serial || "").trim();
-        if (!key) return;
-        if (!state.pinnedSerials.has(key)) {
-          state.pinnedSerials.add(key);
-          state.pinnedSerialOrder.push(key);
-        } else {
-          state.pinnedSerialOrder = state.pinnedSerialOrder.filter((value) => value !== key);
-          state.pinnedSerialOrder.push(key);
-        }
-        if (state.pinnedSerialOrder.length > 200) {
-          const removed = state.pinnedSerialOrder.shift();
-          if (removed) state.pinnedSerials.delete(removed);
-        }
-      }
-
-      function isPinnedSerial(serial) {
-        return state.pinnedSerials.has(String(serial || "").trim());
-      }
-
-      function pinSortIndex(serial) {
-        const key = String(serial || "").trim();
-        const idx = state.pinnedSerialOrder.indexOf(key);
-        if (idx < 0) return Number.MAX_SAFE_INTEGER;
-        return state.pinnedSerialOrder.length - idx;
       }
 
       function getRelatedSerialsForTag(tag) {
@@ -2335,6 +2370,189 @@
           } finally {
             saveBtn.disabled = false;
           }
+        });
+      }
+
+      function buildAiUsageStatsTable(stats) {
+        const map = stats || {};
+        const all = Number(map.all || 0);
+        const success = Number(map.success || 0);
+        const irrelevant = Number(map.irrelevant || 0);
+        const limited = Number(map.rate_limited || 0);
+        const error = Number(map.error || 0);
+        return `
+          <table>
+            <tr><td>合計</td><td>${all}</td></tr>
+            <tr><td>成功</td><td>${success}</td></tr>
+            <tr><td>無関係</td><td>${irrelevant}</td></tr>
+            <tr><td>制限</td><td>${limited}</td></tr>
+            <tr><td>エラー</td><td>${error}</td></tr>
+          </table>
+        `;
+      }
+
+      function renderAiUsagePanel(payload) {
+        const summaryEl = document.getElementById("aiUsageSummary");
+        const dailyEl = document.getElementById("aiUsageDaily");
+        const endpointEl = document.getElementById("aiUsageEndpoint");
+        if (!summaryEl || !dailyEl || !endpointEl) return;
+
+        if (!payload || payload.ok !== true) {
+          summaryEl.innerHTML = "";
+          dailyEl.textContent = "";
+          endpointEl.textContent = "";
+          return;
+        }
+
+        const totals = payload.totals || {};
+        summaryEl.innerHTML = `
+          <div class="ai-usage-card">
+            <h4>free</h4>
+            ${buildAiUsageStatsTable(totals.free)}
+          </div>
+          <div class="ai-usage-card">
+            <h4>paid</h4>
+            ${buildAiUsageStatsTable(totals.paid)}
+          </div>
+        `;
+
+        const byDay = Array.isArray(payload.by_day) ? payload.by_day : [];
+        if (!byDay.length) {
+          dailyEl.textContent = "データはありません。";
+        } else {
+          const rows = byDay
+            .map((item) => {
+              const free = item && item.free ? item.free : {};
+              const paid = item && item.paid ? item.paid : {};
+              return `<tr>
+                <td>${item.date || ""}</td>
+                <td>${Number(free.all || 0)}</td>
+                <td>${Number(free.success || 0)}</td>
+                <td>${Number(free.rate_limited || 0)}</td>
+                <td>${Number(free.error || 0)}</td>
+                <td>${Number(paid.all || 0)}</td>
+                <td>${Number(paid.success || 0)}</td>
+                <td>${Number(paid.rate_limited || 0)}</td>
+                <td>${Number(paid.error || 0)}</td>
+              </tr>`;
+            })
+            .join("");
+          dailyEl.innerHTML = `
+            <table class="trend-table">
+              <thead>
+                <tr>
+                  <th>日付</th>
+                  <th>free合計</th>
+                  <th>free成功</th>
+                  <th>free制限</th>
+                  <th>freeエラー</th>
+                  <th>paid合計</th>
+                  <th>paid成功</th>
+                  <th>paid制限</th>
+                  <th>paidエラー</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          `;
+        }
+
+        const byEndpoint = Array.isArray(payload.by_endpoint) ? payload.by_endpoint : [];
+        if (!byEndpoint.length) {
+          endpointEl.textContent = "データはありません。";
+        } else {
+          const rows = byEndpoint
+            .map((item) => {
+              const free = item && item.free ? item.free : {};
+              const paid = item && item.paid ? item.paid : {};
+              return `<tr>
+                <td>${item.endpoint || ""}</td>
+                <td>${Number(free.all || 0)}</td>
+                <td>${Number(free.success || 0)}</td>
+                <td>${Number(paid.all || 0)}</td>
+                <td>${Number(paid.success || 0)}</td>
+              </tr>`;
+            })
+            .join("");
+          endpointEl.innerHTML = `
+            <table class="trend-table">
+              <thead>
+                <tr>
+                  <th>用途</th>
+                  <th>free合計</th>
+                  <th>free成功</th>
+                  <th>paid合計</th>
+                  <th>paid成功</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          `;
+        }
+      }
+
+      async function loadAdminAiUsage() {
+        const statusEl = document.getElementById("aiUsageStatus");
+        const daysEl = document.getElementById("aiUsageDays");
+        const refreshBtn = document.getElementById("aiUsageRefreshBtn");
+        if (!statusEl || !daysEl || !refreshBtn) return;
+        if (!isRoleAtLeast("admin")) {
+          statusEl.textContent = "管理者のみ閲覧できます。";
+          renderAiUsagePanel(null);
+          return;
+        }
+        if (!ADMIN_API_BASE || !supabaseClient) {
+          statusEl.textContent = "API設定がありません。";
+          renderAiUsagePanel(null);
+          return;
+        }
+        const { data } = await supabaseClient.auth.getSession();
+        const session = data && data.session ? data.session : null;
+        if (!session || !session.access_token) {
+          statusEl.textContent = "管理者ログインが必要です。";
+          renderAiUsagePanel(null);
+          return;
+        }
+        const days = Number(daysEl.value || "30");
+        statusEl.textContent = "読み込み中...";
+        refreshBtn.disabled = true;
+        try {
+          const resp = await fetch(`${ADMIN_API_BASE}/admin/ai_usage?days=${encodeURIComponent(days)}`, {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
+          });
+          const payload = await resp.json();
+          if (!resp.ok || !payload || payload.ok !== true) {
+            statusEl.textContent = "取得に失敗しました。";
+            renderAiUsagePanel(null);
+            return;
+          }
+          renderAiUsagePanel(payload);
+          statusEl.textContent = `集計件数: ${Number(payload.count || 0)} / 期間: ${Number(payload.days || days)}日`;
+        } catch (_err) {
+          statusEl.textContent = "取得に失敗しました。";
+          renderAiUsagePanel(null);
+        } finally {
+          refreshBtn.disabled = false;
+        }
+      }
+
+      function initAiUsagePanel() {
+        const panel = document.getElementById("aiUsagePanel");
+        const daysEl = document.getElementById("aiUsageDays");
+        const refreshBtn = document.getElementById("aiUsageRefreshBtn");
+        if (!panel || !daysEl || !refreshBtn) return;
+        panel.addEventListener("toggle", () => {
+          if (!panel.open) return;
+          loadAdminAiUsage();
+        });
+        daysEl.addEventListener("change", () => {
+          if (!panel.open) return;
+          loadAdminAiUsage();
+        });
+        refreshBtn.addEventListener("click", () => {
+          loadAdminAiUsage();
         });
       }
 
@@ -2662,7 +2880,10 @@
         const needExplanation = false;
         const needTags = false;
         const needSubtopics = false;
-        const showAnswered = document.getElementById("showAnswered").checked;
+        const answeredFilterEl = document.getElementById("answeredFilter");
+        const answeredFilter = isRoleAtLeast("student")
+          ? "all"
+          : ((answeredFilterEl && answeredFilterEl.value) || "all");
         const sessionFrom = sessionFromRaw ? Number(sessionFromRaw) : null;
         const sessionTo = sessionToRaw ? Number(sessionToRaw) : null;
 
@@ -2695,16 +2916,16 @@
 
         const filtered = state.questions.filter(q => {
           const effective = applyOverridesToQuestion(q);
-          const pinned = isPinnedSerial(effective.serial);
           if (serialSet && !serialSet.has(effective.serial)) return false;
           if (examType && !effective.serial.startsWith(examType)) return false;
           if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
           if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
-          if (!pinned && !showAnswered && hasAnswered(effective.serial)) return false;
+          if (answeredFilter === "hide_answered" && hasAnswered(effective.serial)) return false;
+          if (answeredFilter === "only_answered" && !hasAnswered(effective.serial)) return false;
           if (progressStateFilter) {
             const row = state.progressSelfBySerial[effective.serial];
             const status = row && row.status ? row.status : "unstarted";
-            if (!pinned && status !== progressStateFilter) return false;
+            if (status !== progressStateFilter) return false;
           }
           // filters removed (all questions are populated)
           if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
@@ -2728,20 +2949,6 @@
           const textMatch = textTerms.every(term => hay.includes(term));
           return tagMatch && textMatch;
         });
-        const movePinnedToFront = (list) => {
-          if (!list.length || !state.pinnedSerials.size) return list;
-          const pinned = [];
-          const rest = [];
-          list.forEach((item) => {
-            if (isPinnedSerial(item.serial)) {
-              pinned.push(item);
-            } else {
-              rest.push(item);
-            }
-          });
-          pinned.sort((a, b) => pinSortIndex(b.serial) - pinSortIndex(a.serial));
-          return pinned.concat(rest);
-        };
         const getStats = (q) => state.answerStatsBySerial[q.serial] || { count: 0, correct: 0 };
         const getRate = (q) => {
           const stats = getStats(q);
@@ -2813,10 +3020,7 @@
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
-          const pinnedOnly = filtered.filter(
-            (q) => isPinnedSerial(q.serial) && !qaOnly.some((row) => row.serial === q.serial)
-          );
-          return movePinnedToFront(pinnedOnly.concat(qaOnly));
+          return qaOnly;
         } else if (sortSession === "deep_dive_desc") {
           const deepOnly = filtered.filter(q => {
             if (state.deepDiveSerials.has(q.serial)) return true;
@@ -2832,10 +3036,7 @@
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
-          const pinnedOnly = filtered.filter(
-            (q) => isPinnedSerial(q.serial) && !deepOnly.some((row) => row.serial === q.serial)
-          );
-          return movePinnedToFront(pinnedOnly.concat(deepOnly));
+          return deepOnly;
         } else if (sortSession === "review_desc") {
           filtered.sort((a, b) => {
             const pa = getReviewPriority(a);
@@ -2851,7 +3052,7 @@
             return orderA - orderB;
           });
         }
-        return movePinnedToFront(filtered);
+        return filtered;
       }
 
       function renderResults(list) {
@@ -3929,7 +4130,6 @@
             qaSend.addEventListener("click", async () => {
               const question = qaInput.value.trim();
               if (!question) return;
-              pinSerialForSession(q.serial);
               if (!window.AI_API_BASE) {
                 qaHeader.textContent = "AI_API_BASE が設定されていません。";
                 return;
@@ -4224,7 +4424,6 @@
           deepDiveMainBtn.className = "action-btn";
 
           const runDeepDiveView = () => {
-              pinSerialForSession(q.serial);
               if (!deepDivePanel.hidden) {
                 deepDivePanel.hidden = true;
                 return;
@@ -4260,7 +4459,6 @@
           };
 
           const runDeepDiveGenerate = async () => {
-              pinSerialForSession(q.serial);
               if (!window.AI_API_BASE) {
                 alert("AI_API_BASE が設定されていません。");
                 return;
@@ -4443,6 +4641,7 @@
 
         initAuthUI();
         initAiGenerationPanel();
+        initAiUsagePanel();
         applyTopMenuRoleVisibility();
         const menuToggleBtn = document.getElementById("menuToggleBtn");
         const topMenuContent = document.getElementById("topMenuContent");
@@ -4456,7 +4655,8 @@
           "historyPanel",
           "proposalPanel",
           "tagDisablePanel",
-          "aiGenerationPanel"
+          "aiGenerationPanel",
+          "aiUsagePanel"
         ];
         const closeAuthPanel = () => {
           const panel = document.getElementById("teacherAuth");
@@ -4589,6 +4789,12 @@
             if (aiGenerationPanel.open) closeAuthPanel();
           });
         }
+        const aiUsagePanel = document.getElementById("aiUsagePanel");
+        if (aiUsagePanel) {
+          aiUsagePanel.addEventListener("toggle", () => {
+            if (aiUsagePanel.open) closeAuthPanel();
+          });
+        }
         if (updateMoreBtn) {
           updateMoreBtn.addEventListener("click", () => {
             renderUpdateLog(state.updateShown + 3);
@@ -4697,10 +4903,13 @@
         document.getElementById("sortSession").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
-        document.getElementById("showAnswered").addEventListener("change", () => {
-          saveTagVisibility();
-          renderResults(filterQuestions());
-        });
+        const answeredFilterEl = document.getElementById("answeredFilter");
+        if (answeredFilterEl) {
+          answeredFilterEl.addEventListener("change", () => {
+            saveTagVisibility();
+            renderResults(filterQuestions());
+          });
+        }
         document.getElementById("showTagsToggle").addEventListener("change", (e) => {
           state.showTags = e.target.checked;
           saveTagVisibility();
@@ -4965,6 +5174,7 @@
         const proposalPanel = document.getElementById("proposalPanel");
         const tagDisablePanel = document.getElementById("tagDisablePanel");
         const aiGenerationPanel = document.getElementById("aiGenerationPanel");
+        const aiUsagePanel = document.getElementById("aiUsagePanel");
         const answerTrendPanel = document.getElementById("answerTrendPanel");
         const adminLink = document.getElementById("adminLink");
         if (!user) {
@@ -4983,10 +5193,12 @@
           if (proposalPanel) proposalPanel.hidden = true;
           if (tagDisablePanel) tagDisablePanel.hidden = true;
           if (aiGenerationPanel) aiGenerationPanel.hidden = true;
+          if (aiUsagePanel) aiUsagePanel.hidden = true;
           if (answerTrendPanel) answerTrendPanel.hidden = true;
           if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
           applyProgressFilterVisibility();
+          applyAnsweredFilterVisibility();
           renderProgressPanel();
           loadTagVisibility();
           applyTopMenuRoleVisibility();
@@ -5028,14 +5240,17 @@
             if (proposalPanel) proposalPanel.hidden = !isRoleAtLeast("teacher");
             if (tagDisablePanel) tagDisablePanel.hidden = !isRoleAtLeast("teacher");
             if (aiGenerationPanel) aiGenerationPanel.hidden = !isRoleAtLeast("admin");
+            if (aiUsagePanel) aiUsagePanel.hidden = !isRoleAtLeast("admin");
             if (answerTrendPanel) answerTrendPanel.hidden = !isRoleAtLeast("teacher");
             if (adminLink) adminLink.hidden = !isRoleAtLeast("teacher");
             if (reportModeWrap) reportModeWrap.hidden = isRoleAtLeast("teacher");
             applyTopMenuRoleVisibility();
             applyProgressFilterVisibility();
+            applyAnsweredFilterVisibility();
             loadQaLikedState();
             if (isRoleAtLeast("admin")) {
               loadAdminAiGenerationSetting();
+              loadAdminAiUsage();
             }
           }
         if (isRoleAtLeast("student")) {
@@ -6201,7 +6416,6 @@
         if (hasSessionAnswered(question.serial)) {
           return;
         }
-        pinSerialForSession(question.serial);
         const correctIndices = getAnswerIndices(question);
         const isCorrect = isAnswerCorrect(question, Number(selectedIndex));
         const buttons = button.closest("ol")?.querySelectorAll(".choice-btn") || [];
@@ -6438,6 +6652,7 @@
         const answerRaw = localStorage.getItem("showAnswer");
         const explanationRaw = localStorage.getItem("showExplanation");
         const answeredRaw = localStorage.getItem("showAnswered");
+        const answeredFilterRaw = localStorage.getItem("answeredFilter");
         const tagsRaw = localStorage.getItem("showTags");
         const subsRaw = localStorage.getItem("showSubtopics");
         const reportRaw = localStorage.getItem("reportMode");
@@ -6446,7 +6661,7 @@
         const contrastRaw = localStorage.getItem("highContrast");
         const answerToggle = document.getElementById("toggleAnswer");
         const explanationToggle = document.getElementById("toggleExplanation");
-        const answeredToggle = document.getElementById("showAnswered");
+        const answeredFilterEl = document.getElementById("answeredFilter");
         if (tagsRaw !== null) {
           state.showTags = tagsRaw === "true";
         }
@@ -6459,8 +6674,15 @@
         if (explanationRaw !== null && explanationToggle) {
           explanationToggle.checked = explanationRaw === "true";
         }
-        if (answeredRaw !== null && answeredToggle) {
-          answeredToggle.checked = answeredRaw === "true";
+        if (answeredFilterEl) {
+          const valid = ["all", "hide_answered", "only_answered"];
+          if (answeredFilterRaw !== null && valid.includes(answeredFilterRaw)) {
+            answeredFilterEl.value = answeredFilterRaw;
+          } else if (answeredRaw !== null) {
+            answeredFilterEl.value = answeredRaw === "true" ? "all" : "hide_answered";
+          } else {
+            answeredFilterEl.value = "all";
+          }
         }
         if (reportRaw !== null) {
           state.reportMode = reportRaw === "true";
@@ -6493,12 +6715,12 @@
       function saveTagVisibility() {
         const answerToggle = document.getElementById("toggleAnswer");
         const explanationToggle = document.getElementById("toggleExplanation");
-        const answeredToggle = document.getElementById("showAnswered");
+        const answeredFilterEl = document.getElementById("answeredFilter");
         localStorage.setItem("showTags", String(state.showTags));
         localStorage.setItem("showSubtopics", String(state.showSubtopics));
         if (answerToggle) localStorage.setItem("showAnswer", String(answerToggle.checked));
         if (explanationToggle) localStorage.setItem("showExplanation", String(explanationToggle.checked));
-        if (answeredToggle) localStorage.setItem("showAnswered", String(answeredToggle.checked));
+        if (answeredFilterEl) localStorage.setItem("answeredFilter", answeredFilterEl.value);
         localStorage.setItem("reportMode", String(state.reportMode));
         localStorage.setItem("uiMode", state.uiMode);
         localStorage.setItem("fontScale", state.fontScale);
@@ -6848,7 +7070,10 @@
         const sessionTo = document.getElementById("sessionTo").value;
         const progressState = document.getElementById("progressStateFilter").value;
         const sortSession = document.getElementById("sortSession").value;
-        const showAnswered = document.getElementById("showAnswered").checked;
+        const answeredFilterEl = document.getElementById("answeredFilter");
+        const answeredFilter = isRoleAtLeast("student")
+          ? "all"
+          : ((answeredFilterEl && answeredFilterEl.value) || "all");
         const parts = [];
         if (keyword) parts.push(`キーワード: ${keyword}`);
         if (keyword) {
@@ -6911,7 +7136,10 @@
           const label = sortLabels[sortSession] || "新しい順";
           parts.push(`並び替え: ${label}`);
         }
-        if (showAnswered) parts.push("回答済みを表示");
+        if (!isRoleAtLeast("student")) {
+          if (answeredFilter === "hide_answered") parts.push("回答: 回答済みを非表示");
+          if (answeredFilter === "only_answered") parts.push("回答: 回答済みのみ表示");
+        }
         return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
       }
 

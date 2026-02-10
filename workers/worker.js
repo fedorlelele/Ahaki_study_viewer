@@ -100,6 +100,17 @@ async function handleAdmin(request, env) {
     return jsonResponse({ message: "Method not allowed" }, 405);
   }
 
+  if (path === "/admin/ai_usage") {
+    if (!isRoleAtLeast(role, "admin")) {
+      return jsonResponse({ message: "Forbidden" }, 403);
+    }
+    if (request.method !== "GET") {
+      return jsonResponse({ message: "Method not allowed" }, 405);
+    }
+    const days = Number(url.searchParams.get("days") || "30");
+    return listAiUsage(env, days);
+  }
+
   return jsonResponse({ message: "Not found" }, 404);
 }
 
@@ -186,6 +197,14 @@ async function handleAi(request, env) {
   const fallbackModel = "gemini-3-flash-preview";
   const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
   if (!limit.ok) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "deep_dive",
+      outcome: "rate_limited",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: requestedModel
+    });
     return jsonResponse({ message: limit.message }, 429);
   }
   const payload = {
@@ -215,6 +234,14 @@ async function handleAi(request, env) {
     const errorText = await resp.text();
     const parsedError = parseGeminiError(errorText);
     if (isGeminiRateLimit(resp.status, parsedError)) {
+      await safeLogAiUsage(env, {
+        mode: gemini.mode,
+        endpoint: "deep_dive",
+        outcome: "rate_limited",
+        serial,
+        user_id: user && user.id ? user.id : null,
+        model: usedModel
+      });
       return jsonResponse(
         {
           message: "Gemini API rate limit",
@@ -225,6 +252,14 @@ async function handleAi(request, env) {
         429
       );
     }
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "deep_dive",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
     return jsonResponse(
       { message: "Gemini API error", model: usedModel, mode: gemini.mode, detail: parsedError.detail },
       500
@@ -239,6 +274,14 @@ async function handleAi(request, env) {
     explanation: parsed.explanation || "",
     tags: parsed.tags || [],
     created_by: user && user.id ? user.id : null
+  });
+  await safeLogAiUsage(env, {
+    mode: gemini.mode,
+    endpoint: "deep_dive",
+    outcome: "success",
+    serial,
+    user_id: user && user.id ? user.id : null,
+    model: usedModel
   });
   return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags, mode: gemini.mode });
 }
@@ -491,6 +534,14 @@ async function handleQuestionQa(request, env) {
   const fallbackModel = "gemini-3-flash-preview";
   const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
   if (!limit.ok) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "question_qa",
+      outcome: "rate_limited",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: requestedModel
+    });
     return jsonResponse({ message: limit.message }, 429);
   }
   const payload = {
@@ -520,6 +571,14 @@ async function handleQuestionQa(request, env) {
     const errorText = await resp.text();
     const parsedError = parseGeminiError(errorText);
     if (isGeminiRateLimit(resp.status, parsedError)) {
+      await safeLogAiUsage(env, {
+        mode: gemini.mode,
+        endpoint: "question_qa",
+        outcome: "rate_limited",
+        serial,
+        user_id: user && user.id ? user.id : null,
+        model: usedModel
+      });
       return jsonResponse(
         {
           message: "Gemini API rate limit",
@@ -530,6 +589,14 @@ async function handleQuestionQa(request, env) {
         429
       );
     }
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "question_qa",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
     return jsonResponse(
       {
         message: "Gemini API error",
@@ -551,6 +618,14 @@ async function handleQuestionQa(request, env) {
     question: parsed.question || question,
     answer: parsed.answer || "",
     created_by: user && user.id ? user.id : null
+  });
+  await safeLogAiUsage(env, {
+    mode: gemini.mode,
+    endpoint: "question_qa",
+    outcome: status === "ok" ? "success" : "irrelevant",
+    serial,
+    user_id: user && user.id ? user.id : null,
+    model: usedModel
   });
   return jsonResponse({
     status,
@@ -1464,6 +1539,133 @@ async function listRoleChanges(env, limit) {
     return jsonResponse({ message: "Supabase query failed", detail: data }, 500);
   }
   return jsonResponse({ ok: true, items: data || [] });
+}
+
+function createAiUsageBucket() {
+  return {
+    all: 0,
+    success: 0,
+    irrelevant: 0,
+    rate_limited: 0,
+    error: 0
+  };
+}
+
+function normalizeAiUsageMode(mode) {
+  return mode === "paid" ? "paid" : "free";
+}
+
+function normalizeAiUsageOutcome(outcome) {
+  const value = String(outcome || "").trim().toLowerCase();
+  if (value === "success") return "success";
+  if (value === "irrelevant") return "irrelevant";
+  if (value === "rate_limited" || value === "rate-limit" || value === "ratelimited") return "rate_limited";
+  return "error";
+}
+
+async function listAiUsage(env, days) {
+  const safeDays = Math.max(1, Math.min(90, Number(days || 30)));
+  const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/ai_usage_logs` +
+    `?select=created_at,mode,endpoint,outcome` +
+    `&created_at=gte.${encodeURIComponent(since)}` +
+    `&order=created_at.desc&limit=20000`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    return jsonResponse({ message: "Supabase query failed", detail: data }, 500);
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  const totals = {
+    free: createAiUsageBucket(),
+    paid: createAiUsageBucket()
+  };
+  const byDayMap = {};
+  const byEndpointMap = {};
+
+  rows.forEach((row) => {
+    const mode = normalizeAiUsageMode(row && row.mode);
+    const outcome = normalizeAiUsageOutcome(row && row.outcome);
+    const endpoint = String((row && row.endpoint) || "").trim() || "unknown";
+    const date = String((row && row.created_at) || "").slice(0, 10) || "";
+
+    totals[mode].all += 1;
+    totals[mode][outcome] += 1;
+
+    if (date) {
+      if (!byDayMap[date]) {
+        byDayMap[date] = {
+          date,
+          free: createAiUsageBucket(),
+          paid: createAiUsageBucket()
+        };
+      }
+      byDayMap[date][mode].all += 1;
+      byDayMap[date][mode][outcome] += 1;
+    }
+
+    if (!byEndpointMap[endpoint]) {
+      byEndpointMap[endpoint] = {
+        endpoint,
+        free: createAiUsageBucket(),
+        paid: createAiUsageBucket()
+      };
+    }
+    byEndpointMap[endpoint][mode].all += 1;
+    byEndpointMap[endpoint][mode][outcome] += 1;
+  });
+
+  const byDay = Object.values(byDayMap).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const byEndpoint = Object.values(byEndpointMap).sort(
+    (a, b) => (b.free.all + b.paid.all) - (a.free.all + a.paid.all)
+  );
+
+  return jsonResponse({
+    ok: true,
+    days: safeDays,
+    since,
+    count: rows.length,
+    totals,
+    by_day: byDay,
+    by_endpoint: byEndpoint
+  });
+}
+
+async function safeLogAiUsage(env, payload) {
+  try {
+    await logAiUsage(env, payload);
+  } catch (_err) {
+    // no-op
+  }
+}
+
+async function logAiUsage(env, payload) {
+  const body = {
+    created_at: new Date().toISOString(),
+    mode: normalizeAiUsageMode(payload && payload.mode),
+    endpoint: String((payload && payload.endpoint) || "").trim() || "unknown",
+    outcome: normalizeAiUsageOutcome(payload && payload.outcome),
+    serial: payload && payload.serial ? String(payload.serial) : null,
+    user_id: payload && payload.user_id ? String(payload.user_id) : null,
+    model: payload && payload.model ? String(payload.model) : null
+  };
+  await fetch(`${env.SUPABASE_URL}/rest/v1/ai_usage_logs`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
 }
 
 async function logRoleChange(env, payload) {
