@@ -4935,22 +4935,6 @@
         });
         document.getElementById("subjectSelect").addEventListener("change", (e) => {
           updateSubtopicOptions(e.target.value);
-          renderResults(filterQuestions());
-        });
-        document.getElementById("subtopicSelect").addEventListener("change", () => {
-          renderResults(filterQuestions());
-        });
-        document.getElementById("examTypeSelect").addEventListener("change", () => {
-          renderResults(filterQuestions());
-        });
-        document.getElementById("sessionFrom").addEventListener("input", () => {
-          renderResults(filterQuestions());
-        });
-        document.getElementById("sessionTo").addEventListener("input", () => {
-          renderResults(filterQuestions());
-        });
-        document.getElementById("progressStateFilter").addEventListener("change", () => {
-          renderResults(filterQuestions());
         });
         document.getElementById("sortSession").addEventListener("change", () => {
           renderResults(filterQuestions());
@@ -4959,33 +4943,28 @@
         if (answeredFilterEl) {
           answeredFilterEl.addEventListener("change", () => {
             saveTagVisibility();
-            renderResults(filterQuestions());
           });
         }
         document.getElementById("showTagsToggle").addEventListener("change", (e) => {
           state.showTags = e.target.checked;
           saveTagVisibility();
-          renderResults(filterQuestions());
         });
         document.getElementById("showSubtopicsToggle").addEventListener("change", (e) => {
           state.showSubtopics = e.target.checked;
           saveTagVisibility();
-          renderResults(filterQuestions());
         });
         document.getElementById("toggleAnswer").addEventListener("change", () => {
           saveTagVisibility();
-          renderResults(filterQuestions());
         });
         document.getElementById("toggleExplanation").addEventListener("change", () => {
           saveTagVisibility();
-          renderResults(filterQuestions());
         });
         const uiModeSelect = document.getElementById("uiModeSelect");
         if (uiModeSelect) {
           uiModeSelect.addEventListener("change", (e) => {
             state.uiMode = e.target.value === "accessible" ? "accessible" : "standard";
             saveTagVisibility();
-            renderResults(filterQuestions());
+            applyUiPreferences();
           });
         }
         const fontScaleSelect = document.getElementById("fontScaleSelect");
@@ -4994,7 +4973,7 @@
             const next = e.target.value;
             state.fontScale = next === "large" || next === "xlarge" ? next : "normal";
             saveTagVisibility();
-            renderResults(filterQuestions());
+            applyUiPreferences();
           });
         }
         const highContrastToggle = document.getElementById("highContrastToggle");
@@ -5002,7 +4981,7 @@
           highContrastToggle.addEventListener("change", (e) => {
             state.highContrast = !!e.target.checked;
             saveTagVisibility();
-            renderResults(filterQuestions());
+            applyUiPreferences();
           });
         }
 
@@ -5019,7 +4998,6 @@
           editModeToggle.addEventListener("change", () => {
             state.editMode = editModeToggle.checked;
             saveTagVisibility();
-            renderResults(filterQuestions());
           });
         }
 
