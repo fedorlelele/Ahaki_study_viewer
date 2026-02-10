@@ -1559,6 +1559,9 @@
         ,fontScale: "normal"
         ,highContrast: false
         ,editMode: false
+        ,pendingStatSortRefresh: false
+        ,qaDrafts: {}
+        ,authRenderSnapshot: ""
       };
 
       function normalizeRole(role) {
@@ -1586,6 +1589,41 @@
 
       function canUseAiGeneration() {
         return isRoleAtLeast("admin") || state.aiPublicGeneration;
+      }
+
+      function buildAuthRenderSnapshot(session) {
+        const user = session && session.user ? session.user : null;
+        if (!user) return "guest";
+        const role = getUserRole(user) || "unapproved";
+        return `${user.id}|${role}`;
+      }
+
+      function isTextEditingActive() {
+        const active = document.activeElement;
+        if (!active) return false;
+        const tag = (active.tagName || "").toUpperCase();
+        if (tag === "TEXTAREA") return true;
+        if (tag === "INPUT") {
+          const type = (active.type || "").toLowerCase();
+          return [
+            "",
+            "text",
+            "search",
+            "email",
+            "password",
+            "number",
+            "tel",
+            "url"
+          ].includes(type);
+        }
+        return Boolean(active.isContentEditable);
+      }
+
+      function flushDeferredRenderIfSafe() {
+        if (!state.pendingStatSortRefresh) return;
+        if (isTextEditingActive()) return;
+        state.pendingStatSortRefresh = false;
+        renderResults(filterQuestions());
       }
 
       function announceStatus(message) {
@@ -2310,7 +2348,6 @@
           updateAiPublicNotice();
           statusEl.textContent =
             `現在: ${state.aiPublicGeneration ? "公開中" : "管理者限定"} / 管理者従量課金: ${state.aiAdminPaidGeneration ? "ON" : "OFF"}`;
-          renderResults(filterQuestions());
         } catch (_err) {
           statusEl.textContent = "状態の取得に失敗しました。";
         } finally {
@@ -4121,6 +4158,10 @@
             qaInput.style.width = "100%";
             qaInput.style.minHeight = "96px";
             qaInput.hidden = true;
+            qaInput.value = getQaDraft(q.serial);
+            qaInput.addEventListener("input", () => {
+              setQaDraft(q.serial, qaInput.value);
+            });
             const qaToggle = document.createElement("button");
             qaToggle.textContent = "質問を入力";
             qaToggle.addEventListener("click", () => {
@@ -4180,6 +4221,7 @@
                 }
                 qaHeader.textContent = "生成完了";
                 qaInput.value = "";
+                clearQaDraft(q.serial);
                 loadQaItems();
               } catch (_err) {
                 qaHeader.textContent = "生成に失敗しました。";
@@ -4593,7 +4635,8 @@
           }
           await ensureAnswerStatsLoaded(batch.map(item => item.serial));
           if (isStatSort && !statsLoaded && state.answerStatsLoaded.has("*")) {
-            renderResults(filterQuestions());
+            state.pendingStatSortRefresh = true;
+            flushDeferredRenderIfSafe();
             return;
           }
           const resolvedBatch = batch.map(item => applyOverridesToQuestion(item));
@@ -4620,6 +4663,7 @@
         loadAnsweredState();
         loadTagVisibility();
         loadQaLikedState();
+        loadQaDraftState();
         loadTagViewedSessionState();
         updateAiPublicNotice();
         loadSubtopicCatalog();
@@ -4736,6 +4780,11 @@
             });
           }
         }
+        document.addEventListener("focusout", () => {
+          setTimeout(() => {
+            flushDeferredRenderIfSafe();
+          }, 0);
+        });
         if (updateInfo) {
           updateInfo.addEventListener("toggle", () => {
             if (updateInfo.open) {
@@ -5115,10 +5164,23 @@
         });
 
         supabaseClient.auth.getSession().then(({ data }) => {
-          updateAuthUI(data.session);
+          updateAuthUI(data.session, { reason: "INITIAL_SESSION" });
         });
-        supabaseClient.auth.onAuthStateChange((_event, session) => {
-          updateAuthUI(session);
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (event === "TOKEN_REFRESHED") {
+            const nextUser = session && session.user ? session.user : null;
+            const nextRole = nextUser ? (getUserRole(nextUser) || "unapproved") : "guest";
+            const prevUser = state.authSession && state.authSession.user ? state.authSession.user : null;
+            const prevUserId = prevUser ? prevUser.id : "";
+            const nextUserId = nextUser ? nextUser.id : "";
+            const roleChanged = nextRole !== state.currentRole || nextUserId !== prevUserId;
+            state.authSession = session || null;
+            state.teacherSession = roleRank(nextRole) >= 2 ? session : null;
+            if (!roleChanged) {
+              return;
+            }
+          }
+          updateAuthUI(session, { reason: event });
         });
 
         loginBtn.addEventListener("click", async () => {
@@ -5181,7 +5243,17 @@
           message.textContent = "ログアウトしました。";
         });
 
-      async function updateAuthUI(session) {
+      async function updateAuthUI(session, _meta) {
+        const snapshot = buildAuthRenderSnapshot(session);
+        if (snapshot === state.authRenderSnapshot) {
+          const role = snapshot === "guest"
+            ? "guest"
+            : ((session && session.user) ? (getUserRole(session.user) || "unapproved") : "guest");
+          state.authSession = session || null;
+          state.teacherSession = roleRank(role) >= 2 ? session : null;
+          return;
+        }
+        state.authRenderSnapshot = snapshot;
         const user = session && session.user ? session.user : null;
         state.editRequestsBySerial = {};
         state.editRequestsLoaded = new Set();
@@ -5218,6 +5290,7 @@
           loadTagVisibility();
           applyTopMenuRoleVisibility();
           loadQaLikedState();
+          loadQaDraftState();
           renderResults(filterQuestions());
           return;
         }
@@ -5270,6 +5343,7 @@
             applyProgressFilterVisibility();
             applyAnsweredFilterVisibility();
             loadQaLikedState();
+            loadQaDraftState();
             if (isRoleAtLeast("admin")) {
               loadAdminAiGenerationSetting();
               loadAdminAiUsage();
@@ -6545,6 +6619,63 @@
           return `user:${state.authSession.user.id}`;
         }
         return `anon:${getAnonId()}`;
+      }
+
+      function getQaDraftActorId() {
+        if (state.authSession && state.authSession.user && state.authSession.user.id) {
+          return `user:${state.authSession.user.id}`;
+        }
+        return `anon:${getAnonId()}`;
+      }
+
+      function getQaDraftStorageKey() {
+        return `qaDrafts:${getQaDraftActorId()}`;
+      }
+
+      function loadQaDraftState() {
+        state.qaDrafts = {};
+        const key = getQaDraftStorageKey();
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        try {
+          const data = JSON.parse(raw);
+          if (!data || typeof data !== "object") return;
+          Object.keys(data).forEach((serial) => {
+            const text = typeof data[serial] === "string" ? data[serial] : "";
+            if (text.trim()) state.qaDrafts[serial] = text;
+          });
+        } catch (_err) {
+          localStorage.removeItem(key);
+        }
+      }
+
+      function saveQaDraftState() {
+        const key = getQaDraftStorageKey();
+        localStorage.setItem(key, JSON.stringify(state.qaDrafts || {}));
+      }
+
+      function getQaDraft(serial) {
+        if (!serial) return "";
+        return state.qaDrafts[serial] || "";
+      }
+
+      function setQaDraft(serial, text) {
+        if (!serial) return;
+        const value = String(text || "");
+        if (!value.trim()) {
+          delete state.qaDrafts[serial];
+        } else {
+          state.qaDrafts[serial] = value;
+        }
+        saveQaDraftState();
+      }
+
+      function clearQaDraft(serial) {
+        if (!serial) return;
+        if (Object.prototype.hasOwnProperty.call(state.qaDrafts, serial)) {
+          delete state.qaDrafts[serial];
+          saveQaDraftState();
+        }
       }
 
       function getQaLikedStorageKey() {

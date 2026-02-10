@@ -1377,37 +1377,105 @@ HTML_PAGE = """<!doctype html>
 """
 
 
+def _env_first(names, default=""):
+    for name in names:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return default
+
+
+def _env_first_int(names, default):
+    for name in names:
+        value = (os.environ.get(name) or "").strip()
+        if not value:
+            continue
+        try:
+            return int(value)
+        except ValueError:
+            continue
+    return default
+
+
+def load_env_file(path):
+    if not path.exists() or not path.is_file():
+        return
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        value = value.strip()
+        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        elif " #" in value:
+            value = value.split(" #", 1)[0].strip()
+        os.environ.setdefault(key, value)
+
+
+def load_environment():
+    repo_root = Path(__file__).resolve().parent
+    env_candidates = [Path.cwd() / ".env", repo_root / ".env"]
+    seen = set()
+    for env_path in env_candidates:
+        key = str(env_path.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        load_env_file(env_path)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Local admin server.")
     parser.add_argument(
         "--db",
-        default="output/ahaki.sqlite",
+        default=_env_first(["AHAKI_ADMIN_DB", "AHAKI_DB"], "output/ahaki.sqlite"),
         help="Path to SQLite database.",
     )
     parser.add_argument(
         "--host",
-        default="127.0.0.1",
+        default=_env_first(["AHAKI_ADMIN_HOST", "AHAKI_HOST"], "127.0.0.1"),
         help="Host to bind.",
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=8000,
+        default=_env_first_int(["AHAKI_ADMIN_PORT", "AHAKI_PORT"], 8000),
         help="Port to bind.",
     )
     parser.add_argument(
         "--subtopics",
-        default="config/subtopics_catalog.json",
+        default=_env_first(
+            ["AHAKI_ADMIN_SUBTOPICS", "AHAKI_SUBTOPICS"],
+            "config/subtopics_catalog.json",
+        ),
         help="Path to subtopics catalog JSON.",
     )
     parser.add_argument(
         "--prompt-sample",
-        default="resources/custum_prompt_sample.txt",
+        default=_env_first(
+            ["AHAKI_ADMIN_PROMPT_SAMPLE", "AHAKI_PROMPT_SAMPLE"],
+            "resources/custum_prompt_sample.txt",
+        ),
         help="Path to explanation prompt sample text.",
     )
     parser.add_argument(
         "--downloads",
-        default="/Users/nishitani/Downloads",
+        default=_env_first(
+            ["AHAKI_ADMIN_DOWNLOADS", "AHAKI_DOWNLOADS"],
+            "/Users/nishitani/Downloads",
+        ),
         help="Downloads directory for batch import.",
     )
     return parser.parse_args()
@@ -4796,6 +4864,7 @@ def run_build_all(repo_root):
 
 
 def main():
+    load_environment()
     args = parse_args()
     db_path = Path(args.db)
     catalog_path = Path(args.subtopics)

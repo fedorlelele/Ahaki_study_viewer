@@ -98,11 +98,23 @@ python -m http.server 8000
 
 ### 6.2 ローカル管理画面
 
+`local_admin_app.py` は起動時に `.env` を自動読み込みします。  
+`SUPABASE_URL` / `SUPABASE_SERVICE_KEY` を毎回コマンド前置きする必要はありません。
+
 ```bash
 python local_admin_app.py --port 8001
 ```
 
 - `http://127.0.0.1:8001/`
+
+任意で以下の環境変数を使って起動デフォルトを変更できます。
+
+- `AHAKI_ADMIN_DB`
+- `AHAKI_ADMIN_HOST`
+- `AHAKI_ADMIN_PORT`
+- `AHAKI_ADMIN_SUBTOPICS`
+- `AHAKI_ADMIN_PROMPT_SAMPLE`
+- `AHAKI_ADMIN_DOWNLOADS`
 
 ## 7. 日常運用フロー
 
@@ -189,4 +201,3 @@ python scripts/run_gemini_combined.py --limit 20 --batches 3 --sleep-seconds 20
 - Supabase差分が反映されない
   - `web_app/config.js` のURL/キーを確認
   - Worker URLとRLS設定を確認
-
