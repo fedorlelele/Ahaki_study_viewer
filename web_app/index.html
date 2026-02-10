@@ -1632,6 +1632,15 @@
         el.textContent = message || "";
       }
 
+      function announceStatusNow(message) {
+        const el = document.getElementById("srStatus");
+        if (!el) return;
+        el.textContent = "";
+        setTimeout(() => {
+          el.textContent = message || "";
+        }, 20);
+      }
+
       function applyUiPreferences() {
         document.body.classList.toggle("ui-mode-accessible", state.uiMode === "accessible");
         document.body.classList.toggle("high-contrast", !!state.highContrast);
@@ -3432,12 +3441,16 @@
           const tagDesc = document.createElement("div");
           tagDesc.className = "tag-description";
           tagDesc.hidden = true;
+          tagDesc.setAttribute("tabindex", "-1");
           let currentTagDescription = "";
-          const renderTagDescription = (tag) => {
+          const renderTagDescription = (tag, anchorEl) => {
             if (!tag) return;
             if (!tagDesc.hidden && currentTagDescription === tag) {
               tagDesc.hidden = true;
               currentTagDescription = "";
+              if (anchorEl && typeof anchorEl.focus === "function") {
+                anchorEl.focus();
+              }
               return;
             }
             const meta = state.tagCatalogByTag[tag] || {};
@@ -3526,8 +3539,17 @@
             if (filters.childNodes.length) {
               tagDesc.appendChild(filters);
             }
+            if (anchorEl && anchorEl.parentNode) {
+              anchorEl.parentNode.insertBefore(tagDesc, anchorEl.nextSibling);
+            }
             tagDesc.hidden = false;
             currentTagDescription = tag;
+            announceStatusNow(`タグ ${tag} の説明を表示しました`);
+            setTimeout(() => {
+              if (!tagDesc.hidden) {
+                tagDesc.focus();
+              }
+            }, 0);
             if (!state.tagViewedSession.has(tag)) {
               state.tagViewedSession.add(tag);
               saveTagViewedSessionState();
@@ -3537,12 +3559,12 @@
             }
           };
           let renderDeepDiveTagDescription = null;
-          const openTagDescriptionFromDeepDive = (tag) => {
+          const openTagDescriptionFromDeepDive = (tag, anchorEl) => {
             if (typeof renderDeepDiveTagDescription === "function") {
-              renderDeepDiveTagDescription(tag);
+              renderDeepDiveTagDescription(tag, anchorEl);
               return;
             }
-            renderTagDescription(tag);
+            renderTagDescription(tag, anchorEl);
           };
           let showAllTags = false;
           const renderTagButtons = () => {
@@ -3564,7 +3586,7 @@
                 link.title = "説明あり";
               }
               link.addEventListener("click", () => {
-                renderTagDescription(tag);
+                renderTagDescription(tag, link);
               });
               tagItems.appendChild(link);
             });
@@ -4189,6 +4211,7 @@
                 return;
               }
               qaHeader.textContent = "生成中...";
+              announceStatusNow("Q&Aを生成中です");
               qaSend.disabled = true;
               try {
                 const headers = { "Content-Type": "application/json" };
@@ -4217,14 +4240,17 @@
                 }
                 if (payload.status === "irrelevant") {
                   qaHeader.textContent = "質問が問題と無関係と判定されました。";
+                  announceStatusNow("質問が問題と無関係と判定されました");
                   return;
                 }
                 qaHeader.textContent = "生成完了";
+                announceStatusNow("Q&A生成が完了しました");
                 qaInput.value = "";
                 clearQaDraft(q.serial);
                 loadQaItems();
               } catch (_err) {
                 qaHeader.textContent = "生成に失敗しました。";
+                announceStatusNow("Q&A生成に失敗しました");
               } finally {
                 qaSend.disabled = false;
               }
@@ -4305,13 +4331,17 @@
           const deepDiveTagDesc = document.createElement("div");
           deepDiveTagDesc.className = "tag-description";
           deepDiveTagDesc.hidden = true;
+          deepDiveTagDesc.setAttribute("tabindex", "-1");
           deepDivePanel.appendChild(deepDiveTagDesc);
           let currentDeepDiveTagDescription = "";
-          renderDeepDiveTagDescription = (tag) => {
+          renderDeepDiveTagDescription = (tag, anchorEl) => {
             if (!tag) return;
             if (!deepDiveTagDesc.hidden && currentDeepDiveTagDescription === tag) {
               deepDiveTagDesc.hidden = true;
               currentDeepDiveTagDescription = "";
+              if (anchorEl && typeof anchorEl.focus === "function") {
+                anchorEl.focus();
+              }
               return;
             }
             const meta = state.tagCatalogByTag[tag] || {};
@@ -4400,8 +4430,17 @@
             if (filters.childNodes.length) {
               deepDiveTagDesc.appendChild(filters);
             }
+            if (anchorEl && anchorEl.parentNode) {
+              anchorEl.parentNode.insertBefore(deepDiveTagDesc, anchorEl.nextSibling);
+            }
             deepDiveTagDesc.hidden = false;
             currentDeepDiveTagDescription = tag;
+            announceStatusNow(`タグ ${tag} の説明を表示しました`);
+            setTimeout(() => {
+              if (!deepDiveTagDesc.hidden) {
+                deepDiveTagDesc.focus();
+              }
+            }, 0);
             if (!state.tagViewedSession.has(tag)) {
               state.tagViewedSession.add(tag);
               saveTagViewedSessionState();
@@ -4409,7 +4448,6 @@
                 info.textContent = `関連問題: ${relatedCount}件 / 閲覧: ${count}`;
               });
             }
-            deepDiveTagDesc.scrollIntoView({ block: "nearest" });
           };
           const deepDiveMeta = document.createElement("div");
           deepDiveMeta.className = "note inline-meta";
@@ -4456,7 +4494,7 @@
                     chip.title = "説明あり";
                   }
                   chip.addEventListener("click", () => {
-                    openTagDescriptionFromDeepDive(tag);
+                    openTagDescriptionFromDeepDive(tag, chip);
                   });
                   deepDiveTags.appendChild(chip);
                 });
@@ -4520,6 +4558,7 @@
               }
               showDeepDivePanel();
               deepDiveStatus.textContent = "生成中...";
+              announceStatusNow("深掘り解説を生成中です");
               deepDiveRawText = "";
               deepDiveCopyBtn.disabled = true;
               deepDiveBody.innerHTML = "";
@@ -4549,11 +4588,13 @@
                 const parsed = parseDeepDiveResponse(text);
                 renderDeepDive(parsed.explanation || text || "", parsed.tags || []);
                 deepDiveStatus.textContent = "生成完了";
+                announceStatusNow("深掘り解説の生成が完了しました");
                 state.deepDiveSerials.add(q.serial);
                 hasDeepDive = true;
                 updateDeepDiveMainButton();
               } catch (err) {
                 deepDiveStatus.textContent = "生成に失敗しました。";
+                announceStatusNow("深掘り解説の生成に失敗しました");
                 deepDiveRawText = String(err || "");
                 deepDiveCopyBtn.disabled = !deepDiveRawText;
                 renderMarkdownToElement(deepDiveBody, deepDiveRawText);
@@ -6509,6 +6550,7 @@
         if (feedback) {
           feedback.textContent = isCorrect ? "正解" : "不正解";
         }
+        announceStatusNow(isCorrect ? "正解です" : "不正解です");
         const card = button.closest(".card");
         if (card) {
           card.classList.add("show-explanation");
