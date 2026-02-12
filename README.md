@@ -185,6 +185,29 @@ python scripts/run_gemini_combined.py --limit 20 --batches 3 --sleep-seconds 20
 - `--thinking-budget`: 思考予算
 - `--rebuild-web` / `--no-rebuild-web`: JSON再生成の有無
 
+### 10.1 深掘り解説の一括生成 (CLI)
+
+深掘り解説（`deep_dive_explanations`）を Gemini で生成し、SQLite に直接登録します。  
+対象は **未生成（`deep_dive_explanations` に未登録）** の問題のみです。
+
+実行例:
+
+```bash
+# freeキーで生成
+python scripts/run_gemini_deep_dive.py --limit 20 --api-key-source free
+
+# paidキーで生成
+python scripts/run_gemini_deep_dive.py --limit 20 --api-key-source paid
+```
+
+主なオプション:
+
+- `--api-key-source`: `free` / `paid` / `auto` / `legacy`
+- `--serials`: 対象シリアル指定（例: `A01-001,A01-002` or `A01-001..A01-020`）
+- `--exam-type` / `--exam-session` / `--subject`: 生成対象フィルタ
+- `--max-retries`: API/出力形式エラー時の再試行回数
+- `--dry-run`: 1件分のプロンプトを表示して終了
+
 ## 11. バックアップ
 
 最重要は `output/ahaki.sqlite` です。  
