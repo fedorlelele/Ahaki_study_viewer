@@ -25,6 +25,15 @@
 - Gemini中継: `https://<worker>.workers.dev/ai/*`
 - API使用状況: `https://<worker>.workers.dev/admin/ai_usage?days=30`（adminのみ）
 
+主なタグ学習API:
+
+- `GET /ai/tag_deep_dive?tag=...`
+- `POST /ai/tag_deep_dive`
+- `GET /ai/tag_qa?tag=...`
+- `POST /ai/tag_qa`
+- `POST /ai/tag_qa/view`
+- `POST /ai/tag_qa/like`
+
 ## WebUI側の設定
 `web_app/config.js` に以下を追加:
 
@@ -37,3 +46,4 @@ window.AI_API_BASE = "https://<worker>.workers.dev";
 - admin APIはSupabase JWTが必須です（Bearer token）。
 - 管理APIはteacher以上、権限変更はadminのみ許可されます。
 - `workers/sql/ai_usage_logs.sql` を Supabase SQL Editor で実行すると、free/paid別のAI利用集計が利用できます。
+- タグ学習機能を使う場合は `workers/sql/tag_study_tables.sql` を Supabase SQL Editor で実行してください。

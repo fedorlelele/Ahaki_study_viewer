@@ -148,6 +148,38 @@ async function handleAi(request, env) {
     const body = await readJson(request);
     return incrementQaCounter(env, body, "like_count");
   }
+  if (path === "/ai/tag_deep_dive") {
+    if (request.method === "GET") {
+      const tag = (url.searchParams.get("tag") || "").trim();
+      if (!tag) {
+        return jsonResponse({ message: "tag is required" }, 400);
+      }
+      return fetchTagDeepDive(env, tag);
+    }
+    if (request.method === "POST") {
+      return handleTagDeepDive(request, env);
+    }
+  }
+  if (path === "/ai/tag_qa") {
+    if (request.method === "GET") {
+      const tag = (url.searchParams.get("tag") || "").trim();
+      if (!tag) {
+        return jsonResponse({ message: "tag is required" }, 400);
+      }
+      return fetchTagQa(env, tag);
+    }
+    if (request.method === "POST") {
+      return handleTagQa(request, env);
+    }
+  }
+  if (path === "/ai/tag_qa/view" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementTagQaCounter(env, body, "view_count");
+  }
+  if (path === "/ai/tag_qa/like" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementTagQaCounter(env, body, "like_count");
+  }
   if (path === "/ai/tag_views" && request.method === "GET") {
     const tags = (url.searchParams.get("tags") || "")
       .split(",")
@@ -475,6 +507,22 @@ async function hasDeepDive(env, serial) {
   return Array.isArray(rows) && rows.length > 0;
 }
 
+async function hasTagDeepDive(env, tag) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/tag_deep_dive_explanations?select=tag&tag=eq.${encodeURIComponent(tag)}&limit=1`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) return false;
+  const rows = await resp.json();
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 function parseGeminiError(errorText) {
   const raw = String(errorText || "");
   let parsed = null;
@@ -635,6 +683,363 @@ async function handleQuestionQa(request, env) {
   });
 }
 
+async function handleTagDeepDive(request, env) {
+  const user = await authenticate(request, env);
+  const role = user ? getRole(user) : "";
+  const allowPublic = await getAiGenerationEnabled(env);
+  if (!allowPublic && !isRoleAtLeast(role, "admin")) {
+    return jsonResponse({ message: "Forbidden" }, 403);
+  }
+  const body = await readJson(request);
+  const tag = String(body.tag || "").trim();
+  const force = Boolean(body.force);
+  if (!tag) {
+    return jsonResponse({ message: "tag is required" }, 400);
+  }
+  const exists = await hasTagDeepDive(env, tag);
+  if (exists && !force) {
+    return jsonResponse({ message: "タグ深掘り解説は既に保存されています。" }, 409);
+  }
+  const prompt = buildTagDeepDivePrompt(body);
+  const gemini = await resolveGeminiRoute(env, role);
+  if (!gemini.apiKey) {
+    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+  }
+  const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
+  const fallbackModel = "gemini-3-flash-preview";
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  if (!limit.ok) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "tag_deep_dive",
+      outcome: "rate_limited",
+      serial: `tag:${tag}`,
+      user_id: user && user.id ? user.id : null,
+      model: requestedModel
+    });
+    return jsonResponse({ message: limit.message }, 429);
+  }
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ]
+  };
+  const callGemini = (model) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+  let usedModel = requestedModel;
+  let resp = await callGemini(usedModel);
+  if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
+    usedModel = fallbackModel;
+    resp = await callGemini(usedModel);
+  }
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    const parsedError = parseGeminiError(errorText);
+    if (isGeminiRateLimit(resp.status, parsedError)) {
+      await safeLogAiUsage(env, {
+        mode: gemini.mode,
+        endpoint: "tag_deep_dive",
+        outcome: "rate_limited",
+        serial: `tag:${tag}`,
+        user_id: user && user.id ? user.id : null,
+        model: usedModel
+      });
+      return jsonResponse(
+        {
+          message: "Gemini API rate limit",
+          model: usedModel,
+          mode: gemini.mode,
+          detail: parsedError.detail
+        },
+        429
+      );
+    }
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "tag_deep_dive",
+      outcome: "error",
+      serial: `tag:${tag}`,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
+    return jsonResponse(
+      {
+        message: "Gemini API error",
+        model: usedModel,
+        mode: gemini.mode,
+        detail: parsedError.detail
+      },
+      500
+    );
+  }
+  const data = await resp.json();
+  const text =
+    data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const parsed = parseTagDeepDive(text);
+  const updatedAt = await upsertTagDeepDive(env, {
+    tag,
+    explanation: parsed.explanation || text || "",
+    created_by: user && user.id ? user.id : null,
+    model: usedModel
+  });
+  await safeLogAiUsage(env, {
+    mode: gemini.mode,
+    endpoint: "tag_deep_dive",
+    outcome: "success",
+    serial: `tag:${tag}`,
+    user_id: user && user.id ? user.id : null,
+    model: usedModel
+  });
+  return jsonResponse({
+    tag,
+    explanation: parsed.explanation || text || "",
+    mode: gemini.mode,
+    model: usedModel,
+    updated_at: updatedAt
+  });
+}
+
+function buildTagDeepDivePrompt(body) {
+  const tag = String(body.tag || "").trim();
+  const canonical = String(body.canonical_tag || tag || "").trim();
+  const description = String(body.description || "").trim();
+  const aliases = Array.isArray(body.aliases)
+    ? body.aliases.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const relatedTags = Array.isArray(body.related_tags)
+    ? body.related_tags.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const subjects = Array.isArray(body.subjects)
+    ? body.subjects.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const subtopics = Array.isArray(body.subtopics)
+    ? body.subtopics.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const sampleSerials = Array.isArray(body.sample_serials)
+    ? body.sample_serials.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+
+  return [
+    "あなたは医療系国家試験のタグ学習ガイド作成AIです。",
+    "以下のタグ情報をもとに、学習者が用語を深く理解できるような解説を作成してください。",
+    "",
+    "【タグ情報】",
+    `タグ: ${tag || "（不明）"}`,
+    `正規タグ: ${canonical || "（不明）"}`,
+    `説明: ${description || "（未登録）"}`,
+    `別名: ${aliases.length ? aliases.join(" / ") : "（なし）"}`,
+    `関連タグ: ${relatedTags.length ? relatedTags.join(" / ") : "（なし）"}`,
+    `科目: ${subjects.length ? subjects.join(" / ") : "（なし）"}`,
+    `小項目: ${subtopics.length ? subtopics.join(" / ") : "（なし）"}`,
+    `関連問題シリアル例: ${sampleSerials.length ? sampleSerials.join(", ") : "（なし）"}`,
+    "",
+    "【出力要件】",
+    "- explanation はMarkdownで作成する",
+    "- 構成例: 1)定義 2)病態・機序 3)関連疾患/鑑別 4)試験での問われ方 5)覚え方",
+    "- 医学的に不確かな内容は断定しすぎない",
+    "- 日本語で、目安700〜1800文字",
+    "",
+    "【出力形式（JSONのみ）】",
+    "{\"explanation\":\"...\"}"
+  ].join("\n");
+}
+
+function parseTagDeepDive(text) {
+  if (!text) return { explanation: "" };
+  try {
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}");
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      const json = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      return { explanation: String(json.explanation || "").trim() };
+    }
+  } catch (_err) {
+    // fall through
+  }
+  return { explanation: String(text || "").trim() };
+}
+
+async function handleTagQa(request, env) {
+  const user = await authenticate(request, env);
+  const role = user ? getRole(user) : "";
+  const allowPublic = await getAiGenerationEnabled(env);
+  if (!allowPublic && !isRoleAtLeast(role, "admin")) {
+    return jsonResponse({ message: "Forbidden" }, 403);
+  }
+  const body = await readJson(request);
+  const tag = String(body.tag || "").trim();
+  const question = String(body.question || "").trim();
+  if (!tag || !question) {
+    return jsonResponse({ message: "tag and question are required" }, 400);
+  }
+  const prompt = buildTagQaPrompt(body);
+  const gemini = await resolveGeminiRoute(env, role);
+  if (!gemini.apiKey) {
+    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+  }
+  const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
+  const fallbackModel = "gemini-3-flash-preview";
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  if (!limit.ok) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "tag_qa",
+      outcome: "rate_limited",
+      serial: `tag:${tag}`,
+      user_id: user && user.id ? user.id : null,
+      model: requestedModel
+    });
+    return jsonResponse({ message: limit.message }, 429);
+  }
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ]
+  };
+  const callGemini = (model) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+  let usedModel = requestedModel;
+  let resp = await callGemini(usedModel);
+  if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
+    usedModel = fallbackModel;
+    resp = await callGemini(usedModel);
+  }
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    const parsedError = parseGeminiError(errorText);
+    if (isGeminiRateLimit(resp.status, parsedError)) {
+      await safeLogAiUsage(env, {
+        mode: gemini.mode,
+        endpoint: "tag_qa",
+        outcome: "rate_limited",
+        serial: `tag:${tag}`,
+        user_id: user && user.id ? user.id : null,
+        model: usedModel
+      });
+      return jsonResponse(
+        {
+          message: "Gemini API rate limit",
+          model: usedModel,
+          mode: gemini.mode,
+          detail: parsedError.detail
+        },
+        429
+      );
+    }
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "tag_qa",
+      outcome: "error",
+      serial: `tag:${tag}`,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
+    return jsonResponse(
+      {
+        message: "Gemini API error",
+        model: usedModel,
+        mode: gemini.mode,
+        detail: parsedError.detail
+      },
+      500
+    );
+  }
+  const data = await resp.json();
+  const text =
+    data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const parsed = parseQuestionQa(text);
+  const status = parsed.status || "irrelevant";
+  await saveTagQa(env, {
+    tag,
+    status,
+    question: parsed.question || question,
+    answer: parsed.answer || "",
+    created_by: user && user.id ? user.id : null
+  });
+  await safeLogAiUsage(env, {
+    mode: gemini.mode,
+    endpoint: "tag_qa",
+    outcome: status === "ok" ? "success" : "irrelevant",
+    serial: `tag:${tag}`,
+    user_id: user && user.id ? user.id : null,
+    model: usedModel
+  });
+  return jsonResponse({
+    status,
+    question: parsed.question || question,
+    answer: parsed.answer || "",
+    mode: gemini.mode
+  });
+}
+
+function buildTagQaPrompt(body) {
+  const tag = String(body.tag || "").trim();
+  const question = String(body.question || "").trim();
+  const description = String(body.description || "").trim();
+  const aliases = Array.isArray(body.aliases)
+    ? body.aliases.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const relatedTags = Array.isArray(body.related_tags)
+    ? body.related_tags.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const subjects = Array.isArray(body.subjects)
+    ? body.subjects.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const subtopics = Array.isArray(body.subtopics)
+    ? body.subtopics.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const sampleSerials = Array.isArray(body.sample_serials)
+    ? body.sample_serials.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+
+  return [
+    "あなたは医療系国家試験のタグ学習Q&A作成AIです。",
+    "質問がタグ学習に関係するか判定し、関係がある場合は学習が深まる回答を作成してください。",
+    "",
+    "【タグ情報】",
+    `タグ: ${tag || "（不明）"}`,
+    `説明: ${description || "（未登録）"}`,
+    `別名: ${aliases.length ? aliases.join(" / ") : "（なし）"}`,
+    `関連タグ: ${relatedTags.length ? relatedTags.join(" / ") : "（なし）"}`,
+    `科目: ${subjects.length ? subjects.join(" / ") : "（なし）"}`,
+    `小項目: ${subtopics.length ? subtopics.join(" / ") : "（なし）"}`,
+    `関連問題シリアル例: ${sampleSerials.length ? sampleSerials.join(", ") : "（なし）"}`,
+    "",
+    "【ユーザーの質問】",
+    question || "（なし）",
+    "",
+    "【出力形式（JSONのみ）】",
+    "{\"status\":\"ok|irrelevant\",\"question\":\"整形した質問\",\"answer\":\"回答\"}",
+    "",
+    "ルール:",
+    "- 無関係なら status=irrelevant, answerは空にする",
+    "- 関係がある場合は status=ok",
+    "- question は自然な日本語へ整形する",
+    "- answer はMarkdownで、結論→理由→覚え方の順で簡潔にまとめる",
+    "- 回答は日本語、目安400〜1000文字"
+  ].join("\n");
+}
+
 function buildQuestionQaPrompt(body) {
   const caseText = body.case_text || "（なし）";
   const stem = body.stem || "";
@@ -791,6 +1196,79 @@ async function incrementQaCounter(env, body, field) {
   const next = current + 1;
   const update = await fetch(
     `${env.SUPABASE_URL}/rest/v1/question_qa?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ [field]: next })
+    }
+  );
+  if (!update.ok) return jsonResponse({ message: "Supabase update failed" }, 500);
+  return jsonResponse({ ok: true, [field]: next });
+}
+
+async function saveTagQa(env, record) {
+  const payload = {
+    tag: record.tag,
+    status: record.status,
+    question: record.question || "",
+    answer: record.answer || "",
+    created_by: record.created_by || null,
+    view_count: 0,
+    like_count: 0
+  };
+  await fetch(`${env.SUPABASE_URL}/rest/v1/tag_qa`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+async function fetchTagQa(env, tag) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/tag_qa?select=id,tag,question,answer,view_count,like_count,created_at&tag=eq.${encodeURIComponent(tag)}&status=eq.ok&order=like_count.desc&order=view_count.desc&order=created_at.desc`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json();
+  return jsonResponse({ items: rows || [] });
+}
+
+async function incrementTagQaCounter(env, body, field) {
+  const id = body.id;
+  if (!id) return jsonResponse({ message: "id required" }, 400);
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/tag_qa?select=id,${field}&id=eq.${encodeURIComponent(id)}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) return jsonResponse({ message: "Supabase fetch failed" }, 500);
+  const rows = await resp.json();
+  const current = rows && rows[0] ? rows[0][field] || 0 : 0;
+  const next = current + 1;
+  const update = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/tag_qa?id=eq.${encodeURIComponent(id)}`,
     {
       method: "PATCH",
       headers: {
@@ -1320,6 +1798,50 @@ function parseDeepDive(text) {
     // fall through
   }
   return { explanation: text, tags: [] };
+}
+
+async function fetchTagDeepDive(env, tag) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/tag_deep_dive_explanations?select=tag,explanation,updated_at,model&tag=eq.${encodeURIComponent(tag)}&limit=1`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json();
+  if (!rows || !rows.length) {
+    return jsonResponse({ ok: true, found: false });
+  }
+  return jsonResponse({ ok: true, found: true, data: rows[0] });
+}
+
+async function upsertTagDeepDive(env, record) {
+  const now = new Date().toISOString();
+  const payload = {
+    tag: record.tag,
+    explanation: record.explanation || "",
+    updated_at: now,
+    created_by: record.created_by || null,
+    model: record.model || ""
+  };
+  await fetch(`${env.SUPABASE_URL}/rest/v1/tag_deep_dive_explanations`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates"
+    },
+    body: JSON.stringify(payload)
+  });
+  return now;
 }
 
 async function fetchDeepDive(env, serial) {

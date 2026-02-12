@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>タグ学習ラボ | Ahaki Study Viewer</title>
+    <style>
+      :root {
+        --bg: #f6f7f4;
+        --paper: #fffdf7;
+        --ink: #172223;
+        --muted: #5a6668;
+        --line: #d2d8d4;
+        --accent: #0f6e65;
+        --accent-ink: #ffffff;
+        --warn: #7a2f0a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(circle at 12% -5%, #e9f2eb 0%, #f6f7f4 48%, #f2f3ef 100%);
+        color: var(--ink);
+        font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+      }
+      header {
+        border-bottom: 1px solid var(--line);
+        background: #fdfcf8;
+      }
+      .header-inner {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 18px 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .title {
+        margin: 0;
+        font-size: clamp(24px, 3vw, 34px);
+        letter-spacing: 0.02em;
+      }
+      .subtitle {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .top-links {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .top-links a {
+        color: var(--accent);
+        text-decoration: none;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: #fff;
+        font-size: 13px;
+      }
+      .top-links a:hover {
+        border-color: var(--accent);
+      }
+      main {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 18px 16px 30px;
+      }
+      .auth {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--paper);
+        padding: 12px;
+        margin-bottom: 14px;
+      }
+      .auth-top {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .auth-status {
+        font-size: 13px;
+      }
+      .auth-note {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .auth-inputs {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
+        gap: 14px;
+      }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--paper);
+        box-shadow: 0 8px 24px rgba(22, 28, 24, 0.05);
+      }
+      .panel-head {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .panel-body {
+        padding: 12px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 15px;
+      }
+      .hint {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        margin: 0 0 5px;
+        color: var(--muted);
+      }
+      input,
+      textarea,
+      button {
+        font: inherit;
+      }
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid #c9d1cc;
+        border-radius: 9px;
+        padding: 9px 10px;
+        background: #fff;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 90px;
+      }
+      button {
+        border: 1px solid #c1c9c4;
+        border-radius: 9px;
+        padding: 8px 11px;
+        background: #fff;
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: #91a79f;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .btn-accent {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: var(--accent);
+      }
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .search-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 8px;
+      }
+      .search-meta {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .result-list {
+        margin-top: 10px;
+        max-height: calc(100vh - 290px);
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+      }
+      .result-item {
+        width: 100%;
+        text-align: left;
+        border: 0;
+        border-bottom: 1px solid #edf0ed;
+        border-radius: 0;
+        background: #fff;
+        padding: 10px;
+      }
+      .result-item:last-child {
+        border-bottom: 0;
+      }
+      .result-item.active {
+        background: #e9f5f1;
+      }
+      .result-item-title {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .result-item-meta {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .empty {
+        padding: 14px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .tag-title {
+        margin: 0;
+        font-size: clamp(20px, 2.2vw, 28px);
+      }
+      .tag-meta {
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .section {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+      }
+      .section h3 {
+        margin: 0;
+        padding: 10px 11px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .section-body {
+        padding: 11px;
+      }
+      .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #c4cec7;
+        border-radius: 999px;
+        background: #f8fbf9;
+        color: #21433b;
+        font-size: 12px;
+        padding: 5px 10px;
+        text-decoration: none;
+      }
+      .chip-button {
+        border: 1px solid #c4cec7;
+        border-radius: 999px;
+        background: #f8fbf9;
+        color: #21433b;
+        font-size: 12px;
+        padding: 5px 10px;
+      }
+      .tag-description {
+        line-height: 1.7;
+        font-size: 14px;
+      }
+      .status {
+        margin-top: 7px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .status.error {
+        color: var(--warn);
+      }
+      .qa-item {
+        border: 1px solid #dde4df;
+        border-radius: 9px;
+        padding: 9px;
+        margin-top: 8px;
+      }
+      .qa-q {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        font-weight: 700;
+        color: #193f36;
+      }
+      .qa-meta {
+        margin-top: 5px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .qa-answer {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #d6dfd9;
+        font-size: 14px;
+      }
+      .qa-empty {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .loading {
+        opacity: 0.75;
+      }
+      .markdown-body h1,
+      .markdown-body h2,
+      .markdown-body h3,
+      .markdown-body h4 {
+        margin: 1em 0 0.5em;
+      }
+      .markdown-body p,
+      .markdown-body ul,
+      .markdown-body ol {
+        margin: 0.5em 0;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .result-list {
+          max-height: 340px;
+        }
+        .auth-inputs {
+          grid-template-columns: 1fr;
+        }
+        .search-head {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div>
+          <h1 class="title">タグ学習ラボ</h1>
+          <div class="subtitle">タグ辞書を起点に、用語の深掘り解説とQ&Aを行う学習ページ</div>
+        </div>
+        <nav class="top-links" aria-label="ページ移動">
+          <a href="./index.html">高機能ビューへ</a>
+          <a href="./simple.html">かんたんビューへ</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="auth" aria-label="ログイン状態">
+        <div class="auth-top">
+          <div class="auth-status" id="authStatus">ログイン状態: 未確認</div>
+          <div class="btn-row">
+            <button id="authRefreshBtn" type="button">状態更新</button>
+            <button id="authSignOutBtn" type="button">ログアウト</button>
+          </div>
+        </div>
+        <div class="auth-inputs">
+          <input id="authEmail" type="email" autocomplete="username" placeholder="メールアドレス（管理者ログイン用）" />
+          <input id="authPassword" type="password" autocomplete="current-password" placeholder="パスワード" />
+          <button id="authSignInBtn" type="button" class="btn-accent">ログイン</button>
+        </div>
+        <div class="auth-note" id="authNote">AI公開がOFFのとき、生成機能は管理者ログインが必要です。</div>
+      </section>
+
+      <div class="layout">
+        <section class="panel" aria-label="タグ検索">
+          <div class="panel-head">
+            <h2>タグ検索</h2>
+            <div class="hint">タグ名・同義語・説明文で検索できます。例: <code>#心周期</code> / <code>十二経脈</code></div>
+          </div>
+          <div class="panel-body">
+            <div class="search-head">
+              <input id="tagSearchInput" type="text" placeholder="タグ名を入力" aria-label="タグ検索" />
+              <button id="tagSearchBtn" type="button" class="btn-accent">検索</button>
+              <button id="tagSearchClearBtn" type="button">クリア</button>
+            </div>
+            <div class="search-meta" id="searchMeta"></div>
+            <div class="result-list" id="resultList" role="listbox" aria-label="タグ検索結果"></div>
+          </div>
+        </section>
+
+        <section class="panel" aria-live="polite">
+          <div class="panel-head">
+            <h2 id="detailTitle">タグ詳細</h2>
+            <div class="hint" id="detailHint">左の検索結果からタグを選択してください。</div>
+          </div>
+          <div class="panel-body" id="detailBody">
+            <div class="empty">タグが未選択です。</div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="./config.js"></script>
+    <script>
+      const supabaseClient =
+        window.supabase && window.SUPABASE_URL && window.SUPABASE_KEY
+          ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY)
+          : null;
+
+      const state = {
+        tagCatalog: [],
+        tagCatalogByTag: {},
+        indexByTag: {},
+        tagEquivalentByNormalized: {},
+        selectedTag: "",
+        aiPublicGeneration: false,
+        authSession: null,
+        roleRank: 0,
+        tagDeepDiveCache: {},
+        tagQaCache: {},
+        qaViewed: new Set(),
+        qaLiked: new Set(),
+      };
+
+      function normalizeRole(role) {
+        if (role === "admin" || role === "teacher" || role === "student") return role;
+        return "";
+      }
+
+      function getUserRole(user) {
+        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+        return normalizeRole(role);
+      }
+
+      function roleRank(role) {
+        if (role === "admin") return 3;
+        if (role === "teacher") return 2;
+        if (role === "student") return 1;
+        return 0;
+      }
+
+      function normalizeAscii(text) {
+        return String(text || "")
+          .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+          .replace(/[‐‑‒–—―−ーｰ－]/g, "-");
+      }
+
+      function normalizeTagKey(value) {
+        return normalizeAscii(String(value || "")).trim().toLowerCase();
+      }
+
+      function escapeHtmlForMarkdown(text) {
+        return String(text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function markdownToHtml(text) {
+        const escaped = escapeHtmlForMarkdown(text);
+        if (window.marked && typeof window.marked.parse === "function") {
+          return window.marked.parse(escaped, { gfm: true, breaks: true });
+        }
+        return escaped.replace(/\n/g, "<br>");
+      }
+
+      function renderMarkdownToElement(target, text) {
+        if (!target) return;
+        target.classList.add("markdown-body");
+        target.innerHTML = markdownToHtml(text);
+      }
+
+      function parseApiError(payload, fallback) {
+        if (!payload) return fallback || "API error";
+        if (typeof payload === "string") return payload || fallback || "API error";
+        return String(payload.detail || payload.message || payload.error || fallback || "API error");
+      }
+
+      function getEquivalentTagsForTerm(term) {
+        const key = normalizeTagKey(term);
+        if (!key) return [];
+        const found = state.tagEquivalentByNormalized[key] || [];
+        if (found.length) return found;
+        return [String(term || "").trim()].filter(Boolean);
+      }
+
+      function buildTagEquivalentMap() {
+        const mapping = {};
+        const addGroup = (labels) => {
+          const uniq = Array.from(
+            new Set((labels || []).map((v) => String(v || "").trim()).filter(Boolean))
+          );
+          if (!uniq.length) return;
+          const keys = Array.from(new Set(uniq.map((v) => normalizeTagKey(v)).filter(Boolean)));
+          keys.forEach((key) => {
+            if (!mapping[key]) mapping[key] = new Set();
+            uniq.forEach((label) => mapping[key].add(label));
+          });
+        };
+
+        state.tagCatalog.forEach((item) => {
+          addGroup([item.tag, item.canonical_tag, ...(Array.isArray(item.aliases) ? item.aliases : [])]);
+        });
+        Object.keys(state.indexByTag || {}).forEach((tag) => addGroup([tag]));
+
+        const out = {};
+        Object.keys(mapping).forEach((key) => {
+          out[key] = Array.from(mapping[key]).sort((a, b) => a.localeCompare(b, "ja"));
+        });
+        return out;
+      }
+
+      function getRelatedSerialsForTag(tag) {
+        const labels = getEquivalentTagsForTerm(tag);
+        const set = new Set();
+        labels.forEach((label) => {
+          const serials = state.indexByTag[label] || [];
+          serials.forEach((serial) => set.add(serial));
+        });
+        return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "ja"));
+      }
+
+      function canUseAiGeneration() {
+        return state.aiPublicGeneration || state.roleRank >= 3;
+      }
+
+      async function getAccessToken() {
+        if (!supabaseClient) return "";
+        const { data } = await supabaseClient.auth.getSession();
+        const session = data && data.session ? data.session : null;
+        return session && session.access_token ? session.access_token : "";
+      }
+
+      async function loadAiConfig() {
+        if (!window.AI_API_BASE) {
+          state.aiPublicGeneration = false;
+          return;
+        }
+        try {
+          const resp = await fetch(`${window.AI_API_BASE}/ai/config`);
+          const payload = resp.ok ? await resp.json() : {};
+          state.aiPublicGeneration = Boolean(payload && payload.public_generation);
+        } catch (_err) {
+          state.aiPublicGeneration = false;
+        }
+      }
+
+      async function loadAuthState() {
+        if (!supabaseClient) {
+          state.authSession = null;
+          state.roleRank = 0;
+          renderAuthStatus();
+          return;
+        }
+        const { data } = await supabaseClient.auth.getSession();
+        state.authSession = data && data.session ? data.session : null;
+        const role = state.authSession && state.authSession.user ? getUserRole(state.authSession.user) : "";
+        state.roleRank = roleRank(role);
+        renderAuthStatus();
+      }
+
+      function renderAuthStatus(message) {
+        const statusEl = document.getElementById("authStatus");
+        const noteEl = document.getElementById("authNote");
+        if (!statusEl || !noteEl) return;
+        if (!supabaseClient) {
+          statusEl.textContent = "ログイン状態: Supabase未設定";
+          noteEl.textContent = "config.js の SUPABASE_URL / SUPABASE_KEY が未設定です。";
+          return;
+        }
+        if (message) {
+          noteEl.textContent = message;
+        } else {
+          noteEl.textContent = state.aiPublicGeneration
+            ? "AI公開がONです。ログインなしでも生成可能です。"
+            : "AI公開がOFFです。生成には管理者ログインが必要です。";
+        }
+        const user = state.authSession && state.authSession.user ? state.authSession.user : null;
+        if (!user) {
+          statusEl.textContent = "ログイン状態: ゲスト";
+          return;
+        }
+        const role = getUserRole(user) || "unapproved";
+        statusEl.textContent = `ログイン状態: ${user.email || "(no email)"} / role=${role}`;
+      }
+
+      function scoreTagItem(item, terms) {
+        const tag = String(item.tag || "");
+        const canonical = String(item.canonical_tag || "");
+        const aliases = Array.isArray(item.aliases) ? item.aliases.map((v) => String(v || "")) : [];
+        const desc = String(item.description || "");
+        const normTag = normalizeTagKey(tag);
+        const normCanonical = normalizeTagKey(canonical);
+        const normAliases = aliases.map((v) => normalizeTagKey(v));
+        const normDesc = normalizeTagKey(desc);
+
+        let score = 0;
+        for (const term of terms) {
+          const normTerm = normalizeTagKey(term.replace(/^#/, ""));
+          if (!normTerm) continue;
+          let matched = false;
+          if (normTag === normTerm) {
+            score += 120;
+            matched = true;
+          } else if (normCanonical === normTerm) {
+            score += 110;
+            matched = true;
+          } else if (normAliases.some((v) => v === normTerm)) {
+            score += 100;
+            matched = true;
+          } else if (normTag.startsWith(normTerm)) {
+            score += 80;
+            matched = true;
+          } else if (normCanonical.startsWith(normTerm)) {
+            score += 72;
+            matched = true;
+          } else if (normAliases.some((v) => v.startsWith(normTerm))) {
+            score += 64;
+            matched = true;
+          } else if (normTag.includes(normTerm)) {
+            score += 42;
+            matched = true;
+          } else if (normCanonical.includes(normTerm)) {
+            score += 36;
+            matched = true;
+          } else if (normAliases.some((v) => v.includes(normTerm))) {
+            score += 30;
+            matched = true;
+          } else if (normDesc.includes(normTerm)) {
+            score += 16;
+            matched = true;
+          }
+          if (!matched) return -1;
+        }
+        score += Math.min(30, Number(item.view_count || 0));
+        score += Math.min(20, Number(item.related_count || 0) / 30);
+        return score;
+      }
+
+      function getSearchTerms() {
+        const input = document.getElementById("tagSearchInput");
+        const text = (input ? input.value : "").trim();
+        if (!text) return [];
+        return text
+          .split(/[\s,]+/)
+          .map((v) => v.trim())
+          .filter(Boolean);
+      }
+
+      function searchTags() {
+        const terms = getSearchTerms();
+        let rows = [];
+        if (!terms.length) {
+          rows = state.tagCatalog
+            .slice()
+            .sort((a, b) => {
+              const diffView = Number(b.view_count || 0) - Number(a.view_count || 0);
+              if (diffView !== 0) return diffView;
+              const diffRelated = Number(b.related_count || 0) - Number(a.related_count || 0);
+              if (diffRelated !== 0) return diffRelated;
+              return String(a.tag || "").localeCompare(String(b.tag || ""), "ja");
+            })
+            .slice(0, 400);
+        } else {
+          rows = state.tagCatalog
+            .map((item) => ({ item, score: scoreTagItem(item, terms) }))
+            .filter((row) => row.score >= 0)
+            .sort((a, b) => {
+              if (b.score !== a.score) return b.score - a.score;
+              const diffView = Number(b.item.view_count || 0) - Number(a.item.view_count || 0);
+              if (diffView !== 0) return diffView;
+              const diffRelated = Number(b.item.related_count || 0) - Number(a.item.related_count || 0);
+              if (diffRelated !== 0) return diffRelated;
+              return String(a.item.tag || "").localeCompare(String(b.item.tag || ""), "ja");
+            })
+            .slice(0, 500)
+            .map((row) => row.item);
+        }
+        renderSearchResults(rows, terms);
+      }
+
+      function renderSearchResults(rows, terms) {
+        const list = document.getElementById("resultList");
+        const meta = document.getElementById("searchMeta");
+        if (!list || !meta) return;
+
+        if (!rows.length) {
+          list.innerHTML = "<div class='empty'>該当タグがありません。</div>";
+          meta.textContent = terms.length
+            ? `検索語 ${terms.length} 個 / 0 件`
+            : "タグデータは読み込まれていますが表示対象がありません。";
+          return;
+        }
+
+        meta.textContent = terms.length
+          ? `検索語 ${terms.length} 個 / ${rows.length} 件`
+          : `人気順で ${rows.length} 件を表示`;
+
+        const frag = document.createDocumentFragment();
+        rows.forEach((item) => {
+          const btn = document.createElement("button");
+          btn.className = "result-item" + (state.selectedTag === item.tag ? " active" : "");
+          btn.type = "button";
+          btn.setAttribute("role", "option");
+          btn.setAttribute("aria-selected", state.selectedTag === item.tag ? "true" : "false");
+          btn.innerHTML =
+            `<div class='result-item-title'>${escapeHtmlForMarkdown(item.tag || "")}</div>` +
+            `<div class='result-item-meta'>関連問題 ${Number(item.related_count || 0)} / 閲覧 ${Number(item.view_count || 0)}</div>`;
+          btn.addEventListener("click", () => {
+            selectTag(item.tag);
+          });
+          frag.appendChild(btn);
+        });
+        list.innerHTML = "";
+        list.appendChild(frag);
+      }
+
+      function renderTagMetaChips(label, items, onClick) {
+        if (!items || !items.length) {
+          return `<div class='hint'>${label}: なし</div>`;
+        }
+        const chips = items
+          .map((item) => {
+            const safe = escapeHtmlForMarkdown(item);
+            if (onClick) {
+              return `<button type='button' class='chip-button' data-chip='${safe}'>${safe}</button>`;
+            }
+            return `<span class='chip'>${safe}</span>`;
+          })
+          .join(" ");
+        return `<div><label>${label}</label><div class='chip-list'>${chips}</div></div>`;
+      }
+
+      function renderRelatedSerials(tag) {
+        const serials = getRelatedSerialsForTag(tag);
+        const top = serials.slice(0, 80);
+        if (!serials.length) {
+          return `<div class='qa-empty'>関連問題はありません。</div>`;
+        }
+        const chips = top
+          .map((serial) => `<button type='button' class='chip-button serial-chip' data-serial='${escapeHtmlForMarkdown(serial)}'>${escapeHtmlForMarkdown(serial)}</button>`)
+          .join(" ");
+        const over = serials.length > top.length ? `（先頭 ${top.length} 件表示）` : "";
+        return `
+          <div class='hint'>関連問題: ${serials.length} 件 ${over}</div>
+          <div class='chip-list'>${chips}</div>
+          <div class='btn-row' style='margin-top:8px;'>
+            <a class='chip' href='./index.html' target='_blank' rel='noopener'>高機能ビューを開く</a>
+            <button type='button' id='copyTagQueryBtn' data-tag='${escapeHtmlForMarkdown(tag)}'>#${escapeHtmlForMarkdown(tag)} をコピー</button>
+          </div>
+        `;
+      }
+
+      async function loadTagDeepDive(tag) {
+        if (!window.AI_API_BASE || !tag) return { ok: false, found: false };
+        const cache = state.tagDeepDiveCache[tag];
+        if (cache) return { ok: true, found: true, data: cache };
+        const resp = await fetch(`${window.AI_API_BASE}/ai/tag_deep_dive?tag=${encodeURIComponent(tag)}`);
+        const payload = resp.ok ? await resp.json() : await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          return { ok: false, found: false, message: parseApiError(payload, `HTTP ${resp.status}`) };
+        }
+        if (!payload || !payload.found) return { ok: true, found: false };
+        state.tagDeepDiveCache[tag] = payload.data;
+        return { ok: true, found: true, data: payload.data };
+      }
+
+      async function generateTagDeepDive(tag, item, statusEl, bodyEl, generateBtn) {
+        if (!window.AI_API_BASE) {
+          statusEl.textContent = "AI_API_BASE が設定されていません。";
+          statusEl.className = "status error";
+          return;
+        }
+        if (!canUseAiGeneration()) {
+          statusEl.textContent = "生成にはAI公開ONまたは管理者ログインが必要です。";
+          statusEl.className = "status error";
+          return;
+        }
+
+        statusEl.textContent = "生成中...";
+        statusEl.className = "status";
+        bodyEl.classList.add("loading");
+        generateBtn.disabled = true;
+        try {
+          const token = await getAccessToken();
+          const headers = { "Content-Type": "application/json" };
+          if (token) headers.Authorization = `Bearer ${token}`;
+          const resp = await fetch(`${window.AI_API_BASE}/ai/tag_deep_dive`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              tag,
+              description: item.description || "",
+              canonical_tag: item.canonical_tag || tag,
+              aliases: item.aliases || [],
+              related_tags: item.related_tags || [],
+              subjects: item.subjects || [],
+              subtopics: item.subtopics || [],
+              sample_serials: getRelatedSerialsForTag(tag).slice(0, 40),
+              model: "gemini-3-flash-preview"
+            })
+          });
+          const payload = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            statusEl.textContent = `生成に失敗: ${parseApiError(payload, `HTTP ${resp.status}`)}`;
+            statusEl.className = "status error";
+            return;
+          }
+          const explanation = String(payload.explanation || payload.text || "").trim();
+          if (!explanation) {
+            statusEl.textContent = "生成結果が空でした。";
+            statusEl.className = "status error";
+            return;
+          }
+          state.tagDeepDiveCache[tag] = {
+            tag,
+            explanation,
+            updated_at: payload.updated_at || new Date().toISOString(),
+          };
+          renderMarkdownToElement(bodyEl, explanation);
+          statusEl.textContent = "生成完了";
+          statusEl.className = "status";
+        } catch (err) {
+          statusEl.textContent = `生成に失敗: ${String(err.message || err)}`;
+          statusEl.className = "status error";
+        } finally {
+          bodyEl.classList.remove("loading");
+          generateBtn.disabled = false;
+        }
+      }
+
+      function makeTagQaViewKey(item) {
+        return item && item.id ? `id:${item.id}` : `qa:${item.question}|${item.answer}`;
+      }
+
+      async function loadTagQa(tag) {
+        if (!window.AI_API_BASE || !tag) return { ok: false, items: [] };
+        const resp = await fetch(`${window.AI_API_BASE}/ai/tag_qa?tag=${encodeURIComponent(tag)}`);
+        const payload = resp.ok ? await resp.json() : await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          return { ok: false, items: [], message: parseApiError(payload, `HTTP ${resp.status}`) };
+        }
+        return { ok: true, items: Array.isArray(payload.items) ? payload.items : [] };
+      }
+
+      async function postTagQaCounter(path, id) {
+        if (!window.AI_API_BASE || !id) return;
+        await fetch(`${window.AI_API_BASE}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        }).catch(() => {});
+      }
+
+      function renderTagQaList(tag, items, listEl, statusEl) {
+        listEl.innerHTML = "";
+        if (!items.length) {
+          listEl.innerHTML = "<div class='qa-empty'>Q&Aはまだありません。</div>";
+          statusEl.textContent = "Q&A: 0件";
+          return;
+        }
+        statusEl.textContent = `Q&A: ${items.length}件`;
+
+        items.forEach((item) => {
+          const wrap = document.createElement("div");
+          wrap.className = "qa-item";
+          const qBtn = document.createElement("button");
+          qBtn.className = "qa-q";
+          qBtn.type = "button";
+          qBtn.textContent = item.question || "質問";
+
+          const meta = document.createElement("div");
+          meta.className = "qa-meta";
+
+          const viewEl = document.createElement("span");
+          let viewCount = Number(item.view_count || 0);
+          viewEl.textContent = `閲覧 ${viewCount}`;
+
+          const likeBtn = document.createElement("button");
+          likeBtn.type = "button";
+          let likeCount = Number(item.like_count || 0);
+          const likeKey = makeTagQaViewKey(item);
+          likeBtn.textContent = `👍 ${likeCount}`;
+          if (state.qaLiked.has(likeKey)) {
+            likeBtn.disabled = true;
+          }
+
+          likeBtn.addEventListener("click", async () => {
+            if (!item.id || state.qaLiked.has(likeKey)) return;
+            state.qaLiked.add(likeKey);
+            likeCount += 1;
+            likeBtn.textContent = `👍 ${likeCount}`;
+            likeBtn.disabled = true;
+            await postTagQaCounter("/ai/tag_qa/like", item.id);
+          });
+
+          const answer = document.createElement("div");
+          answer.className = "qa-answer";
+          answer.hidden = true;
+          renderMarkdownToElement(answer, item.answer || "");
+
+          qBtn.addEventListener("click", async () => {
+            answer.hidden = !answer.hidden;
+            const viewKey = makeTagQaViewKey(item);
+            if (!item.id || state.qaViewed.has(viewKey)) return;
+            state.qaViewed.add(viewKey);
+            viewCount += 1;
+            viewEl.textContent = `閲覧 ${viewCount}`;
+            await postTagQaCounter("/ai/tag_qa/view", item.id);
+          });
+
+          meta.appendChild(likeBtn);
+          meta.appendChild(viewEl);
+          wrap.appendChild(qBtn);
+          wrap.appendChild(meta);
+          wrap.appendChild(answer);
+          listEl.appendChild(wrap);
+        });
+      }
+
+      async function generateTagQa(tag, item, question, statusEl, listEl) {
+        if (!window.AI_API_BASE) {
+          statusEl.textContent = "AI_API_BASE が設定されていません。";
+          statusEl.className = "status error";
+          return;
+        }
+        if (!canUseAiGeneration()) {
+          statusEl.textContent = "生成にはAI公開ONまたは管理者ログインが必要です。";
+          statusEl.className = "status error";
+          return;
+        }
+        if (!question.trim()) {
+          statusEl.textContent = "質問を入力してください。";
+          statusEl.className = "status error";
+          return;
+        }
+
+        statusEl.textContent = "生成中...";
+        statusEl.className = "status";
+        try {
+          const token = await getAccessToken();
+          const headers = { "Content-Type": "application/json" };
+          if (token) headers.Authorization = `Bearer ${token}`;
+          const resp = await fetch(`${window.AI_API_BASE}/ai/tag_qa`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              tag,
+              question,
+              description: item.description || "",
+              aliases: item.aliases || [],
+              related_tags: item.related_tags || [],
+              subjects: item.subjects || [],
+              subtopics: item.subtopics || [],
+              sample_serials: getRelatedSerialsForTag(tag).slice(0, 20),
+              model: "gemini-3-flash-preview"
+            })
+          });
+          const payload = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            statusEl.textContent = `生成に失敗: ${parseApiError(payload, `HTTP ${resp.status}`)}`;
+            statusEl.className = "status error";
+            return;
+          }
+          if (payload.status === "irrelevant") {
+            statusEl.textContent = "質問がタグ学習と無関係と判定されました。";
+            statusEl.className = "status error";
+            return;
+          }
+          statusEl.textContent = "生成完了";
+          statusEl.className = "status";
+          const qa = await loadTagQa(tag);
+          if (qa.ok) {
+            renderTagQaList(tag, qa.items, listEl, statusEl);
+            statusEl.textContent = `Q&A: ${qa.items.length}件（最新を反映）`;
+          }
+        } catch (err) {
+          statusEl.textContent = `生成に失敗: ${String(err.message || err)}`;
+          statusEl.className = "status error";
+        }
+      }
+
+      function attachMetaChipHandlers(root) {
+        root.querySelectorAll("button[data-chip]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const value = btn.getAttribute("data-chip") || "";
+            const input = document.getElementById("tagSearchInput");
+            if (!input) return;
+            input.value = value;
+            searchTags();
+          });
+        });
+      }
+
+      function attachSerialChipHandlers(root) {
+        root.querySelectorAll("button.serial-chip").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const serial = btn.getAttribute("data-serial") || "";
+            if (!serial) return;
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(serial);
+                btn.textContent = `${serial} (コピー済み)`;
+                setTimeout(() => {
+                  btn.textContent = serial;
+                }, 900);
+              }
+            } catch (_err) {
+              // noop
+            }
+          });
+        });
+
+        const copyTagQueryBtn = root.querySelector("#copyTagQueryBtn");
+        if (copyTagQueryBtn) {
+          copyTagQueryBtn.addEventListener("click", async () => {
+            const tag = copyTagQueryBtn.getAttribute("data-tag") || "";
+            if (!tag) return;
+            const text = `#${tag}`;
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                copyTagQueryBtn.textContent = `${text} をコピー済み`;
+                setTimeout(() => {
+                  copyTagQueryBtn.textContent = `${text} をコピー`;
+                }, 1000);
+              }
+            } catch (_err) {
+              // noop
+            }
+          });
+        }
+      }
+
+      async function selectTag(tag) {
+        if (!tag || !state.tagCatalogByTag[tag]) return;
+        state.selectedTag = tag;
+        searchTags();
+        const item = state.tagCatalogByTag[tag];
+        const detailTitle = document.getElementById("detailTitle");
+        const detailHint = document.getElementById("detailHint");
+        const detailBody = document.getElementById("detailBody");
+        if (!detailBody || !detailTitle || !detailHint) return;
+        detailTitle.textContent = `タグ詳細: ${tag}`;
+        detailHint.textContent = "タグ説明・関連問題・AI深掘り・Q&A";
+
+        const equivalents = getEquivalentTagsForTerm(tag).filter((v) => v !== tag);
+        detailBody.innerHTML = `
+          <h3 class='tag-title'>${escapeHtmlForMarkdown(tag)}</h3>
+          <div class='tag-meta'>関連問題 ${Number(item.related_count || 0)}件 / 閲覧 ${Number(item.view_count || 0)}</div>
+
+          <section class='section'>
+            <h3>タグ説明</h3>
+            <div class='section-body'>
+              <div id='tagDescription' class='tag-description'></div>
+            </div>
+          </section>
+
+          <section class='section'>
+            <h3>タグ情報</h3>
+            <div class='section-body'>
+              ${renderTagMetaChips("同義語(結合)", equivalents, true)}
+              ${renderTagMetaChips("別名", item.aliases || [], true)}
+              ${renderTagMetaChips("関連タグ", item.related_tags || [], true)}
+              ${renderTagMetaChips("科目", item.subjects || [], false)}
+              ${renderTagMetaChips("小項目", item.subtopics || [], false)}
+            </div>
+          </section>
+
+          <section class='section'>
+            <h3>関連問題</h3>
+            <div class='section-body' id='relatedSerialsBox'>${renderRelatedSerials(tag)}</div>
+          </section>
+
+          <section class='section'>
+            <h3>タグ深掘り解説</h3>
+            <div class='section-body'>
+              <div class='btn-row'>
+                <button type='button' id='tagDeepDiveLoadBtn'>保存済みを読み込む</button>
+                <button type='button' id='tagDeepDiveGenerateBtn' class='btn-accent'>深掘り解説を生成</button>
+              </div>
+              <div id='tagDeepDiveStatus' class='status'></div>
+              <div id='tagDeepDiveBody' class='tag-description'></div>
+            </div>
+          </section>
+
+          <section class='section'>
+            <h3>タグQ&A</h3>
+            <div class='section-body'>
+              <textarea id='tagQaInput' placeholder='このタグについて質問を入力（例: 病態との関連を教えて）'></textarea>
+              <div class='btn-row' style='margin-top:8px;'>
+                <button type='button' id='tagQaGenerateBtn' class='btn-accent'>質問して回答を生成</button>
+                <button type='button' id='tagQaReloadBtn'>Q&Aを再読込</button>
+              </div>
+              <div id='tagQaStatus' class='status'></div>
+              <div id='tagQaList'></div>
+            </div>
+          </section>
+        `;
+
+        const tagDescription = document.getElementById("tagDescription");
+        renderMarkdownToElement(
+          tagDescription,
+          (item.description || "").trim() || "このタグの説明は未登録です。"
+        );
+
+        attachMetaChipHandlers(detailBody);
+        attachSerialChipHandlers(detailBody);
+
+        const deepDiveStatus = document.getElementById("tagDeepDiveStatus");
+        const deepDiveBody = document.getElementById("tagDeepDiveBody");
+        const loadBtn = document.getElementById("tagDeepDiveLoadBtn");
+        const generateBtn = document.getElementById("tagDeepDiveGenerateBtn");
+
+        if (!window.AI_API_BASE) {
+          deepDiveStatus.textContent = "AI_API_BASE が設定されていません。";
+          deepDiveStatus.className = "status error";
+          loadBtn.disabled = true;
+          generateBtn.disabled = true;
+        } else {
+          const deepDiveLoaded = await loadTagDeepDive(tag);
+          if (state.selectedTag !== tag) return;
+          if (deepDiveLoaded.ok && deepDiveLoaded.found) {
+            renderMarkdownToElement(deepDiveBody, deepDiveLoaded.data.explanation || "");
+            deepDiveStatus.textContent = `保存済み（更新: ${deepDiveLoaded.data.updated_at || "-"}）`;
+            deepDiveStatus.className = "status";
+          } else if (!deepDiveLoaded.ok) {
+            deepDiveStatus.textContent = deepDiveLoaded.message || "読み込みに失敗しました。";
+            deepDiveStatus.className = "status error";
+          } else {
+            deepDiveStatus.textContent = "保存済みの深掘り解説はありません。";
+            deepDiveStatus.className = "status";
+          }
+        }
+
+        loadBtn.addEventListener("click", async () => {
+          deepDiveStatus.textContent = "読み込み中...";
+          deepDiveStatus.className = "status";
+          const res = await loadTagDeepDive(tag);
+          if (state.selectedTag !== tag) return;
+          if (!res.ok) {
+            deepDiveStatus.textContent = res.message || "読み込みに失敗しました。";
+            deepDiveStatus.className = "status error";
+            return;
+          }
+          if (!res.found) {
+            deepDiveStatus.textContent = "保存済みの深掘り解説はありません。";
+            deepDiveStatus.className = "status";
+            deepDiveBody.innerHTML = "";
+            return;
+          }
+          renderMarkdownToElement(deepDiveBody, res.data.explanation || "");
+          deepDiveStatus.textContent = `保存済み（更新: ${res.data.updated_at || "-"}）`;
+          deepDiveStatus.className = "status";
+        });
+
+        generateBtn.addEventListener("click", async () => {
+          await generateTagDeepDive(tag, item, deepDiveStatus, deepDiveBody, generateBtn);
+        });
+
+        const qaStatus = document.getElementById("tagQaStatus");
+        const qaList = document.getElementById("tagQaList");
+        const qaInput = document.getElementById("tagQaInput");
+        const qaGenerateBtn = document.getElementById("tagQaGenerateBtn");
+        const qaReloadBtn = document.getElementById("tagQaReloadBtn");
+
+        async function reloadQa() {
+          qaStatus.textContent = "Q&A読み込み中...";
+          qaStatus.className = "status";
+          const qa = await loadTagQa(tag);
+          if (state.selectedTag !== tag) return;
+          if (!qa.ok) {
+            qaStatus.textContent = qa.message || "Q&A読み込みに失敗しました。";
+            qaStatus.className = "status error";
+            return;
+          }
+          renderTagQaList(tag, qa.items, qaList, qaStatus);
+        }
+
+        if (!window.AI_API_BASE) {
+          qaStatus.textContent = "AI_API_BASE が設定されていません。";
+          qaStatus.className = "status error";
+          qaGenerateBtn.disabled = true;
+          qaReloadBtn.disabled = true;
+        } else {
+          reloadQa();
+        }
+
+        qaReloadBtn.addEventListener("click", () => {
+          reloadQa();
+        });
+
+        qaGenerateBtn.addEventListener("click", async () => {
+          const text = qaInput.value.trim();
+          if (!text) {
+            qaStatus.textContent = "質問を入力してください。";
+            qaStatus.className = "status error";
+            return;
+          }
+          qaGenerateBtn.disabled = true;
+          await generateTagQa(tag, item, text, qaStatus, qaList);
+          qaGenerateBtn.disabled = false;
+          if (qaStatus.className !== "status error") {
+            qaInput.value = "";
+          }
+        });
+      }
+
+      async function loadData() {
+        const [tagCatalog, indexByTag] = await Promise.all([
+          fetch("../output/web/index/tag_catalog.json").then((r) => (r.ok ? r.json() : [])),
+          fetch("../output/web/index/index_by_tag.json").then((r) => (r.ok ? r.json() : {})),
+        ]);
+
+        state.tagCatalog = Array.isArray(tagCatalog) ? tagCatalog : [];
+        state.indexByTag = indexByTag || {};
+        state.tagCatalogByTag = {};
+        state.tagCatalog.forEach((item) => {
+          const tag = item && item.tag ? String(item.tag).trim() : "";
+          if (!tag) return;
+          state.tagCatalogByTag[tag] = item;
+        });
+        state.tagEquivalentByNormalized = buildTagEquivalentMap();
+      }
+
+      function initAuthUi() {
+        const refreshBtn = document.getElementById("authRefreshBtn");
+        const signInBtn = document.getElementById("authSignInBtn");
+        const signOutBtn = document.getElementById("authSignOutBtn");
+        const emailInput = document.getElementById("authEmail");
+        const passwordInput = document.getElementById("authPassword");
+
+        if (!supabaseClient) {
+          if (signInBtn) signInBtn.disabled = true;
+          if (signOutBtn) signOutBtn.disabled = true;
+          if (refreshBtn) refreshBtn.disabled = true;
+          return;
+        }
+
+        supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+          state.authSession = session || null;
+          const role = session && session.user ? getUserRole(session.user) : "";
+          state.roleRank = roleRank(role);
+          renderAuthStatus();
+        });
+
+        refreshBtn.addEventListener("click", async () => {
+          await loadAiConfig();
+          await loadAuthState();
+        });
+
+        signInBtn.addEventListener("click", async () => {
+          const email = String(emailInput.value || "").trim();
+          const password = String(passwordInput.value || "");
+          if (!email || !password) {
+            renderAuthStatus("メールアドレスとパスワードを入力してください。");
+            return;
+          }
+          signInBtn.disabled = true;
+          try {
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+              renderAuthStatus(`ログイン失敗: ${error.message}`);
+              return;
+            }
+            await loadAuthState();
+            renderAuthStatus("ログインしました。");
+          } catch (err) {
+            renderAuthStatus(`ログイン失敗: ${String(err.message || err)}`);
+          } finally {
+            signInBtn.disabled = false;
+          }
+        });
+
+        signOutBtn.addEventListener("click", async () => {
+          signOutBtn.disabled = true;
+          try {
+            await supabaseClient.auth.signOut();
+            await loadAuthState();
+            renderAuthStatus("ログアウトしました。");
+          } catch (err) {
+            renderAuthStatus(`ログアウト失敗: ${String(err.message || err)}`);
+          } finally {
+            signOutBtn.disabled = false;
+          }
+        });
+      }
+
+      function initSearchUi() {
+        const input = document.getElementById("tagSearchInput");
+        const searchBtn = document.getElementById("tagSearchBtn");
+        const clearBtn = document.getElementById("tagSearchClearBtn");
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            searchTags();
+          }
+        });
+        searchBtn.addEventListener("click", () => {
+          searchTags();
+        });
+        clearBtn.addEventListener("click", () => {
+          input.value = "";
+          searchTags();
+        });
+      }
+
+      async function init() {
+        initAuthUi();
+        initSearchUi();
+        await Promise.all([loadData(), loadAiConfig(), loadAuthState()]);
+        renderAuthStatus();
+        searchTags();
+
+        const initialTag = (new URL(window.location.href).searchParams.get("tag") || "").trim();
+        if (initialTag && state.tagCatalogByTag[initialTag]) {
+          selectTag(initialTag);
+          return;
+        }
+        if (state.tagCatalog.length) {
+          selectTag(state.tagCatalog[0].tag);
+        }
+      }
+
+      init().catch((err) => {
+        const body = document.getElementById("detailBody");
+        if (body) {
+          body.innerHTML = `<div class='empty'>初期化に失敗しました: ${escapeHtmlForMarkdown(String(err.message || err))}</div>`;
+        }
+      });
+    </script>
+  </body>
+</html>
