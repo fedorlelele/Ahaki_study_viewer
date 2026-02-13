@@ -43,6 +43,7 @@
 - `POST /ai/practice_questions/good`
 - `POST /ai/practice_questions/bad`
 - `GET /admin/practice_questions?days=30&serial=...`（teacher/admin向け評価一覧）
+- `POST /admin/practice_questions/publish`（teacher/adminが個別/一括で公開・非公開）
 
 ## WebUI側の設定
 `web_app/config.js` に以下を追加:
@@ -58,3 +59,4 @@ window.AI_API_BASE = "https://<worker>.workers.dev";
 - `workers/sql/ai_usage_logs.sql` を Supabase SQL Editor で実行すると、free/paid別のAI利用集計が利用できます。
 - タグ学習機能を使う場合は `workers/sql/tag_study_tables.sql` を Supabase SQL Editor で実行してください。
 - 問題別の練習問題機能を使う場合は `workers/sql/practice_question_tables.sql` を Supabase SQL Editor で実行してください。
+- teacher/admin が生成した練習問題は初期状態で非公開です（生成者本人のみ閲覧可）。

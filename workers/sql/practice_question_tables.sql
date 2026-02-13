@@ -15,12 +15,27 @@ create table if not exists public.practice_questions (
   bad_count bigint not null default 0,
   model text not null default '',
   mode text not null default '' check (mode in ('', 'free', 'paid')),
+  is_public boolean not null default true,
+  published_at timestamptz,
+  published_by uuid,
   created_by uuid,
   created_at timestamptz not null default now()
 );
 
+alter table public.practice_questions
+  add column if not exists is_public boolean not null default true;
+
+alter table public.practice_questions
+  add column if not exists published_at timestamptz;
+
+alter table public.practice_questions
+  add column if not exists published_by uuid;
+
 create index if not exists practice_questions_base_serial_created_at_idx
   on public.practice_questions (base_serial, created_at desc);
+
+create index if not exists practice_questions_base_serial_public_created_at_idx
+  on public.practice_questions (base_serial, is_public, created_at desc);
 
 create index if not exists practice_questions_votes_idx
   on public.practice_questions (good_count desc, bad_count desc, created_at desc);
@@ -43,5 +58,11 @@ begin
   end if;
 end $$;
 
-commit;
+drop policy if exists practice_questions_read on public.practice_questions;
 
+create policy practice_questions_read
+  on public.practice_questions
+  for select
+  using (is_public = true or auth.uid() = created_by);
+
+commit;

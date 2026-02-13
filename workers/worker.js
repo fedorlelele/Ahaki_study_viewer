@@ -115,13 +115,24 @@ async function handleAdmin(request, env) {
     if (!isRoleAtLeast(role, "teacher")) {
       return jsonResponse({ message: "Forbidden" }, 403);
     }
-    if (request.method !== "GET") {
+    if (request.method === "GET") {
+      const days = Number(url.searchParams.get("days") || "30");
+      const limit = Number(url.searchParams.get("limit") || "200");
+      const serial = (url.searchParams.get("serial") || "").trim();
+      return listPracticeQuestionsAdmin(env, { days, limit, serial }, user, role);
+    }
+    return jsonResponse({ message: "Method not allowed" }, 405);
+  }
+
+  if (path === "/admin/practice_questions/publish") {
+    if (!isRoleAtLeast(role, "teacher")) {
+      return jsonResponse({ message: "Forbidden" }, 403);
+    }
+    if (request.method !== "POST") {
       return jsonResponse({ message: "Method not allowed" }, 405);
     }
-    const days = Number(url.searchParams.get("days") || "30");
-    const limit = Number(url.searchParams.get("limit") || "200");
-    const serial = (url.searchParams.get("serial") || "").trim();
-    return listPracticeQuestionsAdmin(env, { days, limit, serial });
+    const body = await readJson(request);
+    return publishPracticeQuestions(env, body, user, role);
   }
 
   return jsonResponse({ message: "Not found" }, 404);
@@ -167,7 +178,8 @@ async function handleAi(request, env) {
       if (!serial) {
         return jsonResponse({ message: "serial is required" }, 400);
       }
-      return fetchPracticeQuestions(env, serial);
+      const user = await authenticate(request, env);
+      return fetchPracticeQuestions(env, serial, user);
     }
     if (request.method === "POST") {
       return handlePracticeQuestions(request, env);
@@ -175,11 +187,13 @@ async function handleAi(request, env) {
   }
   if (path === "/ai/practice_questions/good" && request.method === "POST") {
     const body = await readJson(request);
-    return incrementPracticeQuestionCounter(env, body, "good_count");
+    const user = await authenticate(request, env);
+    return incrementPracticeQuestionCounter(env, body, "good_count", user);
   }
   if (path === "/ai/practice_questions/bad" && request.method === "POST") {
     const body = await readJson(request);
-    return incrementPracticeQuestionCounter(env, body, "bad_count");
+    const user = await authenticate(request, env);
+    return incrementPracticeQuestionCounter(env, body, "bad_count", user);
   }
   if (path === "/ai/tag_deep_dive") {
     if (request.method === "GET") {
@@ -834,12 +848,14 @@ async function handlePracticeQuestions(request, env) {
   }
   try {
     const limitedItems = parsed.items.slice(0, 5);
+    const isPrivateByDefault = isRoleAtLeast(role, "teacher");
     const inserted = await insertPracticeQuestions(env, {
       baseSerial: serial,
       items: limitedItems,
       createdBy: user && user.id ? user.id : null,
       model: usedModel,
-      mode: gemini.mode
+      mode: gemini.mode,
+      isPublic: !isPrivateByDefault
     });
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -1483,13 +1499,13 @@ async function incrementQaCounter(env, body, field) {
   return jsonResponse({ ok: true, [field]: next });
 }
 
-async function fetchPracticeQuestions(env, serial) {
+async function fetchPracticeQuestions(env, serial, user) {
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,base_serial,focus,stem,choices,answer_index,explanation,good_count,bad_count,created_at&base_serial=eq.${encodeURIComponent(serial)}&order=created_at.desc&limit=50`,
+    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,base_serial,focus,stem,choices,answer_index,explanation,good_count,bad_count,created_at,created_by,is_public&base_serial=eq.${encodeURIComponent(serial)}&order=created_at.desc&limit=50`,
     {
       headers: {
-        apikey: env.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
         "Content-Type": "application/json"
       }
     }
@@ -1498,8 +1514,31 @@ async function fetchPracticeQuestions(env, serial) {
     const detail = await resp.text();
     return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
   }
-  const rows = await resp.json();
-  return jsonResponse({ ok: true, items: rows || [] });
+  const rawRows = await resp.json().catch(() => []);
+  const rows = Array.isArray(rawRows) ? rawRows : [];
+  const viewerId = user && user.id ? String(user.id) : "";
+  const items = rows.filter((row) => {
+    if (row && row.is_public === true) return true;
+    if (!viewerId) return false;
+    if (!row || !row.created_by) return false;
+    return String(row.created_by) === viewerId;
+  });
+  return jsonResponse({
+    ok: true,
+    items: items.map((row) => ({
+      id: row.id,
+      base_serial: row.base_serial,
+      focus: row.focus,
+      stem: row.stem,
+      choices: row.choices,
+      answer_index: row.answer_index,
+      explanation: row.explanation,
+      good_count: row.good_count,
+      bad_count: row.bad_count,
+      created_at: row.created_at,
+      is_public: Boolean(row.is_public)
+    }))
+  });
 }
 
 async function insertPracticeQuestions(env, params) {
@@ -1515,7 +1554,10 @@ async function insertPracticeQuestions(env, params) {
     explanation: item.explanation || "",
     created_by: params.createdBy || null,
     model: params.model || "",
-    mode: params.mode || ""
+    mode: params.mode || "",
+    is_public: params.isPublic !== false,
+    published_at: params.isPublic === false ? null : new Date().toISOString(),
+    published_by: params.isPublic === false ? null : params.createdBy || null
   }));
   const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/practice_questions`, {
     method: "POST",
@@ -1535,11 +1577,11 @@ async function insertPracticeQuestions(env, params) {
   return Array.isArray(rows) ? rows : [];
 }
 
-async function incrementPracticeQuestionCounter(env, body, field) {
+async function incrementPracticeQuestionCounter(env, body, field, user) {
   const id = body.id;
   if (!id) return jsonResponse({ message: "id required" }, 400);
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,${field}&id=eq.${encodeURIComponent(id)}`,
+    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,${field},created_by,is_public&id=eq.${encodeURIComponent(id)}`,
     {
       headers: {
         apikey: env.SUPABASE_SERVICE_KEY,
@@ -1550,7 +1592,18 @@ async function incrementPracticeQuestionCounter(env, body, field) {
   );
   if (!resp.ok) return jsonResponse({ message: "Supabase fetch failed" }, 500);
   const rows = await resp.json();
-  const current = rows && rows[0] ? rows[0][field] || 0 : 0;
+  const row = rows && rows[0] ? rows[0] : null;
+  if (!row) return jsonResponse({ message: "Not found" }, 404);
+  const viewerId = user && user.id ? String(user.id) : "";
+  const canViewPrivate = Boolean(
+    viewerId &&
+      row.created_by &&
+      String(row.created_by) === viewerId
+  );
+  if (!row.is_public && !canViewPrivate) {
+    return jsonResponse({ message: "Forbidden" }, 403);
+  }
+  const current = row[field] || 0;
   const next = current + 1;
   const update = await fetch(
     `${env.SUPABASE_URL}/rest/v1/practice_questions?id=eq.${encodeURIComponent(id)}`,
@@ -2519,15 +2572,20 @@ async function listAiUsage(env, days) {
   });
 }
 
-async function listPracticeQuestionsAdmin(env, params) {
+async function listPracticeQuestionsAdmin(env, params, user, _role) {
+  const userId = user && user.id ? String(user.id) : "";
+  if (!userId) {
+    return jsonResponse({ message: "Unauthorized" }, 401);
+  }
   const safeDays = Math.max(1, Math.min(90, Number(params && params.days ? params.days : 30)));
   const safeLimit = Math.max(1, Math.min(500, Number(params && params.limit ? params.limit : 200)));
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
   const serial = String(params && params.serial ? params.serial : "").trim();
   let url =
     `${env.SUPABASE_URL}/rest/v1/practice_questions` +
-    `?select=id,base_serial,focus,stem,good_count,bad_count,created_at,model,mode` +
+    `?select=id,base_serial,focus,stem,good_count,bad_count,created_at,model,mode,is_public,published_at,published_by` +
     `&created_at=gte.${encodeURIComponent(since)}` +
+    `&created_by=eq.${encodeURIComponent(userId)}` +
     `&order=created_at.desc` +
     `&limit=${safeLimit}`;
   if (serial) {
@@ -2552,6 +2610,97 @@ async function listPracticeQuestionsAdmin(env, params) {
     count: items.length,
     items
   });
+}
+
+async function publishPracticeQuestions(env, body, user, role) {
+  const userId = user && user.id ? String(user.id) : "";
+  if (!userId) {
+    return jsonResponse({ message: "Unauthorized" }, 401);
+  }
+  const ids = normalizePracticeQuestionIds(
+    Array.isArray(body && body.ids ? body.ids : null) ? body.ids : [body && body.id]
+  );
+  if (!ids.length) {
+    return jsonResponse({ message: "ids are required" }, 400);
+  }
+  const canManageAll = isRoleAtLeast(role, "admin");
+  const fetchUrl =
+    `${env.SUPABASE_URL}/rest/v1/practice_questions` +
+    `?select=id,created_by` +
+    `&id=${encodeURIComponent(buildSupabaseInFilter(ids))}`;
+  const fetchResp = await fetch(fetchUrl, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  const fetchedRows = await fetchResp.json().catch(() => []);
+  if (!fetchResp.ok) {
+    return jsonResponse({ message: "Supabase query failed", detail: fetchedRows }, 500);
+  }
+  const rows = Array.isArray(fetchedRows) ? fetchedRows : [];
+  const allowedIds = rows
+    .filter((row) => {
+      if (!row || !row.id) return false;
+      if (canManageAll) return true;
+      return row.created_by && String(row.created_by) === userId;
+    })
+    .map((row) => Number(row.id))
+    .filter((value) => Number.isInteger(value) && value > 0);
+  if (!allowedIds.length) {
+    return jsonResponse({ message: "Forbidden" }, 403);
+  }
+  const publish = body && Object.prototype.hasOwnProperty.call(body, "publish")
+    ? Boolean(body.publish)
+    : true;
+  const now = new Date().toISOString();
+  const updateResp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/practice_questions?id=${encodeURIComponent(buildSupabaseInFilter(allowedIds))}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation"
+      },
+      body: JSON.stringify({
+        is_public: publish,
+        published_at: publish ? now : null,
+        published_by: publish ? userId : null
+      })
+    }
+  );
+  const updatedRows = await updateResp.json().catch(() => []);
+  if (!updateResp.ok) {
+    return jsonResponse({ message: "Supabase update failed", detail: updatedRows }, 500);
+  }
+  const updated = Array.isArray(updatedRows) ? updatedRows.length : 0;
+  return jsonResponse({
+    ok: true,
+    publish,
+    requested: ids.length,
+    updated,
+    skipped: Math.max(0, ids.length - allowedIds.length)
+  });
+}
+
+function normalizePracticeQuestionIds(values) {
+  const list = Array.isArray(values) ? values : [];
+  const dedup = new Set();
+  list.forEach((value) => {
+    const n = Number(value);
+    if (Number.isInteger(n) && n > 0) {
+      dedup.add(n);
+    }
+  });
+  return Array.from(dedup);
+}
+
+function buildSupabaseInFilter(ids) {
+  const values = normalizePracticeQuestionIds(ids);
+  return `in.(${values.join(",")})`;
 }
 
 async function safeLogAiUsage(env, payload) {

@@ -1236,7 +1236,7 @@
 	            <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
 	            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
 	            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
-	            <button type="button" data-menu-target="practiceRatingPanel">練習問題評価一覧</button>
+	            <button type="button" data-menu-target="practiceRatingPanel">練習問題公開管理</button>
 	            <a href="./tag_study.html">タグ学習ラボ</a>
 	            <a href="./simple.html">かんたんビューへのリンク</a>
 	          </nav>
@@ -1393,7 +1393,7 @@
 	        </div>
 	        </details>
 	        <details class="inline" id="practiceRatingPanel" hidden>
-	        <summary>練習問題評価一覧</summary>
+	        <summary>練習問題公開管理</summary>
 	        <div class="history-panel">
 	          <div class="history-controls">
 	            <input id="practiceRatingSerial" type="text" placeholder="シリアル (任意)" />
@@ -1406,6 +1406,8 @@
 	              <option value="90">90日</option>
 	            </select>
 	            <button id="practiceRatingRefreshBtn" type="button">再読み込み</button>
+	            <button id="practiceRatingPublishSelectedBtn" type="button">選択を公開</button>
+	            <button id="practiceRatingUnpublishSelectedBtn" type="button">選択を非公開</button>
 	          </div>
 	          <div class="note" id="practiceRatingStatus">未取得</div>
 	          <div class="proposal-list-wide" id="practiceRatingList"></div>
@@ -1555,6 +1557,8 @@
 	        qaViewed: new Set(),
 	        qaLiked: new Set()
 	        ,practiceRatings: {}
+	        ,practiceAdminItems: []
+	        ,practiceAdminSelected: new Set()
 	        ,deepDiveSerials: new Set()
 	        ,deepDiveSerialsLoaded: false
 	        ,deepDiveLatestBySerial: {}
@@ -2627,54 +2631,209 @@
 	        });
 	      }
 
+	      function getSelectedPracticeQuestionIds() {
+	        return Array.from(state.practiceAdminSelected || [])
+	          .map((value) => Number(value))
+	          .filter((value) => Number.isInteger(value) && value > 0);
+	      }
+
+	      function updatePracticeBulkActionState() {
+	        const publishBtn = document.getElementById("practiceRatingPublishSelectedBtn");
+	        const unpublishBtn = document.getElementById("practiceRatingUnpublishSelectedBtn");
+	        if (!publishBtn || !unpublishBtn) return;
+	        const selected = getSelectedPracticeQuestionIds();
+	        const count = selected.length;
+	        publishBtn.disabled = count === 0;
+	        unpublishBtn.disabled = count === 0;
+	        publishBtn.textContent = count > 0 ? `選択を公開 (${count})` : "選択を公開";
+	        unpublishBtn.textContent = count > 0 ? `選択を非公開 (${count})` : "選択を非公開";
+	      }
+
 	      function renderPracticeRatingPanel(payload) {
 	        const listEl = document.getElementById("practiceRatingList");
 	        if (!listEl) return;
+	        listEl.textContent = "";
 	        if (!payload || payload.ok !== true) {
-	          listEl.textContent = "";
+	          state.practiceAdminItems = [];
+	          state.practiceAdminSelected = new Set();
+	          updatePracticeBulkActionState();
 	          return;
 	        }
 	        const items = Array.isArray(payload.items) ? payload.items : [];
+	        state.practiceAdminItems = items.slice();
+	        const allowedIds = new Set(
+	          items
+	            .map((item) => Number(item && item.id ? item.id : 0))
+	            .filter((value) => Number.isInteger(value) && value > 0)
+	        );
+	        const nextSelected = new Set();
+	        (state.practiceAdminSelected || new Set()).forEach((value) => {
+	          const id = Number(value);
+	          if (allowedIds.has(id)) nextSelected.add(id);
+	        });
+	        state.practiceAdminSelected = nextSelected;
 	        if (!items.length) {
 	          listEl.textContent = "データはありません。";
+	          updatePracticeBulkActionState();
 	          return;
 	        }
-	        const rows = items
-	          .map((item) => {
-	            const serial = String(item.base_serial || "");
-	            const focus = String(item.focus || "");
-	            const createdAt = String(item.created_at || "").slice(0, 16).replace("T", " ");
-	            const stem = escapeHtmlForMarkdown(String(item.stem || "")).replace(/\n/g, "<br>");
-	            const good = Number(item.good_count || 0);
-	            const bad = Number(item.bad_count || 0);
-	            const mode = item.mode === "paid" ? "paid" : "free";
-	            return `<tr>
-	              <td>${serial}</td>
-	              <td>${focus}</td>
-	              <td>${good}</td>
-	              <td>${bad}</td>
-	              <td>${mode}</td>
-	              <td>${createdAt}</td>
-	              <td>${stem}</td>
-	            </tr>`;
-	          })
-	          .join("");
-	        listEl.innerHTML = `
-	          <table class="trend-table">
-	            <thead>
-	              <tr>
-	                <th>元問題</th>
-	                <th>角度</th>
-	                <th>good</th>
-	                <th>bad</th>
-	                <th>free/paid</th>
-	                <th>生成日時</th>
-	                <th>問題文</th>
-	              </tr>
-	            </thead>
-	            <tbody>${rows}</tbody>
-	          </table>
-	        `;
+
+	        const table = document.createElement("table");
+	        table.className = "trend-table";
+	        const thead = document.createElement("thead");
+	        const headerRow = document.createElement("tr");
+	        const selectAllTh = document.createElement("th");
+	        const selectAll = document.createElement("input");
+	        selectAll.type = "checkbox";
+	        selectAll.setAttribute("aria-label", "すべて選択");
+	        selectAllTh.appendChild(selectAll);
+	        headerRow.appendChild(selectAllTh);
+	        ["元問題", "角度", "good", "bad", "free/paid", "公開", "生成日時", "操作", "問題文"].forEach((label) => {
+	          const th = document.createElement("th");
+	          th.textContent = label;
+	          headerRow.appendChild(th);
+	        });
+	        thead.appendChild(headerRow);
+	        table.appendChild(thead);
+
+	        const tbody = document.createElement("tbody");
+	        items.forEach((item) => {
+	          const row = document.createElement("tr");
+	          const id = Number(item && item.id ? item.id : 0);
+	          const isPublic = Boolean(item && item.is_public);
+	          const serial = String(item && item.base_serial ? item.base_serial : "");
+	          const focus = String(item && item.focus ? item.focus : "");
+	          const createdAt = String(item && item.created_at ? item.created_at : "").slice(0, 16).replace("T", " ");
+	          const good = Number(item && item.good_count ? item.good_count : 0);
+	          const bad = Number(item && item.bad_count ? item.bad_count : 0);
+	          const mode = item && item.mode === "paid" ? "paid" : "free";
+	          const stem = String(item && item.stem ? item.stem : "");
+
+	          const checkTd = document.createElement("td");
+	          const check = document.createElement("input");
+	          check.type = "checkbox";
+	          check.checked = state.practiceAdminSelected.has(id);
+	          check.addEventListener("change", () => {
+	            if (check.checked) {
+	              state.practiceAdminSelected.add(id);
+	            } else {
+	              state.practiceAdminSelected.delete(id);
+	            }
+	            syncSelectAllState();
+	            updatePracticeBulkActionState();
+	          });
+	          checkTd.appendChild(check);
+	          row.appendChild(checkTd);
+
+	          const serialTd = document.createElement("td");
+	          const serialBtn = document.createElement("button");
+	          serialBtn.className = "chip-link";
+	          serialBtn.textContent = serial;
+	          serialBtn.addEventListener("click", () => {
+	            applyFilters({ keyword: serial });
+	          });
+	          serialTd.appendChild(serialBtn);
+	          row.appendChild(serialTd);
+
+	          const focusTd = document.createElement("td");
+	          focusTd.textContent = focus;
+	          row.appendChild(focusTd);
+
+	          const goodTd = document.createElement("td");
+	          goodTd.textContent = String(good);
+	          row.appendChild(goodTd);
+
+	          const badTd = document.createElement("td");
+	          badTd.textContent = String(bad);
+	          row.appendChild(badTd);
+
+	          const modeTd = document.createElement("td");
+	          modeTd.textContent = mode;
+	          row.appendChild(modeTd);
+
+	          const visibilityTd = document.createElement("td");
+	          visibilityTd.textContent = isPublic ? "公開" : "非公開";
+	          row.appendChild(visibilityTd);
+
+	          const createdTd = document.createElement("td");
+	          createdTd.textContent = createdAt;
+	          row.appendChild(createdTd);
+
+	          const actionTd = document.createElement("td");
+	          const publishBtn = document.createElement("button");
+	          publishBtn.className = "chip-link";
+	          publishBtn.textContent = "公開";
+	          publishBtn.disabled = isPublic;
+	          publishBtn.addEventListener("click", () => {
+	            publishPracticeQuestions([id], true);
+	          });
+	          const unpublishBtn = document.createElement("button");
+	          unpublishBtn.className = "chip-link";
+	          unpublishBtn.textContent = "非公開";
+	          unpublishBtn.disabled = !isPublic;
+	          unpublishBtn.addEventListener("click", () => {
+	            publishPracticeQuestions([id], false);
+	          });
+	          actionTd.appendChild(publishBtn);
+	          actionTd.appendChild(unpublishBtn);
+	          row.appendChild(actionTd);
+
+	          const stemTd = document.createElement("td");
+	          stemTd.innerHTML = escapeHtmlForMarkdown(stem).replace(/\n/g, "<br>");
+	          row.appendChild(stemTd);
+
+	          tbody.appendChild(row);
+	        });
+	        table.appendChild(tbody);
+	        listEl.appendChild(table);
+
+	        const syncSelectAllState = () => {
+	          const ids = items
+	            .map((item) => Number(item && item.id ? item.id : 0))
+	            .filter((value) => Number.isInteger(value) && value > 0);
+	          const selectedCount = ids.filter((id) => state.practiceAdminSelected.has(id)).length;
+	          selectAll.checked = ids.length > 0 && selectedCount === ids.length;
+	          selectAll.indeterminate = selectedCount > 0 && selectedCount < ids.length;
+	        };
+	        selectAll.addEventListener("change", () => {
+	          items.forEach((item) => {
+	            const id = Number(item && item.id ? item.id : 0);
+	            if (!Number.isInteger(id) || id <= 0) return;
+	            if (selectAll.checked) {
+	              state.practiceAdminSelected.add(id);
+	            } else {
+	              state.practiceAdminSelected.delete(id);
+	            }
+	          });
+	          renderPracticeRatingPanel({ ok: true, items: state.practiceAdminItems.slice() });
+	        });
+	        syncSelectAllState();
+	        updatePracticeBulkActionState();
+	      }
+
+	      async function publishPracticeQuestions(ids, publish) {
+	        const statusEl = document.getElementById("practiceRatingStatus");
+	        const panel = document.getElementById("practiceRatingPanel");
+	        const targetIds = Array.isArray(ids)
+	          ? ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+	          : [];
+	        if (!statusEl || !panel || !targetIds.length) return;
+	        statusEl.textContent = publish ? "公開更新中..." : "非公開更新中...";
+	        try {
+	          const payload = await progressApiRequest("/admin/practice_questions/publish", {
+	            method: "POST",
+	            body: { ids: targetIds, publish: Boolean(publish) }
+	          });
+	          if (!payload || payload.ok !== true) {
+	            statusEl.textContent = "更新に失敗しました。";
+	            return;
+	          }
+	          statusEl.textContent = `更新完了: ${Number(payload.updated || 0)}件`;
+	          if (!panel.open) return;
+	          await loadPracticeRatingList();
+	        } catch (err) {
+	          statusEl.textContent = `更新に失敗しました: ${err && err.message ? err.message : "error"}`;
+	        }
 	      }
 
 	      async function loadPracticeRatingList() {
@@ -2691,6 +2850,7 @@
 	        const days = Math.max(1, Math.min(90, Number(daysEl.value || 30)));
 	        const serial = String(serialEl.value || "").trim();
 	        refreshBtn.disabled = true;
+	        updatePracticeBulkActionState();
 	        statusEl.textContent = "読み込み中...";
 	        try {
 	          const query = `?days=${encodeURIComponent(days)}&limit=300${
@@ -2698,7 +2858,7 @@
 	          }`;
 	          const payload = await progressApiRequest(`/admin/practice_questions${query}`);
 	          renderPracticeRatingPanel(payload);
-	          statusEl.textContent = `件数: ${Number(payload && payload.count ? payload.count : 0)} / 期間: ${days}日`;
+	          statusEl.textContent = `自分が生成した問題: ${Number(payload && payload.count ? payload.count : 0)}件 / 期間: ${days}日`;
 	        } catch (err) {
 	          statusEl.textContent = `取得に失敗しました: ${err && err.message ? err.message : "error"}`;
 	          renderPracticeRatingPanel(null);
@@ -2712,7 +2872,9 @@
 	        const refreshBtn = document.getElementById("practiceRatingRefreshBtn");
 	        const daysEl = document.getElementById("practiceRatingDays");
 	        const serialEl = document.getElementById("practiceRatingSerial");
-	        if (!panel || !refreshBtn || !daysEl || !serialEl) return;
+	        const publishSelectedBtn = document.getElementById("practiceRatingPublishSelectedBtn");
+	        const unpublishSelectedBtn = document.getElementById("practiceRatingUnpublishSelectedBtn");
+	        if (!panel || !refreshBtn || !daysEl || !serialEl || !publishSelectedBtn || !unpublishSelectedBtn) return;
 	        panel.addEventListener("toggle", () => {
 	          if (!panel.open) return;
 	          loadPracticeRatingList();
@@ -2729,6 +2891,13 @@
 	          event.preventDefault();
 	          loadPracticeRatingList();
 	        });
+	        publishSelectedBtn.addEventListener("click", () => {
+	          publishPracticeQuestions(getSelectedPracticeQuestionIds(), true);
+	        });
+	        unpublishSelectedBtn.addEventListener("click", () => {
+	          publishPracticeQuestions(getSelectedPracticeQuestionIds(), false);
+	        });
+	        updatePracticeBulkActionState();
 	      }
 
 	      function loadDeepDiveSerials() {
@@ -4449,7 +4618,9 @@
 	          practicePanel.hidden = true;
 	          const practiceHeader = document.createElement("div");
 	          practiceHeader.className = "note";
-	          practiceHeader.textContent = "練習問題（関連する別角度の問題）";
+	          practiceHeader.textContent = isRoleAtLeast("teacher")
+	            ? "練習問題（関連する別角度の問題） / 教師・管理者生成分は初期状態で非公開です"
+	            : "練習問題（関連する別角度の問題）";
 	          practicePanel.appendChild(practiceHeader);
 	          const practiceList = document.createElement("div");
 	          practicePanel.appendChild(practiceList);
@@ -4481,12 +4652,20 @@
 	              meta.className = "note qa-meta";
 	              const focusText = String(item.focus || "").trim();
 	              const createdAt = String(item.created_at || "");
-	              const infoSpan = document.createElement("span");
-	              const chunks = [];
-	              if (focusText) chunks.push(`focus: ${focusText}`);
-	              if (createdAt) chunks.push(createdAt.slice(0, 16).replace("T", " "));
-	              infoSpan.textContent = chunks.join(" / ");
-	              meta.appendChild(infoSpan);
+		              const infoSpan = document.createElement("span");
+		              const chunks = [];
+		              if (focusText) chunks.push(`focus: ${focusText}`);
+		              if (Object.prototype.hasOwnProperty.call(item, "is_public")) {
+		                chunks.push(item.is_public ? "公開" : "非公開");
+		              }
+		              if (createdAt) chunks.push(createdAt.slice(0, 16).replace("T", " "));
+		              infoSpan.textContent = chunks.join(" / ");
+		              meta.appendChild(infoSpan);
+		              if (item && item.is_public === false) {
+		                const privateLabel = document.createElement("span");
+		                privateLabel.textContent = "【非公開】生成者のみ閲覧できます";
+		                meta.appendChild(privateLabel);
+		              }
 	              const copyBtn = document.createElement("button");
 	              copyBtn.className = "icon-mini-btn";
 	              copyBtn.textContent = "⧉";
@@ -4515,36 +4694,42 @@
 	                goodBtn.disabled = true;
 	                badBtn.disabled = true;
 	              }
-	              goodBtn.addEventListener("click", () => {
-	                if (state.practiceRatings[ratingKey]) return;
-	                state.practiceRatings[ratingKey] = "good";
-	                savePracticeRatingState();
-	                goodCount += 1;
+		              goodBtn.addEventListener("click", async () => {
+		                if (state.practiceRatings[ratingKey]) return;
+		                state.practiceRatings[ratingKey] = "good";
+		                savePracticeRatingState();
+		                goodCount += 1;
 	                goodBtn.textContent = `👍 ${goodCount} ✓`;
-	                goodBtn.disabled = true;
-	                badBtn.disabled = true;
-	                if (!item.id) return;
-	                fetch(`${window.AI_API_BASE}/ai/practice_questions/good`, {
-	                  method: "POST",
-	                  headers: { "Content-Type": "application/json" },
-	                  body: JSON.stringify({ id: item.id })
-	                }).catch(() => {});
-	              });
-	              badBtn.addEventListener("click", () => {
-	                if (state.practiceRatings[ratingKey]) return;
-	                state.practiceRatings[ratingKey] = "bad";
-	                savePracticeRatingState();
+		                goodBtn.disabled = true;
+		                badBtn.disabled = true;
+		                if (!item.id) return;
+		                const headers = { "Content-Type": "application/json" };
+		                const token = await getAuthAccessToken();
+		                if (token) headers.Authorization = `Bearer ${token}`;
+		                fetch(`${window.AI_API_BASE}/ai/practice_questions/good`, {
+		                  method: "POST",
+		                  headers,
+		                  body: JSON.stringify({ id: item.id })
+		                }).catch(() => {});
+		              });
+		              badBtn.addEventListener("click", async () => {
+		                if (state.practiceRatings[ratingKey]) return;
+		                state.practiceRatings[ratingKey] = "bad";
+		                savePracticeRatingState();
 	                badCount += 1;
 	                badBtn.textContent = `👎 ${badCount} ✓`;
-	                goodBtn.disabled = true;
-	                badBtn.disabled = true;
-	                if (!item.id) return;
-	                fetch(`${window.AI_API_BASE}/ai/practice_questions/bad`, {
-	                  method: "POST",
-	                  headers: { "Content-Type": "application/json" },
-	                  body: JSON.stringify({ id: item.id })
-	                }).catch(() => {});
-	              });
+		                goodBtn.disabled = true;
+		                badBtn.disabled = true;
+		                if (!item.id) return;
+		                const headers = { "Content-Type": "application/json" };
+		                const token = await getAuthAccessToken();
+		                if (token) headers.Authorization = `Bearer ${token}`;
+		                fetch(`${window.AI_API_BASE}/ai/practice_questions/bad`, {
+		                  method: "POST",
+		                  headers,
+		                  body: JSON.stringify({ id: item.id })
+		                }).catch(() => {});
+		              });
 	              meta.appendChild(goodBtn);
 	              meta.appendChild(badBtn);
 
@@ -4586,19 +4771,23 @@
 	            });
 	          };
 
-	          const loadPracticeQuestions = async () => {
-	            if (!window.AI_API_BASE) {
-	              practiceHeader.textContent = "AI_API_BASE が設定されていません。";
-	              return;
-	            }
-	            practiceHeader.textContent = "読み込み中...";
-	            practiceRefreshBtn.disabled = true;
-	            try {
-	              const resp = await fetch(
-	                `${window.AI_API_BASE}/ai/practice_questions?serial=${encodeURIComponent(q.serial)}`
-	              );
-	              if (!resp.ok) throw new Error("API error");
-	              const data = await resp.json();
+		          const loadPracticeQuestions = async () => {
+		            if (!window.AI_API_BASE) {
+		              practiceHeader.textContent = "AI_API_BASE が設定されていません。";
+		              return;
+		            }
+		            practiceHeader.textContent = "読み込み中...";
+		            practiceRefreshBtn.disabled = true;
+		            try {
+		              const headers = {};
+		              const token = await getAuthAccessToken();
+		              if (token) headers.Authorization = `Bearer ${token}`;
+		              const resp = await fetch(
+		                `${window.AI_API_BASE}/ai/practice_questions?serial=${encodeURIComponent(q.serial)}`,
+		                { headers }
+		              );
+		              if (!resp.ok) throw new Error("API error");
+		              const data = await resp.json();
 	              const items = Array.isArray(data.items) ? data.items : [];
 	              renderPracticeItems(items);
 	            } catch (_err) {
@@ -5661,10 +5850,12 @@
         if (!user) {
           state.currentRole = "guest";
           state.roleRank = 0;
-          state.authSession = null;
-          state.teacherSession = null;
-          state.teacherUserId = null;
-          resetProgressState();
+	          state.authSession = null;
+	          state.teacherSession = null;
+	          state.teacherUserId = null;
+	          state.practiceAdminItems = [];
+	          state.practiceAdminSelected = new Set();
+	          resetProgressState();
           status.textContent = "未ログイン";
           form.hidden = false;
           actions.hidden = true;
@@ -5694,9 +5885,10 @@
         const role = getUserRole(user);
         state.currentRole = role || "unapproved";
         state.roleRank = roleRank(role);
-        state.authSession = session || null;
-        state.teacherSession = isRoleAtLeast("teacher") ? session : null;
-        if (user) {
+	        state.authSession = session || null;
+	        state.teacherSession = isRoleAtLeast("teacher") ? session : null;
+	        state.practiceAdminSelected = new Set();
+	        if (user) {
             if (state.teacherUserId !== user.id) {
               state.teacherUserId = user.id;
             }
