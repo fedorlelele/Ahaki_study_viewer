@@ -1522,20 +1522,18 @@
     </div>
 
     <div class="toolbar main">
-      <button id="copyAllBtn" aria-label="検索結果をコピー">検索結果をコピー</button>
-      <select id="sortSession" aria-label="並び替え">
-        <option value="">並び替え</option>
-        <option value="desc" selected>新しい順</option>
-        <option value="asc">古い順</option>
-        <option value="qa_desc">Q&A追加順</option>
-        <option value="deep_dive_desc">深掘り解説追加順</option>
-        <option value="review_desc">復習優先順</option>
-        <option value="frequent_desc">頻出順</option>
-        <option value="frequent_asc">頻出（低い順）</option>
-        <option value="count_desc">回答数が多い順</option>
-        <option value="count_asc">回答数が少ない順</option>
-        <option value="correct_desc">正答数が多い順</option>
-        <option value="correct_asc">正答数が少ない順</option>
+	      <button id="copyAllBtn" aria-label="検索結果をコピー">検索結果をコピー</button>
+	      <select id="sortSession" aria-label="並び替え">
+	        <option value="random" selected>ランダム</option>
+	        <option value="desc">新しい順</option>
+	        <option value="asc">古い順</option>
+	        <option value="qa_desc">Q&A追加順</option>
+	        <option value="deep_dive_desc">深掘り解説追加順</option>
+	        <option value="review_desc">復習優先順</option>
+	        <option value="count_desc">回答数が多い順</option>
+	        <option value="count_asc">回答数が少ない順</option>
+	        <option value="correct_desc">正答数が多い順</option>
+	        <option value="correct_asc">正答数が少ない順</option>
         <option value="rate_desc">正答率が高い順</option>
         <option value="rate_asc">正答率が低い順</option>
       </select>
@@ -3352,24 +3350,62 @@
           const ms = Date.parse(ts);
           return Number.isFinite(ms) ? ms : 0;
         };
-        const getReviewPriority = (q) => {
-          const row = state.progressSelfBySerial[q.serial];
-          if (!row) return { score: 1, missRate: 0 };
-          const status = row.status || "unstarted";
+	        const getReviewPriority = (q) => {
+	          const row = state.progressSelfBySerial[q.serial];
+	          if (!row) return { score: 1, missRate: 0 };
+	          const status = row.status || "unstarted";
           const attempts = Number(row.attempt_count || 0);
           const correct = Number(row.correct_count || 0);
           const missRate = attempts > 0 ? (attempts - correct) / attempts : 0;
           let score = 0;
           if (status === "needs_review") score = 4;
           else if (status === "unstarted") score = 1;
-          else score = 0;
-          return { score, missRate };
-        };
-        if (sortSession === "asc") {
-          filtered.sort((a, b) => {
-            const sessionDiff = (a.exam_session || 0) - (b.exam_session || 0);
-            if (sessionDiff !== 0) return sessionDiff;
-            const orderA = state.orderIndexBySerial[a.serial] || 0;
+	          else score = 0;
+	          return { score, missRate };
+	        };
+	        const shuffleInPlace = (arr) => {
+	          for (let i = arr.length - 1; i > 0; i -= 1) {
+	            const j = Math.floor(Math.random() * (i + 1));
+	            [arr[i], arr[j]] = [arr[j], arr[i]];
+	          }
+	        };
+	        const shuffleQuestionsDiversified = (items) => {
+	          if (!Array.isArray(items) || items.length <= 1) return items;
+	          const buckets = {};
+	          items.forEach((q) => {
+	            const subject = String(q && q.subject ? q.subject : "");
+	            const session = Number(q && q.exam_session ? q.exam_session : 0) || 0;
+	            const subtopic =
+	              q && Array.isArray(q.subtopics) && q.subtopics.length
+	                ? String(q.subtopics[0] || "")
+	                : "";
+	            const key = `${subject}||${session}||${subtopic}`;
+	            if (!buckets[key]) buckets[key] = [];
+	            buckets[key].push(q);
+	          });
+	          const keys = Object.keys(buckets);
+	          keys.forEach((key) => shuffleInPlace(buckets[key]));
+	          shuffleInPlace(keys);
+	          const result = [];
+	          while (keys.length) {
+	            const keyIndex = Math.floor(Math.random() * keys.length);
+	            const key = keys[keyIndex];
+	            const bucket = buckets[key];
+	            const item = bucket.pop();
+	            if (item) result.push(item);
+	            if (!bucket.length) {
+	              keys.splice(keyIndex, 1);
+	            }
+	          }
+	          return result;
+	        };
+	        if (sortSession === "random") {
+	          return shuffleQuestionsDiversified(filtered.slice());
+	        } else if (sortSession === "asc") {
+	          filtered.sort((a, b) => {
+	            const sessionDiff = (a.exam_session || 0) - (b.exam_session || 0);
+	            if (sessionDiff !== 0) return sessionDiff;
+	            const orderA = state.orderIndexBySerial[a.serial] || 0;
             const orderB = state.orderIndexBySerial[b.serial] || 0;
             return orderA - orderB;
           });
@@ -3391,16 +3427,12 @@
           filtered.sort((a, b) => getStats(a).correct - getStats(b).correct);
         } else if (sortSession === "rate_desc") {
           filtered.sort((a, b) => getRate(b) - getRate(a));
-        } else if (sortSession === "rate_asc") {
-          filtered.sort((a, b) => getRate(a) - getRate(b));
-        } else if (sortSession === "frequent_desc") {
-          filtered.sort((a, b) => (Number(b.frequent_score) || 0) - (Number(a.frequent_score) || 0));
-        } else if (sortSession === "frequent_asc") {
-          filtered.sort((a, b) => (Number(a.frequent_score) || 0) - (Number(b.frequent_score) || 0));
-        } else if (sortSession === "qa_desc") {
-          const qaOnly = filtered.filter(q => state.qaSerials.has(q.serial));
-          qaOnly.sort((a, b) => {
-            const qaDiff = getQaLatestMs(b) - getQaLatestMs(a);
+	        } else if (sortSession === "rate_asc") {
+	          filtered.sort((a, b) => getRate(a) - getRate(b));
+	        } else if (sortSession === "qa_desc") {
+	          const qaOnly = filtered.filter(q => state.qaSerials.has(q.serial));
+	          qaOnly.sort((a, b) => {
+	            const qaDiff = getQaLatestMs(b) - getQaLatestMs(a);
             if (qaDiff !== 0) return qaDiff;
             const sessionDiff = (Number(b.exam_session) || 0) - (Number(a.exam_session) || 0);
             if (sessionDiff !== 0) return sessionDiff;
@@ -5615,13 +5647,13 @@
           document.getElementById("subjectSelect").value = "";
           document.getElementById("examTypeSelect").value = "";
           document.getElementById("sessionFrom").value = "";
-          document.getElementById("sessionTo").value = "";
-          document.getElementById("progressStateFilter").value = "";
-          document.getElementById("sortSession").value = "desc";
-          saveTagVisibility();
-          updateSubtopicOptions("");
-          renderResults(filterQuestions());
-        });
+	        document.getElementById("sessionTo").value = "";
+	        document.getElementById("progressStateFilter").value = "";
+	        document.getElementById("sortSession").value = "random";
+	        saveTagVisibility();
+	        updateSubtopicOptions("");
+	        renderResults(filterQuestions());
+	      });
         document.getElementById("subjectSelect").addEventListener("change", (e) => {
           updateSubtopicOptions(e.target.value);
         });
@@ -8008,26 +8040,25 @@
           const range = [fromLabel, toLabel].filter(Boolean).join("〜");
           parts.push(`回数範囲: ${range || "指定なし"}`);
         }
-        if (progressState) parts.push(`進捗: ${getProgressStatusLabel(progressState)}`);
-        if (sortSession) {
-          const sortLabels = {
-            asc: "古い順",
-            desc: "新しい順",
-            qa_desc: "Q&A追加順",
-            deep_dive_desc: "深掘り解説追加順",
-            review_desc: "復習優先順",
-            frequent_desc: "頻出順",
-            frequent_asc: "頻出（低い順）",
-            count_desc: "回答数が多い順",
-            count_asc: "回答数が少ない順",
-            correct_desc: "正答数が多い順",
-            correct_asc: "正答数が少ない順",
-            rate_desc: "正答率が高い順",
-            rate_asc: "正答率が低い順"
-          };
-          const label = sortLabels[sortSession] || "新しい順";
-          parts.push(`並び替え: ${label}`);
-        }
+	        if (progressState) parts.push(`進捗: ${getProgressStatusLabel(progressState)}`);
+	        if (sortSession) {
+	          const sortLabels = {
+	            random: "ランダム",
+	            asc: "古い順",
+	            desc: "新しい順",
+	            qa_desc: "Q&A追加順",
+	            deep_dive_desc: "深掘り解説追加順",
+	            review_desc: "復習優先順",
+	            count_desc: "回答数が多い順",
+	            count_asc: "回答数が少ない順",
+	            correct_desc: "正答数が多い順",
+	            correct_asc: "正答数が少ない順",
+	            rate_desc: "正答率が高い順",
+	            rate_asc: "正答率が低い順"
+	          };
+	          const label = sortLabels[sortSession] || "ランダム";
+	          parts.push(`並び替え: ${label}`);
+	        }
         if (!isRoleAtLeast("student")) {
           if (answeredFilter === "hide_answered") parts.push("回答: 回答済みを非表示");
           if (answeredFilter === "only_answered") parts.push("回答: 回答済みのみ表示");
