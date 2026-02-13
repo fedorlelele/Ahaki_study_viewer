@@ -752,6 +752,44 @@
       details.inline > summary.inline-summary.action-summary.icon-only .action-icon {
         font-size: 17px;
       }
+      .back-to-top {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 996;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0 12px;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+        opacity: 0;
+        transform: translateY(8px);
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .back-to-top.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
+        pointer-events: auto;
+      }
+      .back-to-top:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      @media (max-width: 520px) {
+        .back-to-top {
+          right: 10px;
+          bottom: max(10px, env(safe-area-inset-bottom));
+        }
+      }
       details.inline > summary.inline-summary.action-summary {
         display: inline-flex;
         align-items: center;
@@ -1507,6 +1545,7 @@
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
     </main>
+    <button id="backToTopBtn" class="back-to-top" type="button" aria-label="ページ上部へ戻る" title="トップへ戻る">↑ トップ</button>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -3445,30 +3484,13 @@
           const meta = document.createElement("div");
           meta.className = "meta";
           meta.textContent = `${q.serial} / ${q.subject} / 第${q.exam_session}回`;
-          if (hasAnswered(q.serial) && !isRoleAtLeast("student")) {
-            const answered = document.createElement("span");
-            answered.className = "frequent-badge level-1";
-            answered.textContent = "回答済み";
-            meta.appendChild(answered);
-          }
-          const level = Number(q.frequent_level) || 0;
-          if (level > 0) {
-            const badge = document.createElement("span");
-            badge.className = `frequent-badge level-${level}`;
-            badge.textContent = level === 3 ? "頻出 高" : level === 2 ? "頻出 中" : "頻出 低";
-            const tags = (q.frequent_tags || []).slice(0, 2);
-            if (tags.length) {
-              badge.title = `頻出タグ: ${tags.join(", ")}`;
-            }
-            meta.appendChild(badge);
-            if (q.frequent_tags && q.frequent_tags.length) {
-              const tagLabel = document.createElement("span");
-              tagLabel.className = "frequent-tags";
-              tagLabel.textContent = q.frequent_tags.slice(0, 2).join(" / ");
-              meta.appendChild(tagLabel);
-            }
-          }
-          card.appendChild(meta);
+	          if (hasAnswered(q.serial) && !isRoleAtLeast("student")) {
+	            const answered = document.createElement("span");
+	            answered.className = "frequent-badge level-1";
+	            answered.textContent = "回答済み";
+	            meta.appendChild(answered);
+	          }
+	          card.appendChild(meta);
 
           if (isRoleAtLeast("student")) {
             const row = state.progressSelfBySerial[q.serial] || null;
@@ -5347,6 +5369,18 @@
         const menuToggleBtn = document.getElementById("menuToggleBtn");
         const topMenuContent = document.getElementById("topMenuContent");
         const topPanels = document.getElementById("topPanels");
+        const backToTopBtn = document.getElementById("backToTopBtn");
+        if (backToTopBtn) {
+          const updateBackToTopVisibility = () => {
+            const shouldShow = window.scrollY > 420;
+            backToTopBtn.classList.toggle("is-visible", shouldShow);
+          };
+          backToTopBtn.addEventListener("click", () => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          });
+          window.addEventListener("scroll", updateBackToTopVisibility, { passive: true });
+          updateBackToTopVisibility();
+        }
 	        const menuTargetIds = [
 	          "updateInfo",
 	          "settingsPanel",
