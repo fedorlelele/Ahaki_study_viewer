@@ -2688,7 +2688,7 @@
 	        selectAll.setAttribute("aria-label", "すべて選択");
 	        selectAllTh.appendChild(selectAll);
 	        headerRow.appendChild(selectAllTh);
-	        ["元問題", "角度", "good", "bad", "free/paid", "公開", "生成日時", "操作", "問題文"].forEach((label) => {
+	        ["元問題", "形式", "角度", "good", "bad", "free/paid", "公開", "生成日時", "操作", "問題文"].forEach((label) => {
 	          const th = document.createElement("th");
 	          th.textContent = label;
 	          headerRow.appendChild(th);
@@ -2702,6 +2702,7 @@
 	          const id = Number(item && item.id ? item.id : 0);
 	          const isPublic = Boolean(item && item.is_public);
 	          const serial = String(item && item.base_serial ? item.base_serial : "");
+	          const questionType = getPracticeQuestionType(item && item.question_type ? item.question_type : "");
 	          const focus = String(item && item.focus ? item.focus : "");
 	          const createdAt = String(item && item.created_at ? item.created_at : "").slice(0, 16).replace("T", " ");
 	          const good = Number(item && item.good_count ? item.good_count : 0);
@@ -2734,6 +2735,10 @@
 	          });
 	          serialTd.appendChild(serialBtn);
 	          row.appendChild(serialTd);
+
+	          const typeTd = document.createElement("td");
+	          typeTd.textContent = getPracticeTypeLabel(questionType);
+	          row.appendChild(typeTd);
 
 	          const focusTd = document.createElement("td");
 	          focusTd.textContent = focus;
@@ -4633,9 +4638,19 @@
 	          practiceActions.appendChild(practiceRefreshBtn);
 	          const practiceGenerateBtn = document.createElement("button");
 	          practiceGenerateBtn.className = "chip-link";
-	          practiceGenerateBtn.textContent = "練習問題を5問生成";
+	          practiceGenerateBtn.textContent = "4択を5問生成";
 	          practiceGenerateBtn.hidden = !canUseAiGeneration();
 	          practiceActions.appendChild(practiceGenerateBtn);
+	          const practiceTfGenerateBtn = document.createElement("button");
+	          practiceTfGenerateBtn.className = "chip-link";
+	          practiceTfGenerateBtn.textContent = "○×を5問生成";
+	          practiceTfGenerateBtn.hidden = !canUseAiGeneration();
+	          practiceActions.appendChild(practiceTfGenerateBtn);
+	          const practiceShortGenerateBtn = document.createElement("button");
+	          practiceShortGenerateBtn.className = "chip-link";
+	          practiceShortGenerateBtn.textContent = "一問一答を5問生成";
+	          practiceShortGenerateBtn.hidden = !canUseAiGeneration();
+	          practiceActions.appendChild(practiceShortGenerateBtn);
 
 	          const renderPracticeItems = (items) => {
 	            practiceList.textContent = "";
@@ -4644,19 +4659,25 @@
 	              practiceHeader.textContent = "練習問題はまだありません。";
 	              return;
 	            }
-	            practiceHeader.textContent = `練習問題件数: ${list.length}`;
+	            const countMcq = list.filter((item) => getPracticeQuestionType(item.question_type) === "mcq").length;
+	            const countTf = list.filter((item) => getPracticeQuestionType(item.question_type) === "tf").length;
+	            const countShort = list.filter((item) => getPracticeQuestionType(item.question_type) === "short").length;
+	            practiceHeader.textContent =
+	              `練習問題件数: ${list.length}（4択:${countMcq} / ○×:${countTf} / 一問一答:${countShort}）`;
 	            list.forEach((item, idx) => {
 	              const entry = document.createElement("div");
 	              entry.className = "proposal-item";
 	              const meta = document.createElement("div");
 	              meta.className = "note qa-meta";
+	              const questionType = getPracticeQuestionType(item.question_type);
 	              const focusText = String(item.focus || "").trim();
 	              const createdAt = String(item.created_at || "");
-		              const infoSpan = document.createElement("span");
-		              const chunks = [];
-		              if (focusText) chunks.push(`focus: ${focusText}`);
-		              if (Object.prototype.hasOwnProperty.call(item, "is_public")) {
-		                chunks.push(item.is_public ? "公開" : "非公開");
+	              const infoSpan = document.createElement("span");
+	              const chunks = [];
+	              chunks.push(getPracticeTypeLabel(questionType));
+	              if (focusText) chunks.push(`focus: ${focusText}`);
+	              if (Object.prototype.hasOwnProperty.call(item, "is_public")) {
+	                chunks.push(item.is_public ? "公開" : "非公開");
 		              }
 		              if (createdAt) chunks.push(createdAt.slice(0, 16).replace("T", " "));
 		              infoSpan.textContent = chunks.join(" / ");
@@ -4736,11 +4757,17 @@
 	              const stemEl = document.createElement("div");
 	              renderMarkdownToElement(stemEl, item.stem || "");
 	              const choiceList = document.createElement("ol");
-	              (Array.isArray(item.choices) ? item.choices : []).forEach((choice) => {
+	              if (questionType === "mcq") {
+	                (Array.isArray(item.choices) ? item.choices : []).forEach((choice) => {
+	                  const li = document.createElement("li");
+	                  li.textContent = choice || "";
+	                  choiceList.appendChild(li);
+	                });
+	              } else if (questionType === "tf") {
 	                const li = document.createElement("li");
-	                li.textContent = choice || "";
+	                li.textContent = "○ / ×";
 	                choiceList.appendChild(li);
-	              });
+	              }
 	              const answerDetails = document.createElement("details");
 	              answerDetails.className = "inline inline-details";
 	              const answerSummary = document.createElement("summary");
@@ -4750,13 +4777,20 @@
 	              const answerPanel = document.createElement("div");
 	              answerPanel.className = "qa-answer";
 	              const answerIndex = Number(item.answer_index || 0);
-	              const choiceText =
-	                Array.isArray(item.choices) && answerIndex >= 1 && answerIndex <= item.choices.length
-	                  ? item.choices[answerIndex - 1]
-	                  : "";
+	              const answerText = String(item.answer_text || "").trim();
+	              let answerLabel = "";
+	              if (questionType === "mcq") {
+	                const choiceText =
+	                  Array.isArray(item.choices) && answerIndex >= 1 && answerIndex <= item.choices.length
+	                    ? item.choices[answerIndex - 1]
+	                    : "";
+	                answerLabel = `${answerIndex}${choiceText ? " / " + choiceText : ""}`;
+	              } else {
+	                answerLabel = answerText || "（未設定）";
+	              }
 	              const answerLine = document.createElement("div");
 	              answerLine.className = "note";
-	              answerLine.textContent = `正答: ${answerIndex}${choiceText ? " / " + choiceText : ""}`;
+	              answerLine.textContent = `正答: ${answerLabel}`;
 	              answerPanel.appendChild(answerLine);
 	              const expEl = document.createElement("div");
 	              renderMarkdownToElement(expEl, item.explanation || "");
@@ -4765,7 +4799,9 @@
 
 	              entry.appendChild(meta);
 	              entry.appendChild(stemEl);
-	              entry.appendChild(choiceList);
+	              if (choiceList.childNodes.length) {
+	                entry.appendChild(choiceList);
+	              }
 	              entry.appendChild(answerDetails);
 	              practiceList.appendChild(entry);
 	            });
@@ -4801,34 +4837,37 @@
 	            loadPracticeQuestions();
 	          });
 
-	          practiceGenerateBtn.addEventListener("click", async () => {
-	            if (!window.AI_API_BASE) {
-	              practiceHeader.textContent = "AI_API_BASE が設定されていません。";
-	              return;
-	            }
+		          const runPracticeGenerate = async (questionType, startMessage, doneMessage, failMessage) => {
+		            if (!window.AI_API_BASE) {
+		              practiceHeader.textContent = "AI_API_BASE が設定されていません。";
+		              return;
+		            }
 	            let token = "";
 	            if (supabaseClient) {
 	              const { data } = await supabaseClient.auth.getSession();
 	              const session = data && data.session ? data.session : null;
 	              token = session && session.access_token ? session.access_token : "";
 	            }
-	            if (!state.aiPublicGeneration && !isRoleAtLeast("admin")) {
-	              practiceHeader.textContent = "管理者ログインが必要です。";
-	              return;
-	            }
-	            practiceHeader.textContent = "生成中...";
-	            announceStatusNow("練習問題を生成中です");
-	            practiceGenerateBtn.disabled = true;
-	            try {
-	              const headers = { "Content-Type": "application/json" };
-	              if (token) headers.Authorization = `Bearer ${token}`;
-	              const resp = await fetch(`${window.AI_API_BASE}/ai/practice_questions`, {
-	                method: "POST",
-	                headers,
-	                body: JSON.stringify({
-	                  serial: q.serial,
-	                  subject: q.subject || "",
-	                  subtopics: q.subtopics || [],
+		            if (!state.aiPublicGeneration && !isRoleAtLeast("admin")) {
+		              practiceHeader.textContent = "管理者ログインが必要です。";
+		              return;
+		            }
+		            practiceHeader.textContent = "生成中...";
+		            announceStatusNow(startMessage);
+		            practiceGenerateBtn.disabled = true;
+		            practiceTfGenerateBtn.disabled = true;
+		            practiceShortGenerateBtn.disabled = true;
+		            try {
+		              const headers = { "Content-Type": "application/json" };
+		              if (token) headers.Authorization = `Bearer ${token}`;
+		              const resp = await fetch(`${window.AI_API_BASE}/ai/practice_questions`, {
+		                method: "POST",
+		                headers,
+		                body: JSON.stringify({
+		                  question_type: questionType,
+		                  serial: q.serial,
+		                  subject: q.subject || "",
+		                  subtopics: q.subtopics || [],
 	                  tags: q.tags || [],
 	                  case_text: q.case_text || "",
 	                  stem: q.stem || "",
@@ -4842,21 +4881,32 @@
 	                const errorText = await resp.text();
 	                throw new Error(parseApiErrorText(errorText, `HTTP ${resp.status}`));
 	              }
-	              const payload = await resp.json();
-	              const items = Array.isArray(payload.items) ? payload.items : [];
-	              renderPracticeItems(items);
-	              practiceHeader.textContent = "生成完了";
-	              announceStatusNow("練習問題の生成が完了しました");
-	              loadPracticeQuestions();
-	            } catch (err) {
-	              practiceHeader.textContent = "生成に失敗しました。";
-	              announceStatusNow("練習問題の生成に失敗しました");
-	              const text = String(err && err.message ? err.message : err || "");
-	              renderMarkdownToElement(practiceList, text);
-	            } finally {
-	              practiceGenerateBtn.disabled = false;
-	            }
-	          });
+		              const payload = await resp.json();
+		              const items = Array.isArray(payload.items) ? payload.items : [];
+		              renderPracticeItems(items);
+		              practiceHeader.textContent = "生成完了";
+		              announceStatusNow(doneMessage);
+		              loadPracticeQuestions();
+		            } catch (err) {
+		              practiceHeader.textContent = "生成に失敗しました。";
+		              announceStatusNow(failMessage);
+		              const text = String(err && err.message ? err.message : err || "");
+		              renderMarkdownToElement(practiceList, text);
+		            } finally {
+		              practiceGenerateBtn.disabled = false;
+		              practiceTfGenerateBtn.disabled = false;
+		              practiceShortGenerateBtn.disabled = false;
+		            }
+		          };
+		          practiceGenerateBtn.addEventListener("click", () => {
+		            runPracticeGenerate("mcq", "4択練習問題を生成中です", "4択練習問題の生成が完了しました", "4択練習問題の生成に失敗しました");
+		          });
+		          practiceTfGenerateBtn.addEventListener("click", () => {
+		            runPracticeGenerate("tf", "○×練習問題を生成中です", "○×練習問題の生成が完了しました", "○×練習問題の生成に失敗しました");
+		          });
+		          practiceShortGenerateBtn.addEventListener("click", () => {
+		            runPracticeGenerate("short", "一問一答練習問題を生成中です", "一問一答練習問題の生成が完了しました", "一問一答練習問題の生成に失敗しました");
+		          });
 
 	          const practiceMainBtn = document.createElement("button");
 	          practiceMainBtn.className = "action-btn";
@@ -7319,8 +7369,23 @@
 
 	      function getPracticeRatingKey(item) {
 	        if (item && item.id) return `id:${item.id}`;
+	        const type = getPracticeQuestionType(item && item.question_type ? item.question_type : "");
 	        const stem = item && item.stem ? item.stem : "";
-	        return `fallback:${stem}`;
+	        return `fallback:${type}:${stem}`;
+	      }
+
+	      function getPracticeQuestionType(value) {
+	        const type = String(value || "").trim().toLowerCase();
+	        if (type === "tf" || type === "true_false" || type === "boolean" || type === "marubatsu") return "tf";
+	        if (type === "short" || type === "short_answer" || type === "qa_short") return "short";
+	        return "mcq";
+	      }
+
+	      function getPracticeTypeLabel(type) {
+	        const normalized = getPracticeQuestionType(type);
+	        if (normalized === "tf") return "○×";
+	        if (normalized === "short") return "一問一答";
+	        return "4択";
 	      }
 
 	      function loadPracticeRatingState() {
@@ -7959,21 +8024,24 @@
           const n = nums[idx] || String(idx + 1);
           lines.push(`${n}．${choice}`);
         });
-        if (showAnswer) {
-          lines.push("　");
-          let ansLabel = "";
-          if (q.answer_none) {
-            ansLabel = "なし";
-          } else {
-            const indices = getAnswerIndices(q);
-            if (indices.length) {
-              ansLabel = indices
-                .map(idx => nums[idx - 1] || String(idx))
-                .join("・");
-            }
-          }
-          const ans = ansLabel ? `解答　${ansLabel}` : "解答　";
-          lines.push(ans);
+	        if (showAnswer) {
+	          lines.push("　");
+	          let ansLabel = "";
+	          if (q.answer_none) {
+	            ansLabel = "なし";
+	          } else {
+	            const indices = getAnswerIndices(q);
+	            if (indices.length) {
+	              ansLabel = indices
+	                .map(idx => nums[idx - 1] || String(idx))
+	                .join("・");
+	            } else {
+	              const answerText = q && q.answer_text ? String(q.answer_text).trim() : "";
+	              if (answerText) ansLabel = answerText;
+	            }
+	          }
+	          const ans = ansLabel ? `解答　${ansLabel}` : "解答　";
+	          lines.push(ans);
           if (showExplanation) {
             const exp = q.explanation_latest || "";
             if (exp) {
@@ -7987,15 +8055,20 @@
 
 	      function buildPracticeQuestionForCopy(baseQuestion, practiceItem, index) {
 	        const serialBase = baseQuestion && baseQuestion.serial ? String(baseQuestion.serial) : "";
+	        const questionType = getPracticeQuestionType(practiceItem && practiceItem.question_type);
 	        const answerIndex = Number(practiceItem && practiceItem.answer_index ? practiceItem.answer_index : 0);
+	        const answerText = practiceItem && practiceItem.answer_text ? String(practiceItem.answer_text).trim() : "";
 	        return {
 	          serial: `${serialBase}（練習${Number(index) + 1}）`,
+	          question_type: questionType,
 	          stem: practiceItem && practiceItem.stem ? String(practiceItem.stem) : "",
-	          choices: Array.isArray(practiceItem && practiceItem.choices ? practiceItem.choices : null)
-	            ? practiceItem.choices
-	            : [],
-	          answer_indices: answerIndex >= 1 ? [answerIndex] : [],
+	          choices:
+	            questionType === "mcq" && Array.isArray(practiceItem && practiceItem.choices ? practiceItem.choices : null)
+	              ? practiceItem.choices
+	              : [],
+	          answer_indices: questionType === "mcq" && answerIndex >= 1 ? [answerIndex] : [],
 	          answer_none: false,
+	          answer_text: questionType === "mcq" ? "" : answerText,
 	          explanation_latest:
 	            practiceItem && practiceItem.explanation ? String(practiceItem.explanation) : ""
 	        };

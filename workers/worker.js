@@ -742,7 +742,8 @@ async function handlePracticeQuestions(request, env) {
   if (!serial) {
     return jsonResponse({ message: "serial is required" }, 400);
   }
-  const prompt = buildPracticeQuestionsPrompt(body);
+  const questionType = normalizePracticeQuestionType(body.question_type);
+  const prompt = buildPracticeQuestionsPrompt(body, questionType);
   const gemini = await resolveGeminiRoute(env, role);
   if (!gemini.apiKey) {
     return jsonResponse({ message: "Gemini API key is not configured." }, 500);
@@ -826,7 +827,7 @@ async function handlePracticeQuestions(request, env) {
   }
   const data = await resp.json();
   const text = data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
-  const parsed = parsePracticeQuestions(text);
+  const parsed = parsePracticeQuestions(text, questionType);
   if (!parsed.items || parsed.items.length < 5) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -852,6 +853,7 @@ async function handlePracticeQuestions(request, env) {
     const inserted = await insertPracticeQuestions(env, {
       baseSerial: serial,
       items: limitedItems,
+      questionType,
       createdBy: user && user.id ? user.id : null,
       model: usedModel,
       mode: gemini.mode,
@@ -1306,7 +1308,7 @@ function parseQuestionQa(text) {
   return { status: "irrelevant", question: "", answer: "" };
 }
 
-function buildPracticeQuestionsPrompt(body) {
+function buildPracticeQuestionsPrompt(body, questionType) {
   const serial = String(body.serial || "").trim();
   const subject = String(body.subject || "").trim();
   const subtopics = Array.isArray(body.subtopics)
@@ -1322,6 +1324,60 @@ function buildPracticeQuestionsPrompt(body) {
     : [];
   const answer = String(body.answer || "").trim();
   const explanation = String(body.explanation || "").trim();
+  const type = normalizePracticeQuestionType(questionType);
+  const typeLabel = getPracticeQuestionTypeLabel(type);
+
+  const sectionGuide = [];
+  if (type === "mcq") {
+    sectionGuide.push(
+      "【今回作る問題タイプ】",
+      `- タイプ: ${typeLabel}`,
+      "- 4択問題を5問作る",
+      "- すべて4択（choicesは4個）",
+      "- answer_index は 1〜4 の整数で指定する（1が先頭）",
+      "- answer_text は空文字にする",
+      "- 過去問の大問Ⅰと同じ難易度・文体（簡潔で試験向き）に揃える",
+      "",
+      "【出力形式（JSONのみ）】",
+      "{\"items\":[{\"focus\":\"...\",\"stem\":\"...\",\"choices\":[\"...\",\"...\",\"...\",\"...\"],\"answer_index\":1,\"answer_text\":\"\",\"explanation\":\"...\"}]}",
+      "",
+      "items は必ず5要素にする"
+    );
+  } else if (type === "tf") {
+    sectionGuide.push(
+      "【今回作る問題タイプ】",
+      `- タイプ: ${typeLabel}`,
+      "- ○×問題を5問作る",
+      "- 過去問の大問Ⅱと同じ文面にする（断定文を1文で提示）",
+      "- 例文体: 「体性感覚野は頭頂葉の中心後回にある。」",
+      "- stem は問題文のみ（末尾は「。」）",
+      "- choices は空配列にする",
+      "- answer_index は null にする",
+      "- answer_text は「○」または「✕」のみ",
+      "",
+      "【出力形式（JSONのみ）】",
+      "{\"items\":[{\"focus\":\"...\",\"stem\":\"...\",\"choices\":[],\"answer_index\":null,\"answer_text\":\"○\",\"explanation\":\"...\"}]}",
+      "",
+      "items は必ず5要素にする"
+    );
+  } else {
+    sectionGuide.push(
+      "【今回作る問題タイプ】",
+      `- タイプ: ${typeLabel}`,
+      "- 一問一答を5問作る",
+      "- 過去問の大問Ⅲと同じ文面にする",
+      "- 例文体: 「○○を答えなさい。」「○○は何か答えなさい。」",
+      "- stem は問いのみ（「答えなさい。」で終える）",
+      "- choices は空配列にする",
+      "- answer_index は null にする",
+      "- answer_text は模範解答（短く明確）",
+      "",
+      "【出力形式（JSONのみ）】",
+      "{\"items\":[{\"focus\":\"...\",\"stem\":\"...\",\"choices\":[],\"answer_index\":null,\"answer_text\":\"...\",\"explanation\":\"...\"}]}",
+      "",
+      "items は必ず5要素にする"
+    );
+  }
 
   return [
     "あなたは医療系国家試験の練習問題を作る出題AIです。",
@@ -1345,21 +1401,16 @@ function buildPracticeQuestionsPrompt(body) {
     answer ? `正答: ${answer}` : "正答: （不明）",
     explanation ? `解説:\n${explanation}` : "解説: （なし）",
     "",
-    "【作る練習問題の要件】",
-    "- すべて4択（choicesは4個）",
-    "- answer_index は 1〜4 の整数で指定する（1が先頭）",
+    "【作る練習問題の共通要件】",
     "- explanation はMarkdownで作成する（見出しや箇条書きは最小限でOK）",
     "- focus は「どの角度にずらしたか」を短い語句で書く（例: ビタミンD欠乏 / 血虚 / 鑑別 / 作用機序 など）",
-    "",
-    "【出力形式（JSONのみ）】",
-    "{\"items\":[{\"focus\":\"...\",\"stem\":\"...\",\"choices\":[\"...\",\"...\",\"...\",\"...\"],\"answer_index\":1,\"explanation\":\"...\"}]}",
-    "",
-    "items は必ず5要素にする"
+    ...sectionGuide
   ].join("\n");
 }
 
-function parsePracticeQuestions(text) {
+function parsePracticeQuestions(text, questionType) {
   if (!text) return { items: [] };
+  const type = normalizePracticeQuestionType(questionType);
   try {
     const jsonStart = text.indexOf("{");
     const jsonEnd = text.lastIndexOf("}");
@@ -1371,19 +1422,46 @@ function parsePracticeQuestions(text) {
           const focus = String(raw && raw.focus ? raw.focus : "").trim();
           const stem = String(raw && raw.stem ? raw.stem : "").trim();
           const explanation = String(raw && raw.explanation ? raw.explanation : "").trim();
-          const choices = Array.isArray(raw && raw.choices ? raw.choices : null)
-            ? raw.choices.map((v) => String(v || "").trim()).filter(Boolean)
-            : [];
-          const answerIndex = Number(raw && (raw.answer_index ?? raw.answerIndex));
           if (!stem) return null;
-          if (choices.length !== 4) return null;
-          if (!Number.isFinite(answerIndex)) return null;
-          if (answerIndex < 1 || answerIndex > 4) return null;
+          if (type === "mcq") {
+            const choices = Array.isArray(raw && raw.choices ? raw.choices : null)
+              ? raw.choices.map((v) => String(v || "").trim()).filter(Boolean)
+              : [];
+            const answerIndex = Number(raw && (raw.answer_index ?? raw.answerIndex));
+            if (choices.length !== 4) return null;
+            if (!Number.isFinite(answerIndex)) return null;
+            if (answerIndex < 1 || answerIndex > 4) return null;
+            return {
+              focus,
+              stem,
+              choices,
+              answer_index: answerIndex,
+              answer_text: "",
+              explanation
+            };
+          }
+          if (type === "tf") {
+            const rawAnswer = normalizeTrueFalseAnswer(
+              raw && (raw.answer_text ?? raw.answer ?? raw.answer_label ?? raw.correct)
+            );
+            if (rawAnswer !== "○" && rawAnswer !== "✕") return null;
+            return {
+              focus,
+              stem,
+              choices: [],
+              answer_index: null,
+              answer_text: rawAnswer,
+              explanation
+            };
+          }
+          const answerText = String(raw && (raw.answer_text ?? raw.answer) ? (raw.answer_text ?? raw.answer) : "").trim();
+          if (!answerText) return null;
           return {
             focus,
             stem,
-            choices,
-            answer_index: answerIndex,
+            choices: [],
+            answer_index: null,
+            answer_text: answerText,
             explanation
           };
         })
@@ -1394,6 +1472,33 @@ function parsePracticeQuestions(text) {
     // fall through
   }
   return { items: [] };
+}
+
+function normalizeTrueFalseAnswer(value) {
+  const raw = String(value == null ? "" : value)
+    .trim()
+    .toLowerCase()
+    .replace(/[〇○◯]/g, "○")
+    .replace(/[×☓]/g, "✕")
+    .replace(/o/g, "○")
+    .replace(/x/g, "✕");
+  if (raw === "○" || raw === "true" || raw === "t" || raw === "yes") return "○";
+  if (raw === "✕" || raw === "false" || raw === "f" || raw === "no") return "✕";
+  return "";
+}
+
+function normalizePracticeQuestionType(value) {
+  const type = String(value || "").trim().toLowerCase();
+  if (type === "tf" || type === "true_false" || type === "boolean" || type === "marubatsu") return "tf";
+  if (type === "short" || type === "short_answer" || type === "qa_short") return "short";
+  return "mcq";
+}
+
+function getPracticeQuestionTypeLabel(type) {
+  const normalized = normalizePracticeQuestionType(type);
+  if (normalized === "tf") return "大問Ⅱ（○×）";
+  if (normalized === "short") return "大問Ⅲ（一問一答）";
+  return "大問Ⅰ（4択）";
 }
 
 async function saveQuestionQa(env, record) {
@@ -1501,7 +1606,7 @@ async function incrementQaCounter(env, body, field) {
 
 async function fetchPracticeQuestions(env, serial, user) {
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,base_serial,focus,stem,choices,answer_index,explanation,good_count,bad_count,created_at,created_by,is_public&base_serial=eq.${encodeURIComponent(serial)}&order=created_at.desc&limit=50`,
+    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,base_serial,question_type,focus,stem,choices,answer_index,answer_text,explanation,good_count,bad_count,created_at,created_by,is_public&base_serial=eq.${encodeURIComponent(serial)}&order=created_at.desc&limit=50`,
     {
       headers: {
         apikey: env.SUPABASE_SERVICE_KEY,
@@ -1528,10 +1633,12 @@ async function fetchPracticeQuestions(env, serial, user) {
     items: items.map((row) => ({
       id: row.id,
       base_serial: row.base_serial,
+      question_type: normalizePracticeQuestionType(row.question_type),
       focus: row.focus,
       stem: row.stem,
       choices: row.choices,
       answer_index: row.answer_index,
+      answer_text: row.answer_text || "",
       explanation: row.explanation,
       good_count: row.good_count,
       bad_count: row.bad_count,
@@ -1543,14 +1650,17 @@ async function fetchPracticeQuestions(env, serial, user) {
 
 async function insertPracticeQuestions(env, params) {
   const baseSerial = String(params && params.baseSerial ? params.baseSerial : "").trim();
+  const questionType = normalizePracticeQuestionType(params && params.questionType);
   const items = Array.isArray(params && params.items ? params.items : null) ? params.items : [];
   if (!baseSerial || !items.length) return [];
   const payload = items.map((item) => ({
     base_serial: baseSerial,
+    question_type: questionType,
     focus: item.focus || "",
     stem: item.stem || "",
     choices: item.choices || [],
     answer_index: item.answer_index || null,
+    answer_text: item.answer_text || "",
     explanation: item.explanation || "",
     created_by: params.createdBy || null,
     model: params.model || "",
@@ -2583,7 +2693,7 @@ async function listPracticeQuestionsAdmin(env, params, user, _role) {
   const serial = String(params && params.serial ? params.serial : "").trim();
   let url =
     `${env.SUPABASE_URL}/rest/v1/practice_questions` +
-    `?select=id,base_serial,focus,stem,good_count,bad_count,created_at,model,mode,is_public,published_at,published_by` +
+    `?select=id,base_serial,question_type,focus,stem,answer_text,good_count,bad_count,created_at,model,mode,is_public,published_at,published_by` +
     `&created_at=gte.${encodeURIComponent(since)}` +
     `&created_by=eq.${encodeURIComponent(userId)}` +
     `&order=created_at.desc` +
@@ -2608,7 +2718,10 @@ async function listPracticeQuestionsAdmin(env, params, user, _role) {
     days: safeDays,
     since,
     count: items.length,
-    items
+    items: items.map((item) => ({
+      ...item,
+      question_type: normalizePracticeQuestionType(item && item.question_type)
+    }))
   });
 }
 
