@@ -1233,13 +1233,14 @@
             <button type="button" data-menu-target="answerTrendPanel">回答数の推移</button>
             <button type="button" data-menu-target="historyPanel">編集履歴</button>
             <button type="button" data-menu-target="proposalPanel">修正提案一覧</button>
-            <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
-            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
-            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
-            <a href="./tag_study.html">タグ学習ラボ</a>
-            <a href="./simple.html">かんたんビューへのリンク</a>
-          </nav>
-        </div>
+	            <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
+	            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
+	            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
+	            <button type="button" data-menu-target="practiceRatingPanel">練習問題評価一覧</button>
+	            <a href="./tag_study.html">タグ学習ラボ</a>
+	            <a href="./simple.html">かんたんビューへのリンク</a>
+	          </nav>
+	        </div>
         <details class="inline" id="updateInfo" hidden>
         <summary>更新情報</summary>
         <div class="card-actions">
@@ -1369,10 +1370,10 @@
           <div class="note" id="aiPublicGenerationStatus">状態を確認中...</div>
         </div>
         </details>
-        <details class="inline" id="aiUsagePanel" hidden>
-        <summary>API使用状況</summary>
-        <div class="history-panel">
-          <div class="history-controls">
+	        <details class="inline" id="aiUsagePanel" hidden>
+	        <summary>API使用状況</summary>
+	        <div class="history-panel">
+	          <div class="history-controls">
             <label for="aiUsageDays">集計期間</label>
             <select id="aiUsageDays">
               <option value="7">7日</option>
@@ -1388,10 +1389,29 @@
           <div class="note">日別集計（free / paid）</div>
           <div class="proposal-list-wide" id="aiUsageDaily"></div>
           <div class="note">用途別集計（free / paid）</div>
-          <div class="proposal-list-wide" id="aiUsageEndpoint"></div>
-        </div>
-        </details>
-      <div class="auth-container">
+	          <div class="proposal-list-wide" id="aiUsageEndpoint"></div>
+	        </div>
+	        </details>
+	        <details class="inline" id="practiceRatingPanel" hidden>
+	        <summary>練習問題評価一覧</summary>
+	        <div class="history-panel">
+	          <div class="history-controls">
+	            <input id="practiceRatingSerial" type="text" placeholder="シリアル (任意)" />
+	            <label for="practiceRatingDays">集計期間</label>
+	            <select id="practiceRatingDays">
+	              <option value="7">7日</option>
+	              <option value="14">14日</option>
+	              <option value="30" selected>30日</option>
+	              <option value="60">60日</option>
+	              <option value="90">90日</option>
+	            </select>
+	            <button id="practiceRatingRefreshBtn" type="button">再読み込み</button>
+	          </div>
+	          <div class="note" id="practiceRatingStatus">未取得</div>
+	          <div class="proposal-list-wide" id="practiceRatingList"></div>
+	        </div>
+	        </details>
+	      <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
         <div id="authForm">
@@ -1530,13 +1550,14 @@
         showTags: false,
         showSubtopics: false,
         disabledTags: new Set(),
-        currentRole: "guest",
-        roleRank: 0,
-        qaViewed: new Set(),
-        qaLiked: new Set()
-        ,deepDiveSerials: new Set()
-        ,deepDiveSerialsLoaded: false
-        ,deepDiveLatestBySerial: {}
+	        currentRole: "guest",
+	        roleRank: 0,
+	        qaViewed: new Set(),
+	        qaLiked: new Set()
+	        ,practiceRatings: {}
+	        ,deepDiveSerials: new Set()
+	        ,deepDiveSerialsLoaded: false
+	        ,deepDiveLatestBySerial: {}
         ,qaSerials: new Set()
         ,qaSerialsLoaded: false
         ,qaLatestBySerial: {}
@@ -1660,15 +1681,16 @@
       }
 
       function applyTopMenuRoleVisibility() {
-        const requiredRoleByTarget = {
-          progressPanel: "student",
-          answerTrendPanel: "teacher",
-          historyPanel: "teacher",
-          proposalPanel: "teacher",
-          tagDisablePanel: "teacher",
-          aiGenerationPanel: "admin",
-          aiUsagePanel: "admin"
-        };
+	        const requiredRoleByTarget = {
+	          progressPanel: "student",
+	          answerTrendPanel: "teacher",
+	          historyPanel: "teacher",
+	          proposalPanel: "teacher",
+	          tagDisablePanel: "teacher",
+	          aiGenerationPanel: "admin",
+	          aiUsagePanel: "admin",
+	          practiceRatingPanel: "teacher"
+	        };
         document.querySelectorAll("#topMenuContent [data-menu-target]").forEach((btn) => {
           const targetId = btn.getAttribute("data-menu-target");
           const requiredRole = requiredRoleByTarget[targetId] || "guest";
@@ -2587,10 +2609,10 @@
         }
       }
 
-      function initAiUsagePanel() {
-        const panel = document.getElementById("aiUsagePanel");
-        const daysEl = document.getElementById("aiUsageDays");
-        const refreshBtn = document.getElementById("aiUsageRefreshBtn");
+	      function initAiUsagePanel() {
+	        const panel = document.getElementById("aiUsagePanel");
+	        const daysEl = document.getElementById("aiUsageDays");
+	        const refreshBtn = document.getElementById("aiUsageRefreshBtn");
         if (!panel || !daysEl || !refreshBtn) return;
         panel.addEventListener("toggle", () => {
           if (!panel.open) return;
@@ -2600,14 +2622,118 @@
           if (!panel.open) return;
           loadAdminAiUsage();
         });
-        refreshBtn.addEventListener("click", () => {
-          loadAdminAiUsage();
-        });
-      }
+	        refreshBtn.addEventListener("click", () => {
+	          loadAdminAiUsage();
+	        });
+	      }
 
-      function loadDeepDiveSerials() {
-        if (!window.AI_API_BASE) {
-          state.deepDiveSerialsLoaded = true;
+	      function renderPracticeRatingPanel(payload) {
+	        const listEl = document.getElementById("practiceRatingList");
+	        if (!listEl) return;
+	        if (!payload || payload.ok !== true) {
+	          listEl.textContent = "";
+	          return;
+	        }
+	        const items = Array.isArray(payload.items) ? payload.items : [];
+	        if (!items.length) {
+	          listEl.textContent = "データはありません。";
+	          return;
+	        }
+	        const rows = items
+	          .map((item) => {
+	            const serial = String(item.base_serial || "");
+	            const focus = String(item.focus || "");
+	            const createdAt = String(item.created_at || "").slice(0, 16).replace("T", " ");
+	            const stem = escapeHtmlForMarkdown(String(item.stem || "")).replace(/\n/g, "<br>");
+	            const good = Number(item.good_count || 0);
+	            const bad = Number(item.bad_count || 0);
+	            const mode = item.mode === "paid" ? "paid" : "free";
+	            return `<tr>
+	              <td>${serial}</td>
+	              <td>${focus}</td>
+	              <td>${good}</td>
+	              <td>${bad}</td>
+	              <td>${mode}</td>
+	              <td>${createdAt}</td>
+	              <td>${stem}</td>
+	            </tr>`;
+	          })
+	          .join("");
+	        listEl.innerHTML = `
+	          <table class="trend-table">
+	            <thead>
+	              <tr>
+	                <th>元問題</th>
+	                <th>角度</th>
+	                <th>good</th>
+	                <th>bad</th>
+	                <th>free/paid</th>
+	                <th>生成日時</th>
+	                <th>問題文</th>
+	              </tr>
+	            </thead>
+	            <tbody>${rows}</tbody>
+	          </table>
+	        `;
+	      }
+
+	      async function loadPracticeRatingList() {
+	        const statusEl = document.getElementById("practiceRatingStatus");
+	        const daysEl = document.getElementById("practiceRatingDays");
+	        const serialEl = document.getElementById("practiceRatingSerial");
+	        const refreshBtn = document.getElementById("practiceRatingRefreshBtn");
+	        if (!statusEl || !daysEl || !serialEl || !refreshBtn) return;
+	        if (!isRoleAtLeast("teacher")) {
+	          statusEl.textContent = "教師/管理者のみ閲覧できます。";
+	          renderPracticeRatingPanel(null);
+	          return;
+	        }
+	        const days = Math.max(1, Math.min(90, Number(daysEl.value || 30)));
+	        const serial = String(serialEl.value || "").trim();
+	        refreshBtn.disabled = true;
+	        statusEl.textContent = "読み込み中...";
+	        try {
+	          const query = `?days=${encodeURIComponent(days)}&limit=300${
+	            serial ? `&serial=${encodeURIComponent(serial)}` : ""
+	          }`;
+	          const payload = await progressApiRequest(`/admin/practice_questions${query}`);
+	          renderPracticeRatingPanel(payload);
+	          statusEl.textContent = `件数: ${Number(payload && payload.count ? payload.count : 0)} / 期間: ${days}日`;
+	        } catch (err) {
+	          statusEl.textContent = `取得に失敗しました: ${err && err.message ? err.message : "error"}`;
+	          renderPracticeRatingPanel(null);
+	        } finally {
+	          refreshBtn.disabled = false;
+	        }
+	      }
+
+	      function initPracticeRatingPanel() {
+	        const panel = document.getElementById("practiceRatingPanel");
+	        const refreshBtn = document.getElementById("practiceRatingRefreshBtn");
+	        const daysEl = document.getElementById("practiceRatingDays");
+	        const serialEl = document.getElementById("practiceRatingSerial");
+	        if (!panel || !refreshBtn || !daysEl || !serialEl) return;
+	        panel.addEventListener("toggle", () => {
+	          if (!panel.open) return;
+	          loadPracticeRatingList();
+	        });
+	        refreshBtn.addEventListener("click", () => {
+	          loadPracticeRatingList();
+	        });
+	        daysEl.addEventListener("change", () => {
+	          if (!panel.open) return;
+	          loadPracticeRatingList();
+	        });
+	        serialEl.addEventListener("keydown", (event) => {
+	          if (event.key !== "Enter") return;
+	          event.preventDefault();
+	          loadPracticeRatingList();
+	        });
+	      }
+
+	      function loadDeepDiveSerials() {
+	        if (!window.AI_API_BASE) {
+	          state.deepDiveSerialsLoaded = true;
           return Promise.resolve();
         }
         return fetch(`${window.AI_API_BASE}/ai/deep_dive_index`)
@@ -4312,15 +4438,259 @@
           deepDivePromptBtn.className = "action-btn";
           setActionButtonLabel(deepDivePromptBtn, "✎", "プロンプト");
           deepDivePromptBtn.setAttribute("aria-label", "深掘り用プロンプトをクリップボードにコピー");
-          deepDivePromptBtn.addEventListener("click", () => {
-            const text = formatDeepDivePrompt(q);
-            copyToClipboard(text);
-          });
-          extraPanel.appendChild(deepDivePromptBtn);
-          const deepDivePanel = document.createElement("div");
-          deepDivePanel.className = "deep-dive-panel";
-          deepDivePanel.hidden = true;
-          const deepDiveStatus = document.createElement("div");
+	          deepDivePromptBtn.addEventListener("click", () => {
+	            const text = formatDeepDivePrompt(q);
+	            copyToClipboard(text);
+	          });
+	          extraPanel.appendChild(deepDivePromptBtn);
+
+	          const practicePanel = document.createElement("div");
+	          practicePanel.className = "deep-dive-panel";
+	          practicePanel.hidden = true;
+	          const practiceHeader = document.createElement("div");
+	          practiceHeader.className = "note";
+	          practiceHeader.textContent = "練習問題（関連する別角度の問題）";
+	          practicePanel.appendChild(practiceHeader);
+	          const practiceList = document.createElement("div");
+	          practicePanel.appendChild(practiceList);
+	          const practiceActions = document.createElement("div");
+	          practiceActions.className = "proposal-actions";
+	          practicePanel.appendChild(practiceActions);
+	          const practiceRefreshBtn = document.createElement("button");
+	          practiceRefreshBtn.className = "chip-link";
+	          practiceRefreshBtn.textContent = "再読み込み";
+	          practiceActions.appendChild(practiceRefreshBtn);
+	          const practiceGenerateBtn = document.createElement("button");
+	          practiceGenerateBtn.className = "chip-link";
+	          practiceGenerateBtn.textContent = "練習問題を5問生成";
+	          practiceGenerateBtn.hidden = !canUseAiGeneration();
+	          practiceActions.appendChild(practiceGenerateBtn);
+
+	          const renderPracticeItems = (items) => {
+	            practiceList.textContent = "";
+	            const list = Array.isArray(items) ? items : [];
+	            if (!list.length) {
+	              practiceHeader.textContent = "練習問題はまだありません。";
+	              return;
+	            }
+	            practiceHeader.textContent = `練習問題件数: ${list.length}`;
+	            list.forEach((item, idx) => {
+	              const entry = document.createElement("div");
+	              entry.className = "proposal-item";
+	              const meta = document.createElement("div");
+	              meta.className = "note qa-meta";
+	              const focusText = String(item.focus || "").trim();
+	              const createdAt = String(item.created_at || "");
+	              const infoSpan = document.createElement("span");
+	              const chunks = [];
+	              if (focusText) chunks.push(`focus: ${focusText}`);
+	              if (createdAt) chunks.push(createdAt.slice(0, 16).replace("T", " "));
+	              infoSpan.textContent = chunks.join(" / ");
+	              meta.appendChild(infoSpan);
+	              const copyBtn = document.createElement("button");
+	              copyBtn.className = "icon-mini-btn";
+	              copyBtn.textContent = "⧉";
+	              copyBtn.setAttribute("aria-label", "練習問題をコピー");
+	              copyBtn.setAttribute("title", "練習問題をコピー");
+	              copyBtn.addEventListener("click", () => {
+	                const mode = getCopyMode();
+	                const practiceQuestion = buildPracticeQuestionForCopy(q, item, idx);
+	                copyToClipboard(formatQuestionForCopy(practiceQuestion, mode));
+	              });
+	              meta.appendChild(copyBtn);
+
+	              let goodCount = Number(item.good_count || 0);
+	              let badCount = Number(item.bad_count || 0);
+	              const ratingKey = getPracticeRatingKey(item);
+	              const rated = state.practiceRatings[ratingKey] || "";
+	              const goodBtn = document.createElement("button");
+	              goodBtn.className = "chip-link";
+	              goodBtn.textContent = `👍 ${goodCount}${rated === "good" ? " ✓" : ""}`;
+	              goodBtn.setAttribute("aria-label", "Good を付ける");
+	              const badBtn = document.createElement("button");
+	              badBtn.className = "chip-link";
+	              badBtn.textContent = `👎 ${badCount}${rated === "bad" ? " ✓" : ""}`;
+	              badBtn.setAttribute("aria-label", "Bad を付ける");
+	              if (rated) {
+	                goodBtn.disabled = true;
+	                badBtn.disabled = true;
+	              }
+	              goodBtn.addEventListener("click", () => {
+	                if (state.practiceRatings[ratingKey]) return;
+	                state.practiceRatings[ratingKey] = "good";
+	                savePracticeRatingState();
+	                goodCount += 1;
+	                goodBtn.textContent = `👍 ${goodCount} ✓`;
+	                goodBtn.disabled = true;
+	                badBtn.disabled = true;
+	                if (!item.id) return;
+	                fetch(`${window.AI_API_BASE}/ai/practice_questions/good`, {
+	                  method: "POST",
+	                  headers: { "Content-Type": "application/json" },
+	                  body: JSON.stringify({ id: item.id })
+	                }).catch(() => {});
+	              });
+	              badBtn.addEventListener("click", () => {
+	                if (state.practiceRatings[ratingKey]) return;
+	                state.practiceRatings[ratingKey] = "bad";
+	                savePracticeRatingState();
+	                badCount += 1;
+	                badBtn.textContent = `👎 ${badCount} ✓`;
+	                goodBtn.disabled = true;
+	                badBtn.disabled = true;
+	                if (!item.id) return;
+	                fetch(`${window.AI_API_BASE}/ai/practice_questions/bad`, {
+	                  method: "POST",
+	                  headers: { "Content-Type": "application/json" },
+	                  body: JSON.stringify({ id: item.id })
+	                }).catch(() => {});
+	              });
+	              meta.appendChild(goodBtn);
+	              meta.appendChild(badBtn);
+
+	              const stemEl = document.createElement("div");
+	              renderMarkdownToElement(stemEl, item.stem || "");
+	              const choiceList = document.createElement("ol");
+	              (Array.isArray(item.choices) ? item.choices : []).forEach((choice) => {
+	                const li = document.createElement("li");
+	                li.textContent = choice || "";
+	                choiceList.appendChild(li);
+	              });
+	              const answerDetails = document.createElement("details");
+	              answerDetails.className = "inline inline-details";
+	              const answerSummary = document.createElement("summary");
+	              answerSummary.className = "inline-summary";
+	              answerSummary.textContent = "解答・解説";
+	              answerDetails.appendChild(answerSummary);
+	              const answerPanel = document.createElement("div");
+	              answerPanel.className = "qa-answer";
+	              const answerIndex = Number(item.answer_index || 0);
+	              const choiceText =
+	                Array.isArray(item.choices) && answerIndex >= 1 && answerIndex <= item.choices.length
+	                  ? item.choices[answerIndex - 1]
+	                  : "";
+	              const answerLine = document.createElement("div");
+	              answerLine.className = "note";
+	              answerLine.textContent = `正答: ${answerIndex}${choiceText ? " / " + choiceText : ""}`;
+	              answerPanel.appendChild(answerLine);
+	              const expEl = document.createElement("div");
+	              renderMarkdownToElement(expEl, item.explanation || "");
+	              answerPanel.appendChild(expEl);
+	              answerDetails.appendChild(answerPanel);
+
+	              entry.appendChild(meta);
+	              entry.appendChild(stemEl);
+	              entry.appendChild(choiceList);
+	              entry.appendChild(answerDetails);
+	              practiceList.appendChild(entry);
+	            });
+	          };
+
+	          const loadPracticeQuestions = async () => {
+	            if (!window.AI_API_BASE) {
+	              practiceHeader.textContent = "AI_API_BASE が設定されていません。";
+	              return;
+	            }
+	            practiceHeader.textContent = "読み込み中...";
+	            practiceRefreshBtn.disabled = true;
+	            try {
+	              const resp = await fetch(
+	                `${window.AI_API_BASE}/ai/practice_questions?serial=${encodeURIComponent(q.serial)}`
+	              );
+	              if (!resp.ok) throw new Error("API error");
+	              const data = await resp.json();
+	              const items = Array.isArray(data.items) ? data.items : [];
+	              renderPracticeItems(items);
+	            } catch (_err) {
+	              practiceHeader.textContent = "読み込みに失敗しました。";
+	            } finally {
+	              practiceRefreshBtn.disabled = false;
+	            }
+	          };
+
+	          practiceRefreshBtn.addEventListener("click", () => {
+	            loadPracticeQuestions();
+	          });
+
+	          practiceGenerateBtn.addEventListener("click", async () => {
+	            if (!window.AI_API_BASE) {
+	              practiceHeader.textContent = "AI_API_BASE が設定されていません。";
+	              return;
+	            }
+	            let token = "";
+	            if (supabaseClient) {
+	              const { data } = await supabaseClient.auth.getSession();
+	              const session = data && data.session ? data.session : null;
+	              token = session && session.access_token ? session.access_token : "";
+	            }
+	            if (!state.aiPublicGeneration && !isRoleAtLeast("admin")) {
+	              practiceHeader.textContent = "管理者ログインが必要です。";
+	              return;
+	            }
+	            practiceHeader.textContent = "生成中...";
+	            announceStatusNow("練習問題を生成中です");
+	            practiceGenerateBtn.disabled = true;
+	            try {
+	              const headers = { "Content-Type": "application/json" };
+	              if (token) headers.Authorization = `Bearer ${token}`;
+	              const resp = await fetch(`${window.AI_API_BASE}/ai/practice_questions`, {
+	                method: "POST",
+	                headers,
+	                body: JSON.stringify({
+	                  serial: q.serial,
+	                  subject: q.subject || "",
+	                  subtopics: q.subtopics || [],
+	                  tags: q.tags || [],
+	                  case_text: q.case_text || "",
+	                  stem: q.stem || "",
+	                  choices: q.choices || [],
+	                  answer: formatAnswerLabel(q) || "",
+	                  explanation: expText || "",
+	                  model: "gemini-3-flash-preview"
+	                })
+	              });
+	              if (!resp.ok) {
+	                const errorText = await resp.text();
+	                throw new Error(parseApiErrorText(errorText, `HTTP ${resp.status}`));
+	              }
+	              const payload = await resp.json();
+	              const items = Array.isArray(payload.items) ? payload.items : [];
+	              renderPracticeItems(items);
+	              practiceHeader.textContent = "生成完了";
+	              announceStatusNow("練習問題の生成が完了しました");
+	              loadPracticeQuestions();
+	            } catch (err) {
+	              practiceHeader.textContent = "生成に失敗しました。";
+	              announceStatusNow("練習問題の生成に失敗しました");
+	              const text = String(err && err.message ? err.message : err || "");
+	              renderMarkdownToElement(practiceList, text);
+	            } finally {
+	              practiceGenerateBtn.disabled = false;
+	            }
+	          });
+
+	          const practiceMainBtn = document.createElement("button");
+	          practiceMainBtn.className = "action-btn";
+	          setActionButtonLabel(practiceMainBtn, "✦", "練習問題");
+	          practiceMainBtn.setAttribute("aria-label", "関連練習問題を表示");
+	          practiceMainBtn.hidden = !window.AI_API_BASE;
+	          practiceMainBtn.addEventListener("click", () => {
+	            if (practicePanel.hidden) {
+	              practicePanel.hidden = false;
+	              loadPracticeQuestions();
+	              practicePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+	            } else {
+	              practicePanel.hidden = true;
+	            }
+	          });
+	          if (!practiceMainBtn.hidden) {
+	            extraPanel.appendChild(practiceMainBtn);
+	          }
+
+	          const deepDivePanel = document.createElement("div");
+	          deepDivePanel.className = "deep-dive-panel";
+	          deepDivePanel.hidden = true;
+	          const deepDiveStatus = document.createElement("div");
           deepDiveStatus.className = "note";
           deepDivePanel.appendChild(deepDiveStatus);
           const deepDiveBody = document.createElement("div");
@@ -4642,14 +5012,15 @@
               window.scrollTo(0, scrollY);
             });
           });
-          if (answered) {
-            actions.appendChild(retryBtn);
-          }
-          card.appendChild(actions);
-          card.appendChild(deepDivePanel);
+	          if (answered) {
+	            actions.appendChild(retryBtn);
+	          }
+	          card.appendChild(actions);
+	          card.appendChild(practicePanel);
+	          card.appendChild(deepDivePanel);
 
-          target.appendChild(card);
-        }
+	          target.appendChild(card);
+	        }
 
         const subset = list;
         let idx = 0;
@@ -4701,13 +5072,14 @@
         }
       }
 
-      function init() {
-        loadAnsweredState();
-        loadTagVisibility();
-        loadQaLikedState();
-        loadQaDraftState();
-        loadTagViewedSessionState();
-        updateAiPublicNotice();
+	      function init() {
+	        loadAnsweredState();
+	        loadTagVisibility();
+	        loadQaLikedState();
+	        loadPracticeRatingState();
+	        loadQaDraftState();
+	        loadTagViewedSessionState();
+	        updateAiPublicNotice();
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
@@ -4728,25 +5100,27 @@
           renderResults(filterQuestions());
         });
 
-        initAuthUI();
-        initAiGenerationPanel();
-        initAiUsagePanel();
-        applyTopMenuRoleVisibility();
+	        initAuthUI();
+	        initAiGenerationPanel();
+	        initAiUsagePanel();
+	        initPracticeRatingPanel();
+	        applyTopMenuRoleVisibility();
         const menuToggleBtn = document.getElementById("menuToggleBtn");
         const topMenuContent = document.getElementById("topMenuContent");
         const topPanels = document.getElementById("topPanels");
-        const menuTargetIds = [
-          "updateInfo",
-          "settingsPanel",
-          "progressPanel",
-          "userReadme",
-          "answerTrendPanel",
-          "historyPanel",
-          "proposalPanel",
-          "tagDisablePanel",
-          "aiGenerationPanel",
-          "aiUsagePanel"
-        ];
+	        const menuTargetIds = [
+	          "updateInfo",
+	          "settingsPanel",
+	          "progressPanel",
+	          "userReadme",
+	          "answerTrendPanel",
+	          "historyPanel",
+	          "proposalPanel",
+	          "tagDisablePanel",
+	          "aiGenerationPanel",
+	          "aiUsagePanel",
+	          "practiceRatingPanel"
+	        ];
         const closeAuthPanel = () => {
           const panel = document.getElementById("teacherAuth");
           const toggle = document.getElementById("authToggleBtn");
@@ -5169,12 +5543,12 @@
           if (topPanels) topPanels.hidden = false;
           if (topMenuContent) topMenuContent.hidden = false;
           if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "true");
-          const closeMenuTargets = () => {
-            ["updateInfo", "settingsPanel", "progressPanel", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel"].forEach((id) => {
-              const el = document.getElementById(id);
-              if (el && el.tagName === "DETAILS") {
-                el.open = false;
-                el.hidden = true;
+	          const closeMenuTargets = () => {
+	            ["updateInfo", "settingsPanel", "progressPanel", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel", "aiUsagePanel", "practiceRatingPanel"].forEach((id) => {
+	              const el = document.getElementById(id);
+	              if (el && el.tagName === "DETAILS") {
+	                el.open = false;
+	                el.hidden = true;
               }
             });
           };
@@ -5277,12 +5651,13 @@
         const user = session && session.user ? session.user : null;
         state.editRequestsBySerial = {};
         state.editRequestsLoaded = new Set();
-        const proposalPanel = document.getElementById("proposalPanel");
-        const tagDisablePanel = document.getElementById("tagDisablePanel");
-        const aiGenerationPanel = document.getElementById("aiGenerationPanel");
-        const aiUsagePanel = document.getElementById("aiUsagePanel");
-        const answerTrendPanel = document.getElementById("answerTrendPanel");
-        const adminLink = document.getElementById("adminLink");
+	        const proposalPanel = document.getElementById("proposalPanel");
+	        const tagDisablePanel = document.getElementById("tagDisablePanel");
+	        const aiGenerationPanel = document.getElementById("aiGenerationPanel");
+	        const aiUsagePanel = document.getElementById("aiUsagePanel");
+	        const practiceRatingPanel = document.getElementById("practiceRatingPanel");
+	        const answerTrendPanel = document.getElementById("answerTrendPanel");
+	        const adminLink = document.getElementById("adminLink");
         if (!user) {
           state.currentRole = "guest";
           state.roleRank = 0;
@@ -5298,22 +5673,24 @@
           if (historyPanel) historyPanel.hidden = true;
           if (proposalPanel) proposalPanel.hidden = true;
           if (tagDisablePanel) tagDisablePanel.hidden = true;
-          if (aiGenerationPanel) aiGenerationPanel.hidden = true;
-          if (aiUsagePanel) aiUsagePanel.hidden = true;
-          if (answerTrendPanel) answerTrendPanel.hidden = true;
+	          if (aiGenerationPanel) aiGenerationPanel.hidden = true;
+	          if (aiUsagePanel) aiUsagePanel.hidden = true;
+	          if (practiceRatingPanel) practiceRatingPanel.hidden = true;
+	          if (answerTrendPanel) answerTrendPanel.hidden = true;
           if (adminLink) adminLink.hidden = true;
           if (reportModeWrap) reportModeWrap.hidden = false;
           if (editModeWrap) editModeWrap.hidden = true;
           applyProgressFilterVisibility();
           applyAnsweredFilterVisibility();
           renderProgressPanel();
-          loadTagVisibility();
-          applyTopMenuRoleVisibility();
-          loadQaLikedState();
-          loadQaDraftState();
-          renderResults(filterQuestions());
-          return;
-        }
+	          loadTagVisibility();
+	          applyTopMenuRoleVisibility();
+	          loadQaLikedState();
+	          loadPracticeRatingState();
+	          loadQaDraftState();
+	          renderResults(filterQuestions());
+	          return;
+	        }
         const role = getUserRole(user);
         state.currentRole = role || "unapproved";
         state.roleRank = roleRank(role);
@@ -5346,10 +5723,11 @@
             toggleBtn.setAttribute("aria-label", `ログイン中（${shortRoleLabel}）`);
             if (historyPanel) historyPanel.hidden = !isRoleAtLeast("teacher");
             if (proposalPanel) proposalPanel.hidden = !isRoleAtLeast("teacher");
-            if (tagDisablePanel) tagDisablePanel.hidden = !isRoleAtLeast("teacher");
-            if (aiGenerationPanel) aiGenerationPanel.hidden = !isRoleAtLeast("admin");
-            if (aiUsagePanel) aiUsagePanel.hidden = !isRoleAtLeast("admin");
-            if (answerTrendPanel) answerTrendPanel.hidden = !isRoleAtLeast("teacher");
+	            if (tagDisablePanel) tagDisablePanel.hidden = !isRoleAtLeast("teacher");
+	            if (aiGenerationPanel) aiGenerationPanel.hidden = !isRoleAtLeast("admin");
+	            if (aiUsagePanel) aiUsagePanel.hidden = !isRoleAtLeast("admin");
+	            if (practiceRatingPanel) practiceRatingPanel.hidden = !isRoleAtLeast("teacher");
+	            if (answerTrendPanel) answerTrendPanel.hidden = !isRoleAtLeast("teacher");
             if (adminLink) adminLink.hidden = !isRoleAtLeast("teacher");
             if (reportModeWrap) reportModeWrap.hidden = isRoleAtLeast("teacher");
             if (editModeWrap) {
@@ -5361,12 +5739,13 @@
             }
             applyTopMenuRoleVisibility();
             applyProgressFilterVisibility();
-            applyAnsweredFilterVisibility();
-            loadQaLikedState();
-            loadQaDraftState();
-            if (isRoleAtLeast("admin")) {
-              loadAdminAiGenerationSetting();
-              loadAdminAiUsage();
+	            applyAnsweredFilterVisibility();
+	            loadQaLikedState();
+	            loadPracticeRatingState();
+	            loadQaDraftState();
+	            if (isRoleAtLeast("admin")) {
+	              loadAdminAiGenerationSetting();
+	              loadAdminAiUsage();
             }
           }
         if (isRoleAtLeast("student")) {
@@ -6731,14 +7110,55 @@
         }
       }
 
-      function saveQaLikedState() {
-        localStorage.setItem(getQaLikedStorageKey(), JSON.stringify(Array.from(state.qaLiked)));
-      }
+	      function saveQaLikedState() {
+	        localStorage.setItem(getQaLikedStorageKey(), JSON.stringify(Array.from(state.qaLiked)));
+	      }
 
-      function loadTagViewedSessionState() {
-        state.tagViewedSession = new Set();
-        const raw = sessionStorage.getItem("tagViewedSession");
-        if (!raw) return;
+	      function getPracticeRatingActorId() {
+	        if (state.authSession && state.authSession.user && state.authSession.user.id) {
+	          return `user:${state.authSession.user.id}`;
+	        }
+	        return `anon:${getAnonId()}`;
+	      }
+
+	      function getPracticeRatingsStorageKey() {
+	        return `practiceRatings:${getPracticeRatingActorId()}`;
+	      }
+
+	      function getPracticeRatingKey(item) {
+	        if (item && item.id) return `id:${item.id}`;
+	        const stem = item && item.stem ? item.stem : "";
+	        return `fallback:${stem}`;
+	      }
+
+	      function loadPracticeRatingState() {
+	        state.practiceRatings = {};
+	        const key = getPracticeRatingsStorageKey();
+	        const raw = localStorage.getItem(key);
+	        if (!raw) return;
+	        try {
+	          const data = JSON.parse(raw);
+	          if (!data || typeof data !== "object") return;
+	          Object.keys(data).forEach((value) => {
+	            const rating = data[value];
+	            if (rating === "good" || rating === "bad") {
+	              state.practiceRatings[value] = rating;
+	            }
+	          });
+	        } catch (_err) {
+	          localStorage.removeItem(key);
+	        }
+	      }
+
+	      function savePracticeRatingState() {
+	        const key = getPracticeRatingsStorageKey();
+	        localStorage.setItem(key, JSON.stringify(state.practiceRatings || {}));
+	      }
+
+	      function loadTagViewedSessionState() {
+	        state.tagViewedSession = new Set();
+	        const raw = sessionStorage.getItem("tagViewedSession");
+	        if (!raw) return;
         try {
           const values = JSON.parse(raw);
           if (Array.isArray(values)) {
@@ -7333,10 +7753,10 @@
         };
       }
 
-      function formatQuestionForCopy(q, mode) {
-        const showAnswer = mode && mode.showAnswer;
-        const showExplanation = mode && mode.showExplanation;
-        const lines = [];
+	      function formatQuestionForCopy(q, mode) {
+	        const showAnswer = mode && mode.showAnswer;
+	        const showExplanation = mode && mode.showExplanation;
+	        const lines = [];
         if (q.case_text) {
           lines.push(q.case_text);
         }
@@ -7369,12 +7789,28 @@
               lines.push(exp);
             }
           }
-        }
-        return lines.join("\n");
-      }
+	        }
+	        return lines.join("\n");
+	      }
 
-      function formatDeepDivePrompt(q) {
-        const lines = [];
+	      function buildPracticeQuestionForCopy(baseQuestion, practiceItem, index) {
+	        const serialBase = baseQuestion && baseQuestion.serial ? String(baseQuestion.serial) : "";
+	        const answerIndex = Number(practiceItem && practiceItem.answer_index ? practiceItem.answer_index : 0);
+	        return {
+	          serial: `${serialBase}（練習${Number(index) + 1}）`,
+	          stem: practiceItem && practiceItem.stem ? String(practiceItem.stem) : "",
+	          choices: Array.isArray(practiceItem && practiceItem.choices ? practiceItem.choices : null)
+	            ? practiceItem.choices
+	            : [],
+	          answer_indices: answerIndex >= 1 ? [answerIndex] : [],
+	          answer_none: false,
+	          explanation_latest:
+	            practiceItem && practiceItem.explanation ? String(practiceItem.explanation) : ""
+	        };
+	      }
+
+	      function formatDeepDivePrompt(q) {
+	        const lines = [];
         lines.push("以下の問題について徐々に深化して深掘りするよう解説してください。");
         if (q.case_text) {
           lines.push(q.case_text);

@@ -34,6 +34,16 @@
 - `POST /ai/tag_qa/view`
 - `POST /ai/tag_qa/like`
 
+主な問題別AI API:
+
+- `GET /ai/question_qa?serial=...`
+- `POST /ai/question_qa`
+- `GET /ai/practice_questions?serial=...`
+- `POST /ai/practice_questions`（1回で5問生成して保存）
+- `POST /ai/practice_questions/good`
+- `POST /ai/practice_questions/bad`
+- `GET /admin/practice_questions?days=30&serial=...`（teacher/admin向け評価一覧）
+
 ## WebUI側の設定
 `web_app/config.js` に以下を追加:
 
@@ -47,3 +57,4 @@ window.AI_API_BASE = "https://<worker>.workers.dev";
 - 管理APIはteacher以上、権限変更はadminのみ許可されます。
 - `workers/sql/ai_usage_logs.sql` を Supabase SQL Editor で実行すると、free/paid別のAI利用集計が利用できます。
 - タグ学習機能を使う場合は `workers/sql/tag_study_tables.sql` を Supabase SQL Editor で実行してください。
+- 問題別の練習問題機能を使う場合は `workers/sql/practice_question_tables.sql` を Supabase SQL Editor で実行してください。

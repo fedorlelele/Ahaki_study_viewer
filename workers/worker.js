@@ -111,6 +111,19 @@ async function handleAdmin(request, env) {
     return listAiUsage(env, days);
   }
 
+  if (path === "/admin/practice_questions") {
+    if (!isRoleAtLeast(role, "teacher")) {
+      return jsonResponse({ message: "Forbidden" }, 403);
+    }
+    if (request.method !== "GET") {
+      return jsonResponse({ message: "Method not allowed" }, 405);
+    }
+    const days = Number(url.searchParams.get("days") || "30");
+    const limit = Number(url.searchParams.get("limit") || "200");
+    const serial = (url.searchParams.get("serial") || "").trim();
+    return listPracticeQuestionsAdmin(env, { days, limit, serial });
+  }
+
   return jsonResponse({ message: "Not found" }, 404);
 }
 
@@ -147,6 +160,26 @@ async function handleAi(request, env) {
   if (path === "/ai/question_qa/like" && request.method === "POST") {
     const body = await readJson(request);
     return incrementQaCounter(env, body, "like_count");
+  }
+  if (path === "/ai/practice_questions") {
+    if (request.method === "GET") {
+      const serial = (url.searchParams.get("serial") || "").trim();
+      if (!serial) {
+        return jsonResponse({ message: "serial is required" }, 400);
+      }
+      return fetchPracticeQuestions(env, serial);
+    }
+    if (request.method === "POST") {
+      return handlePracticeQuestions(request, env);
+    }
+  }
+  if (path === "/ai/practice_questions/good" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementPracticeQuestionCounter(env, body, "good_count");
+  }
+  if (path === "/ai/practice_questions/bad" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementPracticeQuestionCounter(env, body, "bad_count");
   }
   if (path === "/ai/tag_deep_dive") {
     if (request.method === "GET") {
@@ -683,6 +716,156 @@ async function handleQuestionQa(request, env) {
   });
 }
 
+async function handlePracticeQuestions(request, env) {
+  const user = await authenticate(request, env);
+  const role = user ? getRole(user) : "";
+  const allowPublic = await getAiGenerationEnabled(env);
+  if (!allowPublic && !isRoleAtLeast(role, "admin")) {
+    return jsonResponse({ message: "Forbidden" }, 403);
+  }
+  const body = await readJson(request);
+  const serial = String(body.serial || "").trim();
+  if (!serial) {
+    return jsonResponse({ message: "serial is required" }, 400);
+  }
+  const prompt = buildPracticeQuestionsPrompt(body);
+  const gemini = await resolveGeminiRoute(env, role);
+  if (!gemini.apiKey) {
+    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+  }
+  const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
+  const fallbackModel = "gemini-3-flash-preview";
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  if (!limit.ok) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "practice_questions",
+      outcome: "rate_limited",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: requestedModel
+    });
+    return jsonResponse({ message: limit.message }, 429);
+  }
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ]
+  };
+  const callGemini = (model) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+  let usedModel = requestedModel;
+  let resp = await callGemini(usedModel);
+  if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
+    usedModel = fallbackModel;
+    resp = await callGemini(usedModel);
+  }
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    const parsedError = parseGeminiError(errorText);
+    if (isGeminiRateLimit(resp.status, parsedError)) {
+      await safeLogAiUsage(env, {
+        mode: gemini.mode,
+        endpoint: "practice_questions",
+        outcome: "rate_limited",
+        serial,
+        user_id: user && user.id ? user.id : null,
+        model: usedModel
+      });
+      return jsonResponse(
+        {
+          message: "Gemini API rate limit",
+          model: usedModel,
+          mode: gemini.mode,
+          detail: parsedError.detail
+        },
+        429
+      );
+    }
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "practice_questions",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
+    return jsonResponse(
+      {
+        message: "Gemini API error",
+        model: usedModel,
+        mode: gemini.mode,
+        detail: parsedError.detail
+      },
+      500
+    );
+  }
+  const data = await resp.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const parsed = parsePracticeQuestions(text);
+  if (!parsed.items || parsed.items.length < 5) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "practice_questions",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
+    return jsonResponse(
+      {
+        message: "Invalid AI output",
+        detail: "items must be an array of 5 questions",
+        model: usedModel,
+        mode: gemini.mode
+      },
+      502
+    );
+  }
+  try {
+    const limitedItems = parsed.items.slice(0, 5);
+    const inserted = await insertPracticeQuestions(env, {
+      baseSerial: serial,
+      items: limitedItems,
+      createdBy: user && user.id ? user.id : null,
+      model: usedModel,
+      mode: gemini.mode
+    });
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "practice_questions",
+      outcome: "success",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
+    return jsonResponse({ ok: true, items: inserted, model: usedModel, mode: gemini.mode });
+  } catch (err) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "practice_questions",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel
+    });
+    return jsonResponse(
+      { message: "Supabase insert failed", detail: String(err && err.message ? err.message : err || "") },
+      500
+    );
+  }
+}
+
 async function handleTagDeepDive(request, env) {
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
@@ -1107,6 +1290,96 @@ function parseQuestionQa(text) {
   return { status: "irrelevant", question: "", answer: "" };
 }
 
+function buildPracticeQuestionsPrompt(body) {
+  const serial = String(body.serial || "").trim();
+  const subject = String(body.subject || "").trim();
+  const subtopics = Array.isArray(body.subtopics)
+    ? body.subtopics.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const tags = Array.isArray(body.tags)
+    ? body.tags.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const caseText = String(body.case_text || "").trim();
+  const stem = String(body.stem || "").trim();
+  const choices = Array.isArray(body.choices)
+    ? body.choices.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const answer = String(body.answer || "").trim();
+  const explanation = String(body.explanation || "").trim();
+
+  return [
+    "あなたは医療系国家試験の練習問題を作る出題AIです。",
+    "次の「元問題」を参照し、同じ分野の中で少し違う角度から問うオリジナルの練習問題を5問作成してください。",
+    "",
+    "【重要】",
+    "- 元問題の言い換え・穴埋め・同じ知識点の再確認にならないようにする（別角度・近縁概念にずらす）",
+    "- 例: 「ビタミンA欠乏」なら「ビタミンD欠乏」「ビタミンE欠乏」「脂溶性ビタミンの特徴」などを問う",
+    "- 例: 「気虚」なら「血虚」「陰虚」「陽虚」など、類似/対になる概念を問う",
+    "- 5問のうちでテーマが被りすぎないようにする（近縁概念を分散）",
+    "- 医学的に不確かな内容は断定しすぎない",
+    "",
+    "【元問題】",
+    `シリアル: ${serial || "（不明）"}`,
+    `科目: ${subject || "（不明）"}`,
+    `小項目: ${subtopics.length ? subtopics.join(" / ") : "（なし）"}`,
+    `タグ: ${tags.length ? tags.join(" / ") : "（なし）"}`,
+    caseText ? `症例文:\n${caseText}` : "症例文: （なし）",
+    stem ? `問題文:\n${stem}` : "問題文: （なし）",
+    `選択肢:\n${choices.length ? choices.map((c, i) => `${i + 1}. ${c}`).join("\n") : "（なし）"}`,
+    answer ? `正答: ${answer}` : "正答: （不明）",
+    explanation ? `解説:\n${explanation}` : "解説: （なし）",
+    "",
+    "【作る練習問題の要件】",
+    "- すべて4択（choicesは4個）",
+    "- answer_index は 1〜4 の整数で指定する（1が先頭）",
+    "- explanation はMarkdownで作成する（見出しや箇条書きは最小限でOK）",
+    "- focus は「どの角度にずらしたか」を短い語句で書く（例: ビタミンD欠乏 / 血虚 / 鑑別 / 作用機序 など）",
+    "",
+    "【出力形式（JSONのみ）】",
+    "{\"items\":[{\"focus\":\"...\",\"stem\":\"...\",\"choices\":[\"...\",\"...\",\"...\",\"...\"],\"answer_index\":1,\"explanation\":\"...\"}]}",
+    "",
+    "items は必ず5要素にする"
+  ].join("\n");
+}
+
+function parsePracticeQuestions(text) {
+  if (!text) return { items: [] };
+  try {
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}");
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      const json = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      const rawItems = Array.isArray(json.items) ? json.items : [];
+      const items = rawItems
+        .map((raw) => {
+          const focus = String(raw && raw.focus ? raw.focus : "").trim();
+          const stem = String(raw && raw.stem ? raw.stem : "").trim();
+          const explanation = String(raw && raw.explanation ? raw.explanation : "").trim();
+          const choices = Array.isArray(raw && raw.choices ? raw.choices : null)
+            ? raw.choices.map((v) => String(v || "").trim()).filter(Boolean)
+            : [];
+          const answerIndex = Number(raw && (raw.answer_index ?? raw.answerIndex));
+          if (!stem) return null;
+          if (choices.length !== 4) return null;
+          if (!Number.isFinite(answerIndex)) return null;
+          if (answerIndex < 1 || answerIndex > 4) return null;
+          return {
+            focus,
+            stem,
+            choices,
+            answer_index: answerIndex,
+            explanation
+          };
+        })
+        .filter(Boolean);
+      return { items };
+    }
+  } catch (_err) {
+    // fall through
+  }
+  return { items: [] };
+}
+
 async function saveQuestionQa(env, record) {
   const payload = {
     serial: record.serial,
@@ -1196,6 +1469,91 @@ async function incrementQaCounter(env, body, field) {
   const next = current + 1;
   const update = await fetch(
     `${env.SUPABASE_URL}/rest/v1/question_qa?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ [field]: next })
+    }
+  );
+  if (!update.ok) return jsonResponse({ message: "Supabase update failed" }, 500);
+  return jsonResponse({ ok: true, [field]: next });
+}
+
+async function fetchPracticeQuestions(env, serial) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,base_serial,focus,stem,choices,answer_index,explanation,good_count,bad_count,created_at&base_serial=eq.${encodeURIComponent(serial)}&order=created_at.desc&limit=50`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json();
+  return jsonResponse({ ok: true, items: rows || [] });
+}
+
+async function insertPracticeQuestions(env, params) {
+  const baseSerial = String(params && params.baseSerial ? params.baseSerial : "").trim();
+  const items = Array.isArray(params && params.items ? params.items : null) ? params.items : [];
+  if (!baseSerial || !items.length) return [];
+  const payload = items.map((item) => ({
+    base_serial: baseSerial,
+    focus: item.focus || "",
+    stem: item.stem || "",
+    choices: item.choices || [],
+    answer_index: item.answer_index || null,
+    explanation: item.explanation || "",
+    created_by: params.createdBy || null,
+    model: params.model || "",
+    mode: params.mode || ""
+  }));
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/practice_questions`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const detail = await resp.text();
+    throw new Error(detail || "Supabase insert failed");
+  }
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function incrementPracticeQuestionCounter(env, body, field) {
+  const id = body.id;
+  if (!id) return jsonResponse({ message: "id required" }, 400);
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/practice_questions?select=id,${field}&id=eq.${encodeURIComponent(id)}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) return jsonResponse({ message: "Supabase fetch failed" }, 500);
+  const rows = await resp.json();
+  const current = rows && rows[0] ? rows[0][field] || 0 : 0;
+  const next = current + 1;
+  const update = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/practice_questions?id=eq.${encodeURIComponent(id)}`,
     {
       method: "PATCH",
       headers: {
@@ -2158,6 +2516,41 @@ async function listAiUsage(env, days) {
     totals,
     by_day: byDay,
     by_endpoint: byEndpoint
+  });
+}
+
+async function listPracticeQuestionsAdmin(env, params) {
+  const safeDays = Math.max(1, Math.min(90, Number(params && params.days ? params.days : 30)));
+  const safeLimit = Math.max(1, Math.min(500, Number(params && params.limit ? params.limit : 200)));
+  const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  const serial = String(params && params.serial ? params.serial : "").trim();
+  let url =
+    `${env.SUPABASE_URL}/rest/v1/practice_questions` +
+    `?select=id,base_serial,focus,stem,good_count,bad_count,created_at,model,mode` +
+    `&created_at=gte.${encodeURIComponent(since)}` +
+    `&order=created_at.desc` +
+    `&limit=${safeLimit}`;
+  if (serial) {
+    url += `&base_serial=eq.${encodeURIComponent(serial)}`;
+  }
+  const resp = await fetch(url, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    return jsonResponse({ message: "Supabase query failed", detail: data }, 500);
+  }
+  const items = Array.isArray(data) ? data : [];
+  return jsonResponse({
+    ok: true,
+    days: safeDays,
+    since,
+    count: items.length,
+    items
   });
 }
 
