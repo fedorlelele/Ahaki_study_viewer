@@ -337,6 +337,8 @@ def call_gemini(api_key, model, prompt, max_output_tokens):
         return {}, f"HTTP {err.code}: {payload}"
     except URLError as err:
         return {}, f"URL error: {err.reason}"
+    except Exception as err:
+        return {}, f"Request error: {err.__class__.__name__}: {err}"
 
 
 def extract_text(payload):
