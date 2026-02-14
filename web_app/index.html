@@ -3422,6 +3422,34 @@
         return value.trim();
       }
 
+      function escapeXmlForSsml(text) {
+        return String(text || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      }
+
+      function buildSsmlFromSequence(sequence) {
+        const list = Array.isArray(sequence) ? sequence : [];
+        const valid = list
+          .map((item) => ({
+            text: String(item && item.text ? item.text : "").trim(),
+            pauseMs: Math.max(0, Number(item && item.pauseMs ? item.pauseMs : 0))
+          }))
+          .filter((item) => item.text);
+        if (!valid.length) return "";
+        const parts = [];
+        valid.forEach((item, idx) => {
+          parts.push(`<s>${escapeXmlForSsml(item.text)}</s>`);
+          if (idx < valid.length - 1 && item.pauseMs > 0) {
+            parts.push(`<break time="${Math.min(3000, item.pauseMs)}ms"/>`);
+          }
+        });
+        return `<speak>${parts.join("")}</speak>`;
+      }
+
       function buildAnswerSpeechText(q) {
         if (!q) return "正答は未登録です。";
         if (q.answer_none) return "正答は、なしです。";
@@ -3457,6 +3485,7 @@
           if (!text) return;
           bundleSequence.push({ key: `choice_${idx + 1}`, text, pauseMs: 680 });
         });
+        const bundleSsmlPayload = buildSsmlFromSequence(bundleSequence);
         return {
           caseText,
           stemText,
@@ -3468,7 +3497,8 @@
           explanationSpeech,
           answerPayload,
           explanationPayload,
-          bundleSequence
+          bundleSequence,
+          bundleSsmlPayload
         };
       }
 
@@ -5375,7 +5405,8 @@
             announceStatusNow(`${options.label || "読み上げ"}を準備中です（${qualityLabel}）`);
             try {
               const result = await playTtsPayload(q.serial, segmentKey, payloadText, {
-                quality: state.ttsQuality
+                quality: state.ttsQuality,
+                ssml: Boolean(options.ssml)
               });
               if (!result || !result.started) return;
               if (result.fromCache) {
@@ -5437,11 +5468,10 @@
                 ttsStatus.textContent = `${label}は読み上げ対象がありません。`;
                 return;
               }
-              await playSection(
-                resolved.key || opts.segmentKey || label,
-                payload,
-                { label }
-              );
+              await playSection(resolved.key || opts.segmentKey || label, payload, {
+                label,
+                ssml: Boolean(resolved.ssml || opts.ssml)
+              });
             });
             ttsActionRow.appendChild(btn);
             return btn;
@@ -5452,6 +5482,13 @@
 
           const bundleBtn = addTtsButton("一括（症例〜選択4）", () => {
             const sections = getSpeechSections();
+            if (sections.bundleSsmlPayload) {
+              return {
+                key: "bundle_case_to_choices_ssml",
+                payload: sections.bundleSsmlPayload,
+                ssml: true
+              };
+            }
             return { sequence: sections.bundleSequence };
           });
           const caseBtn = addTtsButton("症例", () => {
