@@ -2754,6 +2754,11 @@ function normalizeAiUsageOutcome(outcome) {
   return "error";
 }
 
+function isTtsUsageEndpoint(endpoint) {
+  const value = String(endpoint || "").trim().toLowerCase();
+  return value === "tts" || value.startsWith("tts_");
+}
+
 async function listAiUsage(env, days) {
   const safeDays = Math.max(1, Math.min(90, Number(days || 30)));
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
@@ -2803,6 +2808,10 @@ async function listAiUsage(env, days) {
     free: createAiUsageBucket(),
     paid: createAiUsageBucket()
   };
+  const tts = {
+    standard: createAiUsageBucket(),
+    high: createAiUsageBucket()
+  };
   const byDayMap = {};
   const byEndpointMap = {};
 
@@ -2810,8 +2819,19 @@ async function listAiUsage(env, days) {
     const mode = normalizeAiUsageMode(row && row.mode);
     const outcome = normalizeAiUsageOutcome(row && row.outcome);
     const endpoint = String((row && row.endpoint) || "").trim() || "unknown";
+    const endpointKey = endpoint.toLowerCase();
     const date = String((row && row.created_at) || "").slice(0, 10) || "";
     const charCount = Math.max(0, Number((row && row.char_count) || 0));
+
+    if (isTtsUsageEndpoint(endpointKey)) {
+      if (endpointKey === "tts_standard" || endpointKey === "tts_high") {
+        const target = endpointKey === "tts_high" ? tts.high : tts.standard;
+        target.all += 1;
+        target[outcome] += 1;
+        target.chars += charCount;
+      }
+      return;
+    }
 
     totals[mode].all += 1;
     totals[mode][outcome] += 1;
@@ -2852,7 +2872,10 @@ async function listAiUsage(env, days) {
     days: safeDays,
     since,
     count: rows.length,
+    count_gemini: totals.free.all + totals.paid.all,
+    count_tts: tts.standard.all + tts.high.all,
     totals,
+    tts,
     by_day: byDay,
     by_endpoint: byEndpoint
   });

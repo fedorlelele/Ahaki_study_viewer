@@ -1600,6 +1600,7 @@
         answerStatsBySerial: {},
         answerStatsLoaded: new Set(),
         answerRows: null,
+        answerTrendRows: null,
         answerTimeline: null,
         answerTrendExpandHourly: false,
         answerTrendExpandDaily: false,
@@ -2519,13 +2520,29 @@
         const irrelevant = Number(map.irrelevant || 0);
         const limited = Number(map.rate_limited || 0);
         const error = Number(map.error || 0);
+        return `
+          <table>
+            <tr><td>合計</td><td>${all}</td></tr>
+            <tr><td>成功</td><td>${success}</td></tr>
+            <tr><td>無関係</td><td>${irrelevant}</td></tr>
+            <tr><td>制限</td><td>${limited}</td></tr>
+            <tr><td>エラー</td><td>${error}</td></tr>
+          </table>
+        `;
+      }
+
+      function buildTtsUsageStatsTable(stats) {
+        const map = stats || {};
+        const all = Number(map.all || 0);
+        const success = Number(map.success || 0);
+        const limited = Number(map.rate_limited || 0);
+        const error = Number(map.error || 0);
         const chars = Number(map.chars || 0);
         return `
           <table>
             <tr><td>合計</td><td>${all}</td></tr>
             <tr><td>処理文字数</td><td>${chars.toLocaleString("ja-JP")}</td></tr>
             <tr><td>成功</td><td>${success}</td></tr>
-            <tr><td>無関係</td><td>${irrelevant}</td></tr>
             <tr><td>制限</td><td>${limited}</td></tr>
             <tr><td>エラー</td><td>${error}</td></tr>
           </table>
@@ -2612,50 +2629,25 @@
         }
 
         const byEndpoint = Array.isArray(payload.by_endpoint) ? payload.by_endpoint : [];
-        const buildTtsUsageBucket = (targetEndpoint) =>
-          byEndpoint
-            .filter((item) => String((item && item.endpoint) || "").trim().toLowerCase() === targetEndpoint)
-            .reduce(
-              (acc, item) => {
-                const free = item && item.free ? item.free : {};
-                const paid = item && item.paid ? item.paid : {};
-                Object.keys(acc).forEach((key) => {
-                  acc[key] += Number(free[key] || 0);
-                  acc[key] += Number(paid[key] || 0);
-                });
-                return acc;
-              },
-              createAiUsageBucket()
-            );
-        const ttsStandard = buildTtsUsageBucket("tts_standard");
-        const ttsHigh = buildTtsUsageBucket("tts_high");
-        const ttsLegacy = buildTtsUsageBucket("tts");
+        const ttsPayload = payload && payload.tts ? payload.tts : {};
+        const ttsStandard = ttsPayload && ttsPayload.standard ? ttsPayload.standard : createAiUsageBucket();
+        const ttsHigh = ttsPayload && ttsPayload.high ? ttsPayload.high : createAiUsageBucket();
         const hasTtsData =
           ttsStandard.all > 0 ||
           ttsStandard.chars > 0 ||
           ttsHigh.all > 0 ||
-          ttsHigh.chars > 0 ||
-          ttsLegacy.all > 0 ||
-          ttsLegacy.chars > 0;
+          ttsHigh.chars > 0;
         if (hasTtsData) {
           ttsEl.innerHTML = `
             <div class="ai-usage-card">
               <h4>通常音質（Neural2）</h4>
-              ${buildAiUsageStatsTable(ttsStandard)}
+              ${buildTtsUsageStatsTable(ttsStandard)}
             </div>
             <div class="ai-usage-card">
               <h4>高音質（Chirp3）</h4>
-              ${buildAiUsageStatsTable(ttsHigh)}
+              ${buildTtsUsageStatsTable(ttsHigh)}
             </div>
           `;
-          if (ttsLegacy.all > 0 || ttsLegacy.chars > 0) {
-            ttsEl.innerHTML += `
-              <div class="ai-usage-card">
-                <h4>旧集計（tts）</h4>
-                ${buildAiUsageStatsTable(ttsLegacy)}
-              </div>
-            `;
-          }
         } else {
           ttsEl.innerHTML = `<div class="note">データはありません。</div>`;
         }
@@ -2731,7 +2723,8 @@
             return;
           }
           renderAiUsagePanel(payload);
-          statusEl.textContent = `集計件数: ${Number(payload.count || 0)} / 期間: ${Number(payload.days || days)}日`;
+          statusEl.textContent =
+            `集計件数: Gemini ${Number(payload.count_gemini || 0)} / TTS ${Number(payload.count_tts || 0)} / 期間: ${Number(payload.days || days)}日`;
         } catch (_err) {
           statusEl.textContent = "取得に失敗しました。";
           renderAiUsagePanel(null);
@@ -7996,7 +7989,9 @@
             .then(({ error }) => {
               if (error) {
                 console.warn("回答の記録に失敗しました。", error);
+                return;
               }
+              registerAnswerTimelineNow();
             });
         }
         sendProgressAnswer(question.serial, isCorrect);
@@ -8403,7 +8398,7 @@
             panel.open = false;
             return;
           }
-          loadAnswerTimeline().then(renderAnswerTimeline);
+          loadAnswerTimeline(true).then(renderAnswerTimeline);
         });
         if (moreHourly) {
           moreHourly.addEventListener("click", () => {
@@ -8419,29 +8414,63 @@
         }
       }
 
-      function loadAnswerTimeline() {
-        if (state.answerTimeline) {
+      function registerAnswerTimelineNow() {
+        if (!Array.isArray(state.answerTrendRows)) return;
+        state.answerTrendRows.push({ created_at: new Date().toISOString() });
+        state.answerTimeline = buildAnswerTimeline(state.answerTrendRows);
+        const panel = document.getElementById("answerTrendPanel");
+        if (panel && panel.open) {
+          renderAnswerTimeline();
+        }
+      }
+
+      async function fetchAnswerRowsForTrend() {
+        if (!supabaseClient) return [];
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const pageSize = 1000;
+        const maxPages = 30;
+        const rows = [];
+        for (let page = 0; page < maxPages; page += 1) {
+          const from = page * pageSize;
+          const to = from + pageSize - 1;
+          const { data, error } = await supabaseClient
+            .from("answers")
+            .select("created_at")
+            .gte("created_at", since)
+            .order("created_at", { ascending: false })
+            .range(from, to);
+          if (error) {
+            throw error;
+          }
+          const batch = Array.isArray(data) ? data : [];
+          rows.push(...batch);
+          if (batch.length < pageSize) break;
+        }
+        return rows;
+      }
+
+      function loadAnswerTimeline(forceReload = false) {
+        if (!forceReload && state.answerTimeline && Array.isArray(state.answerTrendRows)) {
           return Promise.resolve();
         }
         if (!supabaseClient) {
+          state.answerTrendRows = [];
           state.answerTimeline = { hourly: [], daily: [] };
           return Promise.resolve();
         }
-        if (state.answerRows) {
-          state.answerTimeline = buildAnswerTimeline(state.answerRows);
+        if (!forceReload && Array.isArray(state.answerTrendRows)) {
+          state.answerTimeline = buildAnswerTimeline(state.answerTrendRows);
           return Promise.resolve();
         }
-        return supabaseClient
-          .from("answers")
-          .select("created_at")
-          .then(({ data, error }) => {
-            if (error) {
-              console.warn("回答の取得に失敗しました。", error);
-              state.answerTimeline = { hourly: [], daily: [] };
-              return;
-            }
-            state.answerRows = data || [];
-            state.answerTimeline = buildAnswerTimeline(state.answerRows);
+        return fetchAnswerRowsForTrend()
+          .then((rows) => {
+            state.answerTrendRows = rows;
+            state.answerTimeline = buildAnswerTimeline(rows);
+          })
+          .catch((error) => {
+            console.warn("回答推移の取得に失敗しました。", error);
+            state.answerTrendRows = [];
+            state.answerTimeline = { hourly: [], daily: [] };
           });
       }
 
