@@ -366,8 +366,19 @@
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+        align-items: center;
         color: var(--muted);
         font-size: 12px;
+      }
+      .meta-left {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .meta .tts-btn {
+        margin-left: auto;
       }
       .stem {
         margin: 10px 0 8px;
@@ -1301,6 +1312,11 @@
             <option value="large">大</option>
             <option value="xlarge">特大</option>
           </select>
+          <label for="ttsQualitySelect">読み上げ音質</label>
+          <select id="ttsQualitySelect" aria-label="読み上げ音質">
+            <option value="standard">通常音質（Neural2）</option>
+            <option value="high">高音質（Chirp3）</option>
+          </select>
           <label><input type="checkbox" id="highContrastToggle" /> 高コントラスト表示</label>
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
           <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
@@ -1422,11 +1438,13 @@
             </select>
             <button id="aiUsageRefreshBtn" type="button">再読み込み</button>
           </div>
-          <div class="note" id="aiUsageStatus">未取得</div>
-          <div class="ai-usage-summary" id="aiUsageSummary"></div>
-          <div class="note">日別集計（free / paid）</div>
-          <div class="proposal-list-wide" id="aiUsageDaily"></div>
-          <div class="note">用途別集計（free / paid）</div>
+        <div class="note" id="aiUsageStatus">未取得</div>
+        <div class="ai-usage-summary" id="aiUsageSummary"></div>
+        <div class="note">TTS使用状況（用途: tts）</div>
+        <div class="ai-usage-summary" id="aiUsageTts"></div>
+        <div class="note">日別集計（free / paid）</div>
+        <div class="proposal-list-wide" id="aiUsageDaily"></div>
+        <div class="note">用途別集計（free / paid）</div>
 	          <div class="proposal-list-wide" id="aiUsageEndpoint"></div>
 	        </div>
 	        </details>
@@ -1621,6 +1639,15 @@
         ,uiMode: "standard"
         ,fontScale: "normal"
         ,highContrast: false
+        ,ttsQuality: "standard"
+        ,ttsAudio: null
+        ,ttsAudioUrl: ""
+        ,ttsSerial: ""
+        ,ttsLoadingSerial: ""
+        ,ttsLoadingKey: ""
+        ,ttsRequestId: 0
+        ,ttsMemoryCache: {}
+        ,ttsMemoryCacheOrder: []
         ,editMode: false
         ,pendingStatSortRefresh: false
         ,qaDrafts: {}
@@ -2492,9 +2519,11 @@
         const irrelevant = Number(map.irrelevant || 0);
         const limited = Number(map.rate_limited || 0);
         const error = Number(map.error || 0);
+        const chars = Number(map.chars || 0);
         return `
           <table>
             <tr><td>合計</td><td>${all}</td></tr>
+            <tr><td>処理文字数</td><td>${chars.toLocaleString("ja-JP")}</td></tr>
             <tr><td>成功</td><td>${success}</td></tr>
             <tr><td>無関係</td><td>${irrelevant}</td></tr>
             <tr><td>制限</td><td>${limited}</td></tr>
@@ -2503,14 +2532,27 @@
         `;
       }
 
+      function createAiUsageBucket() {
+        return {
+          all: 0,
+          success: 0,
+          irrelevant: 0,
+          rate_limited: 0,
+          error: 0,
+          chars: 0
+        };
+      }
+
       function renderAiUsagePanel(payload) {
         const summaryEl = document.getElementById("aiUsageSummary");
+        const ttsEl = document.getElementById("aiUsageTts");
         const dailyEl = document.getElementById("aiUsageDaily");
         const endpointEl = document.getElementById("aiUsageEndpoint");
-        if (!summaryEl || !dailyEl || !endpointEl) return;
+        if (!summaryEl || !ttsEl || !dailyEl || !endpointEl) return;
 
         if (!payload || payload.ok !== true) {
           summaryEl.innerHTML = "";
+          ttsEl.innerHTML = "";
           dailyEl.textContent = "";
           endpointEl.textContent = "";
           return;
@@ -2570,6 +2612,54 @@
         }
 
         const byEndpoint = Array.isArray(payload.by_endpoint) ? payload.by_endpoint : [];
+        const buildTtsUsageBucket = (targetEndpoint) =>
+          byEndpoint
+            .filter((item) => String((item && item.endpoint) || "").trim().toLowerCase() === targetEndpoint)
+            .reduce(
+              (acc, item) => {
+                const free = item && item.free ? item.free : {};
+                const paid = item && item.paid ? item.paid : {};
+                Object.keys(acc).forEach((key) => {
+                  acc[key] += Number(free[key] || 0);
+                  acc[key] += Number(paid[key] || 0);
+                });
+                return acc;
+              },
+              createAiUsageBucket()
+            );
+        const ttsStandard = buildTtsUsageBucket("tts_standard");
+        const ttsHigh = buildTtsUsageBucket("tts_high");
+        const ttsLegacy = buildTtsUsageBucket("tts");
+        const hasTtsData =
+          ttsStandard.all > 0 ||
+          ttsStandard.chars > 0 ||
+          ttsHigh.all > 0 ||
+          ttsHigh.chars > 0 ||
+          ttsLegacy.all > 0 ||
+          ttsLegacy.chars > 0;
+        if (hasTtsData) {
+          ttsEl.innerHTML = `
+            <div class="ai-usage-card">
+              <h4>通常音質（Neural2）</h4>
+              ${buildAiUsageStatsTable(ttsStandard)}
+            </div>
+            <div class="ai-usage-card">
+              <h4>高音質（Chirp3）</h4>
+              ${buildAiUsageStatsTable(ttsHigh)}
+            </div>
+          `;
+          if (ttsLegacy.all > 0 || ttsLegacy.chars > 0) {
+            ttsEl.innerHTML += `
+              <div class="ai-usage-card">
+                <h4>旧集計（tts）</h4>
+                ${buildAiUsageStatsTable(ttsLegacy)}
+              </div>
+            `;
+          }
+        } else {
+          ttsEl.innerHTML = `<div class="note">データはありません。</div>`;
+        }
+
         if (!byEndpoint.length) {
           endpointEl.textContent = "データはありません。";
         } else {
@@ -3035,6 +3125,469 @@
         if (!target) return;
         target.classList.add("markdown-body");
         target.innerHTML = markdownToHtml(text);
+      }
+
+      function normalizeTtsQuality(value) {
+        return String(value || "").toLowerCase() === "high" ? "high" : "standard";
+      }
+
+      function getTtsQualityLabel(value) {
+        return normalizeTtsQuality(value) === "high" ? "高音質（Chirp3）" : "通常音質（Neural2）";
+      }
+
+      function canUseBrowserTtsCache() {
+        return Boolean(window.isSecureContext && window.caches);
+      }
+
+      const TTS_CACHE_NAME = "ahaki-tts-cache-v1";
+      const TTS_CACHE_INDEX_KEY = "ttsCacheIndexV1";
+      const TTS_CACHE_MAX_ITEMS = 80;
+      const TTS_MEMORY_CACHE_MAX_ITEMS = 24;
+
+      function hashStringFNV1a(text) {
+        const value = String(text || "");
+        let hash = 2166136261;
+        for (let i = 0; i < value.length; i += 1) {
+          hash ^= value.charCodeAt(i);
+          hash = (hash * 16777619) >>> 0;
+        }
+        return hash.toString(16);
+      }
+
+      function buildTtsCacheKey(serial, segmentKey, quality, payloadText, ssmlMode) {
+        const payloadHash = hashStringFNV1a(payloadText || "");
+        const mode = ssmlMode ? "ssml" : "text";
+        return `v1:${serial || "-"}:${segmentKey || "-"}:${quality || "standard"}:${mode}:${payloadHash}`;
+      }
+
+      function getTtsCacheRequest(cacheKey) {
+        return new Request(`${location.origin}/__tts_cache__/${encodeURIComponent(cacheKey)}.mp3`, {
+          method: "GET"
+        });
+      }
+
+      function readTtsCacheIndex() {
+        try {
+          const raw = localStorage.getItem(TTS_CACHE_INDEX_KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          if (!Array.isArray(arr)) return [];
+          return arr.map((item) => String(item || "").trim()).filter(Boolean);
+        } catch (_err) {
+          return [];
+        }
+      }
+
+      function writeTtsCacheIndex(index) {
+        try {
+          localStorage.setItem(TTS_CACHE_INDEX_KEY, JSON.stringify(index || []));
+        } catch (_err) {}
+      }
+
+      function rememberTtsMemoryBlob(cacheKey, blob) {
+        if (!cacheKey || !blob) return;
+        state.ttsMemoryCache[cacheKey] = blob;
+        const nextOrder = (state.ttsMemoryCacheOrder || []).filter((key) => key !== cacheKey);
+        nextOrder.push(cacheKey);
+        while (nextOrder.length > TTS_MEMORY_CACHE_MAX_ITEMS) {
+          const old = nextOrder.shift();
+          if (old) {
+            delete state.ttsMemoryCache[old];
+          }
+        }
+        state.ttsMemoryCacheOrder = nextOrder;
+      }
+
+      function deleteTtsMemoryBlob(cacheKey) {
+        if (!cacheKey) return;
+        delete state.ttsMemoryCache[cacheKey];
+        state.ttsMemoryCacheOrder = (state.ttsMemoryCacheOrder || []).filter((key) => key !== cacheKey);
+      }
+
+      async function loadTtsBlobFromCache(cacheKey) {
+        if (!cacheKey) return null;
+        const memoryHit = state.ttsMemoryCache[cacheKey];
+        if (memoryHit) return memoryHit;
+        if (!canUseBrowserTtsCache()) return null;
+        try {
+          const cache = await caches.open(TTS_CACHE_NAME);
+          const res = await cache.match(getTtsCacheRequest(cacheKey));
+          if (!res || !res.ok) return null;
+          const blob = await res.blob();
+          if (!blob || !blob.size) return null;
+          rememberTtsMemoryBlob(cacheKey, blob);
+          return blob;
+        } catch (_err) {
+          return null;
+        }
+      }
+
+      async function saveTtsBlobToCache(cacheKey, blob) {
+        if (!cacheKey || !blob || !blob.size) return;
+        rememberTtsMemoryBlob(cacheKey, blob);
+        if (!canUseBrowserTtsCache()) return;
+        try {
+          const cache = await caches.open(TTS_CACHE_NAME);
+          await cache.put(
+            getTtsCacheRequest(cacheKey),
+            new Response(blob, {
+              status: 200,
+              headers: {
+                "Content-Type": "audio/mpeg",
+                "Cache-Control": "max-age=86400"
+              }
+            })
+          );
+          let index = readTtsCacheIndex();
+          index = index.filter((item) => item !== cacheKey);
+          index.push(cacheKey);
+          while (index.length > TTS_CACHE_MAX_ITEMS) {
+            const old = index.shift();
+            if (!old) continue;
+            await cache.delete(getTtsCacheRequest(old));
+            deleteTtsMemoryBlob(old);
+          }
+          writeTtsCacheIndex(index);
+        } catch (_err) {}
+      }
+
+      function stripMarkdownForSpeech(text) {
+        let value = String(text || "");
+        if (!value) return "";
+        value = value
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/`([^`]+)`/g, "$1")
+          .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+          .replace(/^#{1,6}\s*/gm, "")
+          .replace(/^\s*[-*+]\s+/gm, "")
+          .replace(/^\s*\d+\.\s+/gm, "")
+          .replace(/\*\*([^*]+)\*\*/g, "$1")
+          .replace(/\*([^*]+)\*/g, "$1")
+          .replace(/~~([^~]+)~~/g, "$1")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&amp;/g, "&")
+          .replace(/\r/g, "")
+          .replace(/[ \t]+/g, " ")
+          .replace(/\n+/g, " ");
+        return value.trim();
+      }
+
+      function buildAnswerSpeechText(q) {
+        if (!q) return "正答は未登録です。";
+        if (q.answer_none) return "正答は、なしです。";
+        const indices = getAnswerIndices(q);
+        if (!indices.length) return "正答は未登録です。";
+        const choices = Array.isArray(q.choices) ? q.choices : [];
+        const parts = indices.map((idx) => {
+          const choiceText = stripMarkdownForSpeech(choices[idx - 1] || "");
+          return choiceText ? `${idx}番、${choiceText}` : `${idx}番`;
+        });
+        return `正答は、${parts.join("、")}です。`;
+      }
+
+      function buildQuestionSpeechSections(q, explanationText) {
+        const caseText = stripMarkdownForSpeech(q && q.case_text ? q.case_text : "");
+        const stemText = stripMarkdownForSpeech(q && q.stem ? q.stem : "");
+        const choiceTexts = (q && Array.isArray(q.choices) ? q.choices : [])
+          .slice(0, 4)
+          .map((choice) => stripMarkdownForSpeech(choice || ""));
+        const answerText = buildAnswerSpeechText(q);
+        const explanationSpeech = stripMarkdownForSpeech(explanationText || "解説は未登録です。");
+        const casePayload = caseText ? `症例文。${caseText}` : "";
+        const stemPayload = stemText ? `問題文。${stemText}` : "";
+        const choicePayloads = choiceTexts.map((choice, idx) =>
+          choice ? `選択肢${idx + 1}。${choice}` : ""
+        );
+        const answerPayload = answerText ? `回答。${answerText}` : "";
+        const explanationPayload = explanationSpeech ? `解説。${explanationSpeech}` : "";
+        const bundleSequence = [];
+        if (casePayload) bundleSequence.push({ key: "case", text: casePayload, pauseMs: 720 });
+        if (stemPayload) bundleSequence.push({ key: "stem", text: stemPayload, pauseMs: 720 });
+        choicePayloads.forEach((text, idx) => {
+          if (!text) return;
+          bundleSequence.push({ key: `choice_${idx + 1}`, text, pauseMs: 680 });
+        });
+        return {
+          caseText,
+          stemText,
+          choiceTexts,
+          casePayload,
+          stemPayload,
+          choicePayloads,
+          answerText,
+          explanationSpeech,
+          answerPayload,
+          explanationPayload,
+          bundleSequence
+        };
+      }
+
+      function stopTtsPlayback(options = {}) {
+        const cancelPending = options.cancelPending !== false;
+        if (cancelPending) {
+          state.ttsRequestId = Number(state.ttsRequestId || 0) + 1;
+        }
+        if (state.ttsAudio) {
+          try {
+            state.ttsAudio.pause();
+          } catch (_err) {}
+          state.ttsAudio.src = "";
+          state.ttsAudio.onended = null;
+          state.ttsAudio.onerror = null;
+        }
+        if (state.ttsAudioUrl) {
+          try {
+            URL.revokeObjectURL(state.ttsAudioUrl);
+          } catch (_err) {}
+        }
+        state.ttsAudio = null;
+        state.ttsAudioUrl = "";
+        state.ttsSerial = "";
+        state.ttsLoadingSerial = "";
+        state.ttsLoadingKey = "";
+      }
+
+      function setIconOnlyActionButton(button, icon, ariaLabel, title, disabled) {
+        if (!button) return;
+        button.textContent = "";
+        const iconSpan = document.createElement("span");
+        iconSpan.className = "action-icon";
+        iconSpan.setAttribute("aria-hidden", "true");
+        iconSpan.textContent = icon;
+        button.appendChild(iconSpan);
+        if (ariaLabel) button.setAttribute("aria-label", ariaLabel);
+        if (title) button.setAttribute("title", title);
+        button.disabled = Boolean(disabled);
+      }
+
+      function refreshTtsButtons() {
+        const loadingSerial = state.ttsLoadingSerial || "";
+        const playingSerial = state.ttsSerial || "";
+        document.querySelectorAll(".tts-btn").forEach((btn) => {
+          const serial = String(btn.getAttribute("data-serial") || "");
+          if (loadingSerial && serial === loadingSerial) {
+            setIconOnlyActionButton(
+              btn,
+              "⏳",
+              "読み上げ音声を生成中",
+              "読み上げ音声を生成中",
+              true
+            );
+            return;
+          }
+          if (playingSerial && serial === playingSerial) {
+            setIconOnlyActionButton(
+              btn,
+              "⏹",
+              "この問題の読み上げを停止",
+              "読み上げを停止",
+              false
+            );
+            return;
+          }
+          setIconOnlyActionButton(btn, "🎧", "この問題の読み上げメニューを開く", "読み上げメニュー", false);
+        });
+      }
+
+      async function getTtsBlobForPayload(serial, segmentKey, payloadText, options = {}) {
+        const text = String(payloadText || "").trim();
+        if (!text) {
+          throw new Error("読み上げ対象のテキストがありません。");
+        }
+        if (!window.AI_API_BASE) {
+          throw new Error("AI_API_BASE が設定されていません。");
+        }
+        const quality = normalizeTtsQuality(options.quality || state.ttsQuality);
+        const ssml = Boolean(options.ssml);
+        const cacheKey = buildTtsCacheKey(serial, segmentKey, quality, text, ssml);
+        let blob = await loadTtsBlobFromCache(cacheKey);
+        let fromCache = true;
+        if (!blob) {
+          fromCache = false;
+          const headers = { "Content-Type": "application/json" };
+          const token = await getAuthAccessToken();
+          if (token) headers.Authorization = `Bearer ${token}`;
+          const resp = await fetch(`${window.AI_API_BASE}/ai/tts`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              text,
+              quality,
+              ssml,
+              serial
+            })
+          });
+          if (!resp.ok) {
+            const errorText = await resp.text();
+            throw new Error(parseApiErrorText(errorText, `HTTP ${resp.status}`));
+          }
+          blob = await resp.blob();
+          if (!blob || !blob.size) {
+            throw new Error("音声データが空です。");
+          }
+          await saveTtsBlobToCache(cacheKey, blob);
+        }
+        return { blob, fromCache, quality };
+      }
+
+      async function playTtsBlobOnce(serial, blob, requestId) {
+        if (state.ttsRequestId !== requestId) return false;
+        if (!blob || !blob.size) throw new Error("音声データが空です。");
+        if (state.ttsAudio) {
+          try {
+            state.ttsAudio.pause();
+          } catch (_err) {}
+          state.ttsAudio.src = "";
+          state.ttsAudio.onended = null;
+          state.ttsAudio.onerror = null;
+        }
+        if (state.ttsAudioUrl) {
+          try {
+            URL.revokeObjectURL(state.ttsAudioUrl);
+          } catch (_err) {}
+        }
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        let playbackError = null;
+        audio.onerror = () => {
+          playbackError = new Error("読み上げの再生に失敗しました");
+        };
+        state.ttsAudio = audio;
+        state.ttsAudioUrl = audioUrl;
+        state.ttsSerial = serial;
+        refreshTtsButtons();
+        await audio.play();
+        while (true) {
+          if (state.ttsRequestId !== requestId) {
+            return false;
+          }
+          if (playbackError) {
+            throw playbackError;
+          }
+          if (audio.ended) break;
+          await new Promise((resolve) => setTimeout(resolve, 120));
+        }
+        if (state.ttsAudio === audio) {
+          state.ttsAudio = null;
+          state.ttsAudioUrl = "";
+          try {
+            URL.revokeObjectURL(audioUrl);
+          } catch (_err) {}
+        }
+        return true;
+      }
+
+      async function waitTtsPause(ms, requestId) {
+        const delay = Math.max(0, Number(ms || 0));
+        if (!delay) return true;
+        const started = Date.now();
+        while (Date.now() - started < delay) {
+          if (state.ttsRequestId !== requestId) return false;
+          await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+        return true;
+      }
+
+      async function playTtsPayload(serial, segmentKey, payloadText, options = {}) {
+        const requestId = Number(state.ttsRequestId || 0) + 1;
+        state.ttsRequestId = requestId;
+        stopTtsPlayback({ cancelPending: false });
+        state.ttsSerial = serial;
+        state.ttsLoadingSerial = serial;
+        state.ttsLoadingKey = segmentKey || "";
+        refreshTtsButtons();
+        try {
+          const payload = await getTtsBlobForPayload(serial, segmentKey, payloadText, options);
+          if (state.ttsRequestId !== requestId) {
+            return { started: false, fromCache: payload.fromCache };
+          }
+          state.ttsLoadingSerial = "";
+          state.ttsLoadingKey = "";
+          refreshTtsButtons();
+          const played = await playTtsBlobOnce(serial, payload.blob, requestId);
+          if (state.ttsRequestId === requestId) {
+            state.ttsSerial = "";
+            state.ttsLoadingSerial = "";
+            state.ttsLoadingKey = "";
+            refreshTtsButtons();
+          }
+          return { started: played, fromCache: payload.fromCache };
+        } catch (err) {
+          if (state.ttsRequestId === requestId) {
+            state.ttsSerial = "";
+            state.ttsLoadingSerial = "";
+            state.ttsLoadingKey = "";
+            refreshTtsButtons();
+          }
+          throw err;
+        }
+      }
+
+      async function playTtsSequence(serial, segments, options = {}) {
+        const list = Array.isArray(segments) ? segments : [];
+        const valid = list
+          .map((item) => ({
+            key: String(item && item.key ? item.key : "").trim(),
+            text: String(item && item.text ? item.text : "").trim(),
+            pauseMs: Number(item && item.pauseMs ? item.pauseMs : 0)
+          }))
+          .filter((item) => item.key && item.text);
+        if (!valid.length) {
+          throw new Error("読み上げ対象のテキストがありません。");
+        }
+        const requestId = Number(state.ttsRequestId || 0) + 1;
+        state.ttsRequestId = requestId;
+        stopTtsPlayback({ cancelPending: false });
+        state.ttsSerial = serial;
+        state.ttsLoadingSerial = serial;
+        state.ttsLoadingKey = valid[0].key;
+        refreshTtsButtons();
+        let allFromCache = true;
+        try {
+          for (let i = 0; i < valid.length; i += 1) {
+            if (state.ttsRequestId !== requestId) {
+              return { started: false, fromCache: allFromCache };
+            }
+            const item = valid[i];
+            state.ttsLoadingSerial = serial;
+            state.ttsLoadingKey = item.key;
+            refreshTtsButtons();
+            const payload = await getTtsBlobForPayload(serial, item.key, item.text, options);
+            if (!payload.fromCache) allFromCache = false;
+            if (state.ttsRequestId !== requestId) {
+              return { started: false, fromCache: allFromCache };
+            }
+            state.ttsLoadingSerial = "";
+            state.ttsLoadingKey = "";
+            refreshTtsButtons();
+            const played = await playTtsBlobOnce(serial, payload.blob, requestId);
+            if (!played) {
+              return { started: false, fromCache: allFromCache };
+            }
+            if (i < valid.length - 1) {
+              const ok = await waitTtsPause(item.pauseMs || 0, requestId);
+              if (!ok) return { started: false, fromCache: allFromCache };
+            }
+          }
+          if (state.ttsRequestId === requestId) {
+            state.ttsSerial = "";
+            state.ttsLoadingSerial = "";
+            state.ttsLoadingKey = "";
+            refreshTtsButtons();
+          }
+          return { started: true, fromCache: allFromCache };
+        } catch (err) {
+          if (state.ttsRequestId === requestId) {
+            state.ttsSerial = "";
+            state.ttsLoadingSerial = "";
+            state.ttsLoadingKey = "";
+            refreshTtsButtons();
+          }
+          throw err;
+        }
       }
 
       function parseApiErrorText(rawText, fallbackStatus) {
@@ -3515,14 +4068,22 @@
 
           const meta = document.createElement("div");
           meta.className = "meta";
-          meta.textContent = `${q.serial} / ${q.subject} / 第${q.exam_session}回`;
+          const metaLeft = document.createElement("div");
+          metaLeft.className = "meta-left";
+          const metaLabel = document.createElement("span");
+          metaLabel.textContent = `${q.serial} / ${q.subject} / 第${q.exam_session}回`;
+          metaLeft.appendChild(metaLabel);
 	          if (hasAnswered(q.serial) && !isRoleAtLeast("student")) {
 	            const answered = document.createElement("span");
 	            answered.className = "frequent-badge level-1";
 	            answered.textContent = "回答済み";
-	            meta.appendChild(answered);
+	            metaLeft.appendChild(answered);
 	          }
+          meta.appendChild(metaLeft);
 	          card.appendChild(meta);
+          const ttsPanelMount = document.createElement("div");
+          ttsPanelMount.className = "tts-panel-anchor";
+          card.appendChild(ttsPanelMount);
 
           if (isRoleAtLeast("student")) {
             const row = state.progressSelfBySerial[q.serial] || null;
@@ -4646,6 +5207,171 @@
           });
           actions.appendChild(copyBtn);
 
+          const ttsBtn = document.createElement("button");
+          ttsBtn.className = "action-btn icon-only tts-btn";
+          ttsBtn.setAttribute("data-serial", q.serial);
+          const ttsPanel = document.createElement("div");
+          ttsPanel.className = "deep-dive-panel";
+          ttsPanel.hidden = true;
+          ttsPanelMount.appendChild(ttsPanel);
+          const ttsStatus = document.createElement("div");
+          ttsStatus.className = "note";
+          ttsStatus.textContent = "読み上げ項目を選択してください。";
+          ttsPanel.appendChild(ttsStatus);
+          const ttsActionRow = document.createElement("div");
+          ttsActionRow.className = "proposal-actions";
+          ttsPanel.appendChild(ttsActionRow);
+
+          const playSection = async (segmentKey, payloadText, options = {}) => {
+            const qualityLabel = getTtsQualityLabel(state.ttsQuality);
+            ttsStatus.textContent = `${options.label || "読み上げ"}を準備中...（${qualityLabel}）`;
+            announceStatusNow(`${options.label || "読み上げ"}を準備中です（${qualityLabel}）`);
+            try {
+              const result = await playTtsPayload(q.serial, segmentKey, payloadText, {
+                quality: state.ttsQuality
+              });
+              if (!result || !result.started) return;
+              if (result.fromCache) {
+                ttsStatus.textContent = `${options.label || "読み上げ"}の再生が完了しました（キャッシュ利用）`;
+              } else {
+                ttsStatus.textContent = `${options.label || "読み上げ"}の再生が完了しました`;
+              }
+              announceStatusNow(`${options.label || "読み上げ"}の再生が完了しました`);
+              refreshTtsButtons();
+            } catch (err) {
+              stopTtsPlayback();
+              refreshTtsButtons();
+              const detail = String(err && err.message ? err.message : err || "読み上げに失敗しました。");
+              ttsStatus.textContent = `読み上げに失敗しました: ${detail}`;
+              alert(`読み上げに失敗しました: ${detail}`);
+              announceStatusNow("読み上げに失敗しました");
+            }
+          };
+
+          const playSequence = async (sequence, options = {}) => {
+            const qualityLabel = getTtsQualityLabel(state.ttsQuality);
+            ttsStatus.textContent = `${options.label || "一括再生"}を準備中...（${qualityLabel}）`;
+            announceStatusNow(`${options.label || "一括再生"}を準備中です（${qualityLabel}）`);
+            try {
+              const result = await playTtsSequence(q.serial, sequence, {
+                quality: state.ttsQuality
+              });
+              if (!result || !result.started) return;
+              if (result.fromCache) {
+                ttsStatus.textContent = `${options.label || "一括再生"}が完了しました（キャッシュ利用）`;
+              } else {
+                ttsStatus.textContent = `${options.label || "一括再生"}が完了しました`;
+              }
+              announceStatusNow(`${options.label || "一括再生"}が完了しました`);
+              refreshTtsButtons();
+            } catch (err) {
+              stopTtsPlayback();
+              refreshTtsButtons();
+              const detail = String(err && err.message ? err.message : err || "読み上げに失敗しました。");
+              ttsStatus.textContent = `読み上げに失敗しました: ${detail}`;
+              alert(`読み上げに失敗しました: ${detail}`);
+              announceStatusNow("読み上げに失敗しました");
+            }
+          };
+
+          const addTtsButton = (label, resolver, opts = {}) => {
+            const btn = document.createElement("button");
+            btn.className = "chip-link";
+            btn.textContent = label;
+            btn.addEventListener("click", async () => {
+              const resolved = typeof resolver === "function" ? resolver() : null;
+              const sequence = Array.isArray(resolved && resolved.sequence) ? resolved.sequence : null;
+              if (sequence && sequence.length) {
+                await playSequence(sequence, { label });
+                return;
+              }
+              const payload = resolved && resolved.payload ? resolved.payload : "";
+              if (!payload) {
+                ttsStatus.textContent = `${label}は読み上げ対象がありません。`;
+                return;
+              }
+              await playSection(
+                resolved.key || opts.segmentKey || label,
+                payload,
+                { label }
+              );
+            });
+            ttsActionRow.appendChild(btn);
+            return btn;
+          };
+
+          const getSpeechSections = () =>
+            buildQuestionSpeechSections(q, expBody.textContent || expText || "");
+
+          const bundleBtn = addTtsButton("一括（症例〜選択4）", () => {
+            const sections = getSpeechSections();
+            return { sequence: sections.bundleSequence };
+          });
+          const caseBtn = addTtsButton("症例", () => {
+            const sections = getSpeechSections();
+            return { key: "case", payload: sections.casePayload };
+          });
+          const stemBtn = addTtsButton("問題文", () => {
+            const sections = getSpeechSections();
+            return { key: "stem", payload: sections.stemPayload };
+          });
+          const choiceBtns = [0, 1, 2, 3].map((idx) =>
+            addTtsButton(`選択肢${idx + 1}`, () => {
+              const sections = getSpeechSections();
+              return { key: `choice_${idx + 1}`, payload: sections.choicePayloads[idx] || "" };
+            })
+          );
+          const answerBtn = addTtsButton("回答", () => {
+            const sections = getSpeechSections();
+            return { key: "answer", payload: sections.answerPayload };
+          });
+          const explanationBtn = addTtsButton("解説", () => {
+            const sections = getSpeechSections();
+            return { key: "explanation", payload: sections.explanationPayload };
+          });
+          const stopBtn = document.createElement("button");
+          stopBtn.className = "chip-link";
+          stopBtn.textContent = "停止";
+          stopBtn.addEventListener("click", () => {
+            stopTtsPlayback();
+            refreshTtsButtons();
+            ttsStatus.textContent = "読み上げを停止しました。";
+            announceStatusNow("読み上げを停止しました");
+          });
+          ttsActionRow.appendChild(stopBtn);
+
+          const refreshTtsPanelAvailability = () => {
+            const sections = getSpeechSections();
+            caseBtn.disabled = !sections.casePayload;
+            stemBtn.disabled = !sections.stemPayload;
+            choiceBtns.forEach((btn, idx) => {
+              btn.disabled = !(sections.choicePayloads[idx] || "");
+            });
+            answerBtn.disabled = !sections.answerPayload;
+            explanationBtn.disabled = !sections.explanationPayload;
+            bundleBtn.disabled = !(sections.bundleSequence && sections.bundleSequence.length);
+          };
+
+          ttsBtn.addEventListener("click", () => {
+            if (
+              (state.ttsSerial === q.serial) ||
+              (state.ttsLoadingSerial === q.serial)
+            ) {
+              stopTtsPlayback();
+              refreshTtsButtons();
+              ttsStatus.textContent = "読み上げを停止しました。";
+              announceStatusNow("読み上げを停止しました");
+              return;
+            }
+            ttsPanel.hidden = !ttsPanel.hidden;
+            if (!ttsPanel.hidden) {
+              refreshTtsPanelAvailability();
+              ttsStatus.textContent = `読み上げ項目を選択してください（${getTtsQualityLabel(state.ttsQuality)}）。`;
+            }
+          });
+          meta.appendChild(ttsBtn);
+          refreshTtsButtons();
+
           const extraDetails = document.createElement("details");
           extraDetails.className = "inline";
           const extraSummary = document.createElement("summary");
@@ -5703,6 +6429,13 @@
             state.highContrast = !!e.target.checked;
             saveTagVisibility();
             applyUiPreferences();
+          });
+        }
+        const ttsQualitySelect = document.getElementById("ttsQualitySelect");
+        if (ttsQualitySelect) {
+          ttsQualitySelect.addEventListener("change", (e) => {
+            state.ttsQuality = normalizeTtsQuality(e.target.value);
+            saveTagVisibility();
           });
         }
 
@@ -7577,6 +8310,7 @@
         const modeRaw = localStorage.getItem("uiMode");
         const fontRaw = localStorage.getItem("fontScale");
         const contrastRaw = localStorage.getItem("highContrast");
+        const ttsQualityRaw = localStorage.getItem("ttsQuality");
         const answerToggle = document.getElementById("toggleAnswer");
         const explanationToggle = document.getElementById("toggleExplanation");
         const answeredFilterEl = document.getElementById("answeredFilter");
@@ -7617,6 +8351,9 @@
         if (contrastRaw !== null) {
           state.highContrast = contrastRaw === "true";
         }
+        if (ttsQualityRaw !== null) {
+          state.ttsQuality = normalizeTtsQuality(ttsQualityRaw);
+        }
         const tagsToggle = document.getElementById("showTagsToggle");
         const subsToggle = document.getElementById("showSubtopicsToggle");
         const reportModeToggle = document.getElementById("reportModeToggle");
@@ -7624,6 +8361,7 @@
         const modeSelect = document.getElementById("uiModeSelect");
         const fontSelect = document.getElementById("fontScaleSelect");
         const contrastToggle = document.getElementById("highContrastToggle");
+        const ttsQualitySelect = document.getElementById("ttsQualitySelect");
         if (tagsToggle) tagsToggle.checked = state.showTags;
         if (subsToggle) subsToggle.checked = state.showSubtopics;
         if (reportModeToggle) reportModeToggle.checked = state.reportMode;
@@ -7631,6 +8369,7 @@
         if (modeSelect) modeSelect.value = state.uiMode;
         if (fontSelect) fontSelect.value = state.fontScale;
         if (contrastToggle) contrastToggle.checked = state.highContrast;
+        if (ttsQualitySelect) ttsQualitySelect.value = normalizeTtsQuality(state.ttsQuality);
         document.body.classList.toggle("report-mode", state.reportMode);
         applyUiPreferences();
       }
@@ -7649,6 +8388,7 @@
         localStorage.setItem("uiMode", state.uiMode);
         localStorage.setItem("fontScale", state.fontScale);
         localStorage.setItem("highContrast", String(state.highContrast));
+        localStorage.setItem("ttsQuality", normalizeTtsQuality(state.ttsQuality));
         applyUiPreferences();
       }
 

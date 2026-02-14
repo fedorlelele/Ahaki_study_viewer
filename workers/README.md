@@ -19,6 +19,13 @@
 - `PAID_RATE_LIMIT_PER_DAY` (任意。未設定時は `RATE_LIMIT_PER_DAY` を使用)
 - `PAID_RATE_LIMIT_PER_MIN` (任意。未設定時は `RATE_LIMIT_PER_MIN` を使用)
 - `AI_ADMIN_PAID_GENERATION` (任意。初期値のfallback)
+- `GOOGLE_TTS_API_KEY` (任意。TTS利用時に必須)
+- `GOOGLE_TTS_LANGUAGE_CODE` (任意。既定 `ja-JP`)
+- `GOOGLE_TTS_VOICE_STANDARD` (任意。既定 `ja-JP-Neural2-B`)
+- `GOOGLE_TTS_VOICE_HIGH` (任意。高音質ボイス)
+- `TTS_MONTHLY_CHAR_LIMIT_STANDARD` (任意。通常音質の月間文字数上限)
+- `TTS_MONTHLY_CHAR_LIMIT_HIGH` (任意。高音質の月間文字数上限)
+- `TTS_MONTHLY_CHAR_LIMIT` (任意。上記未設定時の共通上限)
 
 ## 想定URL
 - 管理API: `https://<worker>.workers.dev/admin/*`

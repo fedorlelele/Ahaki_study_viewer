@@ -149,6 +149,9 @@ async function handleAi(request, env) {
   if (request.method === "GET" && path === "/ai/deep_dive_index") {
     return fetchDeepDiveIndex(env);
   }
+  if (path === "/ai/tts" && request.method === "POST") {
+    return handleTtsSynthesis(request, env);
+  }
   if (path === "/ai/question_qa") {
     if (request.method === "GET") {
       const serial = (url.searchParams.get("serial") || "").trim();
@@ -363,6 +366,150 @@ async function handleAi(request, env) {
     model: usedModel
   });
   return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags, mode: gemini.mode });
+}
+
+async function handleTtsSynthesis(request, env) {
+  const body = await readJson(request);
+  const useSsml = Boolean(body.ssml);
+  const text = String(body.text || "").trim();
+  if (!text) {
+    return jsonResponse({ message: "text is required" }, 400);
+  }
+  const serial = String(body.serial || "").trim() || null;
+  const usageMode = "free";
+  const textCharCount = estimateTtsCharCount(text, useSsml);
+  let usageUserId = null;
+  try {
+    const user = await authenticate(request, env);
+    usageUserId = user && user.id ? String(user.id) : null;
+  } catch (_err) {
+    usageUserId = null;
+  }
+  const apiKey =
+    env.GOOGLE_TTS_API_KEY ||
+    env.GCP_TTS_API_KEY ||
+    env.TTS_API_KEY ||
+    "";
+  if (!apiKey) {
+    await safeLogAiUsage(env, {
+      mode: usageMode,
+      endpoint: "tts_config",
+      outcome: "error",
+      serial,
+      user_id: usageUserId,
+      model: "google-tts",
+      char_count: textCharCount
+    });
+    return jsonResponse({ message: "Google TTS API key is not configured." }, 500);
+  }
+  const quality = String(body.quality || "standard").toLowerCase() === "high" ? "high" : "standard";
+  const standardVoice =
+    env.GOOGLE_TTS_VOICE_STANDARD ||
+    env.TTS_VOICE_NEURAL ||
+    "ja-JP-Neural2-B";
+  const highVoice =
+    env.GOOGLE_TTS_VOICE_HIGH ||
+    env.TTS_VOICE_CHIRP ||
+    "";
+  const voiceName = quality === "high" ? (highVoice || standardVoice) : standardVoice;
+  const usageEndpoint = quality === "high" ? "tts_high" : "tts_standard";
+  const quota = await checkTtsMonthlyQuota(env, usageEndpoint, textCharCount);
+  if (quota && quota.ok === false) {
+    await safeLogAiUsage(env, {
+      mode: usageMode,
+      endpoint: usageEndpoint,
+      outcome: "rate_limited",
+      serial,
+      user_id: usageUserId,
+      model: voiceName || "google-tts",
+      char_count: textCharCount
+    });
+    return jsonResponse(
+      {
+        message: "TTS monthly quota exceeded",
+        quality,
+        endpoint: usageEndpoint,
+        detail: quota.message,
+        limit: quota.limit,
+        used: quota.used,
+        requested: textCharCount
+      },
+      429
+    );
+  }
+
+  const voice = { name: voiceName };
+  const languageCode = String(env.GOOGLE_TTS_LANGUAGE_CODE || "ja-JP").trim();
+  if (languageCode) {
+    voice.languageCode = languageCode;
+  }
+  const requestedRate = Number(body.rate);
+  const speakingRate =
+    Number.isFinite(requestedRate) && requestedRate >= 0.25 && requestedRate <= 2.0
+      ? requestedRate
+      : 1.0;
+
+  const payload = {
+    input: useSsml ? { ssml: text } : { text },
+    voice,
+    audioConfig: {
+      audioEncoding: "MP3",
+      speakingRate
+    }
+  };
+  const resp = await fetch(
+    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    await safeLogAiUsage(env, {
+      mode: usageMode,
+      endpoint: usageEndpoint,
+      outcome: resp.status === 429 ? "rate_limited" : "error",
+      serial,
+      user_id: usageUserId,
+      model: voiceName || "google-tts",
+      char_count: textCharCount
+    });
+    return jsonResponse({ message: "Google TTS error", detail }, resp.status || 500);
+  }
+  const data = await resp.json();
+  const audioContent = data && data.audioContent ? String(data.audioContent) : "";
+  if (!audioContent) {
+    await safeLogAiUsage(env, {
+      mode: usageMode,
+      endpoint: usageEndpoint,
+      outcome: "error",
+      serial,
+      user_id: usageUserId,
+      model: voiceName || "google-tts",
+      char_count: textCharCount
+    });
+    return jsonResponse({ message: "Google TTS error", detail: "audioContent is empty." }, 500);
+  }
+  await safeLogAiUsage(env, {
+    mode: usageMode,
+    endpoint: usageEndpoint,
+    outcome: "success",
+    serial,
+    user_id: usageUserId,
+    model: voiceName || "google-tts",
+    char_count: textCharCount
+  });
+  const audioBytes = base64ToUint8Array(audioContent);
+  return new Response(audioBytes, {
+    status: 200,
+    headers: {
+      "Content-Type": "audio/mpeg",
+      "Cache-Control": "no-store",
+      ...CORS_HEADERS
+    }
+  });
 }
 
 async function handleProgress(request, env) {
@@ -2590,7 +2737,8 @@ function createAiUsageBucket() {
     success: 0,
     irrelevant: 0,
     rate_limited: 0,
-    error: 0
+    error: 0,
+    chars: 0
   };
 }
 
@@ -2611,19 +2759,43 @@ async function listAiUsage(env, days) {
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
   const url =
     `${env.SUPABASE_URL}/rest/v1/ai_usage_logs` +
-    `?select=created_at,mode,endpoint,outcome` +
+    `?select=created_at,mode,endpoint,outcome,char_count` +
     `&created_at=gte.${encodeURIComponent(since)}` +
     `&order=created_at.desc&limit=20000`;
-  const resp = await fetch(url, {
+  let resp = await fetch(url, {
     headers: {
       apikey: env.SUPABASE_SERVICE_KEY,
       Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
       "Content-Type": "application/json"
     }
   });
-  const data = await resp.json();
+  let data = await resp.json();
   if (!resp.ok) {
-    return jsonResponse({ message: "Supabase query failed", detail: data }, 500);
+    const detailText = JSON.stringify(data || {});
+    if (detailText.includes("char_count")) {
+      const fallbackUrl =
+        `${env.SUPABASE_URL}/rest/v1/ai_usage_logs` +
+        `?select=created_at,mode,endpoint,outcome` +
+        `&created_at=gte.${encodeURIComponent(since)}` +
+        `&order=created_at.desc&limit=20000`;
+      resp = await fetch(fallbackUrl, {
+        headers: {
+          apikey: env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+          "Content-Type": "application/json"
+        }
+      });
+      data = await resp.json();
+      if (!resp.ok) {
+        return jsonResponse({ message: "Supabase query failed", detail: data }, 500);
+      }
+      data = (Array.isArray(data) ? data : []).map((item) => ({
+        ...item,
+        char_count: 0
+      }));
+    } else {
+      return jsonResponse({ message: "Supabase query failed", detail: data }, 500);
+    }
   }
 
   const rows = Array.isArray(data) ? data : [];
@@ -2639,9 +2811,11 @@ async function listAiUsage(env, days) {
     const outcome = normalizeAiUsageOutcome(row && row.outcome);
     const endpoint = String((row && row.endpoint) || "").trim() || "unknown";
     const date = String((row && row.created_at) || "").slice(0, 10) || "";
+    const charCount = Math.max(0, Number((row && row.char_count) || 0));
 
     totals[mode].all += 1;
     totals[mode][outcome] += 1;
+    totals[mode].chars += charCount;
 
     if (date) {
       if (!byDayMap[date]) {
@@ -2653,6 +2827,7 @@ async function listAiUsage(env, days) {
       }
       byDayMap[date][mode].all += 1;
       byDayMap[date][mode][outcome] += 1;
+      byDayMap[date][mode].chars += charCount;
     }
 
     if (!byEndpointMap[endpoint]) {
@@ -2664,6 +2839,7 @@ async function listAiUsage(env, days) {
     }
     byEndpointMap[endpoint][mode].all += 1;
     byEndpointMap[endpoint][mode][outcome] += 1;
+    byEndpointMap[endpoint][mode].chars += charCount;
   });
 
   const byDay = Object.values(byDayMap).sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -2680,6 +2856,85 @@ async function listAiUsage(env, days) {
     by_day: byDay,
     by_endpoint: byEndpoint
   });
+}
+
+function getCurrentMonthStartIsoUtc() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0)).toISOString();
+}
+
+function normalizePositiveInt(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.floor(n));
+}
+
+function getTtsMonthlyLimitByEndpoint(env, endpoint) {
+  const common = normalizePositiveInt(env.TTS_MONTHLY_CHAR_LIMIT || 0);
+  if (endpoint === "tts_high") {
+    return normalizePositiveInt(env.TTS_MONTHLY_CHAR_LIMIT_HIGH || common);
+  }
+  return normalizePositiveInt(env.TTS_MONTHLY_CHAR_LIMIT_STANDARD || common);
+}
+
+async function fetchAiUsageCharsSince(env, endpoint, sinceIso) {
+  const base =
+    `${env.SUPABASE_URL}/rest/v1/ai_usage_logs` +
+    `?select=char_count` +
+    `&endpoint=eq.${encodeURIComponent(endpoint)}` +
+    `&outcome=eq.success` +
+    `&created_at=gte.${encodeURIComponent(sinceIso)}` +
+    `&order=created_at.asc`;
+  let offset = 0;
+  let total = 0;
+  const limit = 1000;
+  const maxRows = 200000;
+  while (offset < maxRows) {
+    const pageUrl = `${base}&limit=${limit}&offset=${offset}`;
+    const resp = await fetch(pageUrl, {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      const detailText = JSON.stringify(data || {});
+      if (detailText.includes("char_count")) {
+        return { ok: true, total_chars: 0 };
+      }
+      return { ok: false, detail: data };
+    }
+    const rows = Array.isArray(data) ? data : [];
+    rows.forEach((row) => {
+      total += normalizePositiveInt(row && row.char_count);
+    });
+    if (rows.length < limit) break;
+    offset += limit;
+  }
+  return { ok: true, total_chars: total };
+}
+
+async function checkTtsMonthlyQuota(env, endpoint, requestedChars) {
+  const limit = getTtsMonthlyLimitByEndpoint(env, endpoint);
+  if (limit <= 0) return { ok: true, limit: 0, used: 0 };
+  const needed = normalizePositiveInt(requestedChars);
+  const since = getCurrentMonthStartIsoUtc();
+  const usage = await fetchAiUsageCharsSince(env, endpoint, since);
+  if (!usage.ok) {
+    return { ok: true, limit, used: 0 };
+  }
+  const used = normalizePositiveInt(usage.total_chars);
+  if (used + needed > limit) {
+    return {
+      ok: false,
+      limit,
+      used,
+      message: `月間上限（${limit.toLocaleString("ja-JP")}文字）に達したため停止しました。`
+    };
+  }
+  return { ok: true, limit, used };
 }
 
 async function listPracticeQuestionsAdmin(env, params, user, _role) {
@@ -2825,6 +3080,8 @@ async function safeLogAiUsage(env, payload) {
 }
 
 async function logAiUsage(env, payload) {
+  const charCountRaw = Number(payload && payload.char_count);
+  const charCount = Number.isFinite(charCountRaw) && charCountRaw > 0 ? Math.floor(charCountRaw) : 0;
   const body = {
     created_at: new Date().toISOString(),
     mode: normalizeAiUsageMode(payload && payload.mode),
@@ -2832,9 +3089,10 @@ async function logAiUsage(env, payload) {
     outcome: normalizeAiUsageOutcome(payload && payload.outcome),
     serial: payload && payload.serial ? String(payload.serial) : null,
     user_id: payload && payload.user_id ? String(payload.user_id) : null,
-    model: payload && payload.model ? String(payload.model) : null
+    model: payload && payload.model ? String(payload.model) : null,
+    char_count: charCount
   };
-  await fetch(`${env.SUPABASE_URL}/rest/v1/ai_usage_logs`, {
+  let resp = await fetch(`${env.SUPABASE_URL}/rest/v1/ai_usage_logs`, {
     method: "POST",
     headers: {
       apikey: env.SUPABASE_SERVICE_KEY,
@@ -2842,6 +3100,27 @@ async function logAiUsage(env, payload) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(body)
+  });
+  if (resp.ok) return;
+  const detail = await resp.text();
+  if (!String(detail || "").includes("char_count")) return;
+  const fallbackBody = {
+    created_at: body.created_at,
+    mode: body.mode,
+    endpoint: body.endpoint,
+    outcome: body.outcome,
+    serial: body.serial,
+    user_id: body.user_id,
+    model: body.model
+  };
+  resp = await fetch(`${env.SUPABASE_URL}/rest/v1/ai_usage_logs`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(fallbackBody)
   });
 }
 
@@ -2870,6 +3149,29 @@ function jsonResponse(payload, status = 200) {
     status,
     headers: { ...JSON_HEADERS, ...CORS_HEADERS }
   });
+}
+
+function estimateTtsCharCount(text, isSsml) {
+  const raw = String(text || "");
+  if (!raw) return 0;
+  const plain = isSsml
+    ? raw
+        .replace(/<[^>]*>/g, "")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&")
+    : raw;
+  return plain.length;
+}
+
+function base64ToUint8Array(base64) {
+  const binary = atob(String(base64 || ""));
+  const length = binary.length;
+  const bytes = new Uint8Array(length);
+  for (let i = 0; i < length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 async function checkRateLimit(env, userId, mode = "free") {

@@ -6,10 +6,18 @@ create table if not exists public.ai_usage_logs (
   mode text not null check (mode in ('free', 'paid')),
   endpoint text not null,
   outcome text not null check (outcome in ('success', 'irrelevant', 'rate_limited', 'error')),
+  char_count integer not null default 0,
   serial text,
   user_id uuid,
   model text
 );
+
+alter table if exists public.ai_usage_logs
+  add column if not exists char_count integer not null default 0;
+
+update public.ai_usage_logs
+  set char_count = 0
+  where char_count is null;
 
 create index if not exists ai_usage_logs_created_at_idx
   on public.ai_usage_logs (created_at desc);
