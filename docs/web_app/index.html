@@ -3507,6 +3507,86 @@
         };
       }
 
+      function buildQaSpeechPayload(item) {
+        const questionText = stripMarkdownForSpeech(item && item.question ? item.question : "");
+        const answerText = stripMarkdownForSpeech(item && item.answer ? item.answer : "");
+        const parts = [];
+        if (questionText) parts.push(`質問。${questionText}`);
+        if (answerText) parts.push(`回答。${answerText}`);
+        return parts.join(" ").trim();
+      }
+
+      function buildDeepDiveSpeechPayload(text) {
+        const body = stripMarkdownForSpeech(text || "");
+        if (!body) return "";
+        return `深掘り解説。${body}`;
+      }
+
+      function getUtf8ByteLength(text) {
+        try {
+          return new TextEncoder().encode(String(text || "")).length;
+        } catch (_err) {
+          return String(text || "").length;
+        }
+      }
+
+      function splitTextForTts(text, maxBytes = 4500) {
+        const src = String(text || "").replace(/\r/g, "\n").trim();
+        if (!src) return [];
+        if (getUtf8ByteLength(src) <= maxBytes) return [src];
+
+        const units = [];
+        let unit = "";
+        for (const ch of src) {
+          unit += ch;
+          if (ch === "\n" || /[。！？!?]/.test(ch)) {
+            const trimmed = unit.trim();
+            if (trimmed) units.push(trimmed);
+            unit = "";
+          }
+        }
+        if (unit.trim()) units.push(unit.trim());
+        if (!units.length) units.push(src);
+
+        const chunks = [];
+        let chunk = "";
+        const pushChunk = () => {
+          const trimmed = chunk.trim();
+          if (trimmed) chunks.push(trimmed);
+          chunk = "";
+        };
+
+        const pushOversizeUnit = (oversize) => {
+          let part = "";
+          for (const ch of oversize) {
+            const next = part + ch;
+            if (getUtf8ByteLength(next) > maxBytes) {
+              if (part) chunks.push(part);
+              part = ch;
+            } else {
+              part = next;
+            }
+          }
+          if (part) chunks.push(part);
+        };
+
+        units.forEach((u) => {
+          const candidate = chunk ? `${chunk} ${u}` : u;
+          if (getUtf8ByteLength(candidate) <= maxBytes) {
+            chunk = candidate;
+            return;
+          }
+          if (chunk) pushChunk();
+          if (getUtf8ByteLength(u) <= maxBytes) {
+            chunk = u;
+            return;
+          }
+          pushOversizeUnit(u);
+        });
+        if (chunk) pushChunk();
+        return chunks.length ? chunks : [src];
+      }
+
       function stopTtsPlayback(options = {}) {
         const cancelPending = options.cancelPending !== false;
         if (cancelPending) {
@@ -3674,6 +3754,65 @@
       }
 
       async function playTtsPayload(serial, segmentKey, payloadText, options = {}) {
+        const text = String(payloadText || "").trim();
+        const maxBytes = 4500;
+        const canChunk = !options.ssml && getUtf8ByteLength(text) > maxBytes;
+        if (canChunk) {
+          const chunks = splitTextForTts(text, maxBytes);
+          if (chunks.length > 1) {
+            const requestId = Number(state.ttsRequestId || 0) + 1;
+            state.ttsRequestId = requestId;
+            stopTtsPlayback({ cancelPending: false });
+            state.ttsSerial = serial;
+            state.ttsLoadingSerial = serial;
+            state.ttsLoadingKey = segmentKey || "";
+            refreshTtsButtons();
+            let allFromCache = true;
+            try {
+              const blobs = [];
+              for (let i = 0; i < chunks.length; i += 1) {
+                if (state.ttsRequestId !== requestId) {
+                  return { started: false, fromCache: allFromCache };
+                }
+                state.ttsLoadingSerial = serial;
+                state.ttsLoadingKey = `${segmentKey || "long_text"}_${i + 1}/${chunks.length}`;
+                refreshTtsButtons();
+                const payload = await getTtsBlobForPayload(
+                  serial,
+                  `${segmentKey || "long_text"}_part_${i + 1}`,
+                  chunks[i],
+                  options
+                );
+                if (!payload.fromCache) allFromCache = false;
+                blobs.push(payload.blob);
+              }
+              if (state.ttsRequestId !== requestId) {
+                return { started: false, fromCache: allFromCache };
+              }
+              state.ttsLoadingSerial = "";
+              state.ttsLoadingKey = "";
+              refreshTtsButtons();
+              const mergedBlob = new Blob(blobs, { type: "audio/mpeg" });
+              const played = await playTtsBlobOnce(serial, mergedBlob, requestId);
+              if (state.ttsRequestId === requestId) {
+                state.ttsSerial = "";
+                state.ttsLoadingSerial = "";
+                state.ttsLoadingKey = "";
+                refreshTtsButtons();
+              }
+              return { started: played, fromCache: allFromCache, chunked: true, chunks: chunks.length };
+            } catch (err) {
+              if (state.ttsRequestId === requestId) {
+                state.ttsSerial = "";
+                state.ttsLoadingSerial = "";
+                state.ttsLoadingKey = "";
+                refreshTtsButtons();
+              }
+              throw err;
+            }
+          }
+        }
+
         const requestId = Number(state.ttsRequestId || 0) + 1;
         state.ttsRequestId = requestId;
         stopTtsPlayback({ cancelPending: false });
@@ -5189,6 +5328,42 @@
                 const aText = (item.answer || "（回答なし）").trim();
                 copyToClipboard(`質問\n${qText}\n\n回答\n${aText}`);
               });
+              const readBtn = document.createElement("button");
+              readBtn.className = "icon-mini-btn";
+              readBtn.textContent = "🔊";
+              readBtn.setAttribute("aria-label", "このQ&Aを読み上げ");
+              readBtn.setAttribute("title", "このQ&Aを読み上げ");
+              readBtn.addEventListener("click", async () => {
+                const payloadText = buildQaSpeechPayload(item);
+                if (!payloadText) {
+                  qaHeader.textContent = `Q&A件数: ${list.length}（読み上げ対象なし）`;
+                  return;
+                }
+                const qualityLabel = getTtsQualityLabel(state.ttsQuality);
+                qaHeader.textContent = `Q&A読み上げを準備中...（${qualityLabel}）`;
+                announceStatusNow(`Q&A読み上げを準備中です（${qualityLabel}）`);
+                try {
+                  const keySuffix = item && item.id
+                    ? `id_${item.id}`
+                    : hashStringFNV1a(`${item.question || ""}|${item.answer || ""}`);
+                  const result = await playTtsPayload(
+                    q.serial,
+                    `qa_item_${keySuffix}`,
+                    payloadText,
+                    { quality: state.ttsQuality }
+                  );
+                  if (!result || !result.started) return;
+                  qaHeader.textContent = result.fromCache
+                    ? `Q&A件数: ${list.length}（読み上げ完了 / キャッシュ利用）`
+                    : `Q&A件数: ${list.length}（読み上げ完了）`;
+                  announceStatusNow("Q&A読み上げが完了しました");
+                } catch (err) {
+                  const detail = String(err && err.message ? err.message : err || "読み上げに失敗しました。");
+                  qaHeader.textContent = `Q&A件数: ${list.length}（読み上げ失敗）`;
+                  alert(`読み上げに失敗しました: ${detail}`);
+                  announceStatusNow("Q&A読み上げに失敗しました");
+                }
+              });
               const likeBtn = document.createElement("button");
               likeBtn.className = "chip-link";
               const likeKey = getQaLikeKey(q.serial, item);
@@ -5217,6 +5392,7 @@
               const viewSpan = document.createElement("span");
               viewSpan.textContent = `閲覧 ${viewCount}`;
               meta.appendChild(copyBtn);
+              meta.appendChild(readBtn);
               meta.appendChild(likeBtn);
               meta.appendChild(viewSpan);
               const aBox = document.createElement("div");
@@ -6030,6 +6206,13 @@
           };
           const deepDiveMeta = document.createElement("div");
           deepDiveMeta.className = "note inline-meta";
+          const deepDiveReadBtn = document.createElement("button");
+          deepDiveReadBtn.className = "icon-mini-btn";
+          deepDiveReadBtn.textContent = "🔊";
+          deepDiveReadBtn.setAttribute("aria-label", "深掘り解説を読み上げ");
+          deepDiveReadBtn.setAttribute("title", "深掘り解説を読み上げ");
+          deepDiveReadBtn.disabled = true;
+          deepDiveMeta.appendChild(deepDiveReadBtn);
           const deepDiveCopyBtn = document.createElement("button");
           deepDiveCopyBtn.className = "icon-mini-btn";
           deepDiveCopyBtn.textContent = "⧉";
@@ -6037,8 +6220,36 @@
           deepDiveCopyBtn.setAttribute("title", "深掘り解説をコピー");
           deepDiveCopyBtn.disabled = true;
           deepDiveMeta.appendChild(deepDiveCopyBtn);
-          deepDivePanel.appendChild(deepDiveMeta);
+          deepDivePanel.insertBefore(deepDiveMeta, deepDiveBody);
           let deepDiveRawText = "";
+          deepDiveReadBtn.addEventListener("click", async () => {
+            const payloadText = buildDeepDiveSpeechPayload(deepDiveRawText || deepDiveBody.textContent || "");
+            if (!payloadText) {
+              deepDiveStatus.textContent = "読み上げ対象の深掘り解説がありません。";
+              return;
+            }
+            const qualityLabel = getTtsQualityLabel(state.ttsQuality);
+            deepDiveStatus.textContent = `深掘り解説を準備中...（${qualityLabel}）`;
+            announceStatusNow(`深掘り解説を準備中です（${qualityLabel}）`);
+            try {
+              const result = await playTtsPayload(
+                q.serial,
+                "deep_dive_explanation",
+                payloadText,
+                { quality: state.ttsQuality }
+              );
+              if (!result || !result.started) return;
+              deepDiveStatus.textContent = result.fromCache
+                ? "深掘り解説の読み上げが完了しました（キャッシュ利用）"
+                : "深掘り解説の読み上げが完了しました";
+              announceStatusNow("深掘り解説の読み上げが完了しました");
+            } catch (err) {
+              const detail = String(err && err.message ? err.message : err || "読み上げに失敗しました。");
+              deepDiveStatus.textContent = "深掘り解説の読み上げに失敗しました。";
+              alert(`読み上げに失敗しました: ${detail}`);
+              announceStatusNow("深掘り解説の読み上げに失敗しました");
+            }
+          });
           deepDiveCopyBtn.addEventListener("click", () => {
             if (!deepDiveRawText) return;
             copyToClipboard(deepDiveRawText);
@@ -6050,6 +6261,7 @@
             showDeepDivePanel();
             deepDiveStatus.textContent = "保存済みの深掘り解説";
             deepDiveRawText = explanationText || "";
+            deepDiveReadBtn.disabled = !deepDiveRawText;
             deepDiveCopyBtn.disabled = !deepDiveRawText;
             renderMarkdownToElement(deepDiveBody, deepDiveRawText);
             deepDiveTags.textContent = "";
@@ -6101,6 +6313,7 @@
               showDeepDivePanel();
               deepDiveStatus.textContent = "読み込み中...";
               deepDiveRawText = "";
+              deepDiveReadBtn.disabled = true;
               deepDiveCopyBtn.disabled = true;
               deepDiveBody.innerHTML = "";
               deepDiveTags.textContent = "";
@@ -6139,6 +6352,7 @@
               deepDiveStatus.textContent = "生成中...";
               announceStatusNow("深掘り解説を生成中です");
               deepDiveRawText = "";
+              deepDiveReadBtn.disabled = true;
               deepDiveCopyBtn.disabled = true;
               deepDiveBody.innerHTML = "";
               deepDiveTags.textContent = "";
@@ -6175,6 +6389,7 @@
                 deepDiveStatus.textContent = "生成に失敗しました。";
                 announceStatusNow("深掘り解説の生成に失敗しました");
                 deepDiveRawText = String(err || "");
+                deepDiveReadBtn.disabled = !deepDiveRawText;
                 deepDiveCopyBtn.disabled = !deepDiveRawText;
                 renderMarkdownToElement(deepDiveBody, deepDiveRawText);
               } finally {
