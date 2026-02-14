@@ -82,9 +82,8 @@ async function handleAdmin(request, env) {
       return jsonResponse({ message: "Forbidden" }, 403);
     }
     if (request.method === "GET") {
-      const enabled = await getAiGenerationEnabled(env);
-      const adminPaid = await getAiAdminPaidEnabled(env);
-      return jsonResponse({ ok: true, public_generation: enabled, admin_paid_generation: adminPaid });
+      const settings = await getAiGenerationSettings(env);
+      return jsonResponse({ ok: true, ...settings });
     }
     if (request.method === "POST") {
       const body = await readJson(request);
@@ -94,6 +93,12 @@ async function handleAdmin(request, env) {
       }
       if (Object.prototype.hasOwnProperty.call(body, "admin_paid_generation")) {
         updates.admin_paid_generation = Boolean(body.admin_paid_generation);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "public_paid_generation")) {
+        updates.public_paid_generation = Boolean(body.public_paid_generation);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "public_paid_limit")) {
+        updates.public_paid_limit = Number(body.public_paid_limit);
       }
       return setAiGenerationSettings(env, updates, user);
     }
@@ -142,9 +147,8 @@ async function handleAi(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
   if (request.method === "GET" && path === "/ai/config") {
-    const enabled = await getAiGenerationEnabled(env);
-    const adminPaid = await getAiAdminPaidEnabled(env);
-    return jsonResponse({ public_generation: enabled, admin_paid_generation: adminPaid });
+    const settings = await getAiGenerationSettings(env);
+    return jsonResponse(settings);
   }
   if (request.method === "GET" && path === "/ai/deep_dive_index") {
     return fetchDeepDiveIndex(env);
@@ -254,7 +258,7 @@ async function handleAi(request, env) {
   }
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
-  const allowPublic = await getAiGenerationEnabled(env);
+  const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
@@ -757,7 +761,7 @@ function isGeminiRateLimit(respStatus, parsedError) {
 async function handleQuestionQa(request, env) {
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
-  const allowPublic = await getAiGenerationEnabled(env);
+  const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
@@ -880,7 +884,7 @@ async function handleQuestionQa(request, env) {
 async function handlePracticeQuestions(request, env) {
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
-  const allowPublic = await getAiGenerationEnabled(env);
+  const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
@@ -1034,7 +1038,7 @@ async function handlePracticeQuestions(request, env) {
 async function handleTagDeepDive(request, env) {
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
-  const allowPublic = await getAiGenerationEnabled(env);
+  const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
@@ -1220,7 +1224,7 @@ function parseTagDeepDive(text) {
 async function handleTagQa(request, env) {
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
-  const allowPublic = await getAiGenerationEnabled(env);
+  const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
     return jsonResponse({ message: "Forbidden" }, 403);
   }
@@ -2344,7 +2348,7 @@ function isAdminPaidGenerationEnabled(env) {
   return value === "1" || value === "true" || value === "on" || value === "yes";
 }
 
-async function getAppSettingBool(env, key, fallback) {
+async function getAppSettingValue(env, key) {
   const resp = await fetch(
     `${env.SUPABASE_URL}/rest/v1/app_settings?select=setting_key,setting_value&setting_key=eq.${encodeURIComponent(key)}&limit=1`,
     {
@@ -2355,16 +2359,36 @@ async function getAppSettingBool(env, key, fallback) {
       }
     }
   );
-  if (!resp.ok) return fallback;
+  if (!resp.ok) return null;
   const rows = await resp.json();
   const row = rows && rows[0] ? rows[0] : null;
-  if (!row || row.setting_value === undefined || row.setting_value === null) return fallback;
-  if (typeof row.setting_value === "boolean") return row.setting_value;
-  const text = String(row.setting_value).toLowerCase().trim();
+  if (!row || row.setting_value === undefined || row.setting_value === null) return null;
+  return row.setting_value;
+}
+
+async function getAppSettingBool(env, key, fallback) {
+  const value = await getAppSettingValue(env, key);
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "boolean") return value;
+  const text = String(value).toLowerCase().trim();
   return text === "1" || text === "true" || text === "on" || text === "yes";
 }
 
-async function setAppSettingBool(env, key, enabled, actor) {
+async function getAppSettingInt(env, key, fallback) {
+  const value = await getAppSettingValue(env, key);
+  if (value === null || value === undefined) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.floor(n));
+}
+
+async function getAppSettingString(env, key, fallback = "") {
+  const value = await getAppSettingValue(env, key);
+  if (value === null || value === undefined) return fallback;
+  return String(value);
+}
+
+async function setAppSettingValue(env, key, value, actor) {
   await fetch(`${env.SUPABASE_URL}/rest/v1/app_settings?setting_key=eq.${encodeURIComponent(key)}`, {
     method: "DELETE",
     headers: {
@@ -2375,7 +2399,7 @@ async function setAppSettingBool(env, key, enabled, actor) {
   });
   const payload = {
     setting_key: key,
-    setting_value: enabled,
+    setting_value: value,
     updated_at: new Date().toISOString(),
     updated_by: actor?.id || null
   };
@@ -2394,6 +2418,130 @@ async function setAppSettingBool(env, key, enabled, actor) {
   }
 }
 
+async function setAppSettingBool(env, key, enabled, actor) {
+  await setAppSettingValue(env, key, Boolean(enabled), actor);
+}
+
+async function setAppSettingInt(env, key, value, actor) {
+  await setAppSettingValue(env, key, Math.max(0, Math.floor(Number(value) || 0)), actor);
+}
+
+async function setAppSettingString(env, key, value, actor) {
+  await setAppSettingValue(env, key, String(value || ""), actor);
+}
+
+function getSupabaseExactCountFromHeaders(resp) {
+  const range = resp.headers.get("content-range") || resp.headers.get("Content-Range") || "";
+  const slash = range.lastIndexOf("/");
+  if (slash < 0) return null;
+  const n = Number(range.slice(slash + 1));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+async function fetchPaidGeminiUsageCountSince(env, sinceIso) {
+  if (!sinceIso) return 0;
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/ai_usage_logs` +
+    `?select=id` +
+    `&mode=eq.paid` +
+    `&outcome=neq.rate_limited` +
+    `&endpoint=not.like.${encodeURIComponent("tts*")}` +
+    `&created_at=gte.${encodeURIComponent(sinceIso)}` +
+    `&limit=1`;
+  const resp = await fetch(url, {
+    method: "HEAD",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      Prefer: "count=exact"
+    }
+  });
+  if (!resp.ok) {
+    const detail = await resp.text().catch(() => "");
+    throw new Error(detail || "Supabase count failed");
+  }
+  const count = getSupabaseExactCountFromHeaders(resp);
+  if (count === null) {
+    throw new Error("Supabase count header is missing");
+  }
+  return count;
+}
+
+async function getAiPublicPaidEnabled(env) {
+  const fallback = false;
+  return getAppSettingBool(env, "ai_public_paid_generation", fallback);
+}
+
+async function getAiPublicPaidLimit(env) {
+  const fallback = normalizePositiveInt(env.AI_PUBLIC_PAID_LIMIT || 0);
+  return getAppSettingInt(env, "ai_public_paid_limit", fallback);
+}
+
+async function getAiPublicPaidStartedAt(env) {
+  return getAppSettingString(env, "ai_public_paid_started_at", "");
+}
+
+async function getAiPublicPaidState(env) {
+  const configured = await getAiPublicPaidEnabled(env);
+  const limit = await getAiPublicPaidLimit(env);
+  const startedAt = await getAiPublicPaidStartedAt(env);
+  const hasPaidKey = Boolean(env.GEMINI_API_KEY_PAID);
+  let used = 0;
+  let countError = "";
+  if (configured && hasPaidKey && limit > 0 && startedAt) {
+    try {
+      used = await fetchPaidGeminiUsageCountSince(env, startedAt);
+    } catch (err) {
+      countError = String(err && err.message ? err.message : err || "");
+    }
+  }
+  const remaining = Math.max(0, limit - used);
+  const active = configured && hasPaidKey && limit > 0 && startedAt && !countError && remaining > 0;
+  return {
+    configured,
+    active,
+    limit,
+    used,
+    remaining,
+    started_at: startedAt || null,
+    has_paid_key: hasPaidKey,
+    count_error: countError
+  };
+}
+
+async function getAiGenerationSettings(env) {
+  const enabled = await getAiGenerationEnabled(env);
+  const adminPaid = await getAiAdminPaidEnabled(env);
+  const publicPaid = await getAiPublicPaidState(env);
+  return {
+    public_generation: enabled,
+    admin_paid_generation: adminPaid,
+    public_paid_generation: publicPaid.configured,
+    public_paid_active: publicPaid.active,
+    public_paid_limit: publicPaid.limit,
+    public_paid_used: publicPaid.used,
+    public_paid_remaining: publicPaid.remaining,
+    public_paid_started_at: publicPaid.started_at,
+    public_paid_has_key: publicPaid.has_paid_key
+  };
+}
+
+async function setPublicPaidStartedAtNow(env, actor) {
+  await setAppSettingString(env, "ai_public_paid_started_at", new Date().toISOString(), actor);
+}
+
+async function clearPublicPaidStartedAt(env, actor) {
+  await setAppSettingString(env, "ai_public_paid_started_at", "", actor);
+}
+
+async function isAiGenerationPublicEnabled(env) {
+  const allowPublic = await getAiGenerationEnabled(env);
+  if (allowPublic) return true;
+  const publicPaid = await getAiPublicPaidState(env);
+  return Boolean(publicPaid.active);
+}
+
 async function getAiGenerationEnabled(env) {
   const fallback = isPublicGenerationEnabled(env);
   return getAppSettingBool(env, "ai_public_generation", fallback);
@@ -2408,6 +2556,23 @@ async function setAiGenerationSettings(env, updates, actor) {
   try {
     let publicGeneration = await getAiGenerationEnabled(env);
     let adminPaidGeneration = await getAiAdminPaidEnabled(env);
+    let publicPaidGeneration = await getAiPublicPaidEnabled(env);
+    let publicPaidLimit = await getAiPublicPaidLimit(env);
+    const wasPublicPaidGeneration = publicPaidGeneration;
+    if (Object.prototype.hasOwnProperty.call(updates, "public_paid_limit")) {
+      const limit = normalizePositiveInt(updates.public_paid_limit);
+      if (limit <= 0) {
+        return jsonResponse({ message: "public_paid_limit must be greater than 0" }, 400);
+      }
+      publicPaidLimit = limit;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "public_paid_generation")) {
+      publicPaidGeneration = Boolean(updates.public_paid_generation);
+    }
+    if (publicPaidGeneration && publicPaidLimit <= 0) {
+      return jsonResponse({ message: "public_paid_limit must be set before enabling public paid generation" }, 400);
+    }
+
     if (Object.prototype.hasOwnProperty.call(updates, "public_generation")) {
       publicGeneration = Boolean(updates.public_generation);
       await setAppSettingBool(env, "ai_public_generation", publicGeneration, actor);
@@ -2416,11 +2581,20 @@ async function setAiGenerationSettings(env, updates, actor) {
       adminPaidGeneration = Boolean(updates.admin_paid_generation);
       await setAppSettingBool(env, "ai_admin_paid_generation", adminPaidGeneration, actor);
     }
-    return jsonResponse({
-      ok: true,
-      public_generation: publicGeneration,
-      admin_paid_generation: adminPaidGeneration
-    });
+    if (Object.prototype.hasOwnProperty.call(updates, "public_paid_limit")) {
+      await setAppSettingInt(env, "ai_public_paid_limit", publicPaidLimit, actor);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "public_paid_generation")) {
+      await setAppSettingBool(env, "ai_public_paid_generation", publicPaidGeneration, actor);
+    }
+    if (publicPaidGeneration && !wasPublicPaidGeneration) {
+      await setPublicPaidStartedAtNow(env, actor);
+    }
+    if (!publicPaidGeneration && wasPublicPaidGeneration) {
+      await clearPublicPaidStartedAt(env, actor);
+    }
+    const settings = await getAiGenerationSettings(env);
+    return jsonResponse({ ok: true, ...settings });
   } catch (err) {
     return jsonResponse({ message: "Supabase update failed", detail: String(err.message || err) }, 500);
   }
@@ -2428,8 +2602,11 @@ async function setAiGenerationSettings(env, updates, actor) {
 
 async function resolveGeminiRoute(env, role) {
   const adminPaidEnabled = await getAiAdminPaidEnabled(env);
+  const publicPaid = await getAiPublicPaidState(env);
   const hasPaidKey = Boolean(env.GEMINI_API_KEY_PAID);
-  const usePaid = role === "admin" && adminPaidEnabled && hasPaidKey;
+  const usePublicPaid = publicPaid.active;
+  const useAdminPaid = role === "admin" && adminPaidEnabled;
+  const usePaid = hasPaidKey && (useAdminPaid || usePublicPaid);
   const apiKey = usePaid ? env.GEMINI_API_KEY_PAID : env.GEMINI_API_KEY_FREE || env.GEMINI_API_KEY;
   const defaultModel = usePaid
     ? env.GEMINI_MODEL_PAID || env.GEMINI_MODEL || "gemini-3-flash-preview"
@@ -2437,7 +2614,9 @@ async function resolveGeminiRoute(env, role) {
   return {
     mode: usePaid ? "paid" : "free",
     apiKey,
-    defaultModel
+    defaultModel,
+    public_paid_active: usePublicPaid,
+    public_paid_remaining: publicPaid.remaining
   };
 }
 
