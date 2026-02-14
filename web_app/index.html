@@ -1502,7 +1502,8 @@
 
     <main id="mainContent" role="main" aria-label="学習ビュー">
     <div class="intro">
-      <h2 class="section-title">検索・絞り込み・学習用の簡易ビュー</h2>
+      <h2 class="section-title">学習支援ポータル（検索・復習・解説）</h2>
+      <div class="note">問題検索・絞り込み・復習管理に加え、AIによるQ&A生成、深掘り解説、音声読み上げで学習を支援します。</div>
       <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
       <div class="note" id="aiPublicNotice" hidden>AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。</div>
     </div>
@@ -1749,15 +1750,19 @@
       function updateAiPublicNotice() {
         const el = document.getElementById("aiPublicNotice");
         if (!el) return;
-        const publicOpen = Boolean(state.aiPublicGeneration || state.aiPublicPaidActive);
-        let text = "AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。";
-        if (state.aiPublicPaidActive) {
+        const freeOpen = Boolean(state.aiPublicGeneration);
+        const paidOpen = Boolean(state.aiPublicPaidActive);
+        const publicOpen = Boolean(freeOpen || paidOpen);
+        let text = "";
+        if (paidOpen) {
           const remain = Number(state.aiPublicPaidRemaining || 0);
           const limit = Number(state.aiPublicPaidLimit || 0);
-          text += ` 全ユーザー向けの従量課金キー公開中（残り ${remain} / ${limit} 件）。`;
+          text = `AI機能を解放中です。全ユーザー向けに従量課金キーを件数限定で公開しています（残り ${remain} / ${limit} 件）。上限に達すると自動で停止します。`;
+        } else if (freeOpen) {
+          text = "AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。";
         }
         if (isRoleAtLeast("admin") && state.aiAdminPaidGeneration) {
-          text += " 管理者ログイン時は従量課金キーを使用します。";
+          text += (text ? " " : "") + "管理者ログイン時は従量課金キーを使用します。";
         }
         el.textContent = text;
         el.hidden = !publicOpen;
