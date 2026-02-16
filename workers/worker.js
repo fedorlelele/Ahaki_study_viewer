@@ -2715,31 +2715,40 @@ async function fetchDeepDive(env, serial) {
 }
 
 async function fetchDeepDiveIndex(env) {
-  const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial,updated_at&order=updated_at.desc`,
-    {
+  const base =
+    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations` +
+    `?select=serial,updated_at&order=updated_at.desc`;
+  const limit = 1000;
+  const maxRows = 200000;
+  let offset = 0;
+  const serialSet = new Set();
+  const latestBySerial = {};
+  while (offset < maxRows) {
+    const resp = await fetch(`${base}&limit=${limit}&offset=${offset}`, {
       headers: {
         apikey: env.SUPABASE_ANON_KEY,
         Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
         "Content-Type": "application/json"
       }
+    });
+    if (!resp.ok) {
+      const detail = await resp.text();
+      return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
     }
-  );
-  if (!resp.ok) {
-    const detail = await resp.text();
-    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
-  }
-  const rows = await resp.json();
-  const serials = Array.isArray(rows) ? rows.map(row => row.serial).filter(Boolean) : [];
-  const latestBySerial = {};
-  if (Array.isArray(rows)) {
-    rows.forEach((row) => {
+    const rows = await resp.json();
+    const batch = Array.isArray(rows) ? rows : [];
+    if (!batch.length) break;
+    batch.forEach((row) => {
       if (!row || !row.serial || !row.updated_at) return;
+      serialSet.add(row.serial);
       if (!latestBySerial[row.serial] || row.updated_at > latestBySerial[row.serial]) {
         latestBySerial[row.serial] = row.updated_at;
       }
     });
+    if (batch.length < limit) break;
+    offset += limit;
   }
+  const serials = Array.from(serialSet);
   return jsonResponse({ serials, latest_by_serial: latestBySerial });
 }
 

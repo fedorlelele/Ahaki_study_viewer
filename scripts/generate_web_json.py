@@ -48,6 +48,14 @@ def parse_args():
         default="output/web/index",
         help="Output directory for index JSON files.",
     )
+    parser.add_argument(
+        "--embed-deep-dive",
+        action="store_true",
+        help=(
+            "Embed deep-dive explanations in questions.json. "
+            "Default is off to keep the output small."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -389,7 +397,7 @@ def main():
     explanations = load_explanations(conn)
     tags = load_tags(conn)
     subtopics = load_subtopics(conn)
-    deep_dive = load_deep_dive(conn)
+    deep_dive = load_deep_dive(conn) if args.embed_deep_dive else {}
     qa_map = load_question_qa(conn)
     (
         tag_descriptions,
@@ -428,7 +436,7 @@ def main():
             "explanations": exp_list_sorted,
             "tags": list(dict.fromkeys(tags.get(qid, []))),
             "subtopics": subtopics.get(qid, []),
-            "deep_dive": deep_dive.get(q["serial"]) or None,
+            "deep_dive": (deep_dive.get(q["serial"]) or None) if args.embed_deep_dive else None,
             "qa_list": qa_map.get(q["serial"], []),
         }
         output.append(record)

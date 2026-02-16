@@ -211,6 +211,7 @@ HTML_PAGE = """<!doctype html>
         <input id="syncSince" type="text" placeholder="例: 2026-01-12T00:00:00Z" />
         <button id="syncOverrides">Supabase差分をSQLiteに同期</button>
         <button id="syncDeepDive">深掘り解説をSQLiteに同期</button>
+        <button id="syncDeepDiveToSupabase">深掘り解説をSupabaseに同期</button>
         <button id="syncQa">Q&AをSQLiteに同期</button>
         <button id="syncTagViews">タグ閲覧数をSQLiteに同期</button>
       </div>
@@ -764,6 +765,18 @@ HTML_PAGE = """<!doctype html>
         const endpoint = since
           ? "/api/sync/deep_dive?since=" + encodeURIComponent(since)
           : "/api/sync/deep_dive";
+        const resp = await fetch(endpoint, { method: "POST" });
+        const data = await resp.json();
+        result.textContent = data.message || "完了しました。";
+      });
+
+      document.getElementById("syncDeepDiveToSupabase").addEventListener("click", async () => {
+        const result = document.getElementById("buildResult");
+        const since = document.getElementById("syncSince").value.trim();
+        result.textContent = "同期中...";
+        const endpoint = since
+          ? "/api/sync/deep_dive_to_supabase?since=" + encodeURIComponent(since)
+          : "/api/sync/deep_dive_to_supabase";
         const resp = await fetch(endpoint, { method: "POST" });
         const data = await resp.json();
         result.textContent = data.message || "完了しました。";
@@ -2215,6 +2228,22 @@ class Handler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             since = (params.get("since", [""])[0] or "").strip()
             result = sync_supabase_deep_dive(self.server.db_path, since)
+            self._send_json(result)
+            return
+        if parsed.path == "/api/sync/deep_dive_to_supabase":
+            params = parse_qs(parsed.query)
+            since = (params.get("since", [""])[0] or "").strip()
+            try:
+                batch_size = int((params.get("batch_size", ["200"])[0] or "200").strip())
+            except ValueError:
+                batch_size = 200
+            try:
+                limit = int((params.get("limit", ["0"])[0] or "0").strip())
+            except ValueError:
+                limit = 0
+            result = sync_local_deep_dive_to_supabase(
+                self.server.db_path, since, batch_size=batch_size, limit=limit
+            )
             self._send_json(result)
             return
         if parsed.path == "/api/sync/question_qa":
@@ -4088,6 +4117,160 @@ def sync_supabase_deep_dive(db_path, since):
     return {
         "message": f"深掘り解説を同期しました。新規 {inserted} 件 / 更新 {updated} 件",
         "counts": {"inserted": inserted, "updated": updated},
+        "since": since or "",
+    }
+
+
+def normalize_uuid_or_none(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if re.fullmatch(
+        r"[0-9a-fA-F]{8}-"
+        r"[0-9a-fA-F]{4}-"
+        r"[1-5][0-9a-fA-F]{3}-"
+        r"[89abAB][0-9a-fA-F]{3}-"
+        r"[0-9a-fA-F]{12}",
+        text,
+    ):
+        return text.lower()
+    return None
+
+
+def load_local_deep_dive_rows(db_path, since="", limit=0):
+    conn = sqlite3.connect(db_path)
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='deep_dive_explanations' LIMIT 1"
+        ).fetchone()
+        if not exists:
+            return []
+        columns = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info(deep_dive_explanations)").fetchall()
+        }
+        has_created_by = "created_by" in columns
+        select_cols = "serial, explanation, tags_json, updated_at"
+        if has_created_by:
+            select_cols += ", created_by"
+        query = f"SELECT {select_cols} FROM deep_dive_explanations"
+        params = []
+        where = []
+        if since:
+            where.append("updated_at >= ?")
+            params.append(since)
+        if where:
+            query += " WHERE " + " AND ".join(where)
+        query += " ORDER BY updated_at ASC, serial ASC"
+        if limit and limit > 0:
+            query += " LIMIT ?"
+            params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+        result = []
+        for row in rows:
+            serial = str(row[0] or "").strip()
+            if not serial:
+                continue
+            explanation = str(row[1] or "")
+            tags_raw = row[2] or "[]"
+            try:
+                tags = json.loads(tags_raw)
+                if not isinstance(tags, list):
+                    tags = []
+            except json.JSONDecodeError:
+                tags = []
+            updated_at = str(row[3] or "").strip()
+            if not updated_at:
+                updated_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+            created_by = None
+            if has_created_by and len(row) > 4:
+                created_by = normalize_uuid_or_none(row[4])
+            result.append(
+                {
+                    "serial": serial,
+                    "explanation": explanation,
+                    "tags": tags,
+                    "updated_at": updated_at,
+                    "created_by": created_by,
+                }
+            )
+        return result
+    finally:
+        conn.close()
+
+
+def upsert_supabase_deep_dive_batch(batch):
+    cfg = supabase_config()
+    if not cfg:
+        return "", "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
+    endpoint = f"{cfg['url']}/rest/v1/deep_dive_explanations?on_conflict=serial"
+    headers = {
+        "apikey": cfg["key"],
+        "Authorization": f"Bearer {cfg['key']}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+    }
+    req = Request(
+        endpoint,
+        data=json.dumps(batch, ensure_ascii=False).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urlopen(req, timeout=20):
+            pass
+        return "ok", ""
+    except HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8")
+        except Exception:
+            detail = ""
+        message = f"Supabase接続に失敗しました: {exc}"
+        if detail:
+            message = f"{message} / {detail}"
+        return "", message
+    except URLError as exc:
+        return "", f"Supabase接続に失敗しました: {exc}"
+
+
+def sync_local_deep_dive_to_supabase(db_path, since, batch_size=200, limit=0):
+    if batch_size <= 0:
+        batch_size = 200
+    rows = load_local_deep_dive_rows(db_path, since or "", limit=limit)
+    if not rows:
+        return {"message": "SQLite側に同期対象の深掘り解説はありません。", "counts": {}}
+    sent = 0
+    batch_total = (len(rows) + batch_size - 1) // batch_size
+    for batch_idx, start in enumerate(range(0, len(rows), batch_size), start=1):
+        batch = rows[start : start + batch_size]
+        _, error = upsert_supabase_deep_dive_batch(batch)
+        if error:
+            return {
+                "message": (
+                    f"{batch_idx}/{batch_total} バッチで失敗しました。"
+                    f" 途中まで {sent} 件同期済み。詳細: {error}"
+                ),
+                "counts": {
+                    "targets": len(rows),
+                    "uploaded": sent,
+                    "failed_batch": batch_idx,
+                    "batch_total": batch_total,
+                },
+                "since": since or "",
+            }
+        sent += len(batch)
+    return {
+        "message": (
+            f"深掘り解説をSupabaseへ同期しました。"
+            f" 対象 {len(rows)} 件 / 同期 {sent} 件（{batch_total} バッチ）"
+        ),
+        "counts": {
+            "targets": len(rows),
+            "uploaded": sent,
+            "batches": batch_total,
+        },
         "since": since or "",
     }
 
