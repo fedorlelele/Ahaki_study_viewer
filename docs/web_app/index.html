@@ -4008,6 +4008,7 @@
         resetNonKeywordFilters();
         keywordInput.value = `#${tag}`;
         renderResults(filterQuestions());
+        syncSearchQueryToUrl();
       }
 
       function normalizeFilterLookupKey(value) {
@@ -4434,6 +4435,7 @@
         });
         keywordInput.value = replaced.join("");
         renderResults(filterQuestions());
+        syncSearchQueryToUrl();
         keywordInput.focus();
       }
 
@@ -4497,6 +4499,37 @@
           keywordInput.value = keyword;
         }
         renderResults(filterQuestions());
+        syncSearchQueryToUrl();
+      }
+
+      function getSearchQueryFromUrl() {
+        try {
+          const url = new URL(window.location.href);
+          return (url.searchParams.get("q") || "").trim();
+        } catch (_err) {
+          return "";
+        }
+      }
+
+      function syncSearchQueryToUrl() {
+        try {
+          const keywordInput = document.getElementById("keyword");
+          if (!keywordInput) return;
+          const next = String(keywordInput.value || "").trim();
+          const url = new URL(window.location.href);
+          const current = (url.searchParams.get("q") || "").trim();
+          if (next) {
+            if (next === current) return;
+            url.searchParams.set("q", next);
+          } else {
+            if (!current) return;
+            url.searchParams.delete("q");
+          }
+          const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+          history.replaceState(null, "", nextUrl);
+        } catch (_err) {
+          // no-op
+        }
       }
 
       function filterQuestions() {
@@ -6851,7 +6884,7 @@
         }
       }
 
-	      function init() {
+      function init() {
 	        loadAnsweredState();
 	        loadTagVisibility();
 	        loadQaLikedState();
@@ -6859,6 +6892,11 @@
 	        loadQaDraftState();
 	        loadTagViewedSessionState();
 	        updateAiPublicNotice();
+        const keywordFromUrl = getSearchQueryFromUrl();
+        if (keywordFromUrl) {
+          const keywordInput = document.getElementById("keyword");
+          if (keywordInput) keywordInput.value = keywordFromUrl;
+        }
         loadSubtopicCatalog();
         const updateInfo = document.getElementById("updateInfo");
         const updateMoreBtn = document.getElementById("updateMoreBtn");
@@ -6877,6 +6915,7 @@
           );
           updateSubtopicOptions("");
           renderResults(filterQuestions());
+          syncSearchQueryToUrl();
         });
 
 	        initAuthUI();
@@ -7127,6 +7166,7 @@
 
         document.getElementById("searchBtn").addEventListener("click", () => {
           renderResults(filterQuestions());
+          syncSearchQueryToUrl();
         });
         document.getElementById("resetBtn").addEventListener("click", () => {
           document.getElementById("keyword").value = "";
@@ -7139,6 +7179,7 @@
 	        saveTagVisibility();
 	        updateSubtopicOptions("");
 	        renderResults(filterQuestions());
+          syncSearchQueryToUrl();
 	      });
         document.getElementById("subjectSelect").addEventListener("change", (e) => {
           updateSubtopicOptions(e.target.value);
@@ -7228,6 +7269,7 @@
         document.getElementById("keyword").addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             renderResults(filterQuestions());
+            syncSearchQueryToUrl();
           }
         });
         document.getElementById("keyword").addEventListener("input", () => {
