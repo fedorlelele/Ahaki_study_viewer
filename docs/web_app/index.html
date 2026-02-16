@@ -4010,16 +4010,395 @@
         renderResults(filterQuestions());
       }
 
+      function normalizeFilterLookupKey(value) {
+        return normalizeAscii(String(value || ""))
+          .replace(/\s+/g, "")
+          .toLowerCase();
+      }
+
+      function splitSearchCommandValues(value) {
+        return String(value || "")
+          .split(/[,\u3001\uff0c]/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      function parseSearchCommandBlocks(rawKeyword) {
+        const source = String(rawKeyword || "");
+        const commandKeyMap = {
+          subject: "subject",
+          subj: "subject",
+          "科目": "subject",
+          "教科": "subject",
+          subtopic: "subtopic",
+          topic: "subtopic",
+          "小項目": "subtopic",
+          "小分類": "subtopic",
+          type: "examType",
+          examtype: "examType",
+          "種別": "examType",
+          "区分": "examType",
+          session: "session",
+          "回数": "session",
+          "回": "session"
+        };
+        const commands = {
+          subject: [],
+          subtopic: [],
+          examType: [],
+          session: []
+        };
+        const ranges = [];
+        const pattern = /(^|\s)@([^\s=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))/g;
+        let match;
+        while ((match = pattern.exec(source))) {
+          const prefix = match[1] || "";
+          const keyRaw = match[2] || "";
+          const key = normalizeAscii(keyRaw).toLowerCase();
+          const value = match[3] ?? match[4] ?? match[5] ?? "";
+          const kind = commandKeyMap[key];
+          if (!kind) continue;
+          splitSearchCommandValues(value).forEach((item) => {
+            commands[kind].push(item);
+          });
+          const start = match.index + prefix.length;
+          const end = pattern.lastIndex;
+          ranges.push([start, end]);
+        }
+        if (!ranges.length) {
+          return {
+            keywordText: source.trim(),
+            commands
+          };
+        }
+        const chars = source.split("");
+        ranges.forEach(([start, end]) => {
+          for (let i = start; i < end; i += 1) {
+            chars[i] = " ";
+          }
+        });
+        const keywordText = chars.join("").replace(/\s+/g, " ").trim();
+        return { keywordText, commands };
+      }
+
+      function resolveCommandLabels(values, available) {
+        if (!Array.isArray(values) || !values.length) return [];
+        const list = Array.isArray(available) ? available : [];
+        const map = {};
+        list.forEach((name) => {
+          const key = normalizeFilterLookupKey(name);
+          if (!key) return;
+          if (!map[key]) map[key] = [];
+          map[key].push(name);
+        });
+        const out = new Set();
+        values.forEach((value) => {
+          const key = normalizeFilterLookupKey(value);
+          if (!key) return;
+          if (map[key]) {
+            map[key].forEach((name) => out.add(name));
+            return;
+          }
+          list.forEach((name) => {
+            const normalized = normalizeFilterLookupKey(name);
+            if (!normalized) return;
+            if (normalized.includes(key) || key.includes(normalized)) {
+              out.add(name);
+            }
+          });
+        });
+        return Array.from(out);
+      }
+
+      function parseCommandExamTypes(values) {
+        const out = new Set();
+        (values || []).forEach((value) => {
+          const key = normalizeFilterLookupKey(value);
+          if (!key) return;
+          if (key === "a" || key.includes("あん摩") || key.includes("マッサージ") || key.includes("指圧")) {
+            out.add("A");
+          }
+          if (key === "b" || key.includes("はり") || key.includes("きゅう") || key.includes("鍼")) {
+            out.add("B");
+          }
+          if (key === "ab" || key === "a/b" || key === "both" || key === "all") {
+            out.add("A");
+            out.add("B");
+          }
+        });
+        return Array.from(out);
+      }
+
+      function parseCommandSessionRules(values) {
+        const rules = [];
+        (values || []).forEach((value) => {
+          const key = normalizeAscii(String(value || "")).replace(/\s+/g, "");
+          if (!key) return;
+          let m = key.match(/^(\d+)\.\.(\d+)$/);
+          if (!m) m = key.match(/^(\d+)-(\d+)$/);
+          if (m) {
+            const a = Number(m[1]);
+            const b = Number(m[2]);
+            rules.push({ type: "range", min: Math.min(a, b), max: Math.max(a, b) });
+            return;
+          }
+          m = key.match(/^>=?(\d+)$/);
+          if (m) {
+            rules.push({ type: "gte", value: Number(m[1]) });
+            return;
+          }
+          m = key.match(/^<=?(\d+)$/);
+          if (m) {
+            rules.push({ type: "lte", value: Number(m[1]) });
+            return;
+          }
+          m = key.match(/^>(\d+)$/);
+          if (m) {
+            rules.push({ type: "gt", value: Number(m[1]) });
+            return;
+          }
+          m = key.match(/^<(\d+)$/);
+          if (m) {
+            rules.push({ type: "lt", value: Number(m[1]) });
+            return;
+          }
+          m = key.match(/^(\d+)$/);
+          if (m) {
+            rules.push({ type: "eq", value: Number(m[1]) });
+          }
+        });
+        return rules;
+      }
+
+      function matchSessionRules(sessionValue, rules) {
+        if (!Array.isArray(rules) || !rules.length) return true;
+        const session = Number(sessionValue);
+        if (!Number.isFinite(session)) return false;
+        return rules.some((rule) => {
+          if (!rule) return false;
+          if (rule.type === "range") return session >= rule.min && session <= rule.max;
+          if (rule.type === "gte") return session >= rule.value;
+          if (rule.type === "lte") return session <= rule.value;
+          if (rule.type === "gt") return session > rule.value;
+          if (rule.type === "lt") return session < rule.value;
+          if (rule.type === "eq") return session === rule.value;
+          return false;
+        });
+      }
+
+      function buildKeywordTermToken(rawValue, quoted = false) {
+        const normalized = normalizeAscii(String(rawValue || "")).trim();
+        if (!normalized) return null;
+        if (!quoted && normalized.startsWith("#")) {
+          const normalizedTag = normalizeTagKey(normalized.slice(1));
+          if (!normalizedTag) return null;
+          return {
+            type: "TERM",
+            term: { kind: "tag", value: normalizedTag, raw: normalized.slice(1) }
+          };
+        }
+        if (!quoted) {
+          const serial = normalizeSerialTerm(normalized);
+          if (serial) {
+            return { type: "TERM", term: { kind: "serial", value: serial, raw: normalized } };
+          }
+        }
+        return {
+          type: "TERM",
+          term: { kind: "text", value: normalized.toLowerCase(), raw: normalized }
+        };
+      }
+
+      function tokenizeKeywordExpression(text) {
+        const source = String(text || "");
+        const tokens = [];
+        let i = 0;
+        while (i < source.length) {
+          const ch = source[i];
+          if (/\s/.test(ch)) {
+            i += 1;
+            continue;
+          }
+          if (ch === "," || ch === "、" || ch === "，") {
+            tokens.push({ type: "OP", op: "OR" });
+            i += 1;
+            continue;
+          }
+          if (ch === "(" || ch === ")") {
+            tokens.push({ type: ch });
+            i += 1;
+            continue;
+          }
+          if (ch === '"' || ch === "'") {
+            const quote = ch;
+            let j = i + 1;
+            while (j < source.length && source[j] !== quote) j += 1;
+            const value = source.slice(i + 1, j >= source.length ? source.length : j);
+            const token = buildKeywordTermToken(value, true);
+            if (token) tokens.push(token);
+            i = j >= source.length ? source.length : j + 1;
+            continue;
+          }
+          let j = i;
+          while (j < source.length && !/[\s,、，()]/.test(source[j])) j += 1;
+          const raw = source.slice(i, j);
+          const word = normalizeAscii(raw).toLowerCase();
+          if (word === "and" || word === "&&") {
+            tokens.push({ type: "OP", op: "AND" });
+          } else if (word === "or" || word === "||") {
+            tokens.push({ type: "OP", op: "OR" });
+          } else {
+            const token = buildKeywordTermToken(raw);
+            if (token) tokens.push(token);
+          }
+          i = j;
+        }
+        return tokens;
+      }
+
+      function insertImplicitAndTokens(tokens) {
+        const out = [];
+        const canEnd = (token) => token && (token.type === "TERM" || token.type === ")");
+        const canStart = (token) => token && (token.type === "TERM" || token.type === "(");
+        for (let i = 0; i < tokens.length; i += 1) {
+          const token = tokens[i];
+          const prev = out.length ? out[out.length - 1] : null;
+          if (canEnd(prev) && canStart(token)) {
+            out.push({ type: "OP", op: "AND" });
+          }
+          out.push(token);
+        }
+        return out;
+      }
+
+      function toKeywordRpn(tokens) {
+        const output = [];
+        const ops = [];
+        const precedence = { OR: 1, AND: 2 };
+        let prevType = "";
+        (tokens || []).forEach((token) => {
+          if (!token) return;
+          if (token.type === "TERM") {
+            output.push(token);
+            prevType = "TERM";
+            return;
+          }
+          if (token.type === "(") {
+            ops.push(token);
+            prevType = "(";
+            return;
+          }
+          if (token.type === ")") {
+            if (prevType === "OP" || prevType === "(" || !prevType) return;
+            while (ops.length && ops[ops.length - 1].type !== "(") {
+              output.push(ops.pop());
+            }
+            if (ops.length && ops[ops.length - 1].type === "(") {
+              ops.pop();
+            }
+            prevType = ")";
+            return;
+          }
+          if (token.type === "OP") {
+            if (prevType !== "TERM" && prevType !== ")") return;
+            while (
+              ops.length &&
+              ops[ops.length - 1].type === "OP" &&
+              precedence[ops[ops.length - 1].op] >= precedence[token.op]
+            ) {
+              output.push(ops.pop());
+            }
+            ops.push(token);
+            prevType = "OP";
+          }
+        });
+        while (ops.length) {
+          const token = ops.pop();
+          if (token.type === "OP") output.push(token);
+        }
+        return output;
+      }
+
+      function evaluateKeywordRpn(rpn, effective) {
+        if (!Array.isArray(rpn) || !rpn.length) return true;
+        const stack = [];
+        const hay = normalizeAscii(
+          [
+            effective.stem || "",
+            (effective.choices || []).join(" "),
+            effective.case_text || "",
+            (effective.tags || []).join(" "),
+            (effective.subtopics || []).join(" ")
+          ].join(" ")
+        ).toLowerCase();
+        let tagKeySet = null;
+        const ensureTagKeySet = () => {
+          if (tagKeySet) return tagKeySet;
+          tagKeySet = new Set();
+          (effective.tags || []).forEach((questionTag) => {
+            getEquivalentTagsForTerm(questionTag).forEach((candidate) => {
+              const key = normalizeTagKey(candidate);
+              if (key) tagKeySet.add(key);
+            });
+          });
+          return tagKeySet;
+        };
+        const matchTerm = (term) => {
+          if (!term) return false;
+          if (term.kind === "serial") return effective.serial === term.value;
+          if (term.kind === "tag") return ensureTagKeySet().has(term.value);
+          if (term.kind === "text") return hay.includes(term.value);
+          return false;
+        };
+        for (let i = 0; i < rpn.length; i += 1) {
+          const token = rpn[i];
+          if (token.type === "TERM") {
+            stack.push(matchTerm(token.term));
+            continue;
+          }
+          if (token.type === "OP") {
+            if (stack.length < 2) return false;
+            const right = stack.pop();
+            const left = stack.pop();
+            stack.push(token.op === "AND" ? left && right : left || right);
+          }
+        }
+        if (!stack.length) return true;
+        return Boolean(stack[stack.length - 1]);
+      }
+
+      function buildAdvancedSearchState(rawKeyword) {
+        const parsed = parseSearchCommandBlocks(rawKeyword);
+        const keywordTokens = tokenizeKeywordExpression(parsed.keywordText);
+        const keywordRpn = toKeywordRpn(insertImplicitAndTokens(keywordTokens));
+        return {
+          rawKeyword: String(rawKeyword || "").trim(),
+          keywordText: parsed.keywordText,
+          keywordTokens,
+          keywordRpn,
+          hasKeywordTerms: keywordRpn.some((token) => token && token.type === "TERM"),
+          commandSubjects: resolveCommandLabels(
+            parsed.commands.subject,
+            Object.keys(state.indexBySubject || {})
+          ),
+          commandSubtopics: resolveCommandLabels(
+            parsed.commands.subtopic,
+            Object.keys(state.indexBySubtopic || {})
+          ),
+          commandExamTypes: parseCommandExamTypes(parsed.commands.examType),
+          commandSessionRules: parseCommandSessionRules(parsed.commands.session),
+          commandRaw: parsed.commands
+        };
+      }
+
       function extractKeywordHashTerms() {
         const keyword = document.getElementById("keyword").value || "";
-        const terms = keyword
-          .split(/[\s,]+/)
-          .map((term) => normalizeAscii(term).trim())
-          .filter((term) => term.startsWith("#"));
+        const parsed = buildAdvancedSearchState(keyword);
         const out = [];
         const seen = new Set();
-        terms.forEach((term) => {
-          const raw = term.slice(1).trim();
+        (parsed.keywordTokens || []).forEach((token) => {
+          if (!token || token.type !== "TERM" || !token.term || token.term.kind !== "tag") return;
+          const raw = token.term.raw || "";
           const normalized = normalizeTagKey(raw);
           if (!normalized || seen.has(normalized)) return;
           seen.add(normalized);
@@ -4097,17 +4476,9 @@
       }
 
       function getKeywordTagTerms() {
-        const keyword = document.getElementById("keyword").value || "";
-        return Array.from(
-          new Set(
-            keyword
-              .split(/[\s,]+/)
-              .map((term) => normalizeAscii(term).trim())
-              .filter((term) => term.startsWith("#"))
-              .map((term) => normalizeTagKey(term.slice(1)))
-              .filter(Boolean)
-          )
-        );
+        return extractKeywordHashTerms()
+          .map((item) => item.normalized)
+          .filter(Boolean);
       }
 
       function applyFilters({ subject, subtopic, keyword }) {
@@ -4147,39 +4518,34 @@
         const sessionFrom = sessionFromRaw ? Number(sessionFromRaw) : null;
         const sessionTo = sessionToRaw ? Number(sessionToRaw) : null;
 
-        const terms = keyword
-          .split(/[\s,]+/)
-          .map(term => term.trim())
-          .filter(Boolean);
-        const tagTerms = [];
-        const textTerms = [];
-        const serialTerms = [];
-        terms.forEach(term => {
-          const lowered = normalizeAscii(term).toLowerCase();
-          if (lowered.startsWith("#")) {
-            const normalizedTag = normalizeTagKey(lowered.slice(1));
-            if (normalizedTag) tagTerms.push(normalizedTag);
-            return;
-          }
-          const serial = normalizeSerialTerm(term);
-          if (serial) {
-            serialTerms.push(serial);
-            return;
-          }
-          if (lowered) textTerms.push(lowered);
-        });
-        const setFromIndex = (index, key) => new Set((index[key] || []));
-
+        const advanced = buildAdvancedSearchState(keyword);
+        const activeSubjects = advanced.commandSubjects.length
+          ? advanced.commandSubjects
+          : (subject ? [subject] : []);
+        const activeSubtopics = advanced.commandSubtopics.length
+          ? advanced.commandSubtopics
+          : (subtopic ? [subtopic] : []);
+        const activeExamTypes = advanced.commandExamTypes.length
+          ? advanced.commandExamTypes
+          : (examType ? [examType] : []);
         let serialSet = null;
-        if (subject) serialSet = setFromIndex(state.indexBySubject, subject);
-        const subtopicFilter = subtopic;
+        if (activeSubjects.length) {
+          serialSet = new Set();
+          activeSubjects.forEach((name) => {
+            (state.indexBySubject[name] || []).forEach((serialValue) => serialSet.add(serialValue));
+          });
+        }
 
         const filtered = state.questions.filter(q => {
           const effective = applyOverridesToQuestion(q);
           if (serialSet && !serialSet.has(effective.serial)) return false;
-          if (examType && !effective.serial.startsWith(examType)) return false;
-          if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
-          if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
+          if (activeExamTypes.length && !activeExamTypes.some((type) => effective.serial.startsWith(type))) return false;
+          if (advanced.commandSessionRules.length) {
+            if (!matchSessionRules(effective.exam_session, advanced.commandSessionRules)) return false;
+          } else {
+            if (sessionFrom !== null && Number(effective.exam_session) < sessionFrom) return false;
+            if (sessionTo !== null && Number(effective.exam_session) > sessionTo) return false;
+          }
           if (answeredFilter === "hide_answered" && hasAnswered(effective.serial)) return false;
           if (answeredFilter === "only_answered" && !hasAnswered(effective.serial)) return false;
           if (progressStateFilter) {
@@ -4188,26 +4554,16 @@
             if (status !== progressStateFilter) return false;
           }
           // filters removed (all questions are populated)
-          if (subtopicFilter && !(effective.subtopics || []).includes(subtopicFilter)) return false;
-          if (serialTerms.length && !serialTerms.includes(effective.serial)) return false;
-          if (!terms.length) return true;
-          const hay = [
-            effective.stem || "",
-            (effective.choices || []).join(" "),
-            effective.case_text || "",
-            (effective.tags || []).join(" "),
-            (effective.subtopics || []).join(" ")
-          ].join(" ").toLowerCase();
-          const questionTags = effective.tags || [];
-          const tagMatch = tagTerms.every((tagTerm) =>
-            questionTags.some((questionTag) =>
-              getEquivalentTagsForTerm(questionTag).some(
-                (candidate) => normalizeTagKey(candidate) === tagTerm
-              )
-            )
-          );
-          const textMatch = textTerms.every(term => hay.includes(term));
-          return tagMatch && textMatch;
+          if (
+            activeSubtopics.length &&
+            !activeSubtopics.some((name) => (effective.subtopics || []).includes(name))
+          ) {
+            return false;
+          }
+          if (advanced.hasKeywordTerms) {
+            return evaluateKeywordRpn(advanced.keywordRpn, effective);
+          }
+          return true;
         });
         const getStats = (q) => state.answerStatsBySerial[q.serial] || { count: 0, correct: 0 };
         const getRate = (q) => {
@@ -4365,6 +4721,7 @@
         renderTagDisambiguationHints();
         announceStatus(countText);
         const sortSession = document.getElementById("sortSession").value;
+        const activeKeywordTagTerms = getKeywordTagTerms();
         const isStatSort = [
           "count_desc",
           "count_asc",
@@ -4845,13 +5202,12 @@
           } else {
             renderTagButtons();
           }
-          const activeTagTerms = getKeywordTagTerms();
-          if (activeTagTerms.length && sortedTags.length) {
+          if (activeKeywordTagTerms.length && sortedTags.length) {
             const mergedHints = new Set();
             sortedTags.forEach((tag) => {
               const equivalents = getEquivalentTagsForTerm(tag);
               const equivalentKeys = equivalents.map((label) => normalizeTagKey(label));
-              if (!activeTagTerms.some((term) => equivalentKeys.includes(term))) return;
+              if (!activeKeywordTagTerms.some((term) => equivalentKeys.includes(term))) return;
               equivalents.forEach((label) => {
                 if (label !== tag) mergedHints.add(label);
               });
@@ -9166,7 +9522,9 @@
       }
 
       function buildFilterHeader() {
-        const keyword = document.getElementById("keyword").value.trim();
+        const keywordRaw = document.getElementById("keyword").value.trim();
+        const advanced = buildAdvancedSearchState(keywordRaw);
+        const keyword = advanced.keywordText;
         const subject = document.getElementById("subjectSelect").value;
         const subtopic = document.getElementById("subtopicSelect").value;
         const examType = document.getElementById("examTypeSelect").value;
@@ -9179,19 +9537,16 @@
           ? "all"
           : ((answeredFilterEl && answeredFilterEl.value) || "all");
         const parts = [];
-        if (keyword) parts.push(`キーワード: ${keyword}`);
+        if (keywordRaw) parts.push(`検索: ${keywordRaw}`);
         if (keyword) {
-          const terms = keyword
-            .split(/[\s,]+/)
-            .map((term) => term.trim())
-            .filter(Boolean);
+          const terms = (advanced.keywordTokens || [])
+            .filter((token) => token && token.type === "TERM" && token.term && token.term.kind === "tag")
+            .map((token) => `#${token.term.raw || ""}`);
           const tagExpand = [];
           terms.forEach((term) => {
-            const lowered = normalizeAscii(term).toLowerCase();
-            if (!lowered.startsWith("#")) return;
-            const normalized = normalizeTagKey(lowered.slice(1));
+            const normalized = normalizeTagKey(term.slice(1));
             if (!normalized) return;
-            const canonicalTerm = lowered.slice(1).trim();
+            const canonicalTerm = term.slice(1).trim();
             const equivalents = getEquivalentTagsForTerm(canonicalTerm).filter(
               (label) => normalizeTagKey(label) !== normalized
             );
@@ -9203,18 +9558,48 @@
             parts.push(`同義語展開: ${tagExpand.join(" / ")}`);
           }
         }
-        if (subject) parts.push(`科目: ${subject}`);
-        if (subtopic) parts.push(`小項目: ${subtopic}`);
-        if (examType) {
-          const examTypeLabel =
-            examType === "A"
-              ? "あん摩マッサージ指圧師"
-              : examType === "B"
-              ? "はり師・きゅう師"
-              : examType;
-          parts.push(`種別: ${examTypeLabel}`);
+        const activeSubjects = advanced.commandSubjects.length
+          ? advanced.commandSubjects
+          : (subject ? [subject] : []);
+        const activeSubtopics = advanced.commandSubtopics.length
+          ? advanced.commandSubtopics
+          : (subtopic ? [subtopic] : []);
+        const activeExamTypes = advanced.commandExamTypes.length
+          ? advanced.commandExamTypes
+          : (examType ? [examType] : []);
+        if (activeSubjects.length) {
+          const label = activeSubjects.join(", ");
+          parts.push(
+            advanced.commandSubjects.length ? `科目(コマンド): ${label}` : `科目: ${label}`
+          );
         }
-        if (sessionFrom || sessionTo) {
+        if (activeSubtopics.length) {
+          const label = activeSubtopics.join(", ");
+          parts.push(
+            advanced.commandSubtopics.length ? `小項目(コマンド): ${label}` : `小項目: ${label}`
+          );
+        }
+        if (activeExamTypes.length) {
+          const examTypeText = activeExamTypes
+            .map((value) =>
+              value === "A"
+                ? "あん摩マッサージ指圧師"
+                : value === "B"
+                ? "はり師・きゅう師"
+                : value
+            )
+            .join(", ");
+          parts.push(
+            advanced.commandExamTypes.length
+              ? `種別(コマンド): ${examTypeText}`
+              : `種別: ${examTypeText}`
+          );
+        }
+        if (advanced.commandSessionRules.length) {
+          const label = (advanced.commandRaw.session || []).join(", ");
+          if (label) parts.push(`回数(コマンド): ${label}`);
+        }
+        if (!advanced.commandSessionRules.length && (sessionFrom || sessionTo)) {
           const fromLabel = sessionFrom ? `${sessionFrom}回` : "";
           const toLabel = sessionTo ? `${sessionTo}回` : "";
           const range = [fromLabel, toLabel].filter(Boolean).join("〜");
