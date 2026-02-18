@@ -5,7 +5,10 @@
 ## 1. システム概要
 
 - 基本データ: `output/ahaki.sqlite`
-- 公開用データ: `output/web/questions.json` と `output/web/index/*.json`
+- 公開用データ:
+  - `output/web/questions_manifest.json` + `output/web/questions/questions_*.json` (分割データ)
+  - `output/web/questions.json` (互換フォールバック)
+  - `output/web/index/*.json`
 - WebUI:
   - 開発用: `web_app/index.html`
   - GitHub Pages用: `docs/web_app/index.html`
@@ -75,6 +78,10 @@ python build_ahaki_sqlite.py
 python scripts/generate_web_json.py --db output/ahaki.sqlite --out output/web/questions.json --index-dir output/web/index
 bash scripts/prepare_pages.sh
 ```
+
+`generate_web_json.py` は `questions_manifest.json` と分割ファイル
+`questions/questions_*.json` を同時に生成します。
+WebUIは分割ファイルを優先読み込みし、manifest がない場合のみ `questions.json` にフォールバックします。
 
 ### 5.3 WebUI設定
 
@@ -225,3 +232,17 @@ python scripts/run_gemini_deep_dive.py --limit 20 --api-key-source paid
 - Supabase差分が反映されない
   - `web_app/config.js` のURL/キーを確認
   - Worker URLとRLS設定を確認
+
+## 13. セキュリティ/品質チェック
+
+機密情報の混入チェック:
+
+```bash
+python scripts/check_secret_hygiene.py
+```
+
+最小テスト実行:
+
+```bash
+python -m unittest discover -s tests -v
+```

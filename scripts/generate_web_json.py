@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime, timezone
 import json
 import re
 import sqlite3
@@ -55,6 +56,20 @@ def parse_args():
             "Embed deep-dive explanations in questions.json. "
             "Default is off to keep the output small."
         ),
+    )
+    parser.add_argument(
+        "--question-chunk-dir",
+        default="questions",
+        help=(
+            "Directory (relative to output/web) used for split question JSON files. "
+            "Set empty string to disable chunk generation."
+        ),
+    )
+    parser.add_argument(
+        "--question-chunk-size",
+        type=int,
+        default=500,
+        help="Number of questions per split JSON file.",
     )
     return parser.parse_args()
 
@@ -386,6 +401,66 @@ def format_date_display(value):
     return value
 
 
+def build_question_chunks(records, chunk_size):
+    size = max(1, int(chunk_size or 1))
+    chunks = []
+    for start in range(0, len(records), size):
+        end = min(start + size, len(records))
+        chunks.append(records[start:end])
+    return chunks
+
+
+def write_question_chunks(records, out_base_dir, chunk_dir_name, chunk_size):
+    chunk_dir = str(chunk_dir_name or "").strip().replace("\\", "/").strip("/")
+    if not chunk_dir:
+        return None
+    chunk_rel_path = Path(chunk_dir)
+    if chunk_rel_path.is_absolute():
+        raise ValueError("--question-chunk-dir must be a relative path")
+
+    out_base_dir.mkdir(parents=True, exist_ok=True)
+    chunk_abs_dir = (out_base_dir / chunk_rel_path).resolve()
+    chunk_abs_dir.mkdir(parents=True, exist_ok=True)
+    for stale in chunk_abs_dir.glob("questions_*.json"):
+        stale.unlink(missing_ok=True)
+
+    chunk_rows = build_question_chunks(records, chunk_size)
+    chunk_items = []
+    for idx, rows in enumerate(chunk_rows, start=1):
+        file_name = f"questions_{idx:04d}.json"
+        rel_path = (chunk_rel_path / file_name).as_posix()
+        abs_path = chunk_abs_dir / file_name
+        abs_path.write_text(
+            json.dumps(rows, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        first_serial = rows[0].get("serial") if rows else ""
+        last_serial = rows[-1].get("serial") if rows else ""
+        chunk_items.append(
+            {
+                "index": idx,
+                "path": rel_path,
+                "count": len(rows),
+                "first_serial": first_serial,
+                "last_serial": last_serial,
+            }
+        )
+
+    manifest = {
+        "version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "total": len(records),
+        "chunk_size": max(1, int(chunk_size or 1)),
+        "chunks": chunk_items,
+    }
+    manifest_path = out_base_dir / "questions_manifest.json"
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return manifest_path
+
+
 def main():
     args = parse_args()
     db_path = Path(args.db)
@@ -518,6 +593,16 @@ def main():
         encoding="utf-8",
     )
     print(f"Web JSON saved: {out_path}")
+    chunk_dir = str(args.question_chunk_dir or "").strip()
+    if chunk_dir:
+        manifest_path = write_question_chunks(
+            output,
+            out_path.parent,
+            chunk_dir,
+            args.question_chunk_size,
+        )
+        if manifest_path:
+            print(f"Question chunk manifest saved: {manifest_path}")
 
     update_notes = load_update_notes(Path("config/update_notes.json"))
     existing_notes = load_existing_update_log(out_path.parent / "update_log.json")

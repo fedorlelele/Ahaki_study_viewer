@@ -2330,9 +2330,62 @@
         });
       }
 
+      function normalizeChunkPath(path) {
+        return String(path || "")
+          .trim()
+          .replace(/^\/+/, "")
+          .replace(/\\/g, "/");
+      }
+
+      function pauseMainThread() {
+        return new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      async function loadQuestionsFromChunks() {
+        const manifestResp = await fetch("../output/web/questions_manifest.json");
+        if (!manifestResp.ok) {
+          throw new Error("chunk manifest not found");
+        }
+        const manifest = await manifestResp.json();
+        const chunks = Array.isArray(manifest && manifest.chunks) ? manifest.chunks : [];
+        if (!chunks.length) {
+          return [];
+        }
+        const loaded = [];
+        for (let i = 0; i < chunks.length; i += 1) {
+          const chunk = chunks[i] || {};
+          const relPath = normalizeChunkPath(chunk.path);
+          if (!relPath) continue;
+          const resp = await fetch(`../output/web/${relPath}`);
+          if (!resp.ok) {
+            throw new Error(`failed to fetch chunk: ${relPath}`);
+          }
+          const rows = await resp.json();
+          if (Array.isArray(rows) && rows.length) {
+            loaded.push(...rows);
+          }
+          if (i % 2 === 1) {
+            await pauseMainThread();
+          }
+        }
+        return loaded;
+      }
+
+      async function loadQuestionsWithFallback() {
+        try {
+          return await loadQuestionsFromChunks();
+        } catch (_err) {
+          const resp = await fetch("../output/web/questions.json");
+          if (!resp.ok) {
+            throw new Error("questions.json load failed");
+          }
+          return resp.json();
+        }
+      }
+
       function loadData() {
         return Promise.all([
-          fetch("../output/web/questions.json").then(r => r.json()),
+          loadQuestionsWithFallback(),
           fetch("../output/web/index/index_by_subject.json").then(r => r.json()),
           fetch("../output/web/index/index_by_tag.json").then(r => (r.ok ? r.json() : {})),
           fetch("../output/web/index/index_by_subtopic.json").then(r => r.json()),

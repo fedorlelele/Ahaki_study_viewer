@@ -8,3 +8,9 @@ kokushitxt/
 samples/
 web_app/config.js
 .env
+.env.*
+!.env.example
+workers/.dev.vars
+workers/.dev.vars.*
+*.pem
+*.key
