@@ -4555,12 +4555,115 @@
         syncSearchQueryToUrl();
       }
 
-      function getSearchQueryFromUrl() {
+      function hasSelectOption(selectEl, value) {
+        if (!selectEl || !value) return false;
+        return Array.from(selectEl.options || []).some((opt) => String(opt.value || "") === String(value));
+      }
+
+      function normalizeSessionParamValue(raw) {
+        if (raw === undefined) return undefined;
+        const text = String(raw || "").trim();
+        if (!text) return "";
+        const num = Number(text);
+        if (!Number.isFinite(num) || num < 1) return "";
+        return String(Math.floor(num));
+      }
+
+      function getSearchStateFromUrl() {
+        const empty = {
+          keyword: undefined,
+          subject: undefined,
+          subtopic: undefined,
+          examType: undefined,
+          sessionFrom: undefined,
+          sessionTo: undefined,
+          progress: undefined,
+          answered: undefined,
+          sort: undefined
+        };
         try {
           const url = new URL(window.location.href);
-          return (url.searchParams.get("q") || "").trim();
+          const read = (name) => {
+            if (!url.searchParams.has(name)) return undefined;
+            return String(url.searchParams.get(name) || "").trim();
+          };
+          const stateFromUrl = {
+            keyword: read("q"),
+            subject: read("subject"),
+            subtopic: read("subtopic"),
+            examType: read("examType"),
+            sessionFrom: normalizeSessionParamValue(read("sessionFrom")),
+            sessionTo: normalizeSessionParamValue(read("sessionTo")),
+            progress: read("progress"),
+            answered: read("answered"),
+            sort: read("sort")
+          };
+          return stateFromUrl;
         } catch (_err) {
-          return "";
+          return empty;
+        }
+      }
+
+      function applySearchStateFromUrl(stateFromUrl) {
+        const data = stateFromUrl || {};
+        const keywordInput = document.getElementById("keyword");
+        const subjectSelect = document.getElementById("subjectSelect");
+        const subtopicSelect = document.getElementById("subtopicSelect");
+        const examTypeSelect = document.getElementById("examTypeSelect");
+        const sessionFromEl = document.getElementById("sessionFrom");
+        const sessionToEl = document.getElementById("sessionTo");
+        const progressSelect = document.getElementById("progressStateFilter");
+        const answeredSelect = document.getElementById("answeredFilter");
+        const sortSelect = document.getElementById("sortSession");
+
+        if (data.keyword !== undefined && keywordInput) {
+          keywordInput.value = data.keyword;
+        }
+        if (data.subject !== undefined && subjectSelect) {
+          if (data.subject && hasSelectOption(subjectSelect, data.subject)) {
+            subjectSelect.value = data.subject;
+          } else if (!data.subject) {
+            subjectSelect.value = "";
+          }
+        }
+        updateSubtopicOptions(subjectSelect && subjectSelect.value ? subjectSelect.value : "");
+        if (data.subtopic !== undefined && subtopicSelect) {
+          if (data.subtopic && hasSelectOption(subtopicSelect, data.subtopic)) {
+            subtopicSelect.value = data.subtopic;
+          } else if (!data.subtopic) {
+            subtopicSelect.value = "";
+          }
+        }
+        if (data.examType !== undefined && examTypeSelect) {
+          const examType = data.examType === "A" || data.examType === "B" ? data.examType : "";
+          if (examType || !data.examType) examTypeSelect.value = examType;
+        }
+        if (data.sessionFrom !== undefined && sessionFromEl) {
+          sessionFromEl.value = data.sessionFrom || "";
+        }
+        if (data.sessionTo !== undefined && sessionToEl) {
+          sessionToEl.value = data.sessionTo || "";
+        }
+        if (data.progress !== undefined && progressSelect) {
+          const validProgress = ["", "unstarted", "mastered", "needs_review"];
+          if (validProgress.includes(data.progress)) {
+            progressSelect.value = data.progress;
+          } else if (!data.progress) {
+            progressSelect.value = "";
+          }
+        }
+        if (data.answered !== undefined && answeredSelect) {
+          const validAnswered = ["all", "hide_answered", "only_answered"];
+          if (validAnswered.includes(data.answered)) {
+            answeredSelect.value = data.answered;
+          }
+        }
+        if (data.sort !== undefined && sortSelect) {
+          if (data.sort && hasSelectOption(sortSelect, data.sort)) {
+            sortSelect.value = data.sort;
+          } else if (!data.sort) {
+            sortSelect.value = "random";
+          }
         }
       }
 
@@ -4568,17 +4671,62 @@
         try {
           const keywordInput = document.getElementById("keyword");
           if (!keywordInput) return;
-          const next = String(keywordInput.value || "").trim();
+          const subjectSelect = document.getElementById("subjectSelect");
+          const subtopicSelect = document.getElementById("subtopicSelect");
+          const examTypeSelect = document.getElementById("examTypeSelect");
+          const sessionFromEl = document.getElementById("sessionFrom");
+          const sessionToEl = document.getElementById("sessionTo");
+          const progressSelect = document.getElementById("progressStateFilter");
+          const answeredSelect = document.getElementById("answeredFilter");
+          const sortSelect = document.getElementById("sortSession");
+
+          const keyword = String(keywordInput.value || "").trim();
+          const subject = String((subjectSelect && subjectSelect.value) || "").trim();
+          const subtopic = String((subtopicSelect && subtopicSelect.value) || "").trim();
+          const examType = String((examTypeSelect && examTypeSelect.value) || "").trim();
+          const sessionFrom = normalizeSessionParamValue(sessionFromEl ? sessionFromEl.value : "");
+          const sessionTo = normalizeSessionParamValue(sessionToEl ? sessionToEl.value : "");
+          const progress = String((progressSelect && progressSelect.value) || "").trim();
+          const answered = String((answeredSelect && answeredSelect.value) || "").trim();
+          const sort = String((sortSelect && sortSelect.value) || "").trim();
+
           const url = new URL(window.location.href);
-          const current = (url.searchParams.get("q") || "").trim();
-          if (next) {
-            if (next === current) return;
-            url.searchParams.set("q", next);
+          const beforeUrl = `${url.pathname}${url.search}${url.hash}`;
+          if (keyword) url.searchParams.set("q", keyword);
+          else url.searchParams.delete("q");
+
+          if (subject) url.searchParams.set("subject", subject);
+          else url.searchParams.delete("subject");
+
+          if (subtopic) url.searchParams.set("subtopic", subtopic);
+          else url.searchParams.delete("subtopic");
+
+          if (examType) url.searchParams.set("examType", examType);
+          else url.searchParams.delete("examType");
+
+          if (sessionFrom) url.searchParams.set("sessionFrom", sessionFrom);
+          else url.searchParams.delete("sessionFrom");
+
+          if (sessionTo) url.searchParams.set("sessionTo", sessionTo);
+          else url.searchParams.delete("sessionTo");
+
+          if (progress) url.searchParams.set("progress", progress);
+          else url.searchParams.delete("progress");
+
+          if (!isRoleAtLeast("student") && answered && answered !== "all") {
+            url.searchParams.set("answered", answered);
           } else {
-            if (!current) return;
-            url.searchParams.delete("q");
+            url.searchParams.delete("answered");
           }
+
+          if (sort && sort !== "random") {
+            url.searchParams.set("sort", sort);
+          } else {
+            url.searchParams.delete("sort");
+          }
+
           const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+          if (nextUrl === beforeUrl) return;
           history.replaceState(null, "", nextUrl);
         } catch (_err) {
           // no-op
@@ -6945,7 +7093,8 @@
 	        loadQaDraftState();
 	        loadTagViewedSessionState();
 	        updateAiPublicNotice();
-        const keywordFromUrl = getSearchQueryFromUrl();
+        const searchStateFromUrl = getSearchStateFromUrl();
+        const keywordFromUrl = String(searchStateFromUrl.keyword || "").trim();
         if (keywordFromUrl) {
           const keywordInput = document.getElementById("keyword");
           if (keywordInput) keywordInput.value = keywordFromUrl;
@@ -6966,7 +7115,7 @@
             document.getElementById("subjectSelect"),
             Object.keys(state.indexBySubject)
           );
-          updateSubtopicOptions("");
+          applySearchStateFromUrl(searchStateFromUrl);
           renderResults(filterQuestions());
           syncSearchQueryToUrl();
         });
