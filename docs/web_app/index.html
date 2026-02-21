@@ -1304,6 +1304,7 @@
 	            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
 	            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
 	            <button type="button" data-menu-target="practiceRatingPanel">練習問題公開管理</button>
+	            <a href="./analytics.html" target="_blank" rel="noopener noreferrer">データ分析</a>
 	            <a href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ</a>
 	            <a href="./simple.html">かんたんビューへのリンク</a>
 	          </nav>
@@ -1641,6 +1642,7 @@
 	        qaViewed: new Set(),
 	        qaLiked: new Set()
 	        ,practiceRatings: {}
+	        ,deepDiveRatings: {}
 	        ,practiceAdminItems: []
 	        ,practiceAdminSelected: new Set()
 	        ,deepDiveSerials: new Set()
@@ -1688,10 +1690,11 @@
         ,authRenderSnapshot: ""
         ,randomOrderSeed: ""
         ,currentResultPage: 1
-        ,pendingResultPage: null
-        ,lastResultViewKey: ""
-        ,resultTotalPages: 1
-      };
+	        ,pendingResultPage: null
+	        ,lastResultViewKey: ""
+	        ,resultTotalPages: 1
+	        ,lastAnalyticsResultsKey: ""
+	      };
 
       function normalizeRole(role) {
         if (role === "admin" || role === "teacher" || role === "student") {
@@ -3049,7 +3052,7 @@
 	        selectAll.setAttribute("aria-label", "すべて選択");
 	        selectAllTh.appendChild(selectAll);
 	        headerRow.appendChild(selectAllTh);
-	        ["元問題", "形式", "角度", "good", "bad", "free/paid", "公開", "生成日時", "操作", "問題文"].forEach((label) => {
+	        ["元問題", "形式", "角度", "役に立った", "改善要望", "free/paid", "公開", "生成日時", "操作", "問題文"].forEach((label) => {
 	          const th = document.createElement("th");
 	          th.textContent = label;
 	          headerRow.appendChild(th);
@@ -3066,8 +3069,8 @@
 	          const questionType = getPracticeQuestionType(item && item.question_type ? item.question_type : "");
 	          const focus = String(item && item.focus ? item.focus : "");
 	          const createdAt = String(item && item.created_at ? item.created_at : "").slice(0, 16).replace("T", " ");
-	          const good = Number(item && item.good_count ? item.good_count : 0);
-	          const bad = Number(item && item.bad_count ? item.bad_count : 0);
+	          const helpful = Number(item && item.good_count ? item.good_count : 0);
+	          const notHelpful = Number(item && item.bad_count ? item.bad_count : 0);
 	          const mode = item && item.mode === "paid" ? "paid" : "free";
 	          const stem = String(item && item.stem ? item.stem : "");
 
@@ -3105,13 +3108,13 @@
 	          focusTd.textContent = focus;
 	          row.appendChild(focusTd);
 
-	          const goodTd = document.createElement("td");
-	          goodTd.textContent = String(good);
-	          row.appendChild(goodTd);
+	          const helpfulTd = document.createElement("td");
+	          helpfulTd.textContent = String(helpful);
+	          row.appendChild(helpfulTd);
 
-	          const badTd = document.createElement("td");
-	          badTd.textContent = String(bad);
-	          row.appendChild(badTd);
+	          const notHelpfulTd = document.createElement("td");
+	          notHelpfulTd.textContent = String(notHelpful);
+	          row.appendChild(notHelpfulTd);
 
 	          const modeTd = document.createElement("td");
 	          modeTd.textContent = mode;
@@ -5174,12 +5177,32 @@
         const canTeacherEdit = isTeacher && state.editMode;
         const showAnswer = document.getElementById("toggleAnswer").checked;
         const showExplanation = document.getElementById("toggleExplanation").checked;
-        const countText = `件数: ${list.length}`;
-        document.getElementById("countInfo").textContent = countText;
-        const summaryEl = document.getElementById("filterSummary");
-        if (summaryEl) summaryEl.textContent = buildFilterHeader();
-        renderTagDisambiguationHints();
-        announceStatus(countText);
+	        const countText = `件数: ${list.length}`;
+	        document.getElementById("countInfo").textContent = countText;
+	        const summaryEl = document.getElementById("filterSummary");
+	        if (summaryEl) summaryEl.textContent = buildFilterHeader();
+	        const analyticsResultKey = [
+	          String(document.getElementById("keyword").value || "").trim(),
+	          document.getElementById("subjectSelect").value || "",
+	          document.getElementById("subtopicSelect").value || "",
+	          document.getElementById("examTypeSelect").value || "",
+	          document.getElementById("sortSession").value || "",
+	          String(state.currentResultPage || 1),
+	          String(list.length)
+	        ].join("|");
+	        if (state.lastAnalyticsResultsKey !== analyticsResultKey) {
+	          state.lastAnalyticsResultsKey = analyticsResultKey;
+	          trackAnalyticsEvent("results_rendered", {
+	            surface: "main_search",
+	            props: {
+	              result_count: list.length,
+	              page: state.currentResultPage || 1,
+	              sort: document.getElementById("sortSession").value || ""
+	            }
+	          });
+	        }
+	        renderTagDisambiguationHints();
+	        announceStatus(countText);
         const sortSession = document.getElementById("sortSession").value;
         const activeKeywordTagTerms = getKeywordTagTerms();
         const isStatSort = [
@@ -6169,19 +6192,32 @@
                 likeBtn.setAttribute("aria-label", "いいねを付ける");
               }
               likeBtn.textContent = `👍 ${likeCount}`;
-              likeBtn.addEventListener("click", () => {
-                if (state.qaLiked.has(likeKey)) return;
-                state.qaLiked.add(likeKey);
-                saveQaLikedState();
-                likeCount += 1;
-                likeBtn.textContent = `👍 ${likeCount}`;
-                likeBtn.disabled = true;
-                likeBtn.setAttribute("aria-label", "いいね済み");
-                if (!item.id) return;
-                fetch(`${window.AI_API_BASE}/ai/question_qa/like`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ id: item.id })
+	              likeBtn.addEventListener("click", async () => {
+	                if (state.qaLiked.has(likeKey)) return;
+	                state.qaLiked.add(likeKey);
+	                saveQaLikedState();
+	                likeCount += 1;
+	                likeBtn.textContent = `👍 ${likeCount}`;
+	                likeBtn.disabled = true;
+	                likeBtn.setAttribute("aria-label", "いいね済み");
+	                const entityId = item && item.id ? String(item.id) : likeKey;
+	                submitAiFeedbackEvent({
+	                  feature: "question_qa",
+	                  rating: "helpful",
+	                  entity_type: "question_qa",
+	                  entity_id: entityId
+	                });
+	                trackAnalyticsEvent("ai_feedback_submitted", {
+	                  surface: "question_qa",
+	                  entity_type: "question_qa",
+	                  entity_id: entityId,
+	                  props: { feature: "question_qa", rating: "helpful" }
+	                });
+	                if (!item.id) return;
+	                fetch(`${window.AI_API_BASE}/ai/question_qa/like`, {
+	                  method: "POST",
+	                  headers: { "Content-Type": "application/json" },
+	                  body: JSON.stringify({ id: item.id })
                 }).catch(() => {});
               });
               const viewSpan = document.createElement("span");
@@ -6299,19 +6335,29 @@
                     model: "gemini-3-flash-preview"
                   })
                 });
-                const payload = await resp.json();
-                if (!resp.ok) {
-                  const detail =
-                    (payload && (payload.detail || payload.message || payload.error)) ||
-                    `HTTP ${resp.status}`;
+	                const payload = await resp.json();
+	                if (!resp.ok) {
+	                  const detail =
+	                    (payload && (payload.detail || payload.message || payload.error)) ||
+	                    `HTTP ${resp.status}`;
                   qaHeader.textContent = `生成に失敗しました: ${String(detail).slice(0, 160)}`;
-                  return;
-                }
-                if (payload.status === "irrelevant") {
-                  qaHeader.textContent = "質問が問題と無関係と判定されました。";
-                  announceStatusNow("質問が問題と無関係と判定されました");
-                  return;
-                }
+	                  return;
+	                }
+	                trackAnalyticsEvent("ai_generate_completed", {
+	                  surface: "question_qa",
+	                  entity_type: "question",
+	                  entity_id: q.serial,
+	                  request_id: payload && payload.request_id ? payload.request_id : "",
+	                  props: {
+	                    feature: "question_qa",
+	                    status: payload && payload.status ? payload.status : "ok"
+	                  }
+	                });
+	                if (payload.status === "irrelevant") {
+	                  qaHeader.textContent = "質問が問題と無関係と判定されました。";
+	                  announceStatusNow("質問が問題と無関係と判定されました");
+	                  return;
+	                }
                 qaHeader.textContent = "生成完了";
                 announceStatusNow("Q&A生成が完了しました");
                 qaInput.value = "";
@@ -6639,60 +6685,68 @@
 	              });
 	              meta.appendChild(copyBtn);
 
-	              let goodCount = Number(item.good_count || 0);
-	              let badCount = Number(item.bad_count || 0);
+	              let helpfulCount = Number(item.good_count || 0);
+	              let notHelpfulCount = Number(item.bad_count || 0);
 	              const ratingKey = getPracticeRatingKey(item);
 	              const rated = state.practiceRatings[ratingKey] || "";
-	              const goodBtn = document.createElement("button");
-	              goodBtn.className = "chip-link";
-	              goodBtn.textContent = `👍 ${goodCount}${rated === "good" ? " ✓" : ""}`;
-	              goodBtn.setAttribute("aria-label", "Good を付ける");
-	              const badBtn = document.createElement("button");
-	              badBtn.className = "chip-link";
-	              badBtn.textContent = `👎 ${badCount}${rated === "bad" ? " ✓" : ""}`;
-	              badBtn.setAttribute("aria-label", "Bad を付ける");
-	              if (rated) {
-	                goodBtn.disabled = true;
-	                badBtn.disabled = true;
-	              }
-		              goodBtn.addEventListener("click", async () => {
-		                if (state.practiceRatings[ratingKey]) return;
-		                state.practiceRatings[ratingKey] = "good";
-		                savePracticeRatingState();
-		                goodCount += 1;
-	                goodBtn.textContent = `👍 ${goodCount} ✓`;
-		                goodBtn.disabled = true;
-		                badBtn.disabled = true;
-		                if (!item.id) return;
-		                const headers = { "Content-Type": "application/json" };
-		                const token = await getAuthAccessToken();
-		                if (token) headers.Authorization = `Bearer ${token}`;
-		                fetch(`${window.AI_API_BASE}/ai/practice_questions/good`, {
-		                  method: "POST",
-		                  headers,
-		                  body: JSON.stringify({ id: item.id })
-		                }).catch(() => {});
-		              });
-		              badBtn.addEventListener("click", async () => {
-		                if (state.practiceRatings[ratingKey]) return;
-		                state.practiceRatings[ratingKey] = "bad";
-		                savePracticeRatingState();
-	                badCount += 1;
-	                badBtn.textContent = `👎 ${badCount} ✓`;
-		                goodBtn.disabled = true;
-		                badBtn.disabled = true;
-		                if (!item.id) return;
-		                const headers = { "Content-Type": "application/json" };
-		                const token = await getAuthAccessToken();
-		                if (token) headers.Authorization = `Bearer ${token}`;
-		                fetch(`${window.AI_API_BASE}/ai/practice_questions/bad`, {
-		                  method: "POST",
-		                  headers,
-		                  body: JSON.stringify({ id: item.id })
-		                }).catch(() => {});
-		              });
-	              meta.appendChild(goodBtn);
-	              meta.appendChild(badBtn);
+	              const helpfulBtn = document.createElement("button");
+	              helpfulBtn.className = "chip-link";
+	              helpfulBtn.textContent = `👍 ${helpfulCount}${rated === "helpful" ? " ✓" : ""}`;
+	              helpfulBtn.setAttribute("aria-label", "役に立った を付ける");
+	              const notHelpfulBtn = document.createElement("button");
+	              notHelpfulBtn.className = "chip-link";
+	              notHelpfulBtn.textContent = `👎 ${notHelpfulCount}${rated === "not_helpful" ? " ✓" : ""}`;
+	              notHelpfulBtn.setAttribute("aria-label", "改善要望 を付ける");
+		              if (rated) {
+		                helpfulBtn.disabled = true;
+		                notHelpfulBtn.disabled = true;
+		              }
+			              helpfulBtn.addEventListener("click", () => {
+			                if (state.practiceRatings[ratingKey]) return;
+			                state.practiceRatings[ratingKey] = "helpful";
+			                savePracticeRatingState();
+			                helpfulCount += 1;
+		                helpfulBtn.textContent = `👍 ${helpfulCount} ✓`;
+			                helpfulBtn.disabled = true;
+			                notHelpfulBtn.disabled = true;
+			                const entityId = item && item.id ? String(item.id) : ratingKey;
+			                submitAiFeedbackEvent({
+			                  feature: "practice_questions",
+			                  rating: "helpful",
+			                  entity_type: "practice_question",
+			                  entity_id: entityId
+			                });
+			                trackAnalyticsEvent("ai_feedback_submitted", {
+			                  surface: "practice_questions",
+			                  entity_type: "practice_question",
+			                  entity_id: entityId,
+			                  props: { feature: "practice_questions", rating: "helpful" }
+			                });
+			              });
+			              notHelpfulBtn.addEventListener("click", () => {
+			                if (state.practiceRatings[ratingKey]) return;
+			                state.practiceRatings[ratingKey] = "not_helpful";
+			                savePracticeRatingState();
+		                notHelpfulCount += 1;
+		                notHelpfulBtn.textContent = `👎 ${notHelpfulCount} ✓`;
+			                helpfulBtn.disabled = true;
+			                notHelpfulBtn.disabled = true;
+			                const entityId = item && item.id ? String(item.id) : ratingKey;
+			                submitAiFeedbackEvent({
+			                  feature: "practice_questions",
+			                  rating: "not_helpful",
+			                  entity_type: "practice_question",
+			                  entity_id: entityId
+			                });
+			                trackAnalyticsEvent("ai_feedback_submitted", {
+			                  surface: "practice_questions",
+			                  entity_type: "practice_question",
+			                  entity_id: entityId,
+			                  props: { feature: "practice_questions", rating: "not_helpful" }
+			                });
+			              });
+	              meta.appendChild(helpfulBtn);
+	              meta.appendChild(notHelpfulBtn);
 
 	              const stemEl = document.createElement("div");
 	              renderMarkdownToElement(stemEl, item.stem || "");
@@ -6823,6 +6877,17 @@
 	              }
 		              const payload = await resp.json();
 		              const items = Array.isArray(payload.items) ? payload.items : [];
+		              trackAnalyticsEvent("ai_generate_completed", {
+		                surface: "practice_questions",
+		                entity_type: "question",
+		                entity_id: q.serial,
+		                request_id: payload && payload.request_id ? payload.request_id : "",
+		                props: {
+		                  feature: "practice_questions",
+		                  question_type: questionType,
+		                  generated_count: items.length
+		                }
+		              });
 		              renderPracticeItems(items);
 		              practiceHeader.textContent = "生成完了";
 		              announceStatusNow(doneMessage);
@@ -6987,15 +7052,79 @@
           deepDiveReadBtn.setAttribute("title", "深掘り解説を読み上げ");
           deepDiveReadBtn.disabled = true;
           deepDiveMeta.appendChild(deepDiveReadBtn);
-          const deepDiveCopyBtn = document.createElement("button");
-          deepDiveCopyBtn.className = "icon-mini-btn";
-          deepDiveCopyBtn.textContent = "⧉";
-          deepDiveCopyBtn.setAttribute("aria-label", "深掘り解説をコピー");
-          deepDiveCopyBtn.setAttribute("title", "深掘り解説をコピー");
-          deepDiveCopyBtn.disabled = true;
-          deepDiveMeta.appendChild(deepDiveCopyBtn);
-          deepDivePanel.insertBefore(deepDiveMeta, deepDiveBody);
-          let deepDiveRawText = "";
+	          const deepDiveCopyBtn = document.createElement("button");
+	          deepDiveCopyBtn.className = "icon-mini-btn";
+	          deepDiveCopyBtn.textContent = "⧉";
+	          deepDiveCopyBtn.setAttribute("aria-label", "深掘り解説をコピー");
+	          deepDiveCopyBtn.setAttribute("title", "深掘り解説をコピー");
+	          deepDiveCopyBtn.disabled = true;
+	          deepDiveMeta.appendChild(deepDiveCopyBtn);
+	          const deepDiveRatingKey = getDeepDiveRatingKey(q.serial);
+	          let deepDiveRated = (deepDiveRatingKey && state.deepDiveRatings[deepDiveRatingKey]) || "";
+	          let deepDiveAvailable = false;
+	          let deepDiveRequestId = "";
+	          const deepDiveHelpfulBtn = document.createElement("button");
+	          deepDiveHelpfulBtn.className = "chip-link";
+	          deepDiveHelpfulBtn.setAttribute("aria-label", "深掘り解説に 役に立った を付ける");
+	          const deepDiveNotHelpfulBtn = document.createElement("button");
+	          deepDiveNotHelpfulBtn.className = "chip-link";
+	          deepDiveNotHelpfulBtn.setAttribute("aria-label", "深掘り解説に 改善要望 を付ける");
+	          const updateDeepDiveRatingButtons = () => {
+	            const helpfulChecked = deepDiveRated === "helpful" ? " ✓" : "";
+	            const notHelpfulChecked = deepDiveRated === "not_helpful" ? " ✓" : "";
+	            deepDiveHelpfulBtn.textContent = `👍 役に立った${helpfulChecked}`;
+	            deepDiveNotHelpfulBtn.textContent = `👎 改善要望${notHelpfulChecked}`;
+	            const locked = Boolean(deepDiveRated) || !deepDiveAvailable;
+	            deepDiveHelpfulBtn.disabled = locked;
+	            deepDiveNotHelpfulBtn.disabled = locked;
+	          };
+	          deepDiveHelpfulBtn.addEventListener("click", () => {
+	            if (!deepDiveRatingKey || deepDiveRated || !deepDiveAvailable) return;
+	            deepDiveRated = "helpful";
+	            state.deepDiveRatings[deepDiveRatingKey] = deepDiveRated;
+	            saveDeepDiveRatingState();
+	            updateDeepDiveRatingButtons();
+	            submitAiFeedbackEvent({
+	              request_id: deepDiveRequestId,
+	              feature: "deep_dive",
+	              rating: "helpful",
+	              entity_type: "question_deep_dive",
+	              entity_id: q.serial
+	            });
+	            trackAnalyticsEvent("ai_feedback_submitted", {
+	              surface: "deep_dive",
+	              entity_type: "question_deep_dive",
+	              entity_id: q.serial,
+	              request_id: deepDiveRequestId,
+	              props: { feature: "deep_dive", rating: "helpful" }
+	            });
+	          });
+	          deepDiveNotHelpfulBtn.addEventListener("click", () => {
+	            if (!deepDiveRatingKey || deepDiveRated || !deepDiveAvailable) return;
+	            deepDiveRated = "not_helpful";
+	            state.deepDiveRatings[deepDiveRatingKey] = deepDiveRated;
+	            saveDeepDiveRatingState();
+	            updateDeepDiveRatingButtons();
+	            submitAiFeedbackEvent({
+	              request_id: deepDiveRequestId,
+	              feature: "deep_dive",
+	              rating: "not_helpful",
+	              entity_type: "question_deep_dive",
+	              entity_id: q.serial
+	            });
+	            trackAnalyticsEvent("ai_feedback_submitted", {
+	              surface: "deep_dive",
+	              entity_type: "question_deep_dive",
+	              entity_id: q.serial,
+	              request_id: deepDiveRequestId,
+	              props: { feature: "deep_dive", rating: "not_helpful" }
+	            });
+	          });
+	          deepDiveMeta.appendChild(deepDiveHelpfulBtn);
+	          deepDiveMeta.appendChild(deepDiveNotHelpfulBtn);
+	          updateDeepDiveRatingButtons();
+	          deepDivePanel.insertBefore(deepDiveMeta, deepDiveBody);
+	          let deepDiveRawText = "";
           deepDiveReadBtn.addEventListener("click", async () => {
             const payloadText = buildDeepDiveSpeechPayload(deepDiveRawText || deepDiveBody.textContent || "");
             if (!payloadText) {
@@ -7031,17 +7160,19 @@
           const showDeepDivePanel = () => {
             deepDivePanel.hidden = false;
           };
-          const renderDeepDive = (explanationText, tags) => {
-            showDeepDivePanel();
-            deepDiveStatus.textContent = "保存済みの深掘り解説";
-            deepDiveRawText = explanationText || "";
-            deepDiveReadBtn.disabled = !deepDiveRawText;
-            deepDiveCopyBtn.disabled = !deepDiveRawText;
-            renderMarkdownToElement(deepDiveBody, deepDiveRawText);
-            deepDiveTags.textContent = "";
-            deepDiveTagDesc.hidden = true;
-            currentDeepDiveTagDescription = "";
-            (tags || []).forEach(tag => {
+	          const renderDeepDive = (explanationText, tags) => {
+	            showDeepDivePanel();
+	            deepDiveStatus.textContent = "保存済みの深掘り解説";
+	            deepDiveRawText = explanationText || "";
+	            deepDiveAvailable = Boolean(String(deepDiveRawText || "").trim()) || (Array.isArray(tags) && tags.length > 0);
+	            deepDiveReadBtn.disabled = !deepDiveRawText;
+	            deepDiveCopyBtn.disabled = !deepDiveRawText;
+	            renderMarkdownToElement(deepDiveBody, deepDiveRawText);
+	            deepDiveTags.textContent = "";
+	            deepDiveTagDesc.hidden = true;
+	            currentDeepDiveTagDescription = "";
+	            updateDeepDiveRatingButtons();
+	            (tags || []).forEach(tag => {
                   const meta = state.tagCatalogByTag[tag] || {};
                   const hasDescription = Boolean((meta.description || "").trim());
                   const chip = document.createElement("button");
@@ -7071,41 +7202,49 @@
           const deepDiveMainBtn = document.createElement("button");
           deepDiveMainBtn.className = "action-btn";
 
-          const runDeepDiveView = () => {
-              if (!deepDivePanel.hidden) {
-                deepDivePanel.hidden = true;
-                return;
-              }
-              if (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) {
-                renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || []);
-                return;
-              }
+	          const runDeepDiveView = () => {
+	              if (!deepDivePanel.hidden) {
+	                deepDivePanel.hidden = true;
+	                return;
+	              }
+	              if (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) {
+	                deepDiveRequestId = "";
+	                renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || []);
+	                return;
+	              }
               if (!window.AI_API_BASE) {
                 alert("AI_API_BASE が設定されていません。");
                 return;
               }
               showDeepDivePanel();
               deepDiveStatus.textContent = "読み込み中...";
-              deepDiveRawText = "";
-              deepDiveReadBtn.disabled = true;
-              deepDiveCopyBtn.disabled = true;
-              deepDiveBody.innerHTML = "";
-              deepDiveTags.textContent = "";
-              deepDiveTagDesc.hidden = true;
+	              deepDiveRawText = "";
+	              deepDiveAvailable = false;
+	              deepDiveReadBtn.disabled = true;
+	              deepDiveCopyBtn.disabled = true;
+	              updateDeepDiveRatingButtons();
+	              deepDiveBody.innerHTML = "";
+	              deepDiveTags.textContent = "";
+	              deepDiveTagDesc.hidden = true;
               currentDeepDiveTagDescription = "";
               fetch(`${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`)
                 .then(r => (r.ok ? r.json() : Promise.reject(r)))
-                .then(payload => {
-                  if (!payload.found) {
-                    deepDiveStatus.textContent = "まだ保存された深掘り解説はありません。";
-                    return;
-                  }
-                  renderDeepDive(payload.data?.explanation || "", payload.data?.tags || []);
-                })
-                .catch(() => {
-                  deepDiveStatus.textContent = "読み込みに失敗しました。";
-                });
-          };
+	                .then(payload => {
+	                  if (!payload.found) {
+	                    deepDiveStatus.textContent = "まだ保存された深掘り解説はありません。";
+	                    deepDiveAvailable = false;
+	                    updateDeepDiveRatingButtons();
+	                    return;
+	                  }
+	                  deepDiveRequestId = payload && payload.request_id ? String(payload.request_id) : "";
+	                  renderDeepDive(payload.data?.explanation || "", payload.data?.tags || []);
+	                })
+	                .catch(() => {
+	                  deepDiveStatus.textContent = "読み込みに失敗しました。";
+	                  deepDiveAvailable = false;
+	                  updateDeepDiveRatingButtons();
+	                });
+	          };
 
           const runDeepDiveGenerate = async () => {
               if (!window.AI_API_BASE) {
@@ -7125,12 +7264,15 @@
               showDeepDivePanel();
               deepDiveStatus.textContent = "生成中...";
               announceStatusNow("深掘り解説を生成中です");
-              deepDiveRawText = "";
-              deepDiveReadBtn.disabled = true;
-              deepDiveCopyBtn.disabled = true;
-              deepDiveBody.innerHTML = "";
-              deepDiveTags.textContent = "";
-              deepDiveTagDesc.hidden = true;
+	              deepDiveRawText = "";
+	              deepDiveRequestId = "";
+	              deepDiveAvailable = false;
+	              deepDiveReadBtn.disabled = true;
+	              deepDiveCopyBtn.disabled = true;
+	              updateDeepDiveRatingButtons();
+	              deepDiveBody.innerHTML = "";
+	              deepDiveTags.textContent = "";
+	              deepDiveTagDesc.hidden = true;
               currentDeepDiveTagDescription = "";
               deepDiveMainBtn.disabled = true;
               try {
@@ -7150,23 +7292,36 @@
                   const errorText = await resp.text();
                   throw new Error(parseApiErrorText(errorText, `HTTP ${resp.status}`));
                 }
-                const payload = await resp.json();
-                const text = (payload && payload.text) || "";
-                const parsed = parseDeepDiveResponse(text);
-                renderDeepDive(parsed.explanation || text || "", parsed.tags || []);
-                deepDiveStatus.textContent = "生成完了";
+		                const payload = await resp.json();
+		                deepDiveRequestId = payload && payload.request_id ? String(payload.request_id) : "";
+		                const text = (payload && payload.text) || "";
+		                const parsed = parseDeepDiveResponse(text);
+		                trackAnalyticsEvent("ai_generate_completed", {
+	                  surface: "deep_dive",
+	                  entity_type: "question",
+	                  entity_id: q.serial,
+	                  request_id: payload && payload.request_id ? payload.request_id : "",
+	                  props: {
+	                    feature: "deep_dive",
+	                    tag_count: Array.isArray(parsed.tags) ? parsed.tags.length : 0
+	                  }
+	                });
+	                renderDeepDive(parsed.explanation || text || "", parsed.tags || []);
+	                deepDiveStatus.textContent = "生成完了";
                 announceStatusNow("深掘り解説の生成が完了しました");
                 state.deepDiveSerials.add(q.serial);
                 hasDeepDive = true;
                 updateDeepDiveMainButton();
-              } catch (err) {
-                deepDiveStatus.textContent = "生成に失敗しました。";
-                announceStatusNow("深掘り解説の生成に失敗しました");
-                deepDiveRawText = String(err || "");
-                deepDiveReadBtn.disabled = !deepDiveRawText;
-                deepDiveCopyBtn.disabled = !deepDiveRawText;
-                renderMarkdownToElement(deepDiveBody, deepDiveRawText);
-              } finally {
+	              } catch (err) {
+	                deepDiveStatus.textContent = "生成に失敗しました。";
+	                announceStatusNow("深掘り解説の生成に失敗しました");
+	                deepDiveRawText = String(err || "");
+	                deepDiveAvailable = false;
+	                deepDiveReadBtn.disabled = !deepDiveRawText;
+	                deepDiveCopyBtn.disabled = !deepDiveRawText;
+	                updateDeepDiveRatingButtons();
+	                renderMarkdownToElement(deepDiveBody, deepDiveRawText);
+	              } finally {
                 if (!hasDeepDive) deepDiveMainBtn.disabled = false;
               }
           };
@@ -7304,6 +7459,7 @@
 	        loadTagVisibility();
 	        loadQaLikedState();
 	        loadPracticeRatingState();
+	        loadDeepDiveRatingState();
 	        loadQaDraftState();
 	        loadTagViewedSessionState();
 	        updateAiPublicNotice();
@@ -7580,10 +7736,21 @@
           });
         }
 
-        document.getElementById("searchBtn").addEventListener("click", () => {
-          renderResults(filterQuestions());
-          syncSearchQueryToUrl();
-        });
+	        document.getElementById("searchBtn").addEventListener("click", () => {
+	          trackAnalyticsEvent("search_submitted", {
+	            surface: "main_search",
+	            props: {
+	              keyword_len: String(document.getElementById("keyword").value || "").trim().length,
+	              subject: document.getElementById("subjectSelect").value || "",
+	              subtopic: document.getElementById("subtopicSelect").value || "",
+	              exam_type: document.getElementById("examTypeSelect").value || "",
+	              sort: document.getElementById("sortSession").value || ""
+	            }
+	          });
+	          const list = filterQuestions();
+	          renderResults(list);
+	          syncSearchQueryToUrl();
+	        });
         document.getElementById("resetBtn").addEventListener("click", () => {
           document.getElementById("keyword").value = "";
           document.getElementById("subjectSelect").value = "";
@@ -7599,9 +7766,10 @@
           state.lastResultViewKey = "";
 	        saveTagVisibility();
 	        updateSubtopicOptions("");
-	        renderResults(filterQuestions());
-          syncSearchQueryToUrl();
-	      });
+		        const list = filterQuestions();
+		        renderResults(list);
+	          syncSearchQueryToUrl();
+		      });
         document.getElementById("subjectSelect").addEventListener("change", (e) => {
           updateSubtopicOptions(e.target.value);
         });
@@ -7971,6 +8139,7 @@
 	          applyTopMenuRoleVisibility();
 	          loadQaLikedState();
 	          loadPracticeRatingState();
+	          loadDeepDiveRatingState();
 	          loadQaDraftState();
 	          renderResults(filterQuestions());
 	          return;
@@ -8027,6 +8196,7 @@
 	            applyAnsweredFilterVisibility();
 	            loadQaLikedState();
 	            loadPracticeRatingState();
+	            loadDeepDiveRatingState();
 	            loadQaDraftState();
 	            if (isRoleAtLeast("admin")) {
 	              loadAdminAiGenerationSetting();
@@ -9260,17 +9430,26 @@
         return state.sessionAnswered[serial] || null;
       }
 
-      function markAnswered(serial, selectedIndex, isCorrect) {
-        state.sessionAnswered[serial] = {
-          selectedIndex: Number(selectedIndex),
-          isCorrect: Boolean(isCorrect)
-        };
-        state.answeredMap[serial] = {
-          selectedIndex: Number(selectedIndex),
-          isCorrect: Boolean(isCorrect)
-        };
-        saveAnsweredState();
-      }
+	      function markAnswered(serial, selectedIndex, isCorrect) {
+	        state.sessionAnswered[serial] = {
+	          selectedIndex: Number(selectedIndex),
+	          isCorrect: Boolean(isCorrect)
+	        };
+	        state.answeredMap[serial] = {
+	          selectedIndex: Number(selectedIndex),
+	          isCorrect: Boolean(isCorrect)
+	        };
+	        trackAnalyticsEvent("question_answered", {
+	          surface: "question_card",
+	          entity_type: "question",
+	          entity_id: serial,
+	          props: {
+	            selected_index: Number(selectedIndex) || 0,
+	            is_correct: Boolean(isCorrect)
+	          }
+	        });
+	        saveAnsweredState();
+	      }
 
       function clearSessionAnswer(serial) {
         if (serial) {
@@ -9443,7 +9622,15 @@
 	          if (!data || typeof data !== "object") return;
 	          Object.keys(data).forEach((value) => {
 	            const rating = data[value];
-	            if (rating === "good" || rating === "bad") {
+	            if (rating === "good") {
+	              state.practiceRatings[value] = "helpful";
+	              return;
+	            }
+	            if (rating === "bad") {
+	              state.practiceRatings[value] = "not_helpful";
+	              return;
+	            }
+	            if (rating === "helpful" || rating === "not_helpful") {
 	              state.practiceRatings[value] = rating;
 	            }
 	          });
@@ -9455,6 +9642,47 @@
 	      function savePracticeRatingState() {
 	        const key = getPracticeRatingsStorageKey();
 	        localStorage.setItem(key, JSON.stringify(state.practiceRatings || {}));
+	      }
+
+	      function getDeepDiveRatingActorId() {
+	        if (state.authSession && state.authSession.user && state.authSession.user.id) {
+	          return `user:${state.authSession.user.id}`;
+	        }
+	        return `anon:${getAnonId()}`;
+	      }
+
+	      function getDeepDiveRatingsStorageKey() {
+	        return `deepDiveRatings:${getDeepDiveRatingActorId()}`;
+	      }
+
+	      function getDeepDiveRatingKey(serial) {
+	        const safeSerial = String(serial || "").trim();
+	        if (!safeSerial) return "";
+	        return `question:${safeSerial}`;
+	      }
+
+	      function loadDeepDiveRatingState() {
+	        state.deepDiveRatings = {};
+	        const key = getDeepDiveRatingsStorageKey();
+	        const raw = localStorage.getItem(key);
+	        if (!raw) return;
+	        try {
+	          const data = JSON.parse(raw);
+	          if (!data || typeof data !== "object") return;
+	          Object.keys(data).forEach((value) => {
+	            const rating = data[value];
+	            if (rating === "helpful" || rating === "not_helpful") {
+	              state.deepDiveRatings[value] = rating;
+	            }
+	          });
+	        } catch (_err) {
+	          localStorage.removeItem(key);
+	        }
+	      }
+
+	      function saveDeepDiveRatingState() {
+	        const key = getDeepDiveRatingsStorageKey();
+	        localStorage.setItem(key, JSON.stringify(state.deepDiveRatings || {}));
 	      }
 
 	      function loadTagViewedSessionState() {
@@ -9523,13 +9751,21 @@
         await ensureTagViewCounts(tags);
       }
 
-      function incrementTagViewCount(tag, onDone) {
-        if (!tag) return;
-        const current = getTagViewCount(tag);
-        const next = current + 1;
-        state.tagViewCounts[tag] = next;
-        if (typeof onDone === "function") onDone(next);
-        if (!window.AI_API_BASE) return;
+	      function incrementTagViewCount(tag, onDone) {
+	        if (!tag) return;
+	        const current = getTagViewCount(tag);
+	        const next = current + 1;
+	        state.tagViewCounts[tag] = next;
+	        trackAnalyticsEvent("tag_viewed", {
+	          surface: "question_card",
+	          entity_type: "tag",
+	          entity_id: tag,
+	          props: {
+	            view_count_local: next
+	          }
+	        });
+	        if (typeof onDone === "function") onDone(next);
+	        if (!window.AI_API_BASE) return;
         fetch(`${window.AI_API_BASE}/ai/tag_view`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -10003,6 +10239,112 @@
         }
         localStorage.setItem(key, id);
         return id;
+      }
+
+      function createClientId(prefix = "id") {
+        if (crypto && crypto.randomUUID) {
+          return `${prefix}_${crypto.randomUUID()}`;
+        }
+        return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      }
+
+      function getAnalyticsSessionId() {
+        const key = "analyticsSessionId";
+        let id = sessionStorage.getItem(key);
+        if (id) return id;
+        id = createClientId("sess");
+        sessionStorage.setItem(key, id);
+        return id;
+      }
+
+      function getAnalyticsApiBase() {
+        return window.AI_API_BASE || ADMIN_API_BASE || "";
+      }
+
+      function getAnalyticsAuthToken() {
+        if (state.authSession && state.authSession.access_token) {
+          return state.authSession.access_token;
+        }
+        return "";
+      }
+
+      function sendAnalyticsEvents(events, options = {}) {
+        const base = getAnalyticsApiBase();
+        if (!base) return;
+        const list = Array.isArray(events) ? events : [events];
+        const normalized = list
+          .map((item) => (item && typeof item === "object" ? item : {}))
+          .map((item) => ({
+            event_name: String(item.event_name || item.name || "").trim(),
+            occurred_at: item.occurred_at || new Date().toISOString(),
+            surface: String(item.surface || options.surface || "").trim(),
+            entity_type: String(item.entity_type || options.entity_type || "").trim(),
+            entity_id: String(item.entity_id || options.entity_id || "").trim(),
+            request_id: String(item.request_id || options.request_id || "").trim(),
+            props: item.props && typeof item.props === "object" ? item.props : {},
+          }))
+          .filter((item) => item.event_name);
+        if (!normalized.length) return;
+        const headers = { "Content-Type": "application/json" };
+        const token = getAnalyticsAuthToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        fetch(`${base}/analytics/collect`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            page: "index",
+            surface: String(options.surface || "").trim(),
+            session_id: getAnalyticsSessionId(),
+            anon_id: getAnonId(),
+            events: normalized
+          }),
+          keepalive: true
+        }).catch(() => {});
+      }
+
+      function trackAnalyticsEvent(eventName, options = {}) {
+        const name = String(eventName || "").trim();
+        if (!name) return;
+        sendAnalyticsEvents(
+          [
+            {
+              event_name: name,
+              surface: options.surface || "",
+              entity_type: options.entity_type || "",
+              entity_id: options.entity_id || "",
+              request_id: options.request_id || "",
+              props: options.props || {}
+            }
+          ],
+          { surface: options.surface || "" }
+        );
+      }
+
+      async function submitAiFeedbackEvent(payload = {}) {
+        const base = getAnalyticsApiBase();
+        if (!base) return;
+        const feature = String(payload.feature || "").trim();
+        if (!feature) return;
+        const rating = payload.rating === "not_helpful" ? "not_helpful" : "helpful";
+        const headers = { "Content-Type": "application/json" };
+        const token = await getAuthAccessToken().catch(() => "");
+        if (token) headers.Authorization = `Bearer ${token}`;
+        await fetch(`${base}/analytics/ai_feedback`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            request_id: String(payload.request_id || "").trim(),
+            feature,
+            rating,
+            reason_codes: Array.isArray(payload.reason_codes) ? payload.reason_codes : [],
+            comment: String(payload.comment || "").trim(),
+            anon_id: getAnonId(),
+            session_id: getAnalyticsSessionId(),
+            entity_type: String(payload.entity_type || "").trim(),
+            entity_id: String(payload.entity_id || "").trim()
+          }),
+          keepalive: true
+        }).catch(() => {});
       }
 
       function buildFilterHeader() {

@@ -3,6 +3,7 @@
 ## 役割
 - `/admin/*` : 管理API（権限管理・監査ログ）
 - `/ai/*` : Gemini API中継
+- `/analytics/*` : 学習/AI品質分析イベント収集・集計API
 
 ## 必要な環境変数
 - `SUPABASE_URL`
@@ -30,6 +31,7 @@
 ## 想定URL
 - 管理API: `https://<worker>.workers.dev/admin/*`
 - Gemini中継: `https://<worker>.workers.dev/ai/*`
+- 分析API: `https://<worker>.workers.dev/analytics/*`
 - API使用状況: `https://<worker>.workers.dev/admin/ai_usage?days=30`（adminのみ）
 
 主なタグ学習API:
@@ -48,10 +50,19 @@
 - `GET /ai/practice_questions?serial=...`
 - `POST /ai/practice_questions`（1回で5問生成して保存）
   - `question_type`: `mcq` (4択) / `tf` (○×) / `short` (一問一答)。未指定時は `mcq`。
-- `POST /ai/practice_questions/good`
-- `POST /ai/practice_questions/bad`
+- `POST /ai/practice_questions/helpful`
+- `POST /ai/practice_questions/not_helpful`
 - `GET /admin/practice_questions?days=30&serial=...`（teacher/admin向け評価一覧）
 - `POST /admin/practice_questions/publish`（teacher/adminが個別/一括で公開・非公開）
+
+主な分析API:
+
+- `POST /analytics/collect`（匿名/ログイン問わずイベント送信）
+- `POST /analytics/ai_feedback`（helpful / not_helpful フィードバック送信）
+- `GET /analytics/overview?days=30`（teacher/admin）
+- `GET /analytics/learning?days=30`（teacher/admin）
+- `GET /analytics/ai_quality?days=30`（teacher/admin）
+- `GET /analytics/content?days=30`（teacher/admin）
 
 ## WebUI側の設定
 `web_app/config.js` に以下を追加:
@@ -64,7 +75,10 @@ window.AI_API_BASE = "https://<worker>.workers.dev";
 ## 注意
 - admin APIはSupabase JWTが必須です（Bearer token）。
 - 管理APIはteacher以上、権限変更はadminのみ許可されます。
-- `workers/sql/ai_usage_logs.sql` を Supabase SQL Editor で実行すると、free/paid別のAI利用集計が利用できます。
+- 分析機能を使う場合は以下SQLを Supabase SQL Editor で実行してください。
+  - `workers/sql/ai_usage_logs.sql`
+  - `workers/sql/analytics_events.sql`
+  - `workers/sql/ai_feedback_events.sql`
 - タグ学習機能を使う場合は `workers/sql/tag_study_tables.sql` を Supabase SQL Editor で実行してください。
 - 問題別の練習問題機能を使う場合は `workers/sql/practice_question_tables.sql` を Supabase SQL Editor で実行してください。
 - teacher/admin が生成した練習問題は初期状態で非公開です（生成者本人のみ閲覧可）。

@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>データ分析 | Ahaki Study Viewer</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --paper: #ffffff;
+        --ink: #102133;
+        --muted: #566372;
+        --line: #d7dee8;
+        --accent: #0a6f65;
+        --warn: #a7382b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 0% 0%, #e5f3ee 0%, transparent 38%),
+          radial-gradient(circle at 100% 0%, #e7eef7 0%, transparent 35%),
+          var(--bg);
+      }
+      header {
+        border-bottom: 1px solid var(--line);
+        background: #fdfefe;
+      }
+      .header-inner {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(24px, 3vw, 34px);
+      }
+      .sub {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .links {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .links a {
+        color: var(--accent);
+        text-decoration: none;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: #fff;
+        font-size: 13px;
+      }
+      main {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 16px 16px 32px;
+      }
+      .auth,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--paper);
+      }
+      .auth {
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+      .auth-head,
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .auth-note {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .auth-inputs {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+      }
+      .toolbar {
+        margin-bottom: 12px;
+      }
+      .toolbar .right {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .status.error {
+        color: var(--warn);
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button,
+      input,
+      select {
+        border: 1px solid #c3ccd7;
+        border-radius: 9px;
+        padding: 8px 11px;
+        background: #fff;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: #98a7b8;
+      }
+      .btn-accent {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 11px;
+        background: #fbfcff;
+      }
+      .metric .k {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .metric .v {
+        margin-top: 4px;
+        font-size: 24px;
+        font-weight: 700;
+      }
+      .panel {
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      .panel h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .panel-head {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+        background: #fbfdff;
+      }
+      .panel-body {
+        padding: 12px;
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        margin-top: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 560px;
+      }
+      th,
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #e6ebf1;
+        text-align: left;
+        font-size: 13px;
+      }
+      th {
+        background: #f8fafc;
+        color: #324152;
+        position: sticky;
+        top: 0;
+      }
+      .empty {
+        padding: 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      @media (max-width: 900px) {
+        .auth-inputs {
+          grid-template-columns: 1fr;
+        }
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <h1>データ分析ダッシュボード</h1>
+        <div class="sub">生成AI学習機能の利用・品質・学習効果を横断して確認できます。</div>
+        <nav class="links" aria-label="ページ移動">
+          <a href="./index.html">高機能ビューへ</a>
+          <a href="./tag_study.html">タグ学習ラボへ</a>
+          <a href="./simple.html">かんたんビューへ</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <section class="auth" aria-label="ログイン">
+        <div class="auth-head">
+          <div id="authStatus">ログイン状態: 未確認</div>
+          <div>
+            <button id="authRefreshBtn" type="button">状態更新</button>
+            <button id="authSignOutBtn" type="button">ログアウト</button>
+          </div>
+        </div>
+        <div class="auth-inputs">
+          <input id="authEmail" type="email" autocomplete="username" placeholder="メールアドレス" />
+          <input id="authPassword" type="password" autocomplete="current-password" placeholder="パスワード" />
+          <button id="authSignInBtn" type="button" class="btn-accent">ログイン</button>
+        </div>
+        <div class="auth-note" id="authNote">teacher / admin ロールで閲覧できます。</div>
+      </section>
+
+      <div class="toolbar">
+        <div class="right">
+          <label for="daysSelect">集計期間</label>
+          <select id="daysSelect">
+            <option value="7">7日</option>
+            <option value="14">14日</option>
+            <option value="30" selected>30日</option>
+            <option value="60">60日</option>
+            <option value="90">90日</option>
+          </select>
+          <button id="refreshBtn" type="button" class="btn-accent">更新</button>
+        </div>
+        <div id="pageStatus" class="status">待機中</div>
+      </div>
+
+      <section class="panel" aria-label="概要">
+        <div class="panel-head">
+          <h2>概要</h2>
+        </div>
+        <div class="panel-body">
+          <div class="grid">
+            <div class="metric"><div class="k">DAU</div><div class="v" id="metricDau">-</div></div>
+            <div class="metric"><div class="k">WAU</div><div class="v" id="metricWau">-</div></div>
+            <div class="metric"><div class="k">検索実行数</div><div class="v" id="metricSearch">-</div></div>
+            <div class="metric"><div class="k">結果表示数</div><div class="v" id="metricRendered">-</div></div>
+            <div class="metric"><div class="k">AI成功率</div><div class="v" id="metricAiSuccess">-</div></div>
+            <div class="metric"><div class="k">Helpful率</div><div class="v" id="metricHelpful">-</div></div>
+            <div class="metric"><div class="k">平均応答(ms)</div><div class="v" id="metricLatency">-</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="学習効果">
+        <div class="panel-head">
+          <h2>学習効果</h2>
+        </div>
+        <div class="panel-body">
+          <div class="grid">
+            <div class="metric"><div class="k">復習キュー件数</div><div class="v" id="metricReviewDue">-</div></div>
+            <div class="metric"><div class="k">AI群 正答率</div><div class="v" id="metricAiAcc">-</div></div>
+            <div class="metric"><div class="k">非AI群 正答率</div><div class="v" id="metricNonAiAcc">-</div></div>
+            <div class="metric"><div class="k">Accuracy Lift</div><div class="v" id="metricLift">-</div></div>
+          </div>
+          <div id="learningDaily"></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="AI品質">
+        <div class="panel-head">
+          <h2>AI品質</h2>
+        </div>
+        <div class="panel-body">
+          <div id="qualityEndpoint"></div>
+          <div id="qualityFeedback"></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="コンテンツ分析">
+        <div class="panel-head">
+          <h2>コンテンツ分析</h2>
+        </div>
+        <div class="panel-body">
+          <div id="contentQuestions"></div>
+          <div id="contentTags"></div>
+          <div id="contentAiEntities"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+    <script>
+      const supabaseClient =
+        window.supabase && window.SUPABASE_URL && window.SUPABASE_KEY
+          ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY)
+          : null;
+
+      const state = {
+        authSession: null,
+        role: "",
+      };
+
+      function normalizeRole(role) {
+        return role === "admin" || role === "teacher" || role === "student" ? role : "";
+      }
+
+      function getUserRole(user) {
+        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+        return normalizeRole(role);
+      }
+
+      function roleRank(role) {
+        if (role === "admin") return 3;
+        if (role === "teacher") return 2;
+        if (role === "student") return 1;
+        return 0;
+      }
+
+      function getApiBase() {
+        return window.AI_API_BASE || window.ADMIN_API_BASE || "";
+      }
+
+      function setStatus(text, isError = false) {
+        const el = document.getElementById("pageStatus");
+        el.textContent = text;
+        el.classList.toggle("error", isError);
+      }
+
+      function formatInt(value) {
+        const n = Number(value || 0);
+        if (!Number.isFinite(n)) return "-";
+        return Math.round(n).toLocaleString("ja-JP");
+      }
+
+      function formatPct(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "-";
+        return `${(n * 100).toFixed(1)}%`;
+      }
+
+      function setText(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = value;
+      }
+
+      function renderTable(targetId, title, columns, rows) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const list = Array.isArray(rows) ? rows : [];
+        if (!list.length) {
+          target.innerHTML = `<div class="empty">${title}: データなし</div>`;
+          return;
+        }
+        const header = columns.map((col) => `<th>${col.label}</th>`).join("");
+        const body = list
+          .map((row) => {
+            const tds = columns
+              .map((col) => `<td>${col.format ? col.format(row[col.key], row) : String(row[col.key] ?? "")}</td>`)
+              .join("");
+            return `<tr>${tds}</tr>`;
+          })
+          .join("");
+        target.innerHTML = `
+          <div class="table-wrap">
+            <table>
+              <thead><tr>${header}</tr></thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      async function getAccessToken() {
+        if (!supabaseClient) return "";
+        const { data } = await supabaseClient.auth.getSession();
+        state.authSession = data && data.session ? data.session : null;
+        return state.authSession && state.authSession.access_token
+          ? state.authSession.access_token
+          : "";
+      }
+
+      async function loadAuthState() {
+        if (!supabaseClient) {
+          state.authSession = null;
+          state.role = "";
+          renderAuthStatus("Supabase未設定のためログイン機能は使えません。");
+          return;
+        }
+        const { data } = await supabaseClient.auth.getSession();
+        state.authSession = data && data.session ? data.session : null;
+        state.role = state.authSession && state.authSession.user ? getUserRole(state.authSession.user) : "";
+        renderAuthStatus();
+      }
+
+      function renderAuthStatus(message) {
+        const statusEl = document.getElementById("authStatus");
+        const noteEl = document.getElementById("authNote");
+        if (!statusEl || !noteEl) return;
+        if (!supabaseClient) {
+          statusEl.textContent = "ログイン状態: Supabase未設定";
+          noteEl.textContent = message || "config.js の SUPABASE_URL / SUPABASE_KEY を設定してください。";
+          return;
+        }
+        if (message) {
+          noteEl.textContent = message;
+        } else {
+          noteEl.textContent = "teacher / admin ロールで分析APIを参照できます。";
+        }
+        const user = state.authSession && state.authSession.user ? state.authSession.user : null;
+        if (!user) {
+          statusEl.textContent = "ログイン状態: ゲスト";
+          return;
+        }
+        statusEl.textContent = `ログイン状態: ${user.email || "(no email)"} / role=${state.role || "unapproved"}`;
+      }
+
+      async function fetchAnalytics(path) {
+        const base = getApiBase();
+        if (!base) throw new Error("AI_API_BASE / ADMIN_API_BASE が未設定です。");
+        const headers = {};
+        const token = await getAccessToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const resp = await fetch(`${base}${path}`, { headers });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          const detail = payload && (payload.message || payload.detail || payload.error)
+            ? String(payload.message || payload.detail || payload.error)
+            : `HTTP ${resp.status}`;
+          throw new Error(detail);
+        }
+        return payload || {};
+      }
+
+      function renderOverview(data) {
+        setText("metricDau", formatInt(data.dau));
+        setText("metricWau", formatInt(data.wau));
+        setText("metricSearch", formatInt(data.search_submitted));
+        setText("metricRendered", formatInt(data.results_rendered));
+        setText("metricAiSuccess", formatPct(data.ai_success_rate));
+        setText("metricHelpful", formatPct(data.helpful_rate));
+        setText("metricLatency", formatInt(data.avg_latency_ms));
+      }
+
+      function renderLearning(data) {
+        setText("metricReviewDue", formatInt(data.review_due));
+        setText("metricAiAcc", formatPct(data.ai_group && data.ai_group.accuracy));
+        setText("metricNonAiAcc", formatPct(data.non_ai_group && data.non_ai_group.accuracy));
+        const lift = Number(data.accuracy_lift || 0);
+        setText("metricLift", `${lift >= 0 ? "+" : ""}${(lift * 100).toFixed(1)}pt`);
+        renderTable(
+          "learningDaily",
+          "日別推移",
+          [
+            { key: "date", label: "日付" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data.by_day || []
+        );
+      }
+
+      function renderAiQuality(data) {
+        renderTable(
+          "qualityEndpoint",
+          "エンドポイント別",
+          [
+            { key: "endpoint", label: "endpoint" },
+            { key: "total", label: "件数", format: formatInt },
+            { key: "avg_latency_ms", label: "平均応答(ms)", format: formatInt },
+            { key: "input_chars", label: "入力文字数", format: formatInt },
+            { key: "output_chars", label: "出力文字数", format: formatInt },
+            { key: "free", label: "free成功/全体", format: (_v, row) => `${formatInt(row.free?.success || 0)} / ${formatInt(row.free?.all || 0)}` },
+            { key: "paid", label: "paid成功/全体", format: (_v, row) => `${formatInt(row.paid?.success || 0)} / ${formatInt(row.paid?.all || 0)}` }
+          ],
+          data.by_endpoint || []
+        );
+        renderTable(
+          "qualityFeedback",
+          "フィードバック別",
+          [
+            { key: "feature", label: "feature" },
+            { key: "total", label: "件数", format: formatInt },
+            { key: "helpful", label: "helpful", format: formatInt },
+            { key: "not_helpful", label: "not_helpful", format: formatInt },
+            { key: "helpful_rate", label: "helpful率", format: formatPct }
+          ],
+          data.feedback_by_feature || []
+        );
+      }
+
+      function renderContent(data) {
+        renderTable(
+          "contentQuestions",
+          "問題別",
+          [
+            { key: "serial", label: "serial" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data.top_questions || []
+        );
+        renderTable(
+          "contentTags",
+          "タグ別",
+          [
+            { key: "tag", label: "tag" },
+            { key: "views", label: "閲覧数", format: formatInt }
+          ],
+          data.top_tags || []
+        );
+        renderTable(
+          "contentAiEntities",
+          "AI生成対象",
+          [
+            { key: "key", label: "entity" },
+            { key: "generated", label: "生成回数", format: formatInt }
+          ],
+          data.top_ai_entities || []
+        );
+      }
+
+      async function loadDashboard() {
+        const days = Math.max(1, Math.min(90, Number(document.getElementById("daysSelect").value || "30")));
+        setStatus("読み込み中...");
+        try {
+          const role = state.role || "";
+          if (!state.authSession || roleRank(role) < roleRank("teacher")) {
+            throw new Error("teacher 以上のログインが必要です。");
+          }
+          const [overview, learning, aiQuality, content] = await Promise.all([
+            fetchAnalytics(`/analytics/overview?days=${encodeURIComponent(days)}`),
+            fetchAnalytics(`/analytics/learning?days=${encodeURIComponent(days)}`),
+            fetchAnalytics(`/analytics/ai_quality?days=${encodeURIComponent(days)}`),
+            fetchAnalytics(`/analytics/content?days=${encodeURIComponent(days)}`)
+          ]);
+          renderOverview(overview);
+          renderLearning(learning);
+          renderAiQuality(aiQuality);
+          renderContent(content);
+          setStatus(`更新完了（${days}日）`);
+        } catch (err) {
+          setStatus(`読み込み失敗: ${String(err && err.message ? err.message : err)}`, true);
+        }
+      }
+
+      function initAuthUi() {
+        const refreshBtn = document.getElementById("authRefreshBtn");
+        const signInBtn = document.getElementById("authSignInBtn");
+        const signOutBtn = document.getElementById("authSignOutBtn");
+        const emailInput = document.getElementById("authEmail");
+        const passwordInput = document.getElementById("authPassword");
+        if (!refreshBtn || !signInBtn || !signOutBtn || !emailInput || !passwordInput) return;
+
+        if (!supabaseClient) {
+          signInBtn.disabled = true;
+          signOutBtn.disabled = true;
+          refreshBtn.disabled = true;
+          return;
+        }
+
+        supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+          state.authSession = session || null;
+          state.role = state.authSession && state.authSession.user ? getUserRole(state.authSession.user) : "";
+          renderAuthStatus();
+        });
+
+        refreshBtn.addEventListener("click", async () => {
+          await loadAuthState();
+          await loadDashboard();
+        });
+
+        signInBtn.addEventListener("click", async () => {
+          const email = String(emailInput.value || "").trim();
+          const password = String(passwordInput.value || "");
+          if (!email || !password) {
+            renderAuthStatus("メールアドレスとパスワードを入力してください。");
+            return;
+          }
+          signInBtn.disabled = true;
+          try {
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+              renderAuthStatus(`ログイン失敗: ${error.message}`);
+              return;
+            }
+            await loadAuthState();
+            await loadDashboard();
+          } catch (err) {
+            renderAuthStatus(`ログイン失敗: ${String(err && err.message ? err.message : err)}`);
+          } finally {
+            signInBtn.disabled = false;
+          }
+        });
+
+        signOutBtn.addEventListener("click", async () => {
+          signOutBtn.disabled = true;
+          try {
+            await supabaseClient.auth.signOut();
+            await loadAuthState();
+            setStatus("ログアウトしました。");
+          } catch (err) {
+            renderAuthStatus(`ログアウト失敗: ${String(err && err.message ? err.message : err)}`);
+          } finally {
+            signOutBtn.disabled = false;
+          }
+        });
+      }
+
+      async function init() {
+        initAuthUi();
+        document.getElementById("refreshBtn").addEventListener("click", () => {
+          loadDashboard();
+        });
+        await loadAuthState();
+        await loadDashboard();
+      }
+
+      init().catch((err) => {
+        setStatus(`初期化失敗: ${String(err && err.message ? err.message : err)}`, true);
+      });
+    </script>
+  </body>
+</html>

@@ -11,6 +11,7 @@
   - `output/web/index/*.json`
 - WebUI:
   - 開発用: `web_app/index.html`
+  - 分析用: `web_app/analytics.html`
   - GitHub Pages用: `docs/web_app/index.html`
 - クラウド差分:
   - `Supabase` (回答ログ、修正提案、進捗、Q&A、深掘り解説、権限)
@@ -37,8 +38,9 @@
 - AI連携
   - 深掘り解説生成
   - 問題ごとのQ&A生成
-  - 問題ごとの関連練習問題生成（4択 / ○× / 一問一答を各5問）+ good/bad 評価（教師/管理者生成分は初期非公開、後で公開可能）
+  - 問題ごとの関連練習問題生成（4択 / ○× / 一問一答を各5問）+ helpful / not_helpful フィードバック（教師/管理者生成分は初期非公開、後で公開可能）
   - 管理者による AI機能の一時公開切り替え
+  - 分析ページ（`web_app/analytics.html`）で学習・AI品質・コンテンツ指標を可視化
 - タグ辞書
   - タグ説明生成
   - 同義語結合
@@ -93,6 +95,14 @@ WebUIは分割ファイルを優先読み込みし、manifest がない場合の
 - `window.ADMIN_API_BASE` (必要時。未設定なら `AI_API_BASE` を利用)
 
 `web_app/config.js` は機密情報を含むため Git 管理しません。
+
+### 5.4 Supabase SQL（分析機能）
+
+分析機能を使う場合は Supabase SQL Editor で次を実行してください。
+
+- `workers/sql/ai_usage_logs.sql`
+- `workers/sql/analytics_events.sql`
+- `workers/sql/ai_feedback_events.sql`
 
 ## 6. ローカル起動
 

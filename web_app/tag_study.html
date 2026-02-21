@@ -442,11 +442,12 @@
           <button id="menuToggleBtn" class="menu-toggle" type="button" aria-expanded="false" aria-label="メニュー">☰</button>
         </div>
         <div id="topPanels" class="top-panels" hidden>
-          <nav class="top-links" aria-label="ページ移動">
-            <a href="./index.html">高機能ビューへ</a>
-            <a href="./simple.html">かんたんビューへ</a>
-            <button id="authPanelToggle" type="button">ログイン</button>
-          </nav>
+	          <nav class="top-links" aria-label="ページ移動">
+	            <a href="./index.html">高機能ビューへ</a>
+	            <a href="./simple.html">かんたんビューへ</a>
+	            <a href="./analytics.html">データ分析へ</a>
+	            <button id="authPanelToggle" type="button">ログイン</button>
+	          </nav>
           <section class="auth" id="authPanel" aria-label="ログイン状態" hidden>
             <div class="auth-top">
               <div class="auth-status" id="authStatus">ログイン状態: 未確認</div>
@@ -518,9 +519,11 @@
         roleRank: 0,
         tagDeepDiveCache: {},
         tagQaCache: {},
+        tagDeepDiveRatings: {},
         qaViewed: new Set(),
         qaLiked: new Set(),
         renderSeq: 0,
+        lastAnalyticsSearchKey: "",
       };
 
       function normalizeRole(role) {
@@ -573,11 +576,167 @@
         target.innerHTML = markdownToHtml(text);
       }
 
-      function parseApiError(payload, fallback) {
-        if (!payload) return fallback || "API error";
-        if (typeof payload === "string") return payload || fallback || "API error";
-        return String(payload.detail || payload.message || payload.error || fallback || "API error");
-      }
+	      function parseApiError(payload, fallback) {
+	        if (!payload) return fallback || "API error";
+	        if (typeof payload === "string") return payload || fallback || "API error";
+	        return String(payload.detail || payload.message || payload.error || fallback || "API error");
+	      }
+
+	      function createClientId(prefix = "id") {
+	        if (crypto && crypto.randomUUID) {
+	          return `${prefix}_${crypto.randomUUID()}`;
+	        }
+	        return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+	      }
+
+	      function getAnonId() {
+	        const key = "anonId";
+	        let id = localStorage.getItem(key);
+	        if (id) return id;
+	        id = createClientId("anon");
+	        localStorage.setItem(key, id);
+	        return id;
+	      }
+
+	      function getTagDeepDiveRatingActorId() {
+	        if (state.authSession && state.authSession.user && state.authSession.user.id) {
+	          return `user:${state.authSession.user.id}`;
+	        }
+	        return `anon:${getAnonId()}`;
+	      }
+
+	      function getTagDeepDiveRatingsStorageKey() {
+	        return `tagDeepDiveRatings:${getTagDeepDiveRatingActorId()}`;
+	      }
+
+	      function getTagDeepDiveRatingKey(tag) {
+	        const safe = normalizeTagKey(tag);
+	        if (!safe) return "";
+	        return `tag:${safe}`;
+	      }
+
+	      function loadTagDeepDiveRatingState() {
+	        state.tagDeepDiveRatings = {};
+	        const key = getTagDeepDiveRatingsStorageKey();
+	        const raw = localStorage.getItem(key);
+	        if (!raw) return;
+	        try {
+	          const data = JSON.parse(raw);
+	          if (!data || typeof data !== "object") return;
+	          Object.keys(data).forEach((value) => {
+	            const rating = data[value];
+	            if (rating === "helpful" || rating === "not_helpful") {
+	              state.tagDeepDiveRatings[value] = rating;
+	            }
+	          });
+	        } catch (_err) {
+	          localStorage.removeItem(key);
+	        }
+	      }
+
+	      function saveTagDeepDiveRatingState() {
+	        const key = getTagDeepDiveRatingsStorageKey();
+	        localStorage.setItem(key, JSON.stringify(state.tagDeepDiveRatings || {}));
+	      }
+
+	      function getAnalyticsSessionId() {
+	        const key = "analyticsSessionId";
+	        let id = sessionStorage.getItem(key);
+	        if (id) return id;
+	        id = createClientId("sess");
+	        sessionStorage.setItem(key, id);
+	        return id;
+	      }
+
+	      function getAnalyticsApiBase() {
+	        return window.AI_API_BASE || window.ADMIN_API_BASE || "";
+	      }
+
+	      function getAnalyticsAuthToken() {
+	        if (state.authSession && state.authSession.access_token) {
+	          return state.authSession.access_token;
+	        }
+	        return "";
+	      }
+
+	      function sendAnalyticsEvents(events, options = {}) {
+	        const base = getAnalyticsApiBase();
+	        if (!base) return;
+	        const list = Array.isArray(events) ? events : [events];
+	        const normalized = list
+	          .map((item) => (item && typeof item === "object" ? item : {}))
+	          .map((item) => ({
+	            event_name: String(item.event_name || item.name || "").trim(),
+	            occurred_at: item.occurred_at || new Date().toISOString(),
+	            surface: String(item.surface || options.surface || "").trim(),
+	            entity_type: String(item.entity_type || options.entity_type || "").trim(),
+	            entity_id: String(item.entity_id || options.entity_id || "").trim(),
+	            request_id: String(item.request_id || options.request_id || "").trim(),
+	            props: item.props && typeof item.props === "object" ? item.props : {}
+	          }))
+	          .filter((item) => item.event_name);
+	        if (!normalized.length) return;
+	        const headers = { "Content-Type": "application/json" };
+	        const token = getAnalyticsAuthToken();
+	        if (token) headers.Authorization = `Bearer ${token}`;
+	        fetch(`${base}/analytics/collect`, {
+	          method: "POST",
+	          headers,
+	          body: JSON.stringify({
+	            page: "tag_study",
+	            surface: String(options.surface || "").trim(),
+	            session_id: getAnalyticsSessionId(),
+	            anon_id: getAnonId(),
+	            events: normalized
+	          }),
+	          keepalive: true
+	        }).catch(() => {});
+	      }
+
+	      function trackAnalyticsEvent(eventName, options = {}) {
+	        const name = String(eventName || "").trim();
+	        if (!name) return;
+	        sendAnalyticsEvents(
+	          [
+	            {
+	              event_name: name,
+	              surface: options.surface || "",
+	              entity_type: options.entity_type || "",
+	              entity_id: options.entity_id || "",
+	              request_id: options.request_id || "",
+	              props: options.props || {}
+	            }
+	          ],
+	          { surface: options.surface || "" }
+	        );
+	      }
+
+	      async function submitAiFeedbackEvent(payload = {}) {
+	        const base = getAnalyticsApiBase();
+	        if (!base) return;
+	        const feature = String(payload.feature || "").trim();
+	        if (!feature) return;
+	        const rating = payload.rating === "not_helpful" ? "not_helpful" : "helpful";
+	        const headers = { "Content-Type": "application/json" };
+	        const token = await getAccessToken().catch(() => "");
+	        if (token) headers.Authorization = `Bearer ${token}`;
+	        await fetch(`${base}/analytics/ai_feedback`, {
+	          method: "POST",
+	          headers,
+	          body: JSON.stringify({
+	            request_id: String(payload.request_id || "").trim(),
+	            feature,
+	            rating,
+	            reason_codes: Array.isArray(payload.reason_codes) ? payload.reason_codes : [],
+	            comment: String(payload.comment || "").trim(),
+	            anon_id: getAnonId(),
+	            session_id: getAnalyticsSessionId(),
+	            entity_type: String(payload.entity_type || "").trim(),
+	            entity_id: String(payload.entity_id || "").trim()
+	          }),
+	          keepalive: true
+	        }).catch(() => {});
+	      }
 
       function getEquivalentTagsForTerm(term) {
         const key = normalizeTagKey(term);
@@ -685,6 +844,7 @@
           state.authSession = null;
           state.roleRank = 0;
           renderAuthStatus();
+          loadTagDeepDiveRatingState();
           return;
         }
         const { data } = await supabaseClient.auth.getSession();
@@ -692,6 +852,7 @@
         const role = state.authSession && state.authSession.user ? getUserRole(state.authSession.user) : "";
         state.roleRank = roleRank(role);
         renderAuthStatus();
+        loadTagDeepDiveRatingState();
       }
 
       function renderAuthStatus(message) {
@@ -823,9 +984,18 @@
         }
       }
 
-      async function searchTags(options = {}) {
-        const terms = getSearchTerms();
-        let rows = [];
+	      async function searchTags(options = {}) {
+	        const terms = getSearchTerms();
+	        if (options.trackEvent !== false) {
+	          trackAnalyticsEvent("search_submitted", {
+	            surface: "tag_search",
+	            props: {
+	              term_count: terms.length,
+	              has_query: terms.length > 0
+	            }
+	          });
+	        }
+	        let rows = [];
         if (!terms.length) {
           rows = state.tagCatalog
             .slice()
@@ -864,12 +1034,23 @@
         }
       }
 
-      function renderSearchResults(rows, terms) {
-        const list = document.getElementById("resultList");
-        const meta = document.getElementById("searchMeta");
-        if (!list || !meta) return;
+	      function renderSearchResults(rows, terms) {
+	        const list = document.getElementById("resultList");
+	        const meta = document.getElementById("searchMeta");
+	        if (!list || !meta) return;
+	        const analyticsKey = `${(terms || []).join(" ")}|${rows.length}`;
+	        if (state.lastAnalyticsSearchKey !== analyticsKey) {
+	          state.lastAnalyticsSearchKey = analyticsKey;
+	          trackAnalyticsEvent("results_rendered", {
+	            surface: "tag_search",
+	            props: {
+	              result_count: rows.length,
+	              term_count: Array.isArray(terms) ? terms.length : 0
+	            }
+	          });
+	        }
 
-        if (!rows.length) {
+	        if (!rows.length) {
           list.classList.remove("is-compact");
           list.innerHTML = "<div class='empty'>該当タグがありません。</div>";
           meta.textContent = terms.length
@@ -1077,12 +1258,12 @@
         if (!window.AI_API_BASE) {
           statusEl.textContent = "AI_API_BASE が設定されていません。";
           statusEl.className = "status error";
-          return;
+          return { ok: false, request_id: "" };
         }
         if (!canUseAiGeneration()) {
           statusEl.textContent = "生成にはAI公開ONまたは管理者ログインが必要です。";
           statusEl.className = "status error";
-          return;
+          return { ok: false, request_id: "" };
         }
 
         statusEl.textContent = "生成中...";
@@ -1112,25 +1293,39 @@
           if (!resp.ok) {
             statusEl.textContent = `生成に失敗: ${parseApiError(payload, `HTTP ${resp.status}`)}`;
             statusEl.className = "status error";
-            return;
+            return { ok: false, request_id: payload && payload.request_id ? String(payload.request_id) : "" };
           }
           const explanation = String(payload.explanation || payload.text || "").trim();
           if (!explanation) {
             statusEl.textContent = "生成結果が空でした。";
             statusEl.className = "status error";
-            return;
+            return { ok: false, request_id: payload && payload.request_id ? String(payload.request_id) : "" };
           }
+          trackAnalyticsEvent("ai_generate_completed", {
+            surface: "tag_deep_dive",
+            entity_type: "tag",
+            entity_id: tag,
+            request_id: payload && payload.request_id ? payload.request_id : "",
+            props: { feature: "tag_deep_dive" }
+          });
           state.tagDeepDiveCache[tag] = {
             tag,
             explanation,
             updated_at: payload.updated_at || new Date().toISOString(),
+            request_id: payload && payload.request_id ? String(payload.request_id) : ""
           };
           renderMarkdownToElement(bodyEl, explanation);
           statusEl.textContent = "生成完了";
           statusEl.className = "status";
+          return {
+            ok: true,
+            request_id: payload && payload.request_id ? String(payload.request_id) : "",
+            explanation
+          };
         } catch (err) {
           statusEl.textContent = `生成に失敗: ${String(err.message || err)}`;
           statusEl.className = "status error";
+          return { ok: false, request_id: "" };
         } finally {
           bodyEl.classList.remove("loading");
           generateBtn.disabled = false;
@@ -1193,29 +1388,50 @@
             likeBtn.disabled = true;
           }
 
-          likeBtn.addEventListener("click", async () => {
-            if (!item.id || state.qaLiked.has(likeKey)) return;
-            state.qaLiked.add(likeKey);
-            likeCount += 1;
-            likeBtn.textContent = `👍 ${likeCount}`;
-            likeBtn.disabled = true;
-            await postTagQaCounter("/ai/tag_qa/like", item.id);
-          });
+	          likeBtn.addEventListener("click", async () => {
+	            if (state.qaLiked.has(likeKey)) return;
+	            state.qaLiked.add(likeKey);
+	            likeCount += 1;
+	            likeBtn.textContent = `👍 ${likeCount}`;
+	            likeBtn.disabled = true;
+	            const entityId = item && item.id ? String(item.id) : likeKey;
+	            submitAiFeedbackEvent({
+	              feature: "tag_qa",
+	              rating: "helpful",
+	              entity_type: "tag_qa",
+	              entity_id: entityId
+	            });
+	            trackAnalyticsEvent("ai_feedback_submitted", {
+	              surface: "tag_qa",
+	              entity_type: "tag_qa",
+	              entity_id: entityId,
+	              props: { feature: "tag_qa", rating: "helpful" }
+	            });
+	            if (item.id) {
+	              await postTagQaCounter("/ai/tag_qa/like", item.id);
+	            }
+	          });
 
           const answer = document.createElement("div");
           answer.className = "qa-answer";
           answer.hidden = true;
           renderMarkdownToElement(answer, item.answer || "");
 
-          qBtn.addEventListener("click", async () => {
-            answer.hidden = !answer.hidden;
-            const viewKey = makeTagQaViewKey(item);
-            if (!item.id || state.qaViewed.has(viewKey)) return;
-            state.qaViewed.add(viewKey);
-            viewCount += 1;
-            viewEl.textContent = `閲覧 ${viewCount}`;
-            await postTagQaCounter("/ai/tag_qa/view", item.id);
-          });
+	          qBtn.addEventListener("click", async () => {
+	            answer.hidden = !answer.hidden;
+	            const viewKey = makeTagQaViewKey(item);
+	            if (!item.id || state.qaViewed.has(viewKey)) return;
+	            state.qaViewed.add(viewKey);
+	            viewCount += 1;
+	            viewEl.textContent = `閲覧 ${viewCount}`;
+	            trackAnalyticsEvent("tag_qa_viewed", {
+	              surface: "tag_qa",
+	              entity_type: "tag_qa",
+	              entity_id: item.id ? String(item.id) : viewKey,
+	              props: { tag }
+	            });
+	            await postTagQaCounter("/ai/tag_qa/view", item.id);
+	          });
 
           meta.appendChild(likeBtn);
           meta.appendChild(viewEl);
@@ -1270,12 +1486,26 @@
             statusEl.className = "status error";
             return;
           }
-          if (payload.status === "irrelevant") {
-            statusEl.textContent = "質問がタグ学習と無関係と判定されました。";
-            statusEl.className = "status error";
-            return;
-          }
-          statusEl.textContent = "生成完了";
+	          if (payload.status === "irrelevant") {
+	            trackAnalyticsEvent("ai_generate_completed", {
+	              surface: "tag_qa",
+	              entity_type: "tag",
+	              entity_id: tag,
+	              request_id: payload && payload.request_id ? payload.request_id : "",
+	              props: { feature: "tag_qa", status: "irrelevant" }
+	            });
+	            statusEl.textContent = "質問がタグ学習と無関係と判定されました。";
+	            statusEl.className = "status error";
+	            return;
+	          }
+	          trackAnalyticsEvent("ai_generate_completed", {
+	            surface: "tag_qa",
+	            entity_type: "tag",
+	            entity_id: tag,
+	            request_id: payload && payload.request_id ? payload.request_id : "",
+	            props: { feature: "tag_qa", status: "ok" }
+	          });
+	          statusEl.textContent = "生成完了";
           statusEl.className = "status";
           const qa = await loadTagQa(tag);
           if (qa.ok) {
@@ -1323,12 +1553,21 @@
         });
       }
 
-      async function selectTag(tag, options = {}) {
-        if (!tag || !state.tagCatalogByTag[tag]) return;
-        state.selectedTag = tag;
-        syncSelectedTagToUrl(tag);
+	      async function selectTag(tag, options = {}) {
+	        if (!tag || !state.tagCatalogByTag[tag]) return;
+	        const prevTag = state.selectedTag;
+	        state.selectedTag = tag;
+	        if (prevTag !== tag) {
+	          trackAnalyticsEvent("tag_viewed", {
+	            surface: "tag_detail",
+	            entity_type: "tag",
+	            entity_id: tag,
+	            props: { from_search: Boolean(options.fromSearch) }
+	          });
+	        }
+	        syncSelectedTagToUrl(tag);
         if (options.refreshSearchList) {
-          await searchTags({ autoOpenSingle: false });
+	        await searchTags({ autoOpenSingle: false, trackEvent: false });
         } else {
           const resultList = document.getElementById("resultList");
           if (resultList) {
@@ -1376,6 +1615,10 @@
               <textarea id='tagQaInput' style='margin-top:8px;' placeholder='このタグについて質問を入力（例: 病態との関連を教えて）'></textarea>
               <div id='tagDeepDiveStatus' class='status'></div>
               <div id='tagDeepDiveBody' class='tag-description'></div>
+              <div id='tagDeepDiveFeedback' class='qa-meta'>
+                <button type='button' id='tagDeepDiveHelpfulBtn'>👍 役に立った</button>
+                <button type='button' id='tagDeepDiveNotHelpfulBtn'>👎 改善要望</button>
+              </div>
               <div id='tagQaStatus' class='status'></div>
               <div id='tagQaList'></div>
             </div>
@@ -1412,14 +1655,75 @@
 
         const deepDiveStatus = document.getElementById("tagDeepDiveStatus");
         const deepDiveBody = document.getElementById("tagDeepDiveBody");
+        const deepDiveHelpfulBtn = document.getElementById("tagDeepDiveHelpfulBtn");
+        const deepDiveNotHelpfulBtn = document.getElementById("tagDeepDiveNotHelpfulBtn");
         const loadBtn = document.getElementById("tagDeepDiveLoadBtn");
         const generateBtn = document.getElementById("tagDeepDiveGenerateBtn");
+        const deepDiveRatingKey = getTagDeepDiveRatingKey(tag);
+        let deepDiveAvailable = false;
+        let deepDiveRequestId = "";
+        const updateDeepDiveRatingButtons = () => {
+          const rating = (deepDiveRatingKey && state.tagDeepDiveRatings[deepDiveRatingKey]) || "";
+          const helpfulChecked = rating === "helpful" ? " ✓" : "";
+          const notHelpfulChecked = rating === "not_helpful" ? " ✓" : "";
+          deepDiveHelpfulBtn.textContent = `👍 役に立った${helpfulChecked}`;
+          deepDiveNotHelpfulBtn.textContent = `👎 改善要望${notHelpfulChecked}`;
+          const locked = Boolean(rating) || !deepDiveAvailable;
+          deepDiveHelpfulBtn.disabled = locked;
+          deepDiveNotHelpfulBtn.disabled = locked;
+        };
+
+        deepDiveHelpfulBtn.addEventListener("click", () => {
+          if (!deepDiveRatingKey || !deepDiveAvailable || state.tagDeepDiveRatings[deepDiveRatingKey]) return;
+          state.tagDeepDiveRatings[deepDiveRatingKey] = "helpful";
+          saveTagDeepDiveRatingState();
+          updateDeepDiveRatingButtons();
+          submitAiFeedbackEvent({
+            feature: "tag_deep_dive",
+            rating: "helpful",
+            request_id: deepDiveRequestId,
+            entity_type: "tag_deep_dive",
+            entity_id: tag
+          });
+          trackAnalyticsEvent("ai_feedback_submitted", {
+            surface: "tag_deep_dive",
+            entity_type: "tag_deep_dive",
+            entity_id: tag,
+            request_id: deepDiveRequestId,
+            props: { feature: "tag_deep_dive", rating: "helpful" }
+          });
+        });
+
+        deepDiveNotHelpfulBtn.addEventListener("click", () => {
+          if (!deepDiveRatingKey || !deepDiveAvailable || state.tagDeepDiveRatings[deepDiveRatingKey]) return;
+          state.tagDeepDiveRatings[deepDiveRatingKey] = "not_helpful";
+          saveTagDeepDiveRatingState();
+          updateDeepDiveRatingButtons();
+          submitAiFeedbackEvent({
+            feature: "tag_deep_dive",
+            rating: "not_helpful",
+            request_id: deepDiveRequestId,
+            entity_type: "tag_deep_dive",
+            entity_id: tag
+          });
+          trackAnalyticsEvent("ai_feedback_submitted", {
+            surface: "tag_deep_dive",
+            entity_type: "tag_deep_dive",
+            entity_id: tag,
+            request_id: deepDiveRequestId,
+            props: { feature: "tag_deep_dive", rating: "not_helpful" }
+          });
+        });
+        updateDeepDiveRatingButtons();
 
         if (!window.AI_API_BASE) {
           deepDiveStatus.textContent = "AI_API_BASE が設定されていません。";
           deepDiveStatus.className = "status error";
           loadBtn.disabled = true;
           generateBtn.disabled = true;
+          deepDiveAvailable = false;
+          deepDiveRequestId = "";
+          updateDeepDiveRatingButtons();
         } else {
           const deepDiveLoaded = await loadTagDeepDive(tag);
           if (state.selectedTag !== tag) return;
@@ -1427,13 +1731,21 @@
             renderMarkdownToElement(deepDiveBody, deepDiveLoaded.data.explanation || "");
             deepDiveStatus.textContent = `保存済み（更新: ${deepDiveLoaded.data.updated_at || "-"}）`;
             deepDiveStatus.className = "status";
+            deepDiveAvailable = Boolean(String(deepDiveLoaded.data.explanation || "").trim());
+            deepDiveRequestId = deepDiveLoaded.data.request_id ? String(deepDiveLoaded.data.request_id) : "";
           } else if (!deepDiveLoaded.ok) {
             deepDiveStatus.textContent = deepDiveLoaded.message || "読み込みに失敗しました。";
             deepDiveStatus.className = "status error";
+            deepDiveAvailable = false;
+            deepDiveRequestId = "";
           } else {
             deepDiveStatus.textContent = "保存済みの深掘り解説はありません。";
             deepDiveStatus.className = "status";
+            deepDiveBody.innerHTML = "";
+            deepDiveAvailable = false;
+            deepDiveRequestId = "";
           }
+          updateDeepDiveRatingButtons();
         }
 
         loadBtn.addEventListener("click", async () => {
@@ -1444,21 +1756,38 @@
           if (!res.ok) {
             deepDiveStatus.textContent = res.message || "読み込みに失敗しました。";
             deepDiveStatus.className = "status error";
+            deepDiveAvailable = false;
+            deepDiveRequestId = "";
+            updateDeepDiveRatingButtons();
             return;
           }
           if (!res.found) {
             deepDiveStatus.textContent = "保存済みの深掘り解説はありません。";
             deepDiveStatus.className = "status";
             deepDiveBody.innerHTML = "";
+            deepDiveAvailable = false;
+            deepDiveRequestId = "";
+            updateDeepDiveRatingButtons();
             return;
           }
           renderMarkdownToElement(deepDiveBody, res.data.explanation || "");
           deepDiveStatus.textContent = `保存済み（更新: ${res.data.updated_at || "-"}）`;
           deepDiveStatus.className = "status";
+          deepDiveAvailable = Boolean(String(res.data.explanation || "").trim());
+          deepDiveRequestId = res.data.request_id ? String(res.data.request_id) : "";
+          updateDeepDiveRatingButtons();
         });
 
         generateBtn.addEventListener("click", async () => {
-          await generateTagDeepDive(tag, item, deepDiveStatus, deepDiveBody, generateBtn);
+          const generated = await generateTagDeepDive(tag, item, deepDiveStatus, deepDiveBody, generateBtn);
+          if (state.selectedTag !== tag) return;
+          if (generated && generated.ok) {
+            deepDiveAvailable = true;
+            deepDiveRequestId = generated.request_id ? String(generated.request_id) : "";
+          } else if (!deepDiveAvailable) {
+            deepDiveRequestId = generated && generated.request_id ? String(generated.request_id) : "";
+          }
+          updateDeepDiveRatingButtons();
         });
 
         const qaStatus = document.getElementById("tagQaStatus");
@@ -1549,6 +1878,10 @@
           const role = session && session.user ? getUserRole(session.user) : "";
           state.roleRank = roleRank(role);
           renderAuthStatus();
+          loadTagDeepDiveRatingState();
+          if (state.selectedTag && state.tagCatalogByTag[state.selectedTag]) {
+            selectTag(state.selectedTag).catch(() => {});
+          }
         });
 
         refreshBtn.addEventListener("click", async () => {

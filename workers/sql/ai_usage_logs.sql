@@ -15,9 +15,38 @@ create table if not exists public.ai_usage_logs (
 alter table if exists public.ai_usage_logs
   add column if not exists char_count integer not null default 0;
 
+alter table if exists public.ai_usage_logs
+  add column if not exists request_id text;
+
+alter table if exists public.ai_usage_logs
+  add column if not exists latency_ms integer;
+
+alter table if exists public.ai_usage_logs
+  add column if not exists input_chars integer not null default 0;
+
+alter table if exists public.ai_usage_logs
+  add column if not exists output_chars integer not null default 0;
+
+alter table if exists public.ai_usage_logs
+  add column if not exists error_code text;
+
+alter table if exists public.ai_usage_logs
+  add column if not exists prompt_version text;
+
+alter table if exists public.ai_usage_logs
+  add column if not exists fallback_model text;
+
 update public.ai_usage_logs
   set char_count = 0
   where char_count is null;
+
+update public.ai_usage_logs
+  set input_chars = 0
+  where input_chars is null;
+
+update public.ai_usage_logs
+  set output_chars = 0
+  where output_chars is null;
 
 create index if not exists ai_usage_logs_created_at_idx
   on public.ai_usage_logs (created_at desc);
@@ -27,6 +56,9 @@ create index if not exists ai_usage_logs_mode_created_at_idx
 
 create index if not exists ai_usage_logs_endpoint_created_at_idx
   on public.ai_usage_logs (endpoint, created_at desc);
+
+create index if not exists ai_usage_logs_request_id_idx
+  on public.ai_usage_logs (request_id);
 
 alter table public.ai_usage_logs enable row level security;
 

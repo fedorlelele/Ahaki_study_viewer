@@ -208,6 +208,7 @@
       <div class="subtitle">視覚障害者・音声操作向けの簡易インターフェース</div>
       <div class="top-actions">
         <a href="./index.html">高機能ビューを開く</a>
+        <a href="./analytics.html">データ分析へ</a>
       </div>
     </header>
     <main class="container" role="main">
@@ -337,10 +338,11 @@
         lastSubject: "",
         focusItems: [],
         focusIndex: 0,
-        answeredMap: {},
-        overridesBySerial: {},
-        overridesLoaded: new Set()
-      };
+	        answeredMap: {},
+	        overridesBySerial: {},
+	        overridesLoaded: new Set(),
+	        lastAnalyticsResultsKey: ""
+	      };
 
       const stepGuide = document.getElementById("stepGuide");
       const stepSubject = document.getElementById("stepSubject");
@@ -512,14 +514,26 @@
           }
           return true;
         });
-        if (order === "old") {
-          state.filtered.sort((a, b) => (a.exam_session || 0) - (b.exam_session || 0));
-        } else {
-          state.filtered.sort((a, b) => (b.exam_session || 0) - (a.exam_session || 0));
-        }
-        state.currentIndex = 0;
-        updateJumpOptions();
-      }
+	        if (order === "old") {
+	          state.filtered.sort((a, b) => (a.exam_session || 0) - (b.exam_session || 0));
+	        } else {
+	          state.filtered.sort((a, b) => (b.exam_session || 0) - (a.exam_session || 0));
+	        }
+	        const analyticsKey = [subject, subtopic, examType, order, keyword, String(state.filtered.length)].join("|");
+	        if (state.lastAnalyticsResultsKey !== analyticsKey) {
+	          state.lastAnalyticsResultsKey = analyticsKey;
+	          trackAnalyticsEvent("results_rendered", {
+	            surface: "simple_search",
+	            props: {
+	              result_count: state.filtered.length,
+	              term_count: terms.length,
+	              order
+	            }
+	          });
+	        }
+	        state.currentIndex = 0;
+	        updateJumpOptions();
+	      }
 
       function buildFilterHeader() {
         const parts = [];
@@ -962,39 +976,75 @@
       examTypeSelect.addEventListener("change", () => {
         updateState();
       });
-      examTypeSelect.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !startBtn.disabled) {
-          e.preventDefault();
-          filterQuestions();
-          showStep("");
-          renderQuestion();
-        }
-      });
-      orderSelect.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !startBtn.disabled) {
-          e.preventDefault();
-          filterQuestions();
-          showStep("");
-          renderQuestion();
-        }
-      });
+	      examTypeSelect.addEventListener("keydown", (e) => {
+	        if (e.key === "Enter" && !startBtn.disabled) {
+	          e.preventDefault();
+	          trackAnalyticsEvent("search_submitted", {
+	            surface: "simple_search",
+	            props: {
+	              keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
+	              subject: subjectSelect.value || "",
+	              subtopic: subtopicSelect.value || "",
+	              exam_type: examTypeSelect.value || ""
+	            }
+	          });
+	          filterQuestions();
+	          showStep("");
+	          renderQuestion();
+	        }
+	      });
+	      orderSelect.addEventListener("keydown", (e) => {
+	        if (e.key === "Enter" && !startBtn.disabled) {
+	          e.preventDefault();
+	          trackAnalyticsEvent("search_submitted", {
+	            surface: "simple_search",
+	            props: {
+	              keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
+	              subject: subjectSelect.value || "",
+	              subtopic: subtopicSelect.value || "",
+	              exam_type: examTypeSelect.value || ""
+	            }
+	          });
+	          filterQuestions();
+	          showStep("");
+	          renderQuestion();
+	        }
+	      });
 
-      startBtn.addEventListener("click", () => {
-        filterQuestions();
-        showStep("");
-        renderQuestion();
-      });
+	      startBtn.addEventListener("click", () => {
+	        trackAnalyticsEvent("search_submitted", {
+	          surface: "simple_search",
+	          props: {
+	            keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
+	            subject: subjectSelect.value || "",
+	            subtopic: subtopicSelect.value || "",
+	            exam_type: examTypeSelect.value || ""
+	          }
+	        });
+	        filterQuestions();
+	        showStep("");
+	        renderQuestion();
+	      });
 
       if (keywordInput) {
         keywordInput.addEventListener("keydown", (e) => {
           if (e.isComposing) return;
           if (e.key === "Enter") {
-            e.preventDefault();
-            if (!startBtn.disabled) {
-              filterQuestions();
-              showStep("");
-              renderQuestion();
-            }
+	            e.preventDefault();
+	            if (!startBtn.disabled) {
+	              trackAnalyticsEvent("search_submitted", {
+	                surface: "simple_search",
+	                props: {
+	                  keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
+	                  subject: subjectSelect.value || "",
+	                  subtopic: subtopicSelect.value || "",
+	                  exam_type: examTypeSelect.value || ""
+	                }
+	              });
+	              filterQuestions();
+	              showStep("");
+	              renderQuestion();
+	            }
           }
         });
       }
@@ -1028,10 +1078,19 @@
         return Boolean(state.answeredMap[serial]);
       }
 
-      function markAnswered(serial, selectedIndex, isCorrect) {
-        state.answeredMap[serial] = { selectedIndex, isCorrect };
-        saveAnsweredState();
-      }
+	      function markAnswered(serial, selectedIndex, isCorrect) {
+	        state.answeredMap[serial] = { selectedIndex, isCorrect };
+	        trackAnalyticsEvent("question_answered", {
+	          surface: "simple_question",
+	          entity_type: "question",
+	          entity_id: serial,
+	          props: {
+	            selected_index: Number(selectedIndex) || 0,
+	            is_correct: Boolean(isCorrect)
+	          }
+	        });
+	        saveAnsweredState();
+	      }
 
       function loadAnsweredState() {
         const key = "answeredSerials";
@@ -1142,18 +1201,83 @@
         return merged;
       }
 
-      function getAnonId() {
-        const key = "anonId";
-        let id = localStorage.getItem(key);
-        if (id) return id;
-        if (crypto && crypto.randomUUID) {
-          id = crypto.randomUUID();
-        } else {
-          id = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-        }
-        localStorage.setItem(key, id);
-        return id;
-      }
-    </script>
+	      function createClientId(prefix = "id") {
+	        if (crypto && crypto.randomUUID) {
+	          return `${prefix}_${crypto.randomUUID()}`;
+	        }
+	        return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+	      }
+
+	      function getAnonId() {
+	        const key = "anonId";
+	        let id = localStorage.getItem(key);
+	        if (id) return id;
+	        id = createClientId("anon");
+	        localStorage.setItem(key, id);
+	        return id;
+	      }
+
+	      function getAnalyticsSessionId() {
+	        const key = "analyticsSessionId";
+	        let id = sessionStorage.getItem(key);
+	        if (id) return id;
+	        id = createClientId("sess");
+	        sessionStorage.setItem(key, id);
+	        return id;
+	      }
+
+	      function getAnalyticsApiBase() {
+	        return window.AI_API_BASE || window.ADMIN_API_BASE || "";
+	      }
+
+	      function sendAnalyticsEvents(events, options = {}) {
+	        const base = getAnalyticsApiBase();
+	        if (!base) return;
+	        const list = Array.isArray(events) ? events : [events];
+	        const normalized = list
+	          .map((item) => (item && typeof item === "object" ? item : {}))
+	          .map((item) => ({
+	            event_name: String(item.event_name || item.name || "").trim(),
+	            occurred_at: item.occurred_at || new Date().toISOString(),
+	            surface: String(item.surface || options.surface || "").trim(),
+	            entity_type: String(item.entity_type || options.entity_type || "").trim(),
+	            entity_id: String(item.entity_id || options.entity_id || "").trim(),
+	            request_id: String(item.request_id || options.request_id || "").trim(),
+	            props: item.props && typeof item.props === "object" ? item.props : {}
+	          }))
+	          .filter((item) => item.event_name);
+	        if (!normalized.length) return;
+	        fetch(`${base}/analytics/collect`, {
+	          method: "POST",
+	          headers: { "Content-Type": "application/json" },
+	          body: JSON.stringify({
+	            page: "simple",
+	            surface: String(options.surface || "").trim(),
+	            session_id: getAnalyticsSessionId(),
+	            anon_id: getAnonId(),
+	            events: normalized
+	          }),
+	          keepalive: true
+	        }).catch(() => {});
+	      }
+
+	      function trackAnalyticsEvent(eventName, options = {}) {
+	        const name = String(eventName || "").trim();
+	        if (!name) return;
+	        sendAnalyticsEvents(
+	          [
+	            {
+	              event_name: name,
+	              surface: options.surface || "",
+	              entity_type: options.entity_type || "",
+	              entity_id: options.entity_id || "",
+	              request_id: options.request_id || "",
+	              props: options.props || {}
+	            }
+	          ],
+	          { surface: options.surface || "" }
+	        );
+	      }
+	    </script>
   </body>
 </html>

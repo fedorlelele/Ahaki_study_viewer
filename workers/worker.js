@@ -23,6 +23,9 @@ export default {
       if (path.startsWith("/progress/")) {
         return handleProgress(request, env);
       }
+      if (path.startsWith("/analytics/")) {
+        return handleAnalytics(request, env);
+      }
       return jsonResponse({ message: "Not found" }, 404);
     } catch (_err) {
       return jsonResponse({ message: "Internal error" }, 500);
@@ -192,12 +195,12 @@ async function handleAi(request, env) {
       return handlePracticeQuestions(request, env);
     }
   }
-  if (path === "/ai/practice_questions/good" && request.method === "POST") {
+  if (path === "/ai/practice_questions/helpful" && request.method === "POST") {
     const body = await readJson(request);
     const user = await authenticate(request, env);
     return incrementPracticeQuestionCounter(env, body, "good_count", user);
   }
-  if (path === "/ai/practice_questions/bad" && request.method === "POST") {
+  if (path === "/ai/practice_questions/not_helpful" && request.method === "POST") {
     const body = await readJson(request);
     const user = await authenticate(request, env);
     return incrementPracticeQuestionCounter(env, body, "bad_count", user);
@@ -256,28 +259,32 @@ async function handleAi(request, env) {
   if (request.method !== "POST") {
     return jsonResponse({ message: "Method not allowed" }, 405);
   }
+  const requestId = createRequestId("deep");
+  const startedAt = Date.now();
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
   const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
-    return jsonResponse({ message: "Forbidden" }, 403);
+    return jsonResponse({ message: "Forbidden", request_id: requestId }, 403);
   }
   const body = await readJson(request);
   const prompt = (body.prompt || "").trim();
+  const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
+  const inputChars = prompt.length;
   const serial = (body.serial || "").trim();
   if (!prompt) {
-    return jsonResponse({ message: "Prompt is required" }, 400);
+    return jsonResponse({ message: "Prompt is required", request_id: requestId }, 400);
   }
   if (!serial) {
-    return jsonResponse({ message: "serial is required" }, 400);
+    return jsonResponse({ message: "serial is required", request_id: requestId }, 400);
   }
   const exists = await hasDeepDive(env, serial);
   if (exists) {
-    return jsonResponse({ message: "深掘り解説は既に保存されています。" }, 409);
+    return jsonResponse({ message: "深掘り解説は既に保存されています。", request_id: requestId }, 409);
   }
   const gemini = await resolveGeminiRoute(env, role);
   if (!gemini.apiKey) {
-    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+    return jsonResponse({ message: "Gemini API key is not configured.", request_id: requestId }, 500);
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
@@ -289,9 +296,15 @@ async function handleAi(request, env) {
       outcome: "rate_limited",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: requestedModel
+      model: requestedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: "worker_rate_limited",
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
   }
   const payload = {
     contents: [
@@ -326,14 +339,22 @@ async function handleAi(request, env) {
         outcome: "rate_limited",
         serial,
         user_id: user && user.id ? user.id : null,
-        model: usedModel
+        model: usedModel,
+        request_id: requestId,
+        latency_ms: Date.now() - startedAt,
+        input_chars: inputChars,
+        output_chars: 0,
+        error_code: "gemini_rate_limited",
+        prompt_version: promptVersion,
+        fallback_model: usedModel !== requestedModel ? usedModel : null
       });
       return jsonResponse(
         {
           message: "Gemini API rate limit",
           model: usedModel,
           mode: gemini.mode,
-          detail: parsedError.detail
+          detail: parsedError.detail,
+          request_id: requestId
         },
         429
       );
@@ -344,16 +365,30 @@ async function handleAi(request, env) {
       outcome: "error",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: sanitizeAnalyticsText(parsedError.status || "gemini_error", 80),
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
     return jsonResponse(
-      { message: "Gemini API error", model: usedModel, mode: gemini.mode, detail: parsedError.detail },
+      {
+        message: "Gemini API error",
+        model: usedModel,
+        mode: gemini.mode,
+        detail: parsedError.detail,
+        request_id: requestId
+      },
       500
     );
   }
   const data = await resp.json();
   const text =
     data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const outputChars = text.length;
   const parsed = parseDeepDive(text);
   await upsertDeepDive(env, {
     serial,
@@ -364,20 +399,37 @@ async function handleAi(request, env) {
   await safeLogAiUsage(env, {
     mode: gemini.mode,
     endpoint: "deep_dive",
-    outcome: "success",
-    serial,
-    user_id: user && user.id ? user.id : null,
-    model: usedModel
+      outcome: "success",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: outputChars,
+      char_count: outputChars,
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
+    });
+  return jsonResponse({
+    text,
+    explanation: parsed.explanation,
+    tags: parsed.tags,
+    mode: gemini.mode,
+    request_id: requestId
   });
-  return jsonResponse({ text, explanation: parsed.explanation, tags: parsed.tags, mode: gemini.mode });
 }
 
 async function handleTtsSynthesis(request, env) {
+  const requestId = createRequestId("tts");
+  const startedAt = Date.now();
   const body = await readJson(request);
   const useSsml = Boolean(body.ssml);
   const text = String(body.text || "").trim();
+  const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
+  const inputChars = text.length;
   if (!text) {
-    return jsonResponse({ message: "text is required" }, 400);
+    return jsonResponse({ message: "text is required", request_id: requestId }, 400);
   }
   const serial = String(body.serial || "").trim() || null;
   const usageMode = "free";
@@ -402,9 +454,15 @@ async function handleTtsSynthesis(request, env) {
       serial,
       user_id: usageUserId,
       model: "google-tts",
-      char_count: textCharCount
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      char_count: textCharCount,
+      error_code: "tts_api_key_missing",
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: "Google TTS API key is not configured." }, 500);
+    return jsonResponse({ message: "Google TTS API key is not configured.", request_id: requestId }, 500);
   }
   const quality = String(body.quality || "standard").toLowerCase() === "high" ? "high" : "standard";
   const standardVoice =
@@ -426,7 +484,13 @@ async function handleTtsSynthesis(request, env) {
       serial,
       user_id: usageUserId,
       model: voiceName || "google-tts",
-      char_count: textCharCount
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      char_count: textCharCount,
+      error_code: "tts_monthly_quota_exceeded",
+      prompt_version: promptVersion
     });
     return jsonResponse(
       {
@@ -436,7 +500,8 @@ async function handleTtsSynthesis(request, env) {
         detail: quota.message,
         limit: quota.limit,
         used: quota.used,
-        requested: textCharCount
+        requested: textCharCount,
+        request_id: requestId
       },
       429
     );
@@ -478,9 +543,15 @@ async function handleTtsSynthesis(request, env) {
       serial,
       user_id: usageUserId,
       model: voiceName || "google-tts",
-      char_count: textCharCount
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      char_count: textCharCount,
+      error_code: sanitizeAnalyticsText(resp.status === 429 ? "tts_rate_limited" : `tts_http_${resp.status || 500}`, 80),
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: "Google TTS error", detail }, resp.status || 500);
+    return jsonResponse({ message: "Google TTS error", detail, request_id: requestId }, resp.status || 500);
   }
   const data = await resp.json();
   const audioContent = data && data.audioContent ? String(data.audioContent) : "";
@@ -492,10 +563,17 @@ async function handleTtsSynthesis(request, env) {
       serial,
       user_id: usageUserId,
       model: voiceName || "google-tts",
-      char_count: textCharCount
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      char_count: textCharCount,
+      error_code: "tts_empty_audio",
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: "Google TTS error", detail: "audioContent is empty." }, 500);
+    return jsonResponse({ message: "Google TTS error", detail: "audioContent is empty.", request_id: requestId }, 500);
   }
+  const outputChars = audioContent.length;
   await safeLogAiUsage(env, {
     mode: usageMode,
     endpoint: usageEndpoint,
@@ -503,7 +581,12 @@ async function handleTtsSynthesis(request, env) {
     serial,
     user_id: usageUserId,
     model: voiceName || "google-tts",
-    char_count: textCharCount
+    request_id: requestId,
+    latency_ms: Date.now() - startedAt,
+    input_chars: inputChars,
+    output_chars: outputChars,
+    char_count: textCharCount,
+    prompt_version: promptVersion
   });
   const audioBytes = base64ToUint8Array(audioContent);
   return new Response(audioBytes, {
@@ -511,6 +594,7 @@ async function handleTtsSynthesis(request, env) {
     headers: {
       "Content-Type": "audio/mpeg",
       "Cache-Control": "no-store",
+      "X-Request-Id": requestId,
       ...CORS_HEADERS
     }
   });
@@ -689,6 +773,660 @@ async function handleProgress(request, env) {
   }
 }
 
+async function handleAnalytics(request, env) {
+  try {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    if (path === "/analytics/collect" && request.method === "POST") {
+      const user = await authenticate(request, env);
+      const body = await readJson(request);
+      return collectAnalyticsEvents(env, body, user, request);
+    }
+
+    if (path === "/analytics/ai_feedback" && request.method === "POST") {
+      const user = await authenticate(request, env);
+      const body = await readJson(request);
+      return submitAiFeedback(env, body, user);
+    }
+
+    const user = await authenticate(request, env);
+    if (!user) return jsonResponse({ message: "Unauthorized" }, 401);
+    const role = getRole(user);
+    if (!isRoleAtLeast(role, "teacher")) {
+      return jsonResponse({ message: "Forbidden" }, 403);
+    }
+
+    const days = Math.max(1, Math.min(90, Number(url.searchParams.get("days") || "30")));
+    if (path === "/analytics/overview" && request.method === "GET") {
+      return buildAnalyticsOverview(env, days);
+    }
+    if (path === "/analytics/learning" && request.method === "GET") {
+      return buildAnalyticsLearning(env, days);
+    }
+    if (path === "/analytics/ai_quality" && request.method === "GET") {
+      return buildAnalyticsAiQuality(env, days);
+    }
+    if (path === "/analytics/content" && request.method === "GET") {
+      return buildAnalyticsContent(env, days);
+    }
+
+    return jsonResponse({ message: "Not found" }, 404);
+  } catch (err) {
+    return jsonResponse(
+      {
+        message: "Analytics API error",
+        detail: err && err.message ? err.message : String(err || "")
+      },
+      500
+    );
+  }
+}
+
+function sanitizeAnalyticsText(value, max = 200) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+function sanitizeAnalyticsEventName(value) {
+  const normalized = sanitizeAnalyticsText(value, 80).toLowerCase();
+  return normalized.replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+}
+
+function normalizeAnalyticsIso(value, fallbackIso) {
+  const text = String(value || "").trim();
+  if (!text) return fallbackIso;
+  const ts = Date.parse(text);
+  if (!Number.isFinite(ts)) return fallbackIso;
+  return new Date(ts).toISOString();
+}
+
+function normalizeAnalyticsProps(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out = {};
+  const keys = Object.keys(value).slice(0, 32);
+  keys.forEach((key) => {
+    const safeKey = sanitizeAnalyticsText(key, 60);
+    if (!safeKey) return;
+    const raw = value[key];
+    if (raw === null || raw === undefined) return;
+    if (typeof raw === "string") {
+      out[safeKey] = raw.slice(0, 1000);
+      return;
+    }
+    if (typeof raw === "number" || typeof raw === "boolean") {
+      out[safeKey] = raw;
+      return;
+    }
+    if (Array.isArray(raw)) {
+      out[safeKey] = raw.slice(0, 20).map((item) => sanitizeAnalyticsText(item, 120));
+      return;
+    }
+    if (typeof raw === "object") {
+      out[safeKey] = JSON.parse(JSON.stringify(raw));
+    }
+  });
+  return out;
+}
+
+function analyticsActorKeyFromRow(row) {
+  const userId = sanitizeAnalyticsText(row && row.user_id ? row.user_id : "", 120);
+  if (userId) return `user:${userId}`;
+  const anonId = sanitizeAnalyticsText(row && row.anon_id ? row.anon_id : "", 120);
+  if (anonId) return `anon:${anonId}`;
+  const sessionId = sanitizeAnalyticsText(row && row.session_id ? row.session_id : "", 120);
+  if (sessionId) return `session:${sessionId}`;
+  return "unknown";
+}
+
+function parseJsonObject(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  if (typeof value !== "string") return {};
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    return {};
+  } catch (_err) {
+    return {};
+  }
+}
+
+function getSupabaseServiceHeaders(env, extra = {}) {
+  return {
+    apikey: env.SUPABASE_SERVICE_KEY,
+    Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+    "Content-Type": "application/json",
+    ...extra
+  };
+}
+
+async function fetchSupabaseRowsSince(env, options) {
+  const {
+    table,
+    select,
+    sinceIso,
+    orderColumn = "created_at",
+    extraQuery = "",
+    limit = 1000,
+    maxRows = 50000
+  } = options || {};
+  const safeLimit = Math.max(1, Math.min(5000, Number(limit || 1000)));
+  const safeMaxRows = Math.max(safeLimit, Number(maxRows || 50000));
+  const since = String(sinceIso || "").trim();
+  let offset = 0;
+  const rows = [];
+  while (offset < safeMaxRows) {
+    let url =
+      `${env.SUPABASE_URL}/rest/v1/${table}` +
+      `?select=${encodeURIComponent(select)}` +
+      `&${orderColumn}=gte.${encodeURIComponent(since)}` +
+      `&order=${orderColumn}.asc` +
+      `&limit=${safeLimit}&offset=${offset}`;
+    if (extraQuery) {
+      url += `&${extraQuery}`;
+    }
+    const resp = await fetch(url, {
+      headers: getSupabaseServiceHeaders(env)
+    });
+    const payload = await resp.json().catch(() => []);
+    if (!resp.ok) {
+      throw new Error(`Supabase fetch failed (${table}): ${JSON.stringify(payload || {})}`);
+    }
+    const batch = Array.isArray(payload) ? payload : [];
+    rows.push(...batch);
+    if (batch.length < safeLimit) break;
+    offset += safeLimit;
+  }
+  return rows;
+}
+
+async function fetchSupabaseRowsAll(env, options) {
+  const {
+    table,
+    select,
+    orderColumn = "created_at",
+    extraQuery = "",
+    limit = 1000,
+    maxRows = 50000
+  } = options || {};
+  const safeLimit = Math.max(1, Math.min(5000, Number(limit || 1000)));
+  const safeMaxRows = Math.max(safeLimit, Number(maxRows || 50000));
+  let offset = 0;
+  const rows = [];
+  while (offset < safeMaxRows) {
+    let url =
+      `${env.SUPABASE_URL}/rest/v1/${table}` +
+      `?select=${encodeURIComponent(select)}` +
+      `&order=${orderColumn}.asc` +
+      `&limit=${safeLimit}&offset=${offset}`;
+    if (extraQuery) {
+      url += `&${extraQuery}`;
+    }
+    const resp = await fetch(url, {
+      headers: getSupabaseServiceHeaders(env)
+    });
+    const payload = await resp.json().catch(() => []);
+    if (!resp.ok) {
+      throw new Error(`Supabase fetch failed (${table}): ${JSON.stringify(payload || {})}`);
+    }
+    const batch = Array.isArray(payload) ? payload : [];
+    rows.push(...batch);
+    if (batch.length < safeLimit) break;
+    offset += safeLimit;
+  }
+  return rows;
+}
+
+async function insertSupabaseRows(env, table, rows) {
+  if (!Array.isArray(rows) || !rows.length) return;
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers: getSupabaseServiceHeaders(env, { Prefer: "return=minimal" }),
+    body: JSON.stringify(rows)
+  });
+  if (resp.ok) return;
+  const detail = await resp.text().catch(() => "");
+  throw new Error(`Supabase insert failed (${table}): ${detail}`);
+}
+
+async function collectAnalyticsEvents(env, body, user, request) {
+  const nowIso = new Date().toISOString();
+  const role = user ? getRole(user) : "";
+  const fallbackSessionId = sanitizeAnalyticsText(body && body.session_id ? body.session_id : "", 120);
+  const fallbackAnonId = sanitizeAnalyticsText(body && body.anon_id ? body.anon_id : "", 120);
+  const sourcePage = sanitizeAnalyticsText(body && body.page ? body.page : "", 120);
+  const sourceSurface = sanitizeAnalyticsText(body && body.surface ? body.surface : "", 120);
+  const sourceRequestId = sanitizeAnalyticsText(body && body.request_id ? body.request_id : "", 120);
+  const sourceEntityType = sanitizeAnalyticsText(body && body.entity_type ? body.entity_type : "", 60);
+  const sourceEntityId = sanitizeAnalyticsText(body && body.entity_id ? body.entity_id : "", 120);
+  const sourceProps = normalizeAnalyticsProps(body && body.props ? body.props : {});
+
+  const list = Array.isArray(body && body.events)
+    ? body.events
+    : (body && body.event ? [body.event] : []);
+  const cleanEvents = list.slice(0, 100).map((event) => {
+    const item = event && typeof event === "object" ? event : {};
+    const eventName = sanitizeAnalyticsEventName(item.event_name || item.name || "");
+    if (!eventName) return null;
+    const occurredAt = normalizeAnalyticsIso(item.occurred_at, nowIso);
+    return {
+      occurred_at: occurredAt,
+      event_name: eventName,
+      event_version: 1,
+      session_id: sanitizeAnalyticsText(item.session_id || fallbackSessionId, 120),
+      anon_id: sanitizeAnalyticsText(item.anon_id || fallbackAnonId, 120),
+      user_id: user && user.id ? user.id : null,
+      role: sanitizeAnalyticsText(item.role || role, 32),
+      page: sanitizeAnalyticsText(item.page || sourcePage, 120),
+      surface: sanitizeAnalyticsText(item.surface || sourceSurface, 120),
+      entity_type: sanitizeAnalyticsText(item.entity_type || sourceEntityType, 60),
+      entity_id: sanitizeAnalyticsText(item.entity_id || sourceEntityId, 120),
+      request_id: sanitizeAnalyticsText(item.request_id || sourceRequestId, 120),
+      props: {
+        ...sourceProps,
+        ...normalizeAnalyticsProps(item.props || {})
+      }
+    };
+  }).filter(Boolean);
+
+  if (!cleanEvents.length) {
+    return jsonResponse({ ok: true, inserted: 0 });
+  }
+
+  try {
+    await insertSupabaseRows(env, "analytics_events", cleanEvents);
+    return jsonResponse({ ok: true, inserted: cleanEvents.length });
+  } catch (err) {
+    return jsonResponse(
+      {
+        ok: false,
+        message: "Analytics insert failed",
+        detail: err && err.message ? err.message : String(err || "")
+      },
+      500
+    );
+  }
+}
+
+async function submitAiFeedback(env, body, user) {
+  const ratingRaw = sanitizeAnalyticsText(body && body.rating ? body.rating : "", 32).toLowerCase();
+  const rating = ratingRaw === "not_helpful" || ratingRaw === "not-helpful" ? "not_helpful" : ratingRaw;
+  if (rating !== "helpful" && rating !== "not_helpful") {
+    return jsonResponse({ message: "rating must be helpful or not_helpful" }, 400);
+  }
+  const feature = sanitizeAnalyticsText(body && body.feature ? body.feature : "", 80);
+  if (!feature) {
+    return jsonResponse({ message: "feature is required" }, 400);
+  }
+  const reasonCodes = Array.isArray(body && body.reason_codes)
+    ? body.reason_codes.slice(0, 10).map((item) => sanitizeAnalyticsText(item, 60)).filter(Boolean)
+    : [];
+  const row = {
+    request_id: sanitizeAnalyticsText(body && body.request_id ? body.request_id : "", 120),
+    feature,
+    rating,
+    reason_codes: reasonCodes,
+    comment: sanitizeAnalyticsText(body && body.comment ? body.comment : "", 1000),
+    user_id: user && user.id ? user.id : null,
+    anon_id: sanitizeAnalyticsText(body && body.anon_id ? body.anon_id : "", 120),
+    session_id: sanitizeAnalyticsText(body && body.session_id ? body.session_id : "", 120),
+    entity_type: sanitizeAnalyticsText(body && body.entity_type ? body.entity_type : "", 60),
+    entity_id: sanitizeAnalyticsText(body && body.entity_id ? body.entity_id : "", 120)
+  };
+
+  try {
+    await insertSupabaseRows(env, "ai_feedback_events", [row]);
+    return jsonResponse({ ok: true });
+  } catch (err) {
+    return jsonResponse(
+      {
+        ok: false,
+        message: "AI feedback insert failed",
+        detail: err && err.message ? err.message : String(err || "")
+      },
+      500
+    );
+  }
+}
+
+async function buildAnalyticsOverview(env, days) {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const events = await fetchSupabaseRowsSince(env, {
+    table: "analytics_events",
+    select: "occurred_at,event_name,user_id,anon_id,session_id",
+    sinceIso: since,
+    orderColumn: "occurred_at",
+    limit: 1000,
+    maxRows: 80000
+  });
+  const actorsByDay = {};
+  const weeklyActors = new Set();
+  let searchSubmitted = 0;
+  let resultsRendered = 0;
+  events.forEach((row) => {
+    const actor = analyticsActorKeyFromRow(row);
+    const date = String(row && row.occurred_at ? row.occurred_at : "").slice(0, 10);
+    if (date) {
+      if (!actorsByDay[date]) actorsByDay[date] = new Set();
+      actorsByDay[date].add(actor);
+    }
+    if (row && row.event_name === "search_submitted") searchSubmitted += 1;
+    if (row && row.event_name === "results_rendered") resultsRendered += 1;
+    const ts = Date.parse(row && row.occurred_at ? row.occurred_at : "");
+    if (Number.isFinite(ts) && Date.now() - ts <= 7 * 24 * 60 * 60 * 1000) {
+      weeklyActors.add(actor);
+    }
+  });
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const dau = actorsByDay[todayKey] ? actorsByDay[todayKey].size : 0;
+  const wau = weeklyActors.size;
+
+  const usageRows = await fetchSupabaseRowsSince(env, {
+    table: "ai_usage_logs",
+    select: "created_at,endpoint,outcome,latency_ms,input_chars,output_chars",
+    sinceIso: since,
+    orderColumn: "created_at",
+    limit: 1000,
+    maxRows: 60000
+  });
+  const geminiRows = usageRows.filter((row) => !isTtsUsageEndpoint(String(row && row.endpoint || "")));
+  const successCount = geminiRows.filter((row) => normalizeAiUsageOutcome(row && row.outcome) === "success").length;
+  const geminiCount = geminiRows.length;
+  const latencyRows = geminiRows
+    .map((row) => Number(row && row.latency_ms))
+    .filter((value) => Number.isFinite(value) && value >= 0);
+  const avgLatencyMs = latencyRows.length
+    ? Math.round(latencyRows.reduce((sum, value) => sum + value, 0) / latencyRows.length)
+    : 0;
+
+  const feedbackRows = await fetchSupabaseRowsSince(env, {
+    table: "ai_feedback_events",
+    select: "created_at,rating",
+    sinceIso: since,
+    orderColumn: "created_at",
+    limit: 1000,
+    maxRows: 50000
+  });
+  const helpful = feedbackRows.filter((row) => String(row && row.rating || "") === "helpful").length;
+  const notHelpful = feedbackRows.filter((row) => String(row && row.rating || "") === "not_helpful").length;
+  const feedbackCount = helpful + notHelpful;
+
+  return jsonResponse({
+    ok: true,
+    days,
+    since,
+    dau,
+    wau,
+    search_submitted: searchSubmitted,
+    results_rendered: resultsRendered,
+    ai_success_rate: geminiCount > 0 ? successCount / geminiCount : 0,
+    ai_success_count: successCount,
+    ai_total_count: geminiCount,
+    helpful_rate: feedbackCount > 0 ? helpful / feedbackCount : 0,
+    helpful_count: helpful,
+    not_helpful_count: notHelpful,
+    avg_latency_ms: avgLatencyMs
+  });
+}
+
+async function buildAnalyticsLearning(env, days) {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await fetchSupabaseRowsSince(env, {
+    table: "analytics_events",
+    select: "occurred_at,event_name,user_id,anon_id,session_id,entity_id,props",
+    sinceIso: since,
+    orderColumn: "occurred_at",
+    extraQuery: "event_name=in.(question_answered,ai_generate_completed)",
+    limit: 1000,
+    maxRows: 100000
+  });
+
+  const byDay = {};
+  const aiActors = new Set();
+  const actorStats = {};
+  rows.forEach((row) => {
+    const eventName = String(row && row.event_name || "");
+    const actor = analyticsActorKeyFromRow(row);
+    if (eventName === "ai_generate_completed") {
+      aiActors.add(actor);
+      return;
+    }
+    if (eventName !== "question_answered") return;
+    const date = String(row && row.occurred_at ? row.occurred_at : "").slice(0, 10);
+    if (!date) return;
+    if (!byDay[date]) byDay[date] = { date, answers: 0, correct: 0 };
+    byDay[date].answers += 1;
+    const props = parseJsonObject(row && row.props);
+    const isCorrect = Boolean(props.is_correct);
+    if (isCorrect) byDay[date].correct += 1;
+    if (!actorStats[actor]) actorStats[actor] = { answers: 0, correct: 0 };
+    actorStats[actor].answers += 1;
+    if (isCorrect) actorStats[actor].correct += 1;
+  });
+
+  let aiAnswers = 0;
+  let aiCorrect = 0;
+  let nonAiAnswers = 0;
+  let nonAiCorrect = 0;
+  Object.keys(actorStats).forEach((actor) => {
+    const stat = actorStats[actor];
+    if (aiActors.has(actor)) {
+      aiAnswers += stat.answers;
+      aiCorrect += stat.correct;
+      return;
+    }
+    nonAiAnswers += stat.answers;
+    nonAiCorrect += stat.correct;
+  });
+
+  const progressRows = await fetchSupabaseRowsAll(env, {
+    table: "user_progress",
+    select: "status,next_review_at",
+    orderColumn: "updated_at",
+    limit: 2000,
+    maxRows: 120000
+  });
+  const nowTs = Date.now();
+  let reviewDue = 0;
+  progressRows.forEach((row) => {
+    const status = normalizeProgressStatus(row && row.status);
+    const nextTs = Date.parse(String(row && row.next_review_at || ""));
+    if (status === "needs_review" || (Number.isFinite(nextTs) && nextTs <= nowTs)) {
+      reviewDue += 1;
+    }
+  });
+
+  const daily = Object.values(byDay)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .map((item) => ({
+      date: item.date,
+      answers: item.answers,
+      correct: item.correct,
+      accuracy: item.answers > 0 ? item.correct / item.answers : 0
+    }));
+
+  return jsonResponse({
+    ok: true,
+    days,
+    since,
+    review_due: reviewDue,
+    ai_group: {
+      answers: aiAnswers,
+      correct: aiCorrect,
+      accuracy: aiAnswers > 0 ? aiCorrect / aiAnswers : 0
+    },
+    non_ai_group: {
+      answers: nonAiAnswers,
+      correct: nonAiCorrect,
+      accuracy: nonAiAnswers > 0 ? nonAiCorrect / nonAiAnswers : 0
+    },
+    accuracy_lift:
+      (aiAnswers > 0 ? aiCorrect / aiAnswers : 0) -
+      (nonAiAnswers > 0 ? nonAiCorrect / nonAiAnswers : 0),
+    by_day: daily
+  });
+}
+
+async function buildAnalyticsAiQuality(env, days) {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const usageRows = await fetchSupabaseRowsSince(env, {
+    table: "ai_usage_logs",
+    select: "created_at,mode,endpoint,outcome,latency_ms,input_chars,output_chars,request_id,error_code",
+    sinceIso: since,
+    orderColumn: "created_at",
+    limit: 1000,
+    maxRows: 80000
+  });
+
+  const byEndpoint = {};
+  usageRows.forEach((row) => {
+    const endpoint = sanitizeAnalyticsText(row && row.endpoint ? row.endpoint : "unknown", 120) || "unknown";
+    const mode = normalizeAiUsageMode(row && row.mode);
+    const outcome = normalizeAiUsageOutcome(row && row.outcome);
+    const latency = Number(row && row.latency_ms);
+    const inputChars = Math.max(0, Number(row && row.input_chars || 0));
+    const outputChars = Math.max(0, Number(row && row.output_chars || 0));
+    if (!byEndpoint[endpoint]) {
+      byEndpoint[endpoint] = {
+        endpoint,
+        free: createAiUsageBucket(),
+        paid: createAiUsageBucket(),
+        latency_sum: 0,
+        latency_count: 0,
+        input_chars: 0,
+        output_chars: 0
+      };
+    }
+    const target = byEndpoint[endpoint];
+    target[mode].all += 1;
+    target[mode][outcome] += 1;
+    target.input_chars += inputChars;
+    target.output_chars += outputChars;
+    if (Number.isFinite(latency) && latency >= 0) {
+      target.latency_sum += latency;
+      target.latency_count += 1;
+    }
+  });
+  const endpointItems = Object.values(byEndpoint)
+    .map((item) => ({
+      endpoint: item.endpoint,
+      free: item.free,
+      paid: item.paid,
+      total: item.free.all + item.paid.all,
+      avg_latency_ms: item.latency_count > 0 ? Math.round(item.latency_sum / item.latency_count) : 0,
+      input_chars: item.input_chars,
+      output_chars: item.output_chars
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  const feedbackRows = await fetchSupabaseRowsSince(env, {
+    table: "ai_feedback_events",
+    select: "created_at,feature,rating",
+    sinceIso: since,
+    orderColumn: "created_at",
+    limit: 1000,
+    maxRows: 80000
+  });
+  const feedbackByFeature = {};
+  feedbackRows.forEach((row) => {
+    const feature = sanitizeAnalyticsText(row && row.feature ? row.feature : "unknown", 120) || "unknown";
+    if (!feedbackByFeature[feature]) {
+      feedbackByFeature[feature] = { feature, helpful: 0, not_helpful: 0, total: 0 };
+    }
+    const rating = String(row && row.rating || "");
+    if (rating === "helpful") feedbackByFeature[feature].helpful += 1;
+    if (rating === "not_helpful") feedbackByFeature[feature].not_helpful += 1;
+    feedbackByFeature[feature].total += 1;
+  });
+  const feedbackItems = Object.values(feedbackByFeature)
+    .map((item) => ({
+      ...item,
+      helpful_rate: item.total > 0 ? item.helpful / item.total : 0
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return jsonResponse({
+    ok: true,
+    days,
+    since,
+    by_endpoint: endpointItems,
+    feedback_by_feature: feedbackItems
+  });
+}
+
+async function buildAnalyticsContent(env, days) {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await fetchSupabaseRowsSince(env, {
+    table: "analytics_events",
+    select: "occurred_at,event_name,entity_type,entity_id,props",
+    sinceIso: since,
+    orderColumn: "occurred_at",
+    extraQuery: "event_name=in.(question_answered,tag_viewed,ai_generate_completed)",
+    limit: 1000,
+    maxRows: 100000
+  });
+
+  const questionMap = {};
+  const tagMap = {};
+  const aiEntityMap = {};
+
+  rows.forEach((row) => {
+    const eventName = String(row && row.event_name || "");
+    const entityId = sanitizeAnalyticsText(row && row.entity_id ? row.entity_id : "", 120);
+    const entityType = sanitizeAnalyticsText(row && row.entity_type ? row.entity_type : "", 60);
+    if (eventName === "question_answered") {
+      const serial = entityId || sanitizeAnalyticsText(parseJsonObject(row && row.props).serial || "", 120);
+      if (!serial) return;
+      if (!questionMap[serial]) questionMap[serial] = { serial, answers: 0, correct: 0 };
+      questionMap[serial].answers += 1;
+      const props = parseJsonObject(row && row.props);
+      if (Boolean(props.is_correct)) questionMap[serial].correct += 1;
+      return;
+    }
+    if (eventName === "tag_viewed") {
+      const tag = entityId || sanitizeAnalyticsText(parseJsonObject(row && row.props).tag || "", 120);
+      if (!tag) return;
+      tagMap[tag] = (tagMap[tag] || 0) + 1;
+      return;
+    }
+    if (eventName === "ai_generate_completed") {
+      const key = `${entityType || "unknown"}:${entityId || "unknown"}`;
+      aiEntityMap[key] = (aiEntityMap[key] || 0) + 1;
+    }
+  });
+
+  const topQuestions = Object.values(questionMap)
+    .map((item) => ({
+      serial: item.serial,
+      answers: item.answers,
+      correct: item.correct,
+      accuracy: item.answers > 0 ? item.correct / item.answers : 0
+    }))
+    .sort((a, b) => b.answers - a.answers)
+    .slice(0, 30);
+
+  const topTags = Object.keys(tagMap)
+    .map((tag) => ({ tag, views: tagMap[tag] }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 30);
+
+  const topAiEntities = Object.keys(aiEntityMap)
+    .map((key) => ({ key, generated: aiEntityMap[key] }))
+    .sort((a, b) => b.generated - a.generated)
+    .slice(0, 30);
+
+  return jsonResponse({
+    ok: true,
+    days,
+    since,
+    top_questions: topQuestions,
+    top_tags: topTags,
+    top_ai_entities: topAiEntities
+  });
+}
+
 async function hasDeepDive(env, serial) {
   const resp = await fetch(
     `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial&serial=eq.${encodeURIComponent(serial)}&limit=1`,
@@ -758,23 +1496,39 @@ function isGeminiRateLimit(respStatus, parsedError) {
   );
 }
 
+function createRequestId(prefix = "req") {
+  try {
+    if (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function") {
+      return `${prefix}_${crypto.randomUUID()}`;
+    }
+  } catch (_err) {
+    // no-op
+  }
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `${prefix}_${Date.now()}_${rand}`;
+}
+
 async function handleQuestionQa(request, env) {
+  const requestId = createRequestId("qqa");
+  const startedAt = Date.now();
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
   const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
-    return jsonResponse({ message: "Forbidden" }, 403);
+    return jsonResponse({ message: "Forbidden", request_id: requestId }, 403);
   }
   const body = await readJson(request);
   const serial = (body.serial || "").trim();
   const question = (body.question || "").trim();
   if (!serial || !question) {
-    return jsonResponse({ message: "serial and question are required" }, 400);
+    return jsonResponse({ message: "serial and question are required", request_id: requestId }, 400);
   }
   const prompt = buildQuestionQaPrompt(body);
+  const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
+  const inputChars = prompt.length;
   const gemini = await resolveGeminiRoute(env, role);
   if (!gemini.apiKey) {
-    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+    return jsonResponse({ message: "Gemini API key is not configured.", request_id: requestId }, 500);
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
@@ -786,9 +1540,15 @@ async function handleQuestionQa(request, env) {
       outcome: "rate_limited",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: requestedModel
+      model: requestedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: "worker_rate_limited",
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
   }
   const payload = {
     contents: [
@@ -823,14 +1583,22 @@ async function handleQuestionQa(request, env) {
         outcome: "rate_limited",
         serial,
         user_id: user && user.id ? user.id : null,
-        model: usedModel
+        model: usedModel,
+        request_id: requestId,
+        latency_ms: Date.now() - startedAt,
+        input_chars: inputChars,
+        output_chars: 0,
+        error_code: "gemini_rate_limited",
+        prompt_version: promptVersion,
+        fallback_model: usedModel !== requestedModel ? usedModel : null
       });
       return jsonResponse(
         {
           message: "Gemini API rate limit",
           model: usedModel,
           mode: gemini.mode,
-          detail: parsedError.detail
+          detail: parsedError.detail,
+          request_id: requestId
         },
         429
       );
@@ -841,14 +1609,22 @@ async function handleQuestionQa(request, env) {
       outcome: "error",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: sanitizeAnalyticsText(parsedError.status || "gemini_error", 80),
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
     return jsonResponse(
       {
         message: "Gemini API error",
         model: usedModel,
         mode: gemini.mode,
-        detail: parsedError.detail
+        detail: parsedError.detail,
+        request_id: requestId
       },
       500
     );
@@ -856,6 +1632,7 @@ async function handleQuestionQa(request, env) {
   const data = await resp.json();
   const text =
     data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const outputChars = text.length;
   const parsed = parseQuestionQa(text);
   const status = parsed.status || "irrelevant";
   await saveQuestionQa(env, {
@@ -871,33 +1648,45 @@ async function handleQuestionQa(request, env) {
     outcome: status === "ok" ? "success" : "irrelevant",
     serial,
     user_id: user && user.id ? user.id : null,
-    model: usedModel
+    model: usedModel,
+    request_id: requestId,
+    latency_ms: Date.now() - startedAt,
+    input_chars: inputChars,
+    output_chars: outputChars,
+    char_count: outputChars,
+    prompt_version: promptVersion,
+    fallback_model: usedModel !== requestedModel ? usedModel : null
   });
   return jsonResponse({
     status,
     question: parsed.question || question,
     answer: parsed.answer || "",
-    mode: gemini.mode
+    mode: gemini.mode,
+    request_id: requestId
   });
 }
 
 async function handlePracticeQuestions(request, env) {
+  const requestId = createRequestId("pq");
+  const startedAt = Date.now();
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
   const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
-    return jsonResponse({ message: "Forbidden" }, 403);
+    return jsonResponse({ message: "Forbidden", request_id: requestId }, 403);
   }
   const body = await readJson(request);
   const serial = String(body.serial || "").trim();
   if (!serial) {
-    return jsonResponse({ message: "serial is required" }, 400);
+    return jsonResponse({ message: "serial is required", request_id: requestId }, 400);
   }
   const questionType = normalizePracticeQuestionType(body.question_type);
   const prompt = buildPracticeQuestionsPrompt(body, questionType);
+  const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
+  const inputChars = prompt.length;
   const gemini = await resolveGeminiRoute(env, role);
   if (!gemini.apiKey) {
-    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+    return jsonResponse({ message: "Gemini API key is not configured.", request_id: requestId }, 500);
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
@@ -909,9 +1698,15 @@ async function handlePracticeQuestions(request, env) {
       outcome: "rate_limited",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: requestedModel
+      model: requestedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: "worker_rate_limited",
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
   }
   const payload = {
     contents: [
@@ -946,14 +1741,22 @@ async function handlePracticeQuestions(request, env) {
         outcome: "rate_limited",
         serial,
         user_id: user && user.id ? user.id : null,
-        model: usedModel
+        model: usedModel,
+        request_id: requestId,
+        latency_ms: Date.now() - startedAt,
+        input_chars: inputChars,
+        output_chars: 0,
+        error_code: "gemini_rate_limited",
+        prompt_version: promptVersion,
+        fallback_model: usedModel !== requestedModel ? usedModel : null
       });
       return jsonResponse(
         {
           message: "Gemini API rate limit",
           model: usedModel,
           mode: gemini.mode,
-          detail: parsedError.detail
+          detail: parsedError.detail,
+          request_id: requestId
         },
         429
       );
@@ -964,20 +1767,29 @@ async function handlePracticeQuestions(request, env) {
       outcome: "error",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: sanitizeAnalyticsText(parsedError.status || "gemini_error", 80),
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
     return jsonResponse(
       {
         message: "Gemini API error",
         model: usedModel,
         mode: gemini.mode,
-        detail: parsedError.detail
+        detail: parsedError.detail,
+        request_id: requestId
       },
       500
     );
   }
   const data = await resp.json();
   const text = data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const outputChars = text.length;
   const parsed = parsePracticeQuestions(text, questionType);
   if (!parsed.items || parsed.items.length < 5) {
     await safeLogAiUsage(env, {
@@ -986,14 +1798,23 @@ async function handlePracticeQuestions(request, env) {
       outcome: "error",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: outputChars,
+      char_count: outputChars,
+      error_code: "invalid_ai_output",
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
     return jsonResponse(
       {
         message: "Invalid AI output",
         detail: "items must be an array of 5 questions",
         model: usedModel,
-        mode: gemini.mode
+        mode: gemini.mode,
+        request_id: requestId
       },
       502
     );
@@ -1016,9 +1837,16 @@ async function handlePracticeQuestions(request, env) {
       outcome: "success",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: outputChars,
+      char_count: outputChars,
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
-    return jsonResponse({ ok: true, items: inserted, model: usedModel, mode: gemini.mode });
+    return jsonResponse({ ok: true, items: inserted, model: usedModel, mode: gemini.mode, request_id: requestId });
   } catch (err) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -1026,36 +1854,48 @@ async function handlePracticeQuestions(request, env) {
       outcome: "error",
       serial,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: outputChars,
+      char_count: outputChars,
+      error_code: "supabase_insert_failed",
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
     return jsonResponse(
-      { message: "Supabase insert failed", detail: String(err && err.message ? err.message : err || "") },
+      { message: "Supabase insert failed", detail: String(err && err.message ? err.message : err || ""), request_id: requestId },
       500
     );
   }
 }
 
 async function handleTagDeepDive(request, env) {
+  const requestId = createRequestId("tagdeep");
+  const startedAt = Date.now();
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
   const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
-    return jsonResponse({ message: "Forbidden" }, 403);
+    return jsonResponse({ message: "Forbidden", request_id: requestId }, 403);
   }
   const body = await readJson(request);
   const tag = String(body.tag || "").trim();
   const force = Boolean(body.force);
   if (!tag) {
-    return jsonResponse({ message: "tag is required" }, 400);
+    return jsonResponse({ message: "tag is required", request_id: requestId }, 400);
   }
   const exists = await hasTagDeepDive(env, tag);
   if (exists && !force) {
-    return jsonResponse({ message: "タグ深掘り解説は既に保存されています。" }, 409);
+    return jsonResponse({ message: "タグ深掘り解説は既に保存されています。", request_id: requestId }, 409);
   }
   const prompt = buildTagDeepDivePrompt(body);
+  const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
+  const inputChars = prompt.length;
   const gemini = await resolveGeminiRoute(env, role);
   if (!gemini.apiKey) {
-    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+    return jsonResponse({ message: "Gemini API key is not configured.", request_id: requestId }, 500);
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
@@ -1067,9 +1907,15 @@ async function handleTagDeepDive(request, env) {
       outcome: "rate_limited",
       serial: `tag:${tag}`,
       user_id: user && user.id ? user.id : null,
-      model: requestedModel
+      model: requestedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: "worker_rate_limited",
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
   }
   const payload = {
     contents: [
@@ -1104,14 +1950,22 @@ async function handleTagDeepDive(request, env) {
         outcome: "rate_limited",
         serial: `tag:${tag}`,
         user_id: user && user.id ? user.id : null,
-        model: usedModel
+        model: usedModel,
+        request_id: requestId,
+        latency_ms: Date.now() - startedAt,
+        input_chars: inputChars,
+        output_chars: 0,
+        error_code: "gemini_rate_limited",
+        prompt_version: promptVersion,
+        fallback_model: usedModel !== requestedModel ? usedModel : null
       });
       return jsonResponse(
         {
           message: "Gemini API rate limit",
           model: usedModel,
           mode: gemini.mode,
-          detail: parsedError.detail
+          detail: parsedError.detail,
+          request_id: requestId
         },
         429
       );
@@ -1122,14 +1976,22 @@ async function handleTagDeepDive(request, env) {
       outcome: "error",
       serial: `tag:${tag}`,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: sanitizeAnalyticsText(parsedError.status || "gemini_error", 80),
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
     return jsonResponse(
       {
         message: "Gemini API error",
         model: usedModel,
         mode: gemini.mode,
-        detail: parsedError.detail
+        detail: parsedError.detail,
+        request_id: requestId
       },
       500
     );
@@ -1137,6 +1999,7 @@ async function handleTagDeepDive(request, env) {
   const data = await resp.json();
   const text =
     data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const outputChars = text.length;
   const parsed = parseTagDeepDive(text);
   const updatedAt = await upsertTagDeepDive(env, {
     tag,
@@ -1150,14 +2013,22 @@ async function handleTagDeepDive(request, env) {
     outcome: "success",
     serial: `tag:${tag}`,
     user_id: user && user.id ? user.id : null,
-    model: usedModel
+    model: usedModel,
+    request_id: requestId,
+    latency_ms: Date.now() - startedAt,
+    input_chars: inputChars,
+    output_chars: outputChars,
+    char_count: outputChars,
+    prompt_version: promptVersion,
+    fallback_model: usedModel !== requestedModel ? usedModel : null
   });
   return jsonResponse({
     tag,
     explanation: parsed.explanation || text || "",
     mode: gemini.mode,
     model: usedModel,
-    updated_at: updatedAt
+    updated_at: updatedAt,
+    request_id: requestId
   });
 }
 
@@ -1222,22 +2093,26 @@ function parseTagDeepDive(text) {
 }
 
 async function handleTagQa(request, env) {
+  const requestId = createRequestId("tagqa");
+  const startedAt = Date.now();
   const user = await authenticate(request, env);
   const role = user ? getRole(user) : "";
   const allowPublic = await isAiGenerationPublicEnabled(env);
   if (!allowPublic && !isRoleAtLeast(role, "admin")) {
-    return jsonResponse({ message: "Forbidden" }, 403);
+    return jsonResponse({ message: "Forbidden", request_id: requestId }, 403);
   }
   const body = await readJson(request);
   const tag = String(body.tag || "").trim();
   const question = String(body.question || "").trim();
   if (!tag || !question) {
-    return jsonResponse({ message: "tag and question are required" }, 400);
+    return jsonResponse({ message: "tag and question are required", request_id: requestId }, 400);
   }
   const prompt = buildTagQaPrompt(body);
+  const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
+  const inputChars = prompt.length;
   const gemini = await resolveGeminiRoute(env, role);
   if (!gemini.apiKey) {
-    return jsonResponse({ message: "Gemini API key is not configured." }, 500);
+    return jsonResponse({ message: "Gemini API key is not configured.", request_id: requestId }, 500);
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
@@ -1249,9 +2124,15 @@ async function handleTagQa(request, env) {
       outcome: "rate_limited",
       serial: `tag:${tag}`,
       user_id: user && user.id ? user.id : null,
-      model: requestedModel
+      model: requestedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: "worker_rate_limited",
+      prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
   }
   const payload = {
     contents: [
@@ -1286,14 +2167,22 @@ async function handleTagQa(request, env) {
         outcome: "rate_limited",
         serial: `tag:${tag}`,
         user_id: user && user.id ? user.id : null,
-        model: usedModel
+        model: usedModel,
+        request_id: requestId,
+        latency_ms: Date.now() - startedAt,
+        input_chars: inputChars,
+        output_chars: 0,
+        error_code: "gemini_rate_limited",
+        prompt_version: promptVersion,
+        fallback_model: usedModel !== requestedModel ? usedModel : null
       });
       return jsonResponse(
         {
           message: "Gemini API rate limit",
           model: usedModel,
           mode: gemini.mode,
-          detail: parsedError.detail
+          detail: parsedError.detail,
+          request_id: requestId
         },
         429
       );
@@ -1304,14 +2193,22 @@ async function handleTagQa(request, env) {
       outcome: "error",
       serial: `tag:${tag}`,
       user_id: user && user.id ? user.id : null,
-      model: usedModel
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: sanitizeAnalyticsText(parsedError.status || "gemini_error", 80),
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
     });
     return jsonResponse(
       {
         message: "Gemini API error",
         model: usedModel,
         mode: gemini.mode,
-        detail: parsedError.detail
+        detail: parsedError.detail,
+        request_id: requestId
       },
       500
     );
@@ -1319,6 +2216,7 @@ async function handleTagQa(request, env) {
   const data = await resp.json();
   const text =
     data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const outputChars = text.length;
   const parsed = parseQuestionQa(text);
   const status = parsed.status || "irrelevant";
   await saveTagQa(env, {
@@ -1334,13 +2232,21 @@ async function handleTagQa(request, env) {
     outcome: status === "ok" ? "success" : "irrelevant",
     serial: `tag:${tag}`,
     user_id: user && user.id ? user.id : null,
-    model: usedModel
+    model: usedModel,
+    request_id: requestId,
+    latency_ms: Date.now() - startedAt,
+    input_chars: inputChars,
+    output_chars: outputChars,
+    char_count: outputChars,
+    prompt_version: promptVersion,
+    fallback_model: usedModel !== requestedModel ? usedModel : null
   });
   return jsonResponse({
     status,
     question: parsed.question || question,
     answer: parsed.answer || "",
-    mode: gemini.mode
+    mode: gemini.mode,
+    request_id: requestId
   });
 }
 
@@ -3293,6 +4199,16 @@ async function safeLogAiUsage(env, payload) {
 async function logAiUsage(env, payload) {
   const charCountRaw = Number(payload && payload.char_count);
   const charCount = Number.isFinite(charCountRaw) && charCountRaw > 0 ? Math.floor(charCountRaw) : 0;
+  const latencyRaw = Number(payload && payload.latency_ms);
+  const latencyMs = Number.isFinite(latencyRaw) && latencyRaw >= 0 ? Math.round(latencyRaw) : null;
+  const inputCharsRaw = Number(payload && payload.input_chars);
+  const outputCharsRaw = Number(payload && payload.output_chars);
+  const inputChars = Number.isFinite(inputCharsRaw) && inputCharsRaw >= 0 ? Math.floor(inputCharsRaw) : 0;
+  const outputChars = Number.isFinite(outputCharsRaw) && outputCharsRaw >= 0 ? Math.floor(outputCharsRaw) : 0;
+  const requestId = sanitizeAnalyticsText(payload && payload.request_id ? payload.request_id : "", 120);
+  const errorCode = sanitizeAnalyticsText(payload && payload.error_code ? payload.error_code : "", 80);
+  const promptVersion = sanitizeAnalyticsText(payload && payload.prompt_version ? payload.prompt_version : "", 40);
+  const fallbackModel = sanitizeAnalyticsText(payload && payload.fallback_model ? payload.fallback_model : "", 80);
   const body = {
     created_at: new Date().toISOString(),
     mode: normalizeAiUsageMode(payload && payload.mode),
@@ -3301,38 +4217,48 @@ async function logAiUsage(env, payload) {
     serial: payload && payload.serial ? String(payload.serial) : null,
     user_id: payload && payload.user_id ? String(payload.user_id) : null,
     model: payload && payload.model ? String(payload.model) : null,
-    char_count: charCount
+    char_count: charCount,
+    request_id: requestId,
+    latency_ms: latencyMs,
+    input_chars: inputChars,
+    output_chars: outputChars,
+    error_code: errorCode || null,
+    prompt_version: promptVersion || null,
+    fallback_model: fallbackModel || null
   };
-  let resp = await fetch(`${env.SUPABASE_URL}/rest/v1/ai_usage_logs`, {
-    method: "POST",
-    headers: {
-      apikey: env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-  if (resp.ok) return;
-  const detail = await resp.text();
-  if (!String(detail || "").includes("char_count")) return;
-  const fallbackBody = {
-    created_at: body.created_at,
-    mode: body.mode,
-    endpoint: body.endpoint,
-    outcome: body.outcome,
-    serial: body.serial,
-    user_id: body.user_id,
-    model: body.model
-  };
-  resp = await fetch(`${env.SUPABASE_URL}/rest/v1/ai_usage_logs`, {
-    method: "POST",
-    headers: {
-      apikey: env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(fallbackBody)
-  });
+  const postLog = async (row) =>
+    fetch(`${env.SUPABASE_URL}/rest/v1/ai_usage_logs`, {
+      method: "POST",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(row)
+    });
+
+  let currentBody = { ...body };
+  const optionalColumns = [
+    "fallback_model",
+    "prompt_version",
+    "error_code",
+    "output_chars",
+    "input_chars",
+    "latency_ms",
+    "request_id",
+    "char_count"
+  ];
+
+  for (let i = 0; i <= optionalColumns.length; i += 1) {
+    const resp = await postLog(currentBody);
+    if (resp.ok) return;
+    const detail = String(await resp.text().catch(() => "")).toLowerCase();
+    const missingColumn = optionalColumns.find(
+      (column) => Object.prototype.hasOwnProperty.call(currentBody, column) && detail.includes(column)
+    );
+    if (!missingColumn) return;
+    delete currentBody[missingColumn];
+  }
 }
 
 async function logRoleChange(env, payload) {
