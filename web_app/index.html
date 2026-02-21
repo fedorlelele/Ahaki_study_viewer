@@ -5569,34 +5569,6 @@
               applyTagSearch(tag);
             });
             filters.appendChild(tagFilter);
-            (meta.subjects || []).slice(0, 5).forEach((subjectName) => {
-              const btn = document.createElement("button");
-              btn.className = "chip-link";
-              btn.textContent = `科目:${subjectName}`;
-              btn.addEventListener("click", () => {
-                applyFilters({ subject: subjectName, subtopic: "" });
-              });
-              filters.appendChild(btn);
-            });
-            (meta.subtopics || []).slice(0, 8).forEach((subtopicName) => {
-              const btn = document.createElement("button");
-              btn.className = "chip-link";
-              btn.textContent = `小項目:${subtopicName}`;
-              btn.addEventListener("click", () => {
-                applyFilters({ subtopic: subtopicName });
-              });
-              filters.appendChild(btn);
-            });
-            allRelatedSerials.slice(0, 5).forEach((serial) => {
-              const btn = document.createElement("button");
-              btn.className = "chip-link";
-              btn.textContent = serial;
-              btn.addEventListener("click", () => {
-                resetNonKeywordFilters();
-                applyFilters({ keyword: serial });
-              });
-              filters.appendChild(btn);
-            });
             if (filters.childNodes.length) {
               tagDesc.appendChild(filters);
             }
@@ -6984,34 +6956,6 @@
               applyTagSearch(tag);
             });
             filters.appendChild(tagFilter);
-            (meta.subjects || []).slice(0, 5).forEach((subjectName) => {
-              const btn = document.createElement("button");
-              btn.className = "chip-link";
-              btn.textContent = `科目:${subjectName}`;
-              btn.addEventListener("click", () => {
-                applyFilters({ subject: subjectName, subtopic: "" });
-              });
-              filters.appendChild(btn);
-            });
-            (meta.subtopics || []).slice(0, 8).forEach((subtopicName) => {
-              const btn = document.createElement("button");
-              btn.className = "chip-link";
-              btn.textContent = `小項目:${subtopicName}`;
-              btn.addEventListener("click", () => {
-                applyFilters({ subtopic: subtopicName });
-              });
-              filters.appendChild(btn);
-            });
-            allRelatedSerials.slice(0, 5).forEach((serial) => {
-              const btn = document.createElement("button");
-              btn.className = "chip-link";
-              btn.textContent = serial;
-              btn.addEventListener("click", () => {
-                resetNonKeywordFilters();
-                applyFilters({ keyword: serial });
-              });
-              filters.appendChild(btn);
-            });
             if (filters.childNodes.length) {
               deepDiveTagDesc.appendChild(filters);
             }

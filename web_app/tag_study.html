@@ -299,6 +299,23 @@
         font-size: 12px;
         padding: 5px 10px;
       }
+      .rank-list .rank-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .rank-no {
+        font-weight: 700;
+        font-size: 11px;
+        color: #1b4d43;
+        background: #e8f5f0;
+        border-radius: 999px;
+        padding: 2px 7px;
+      }
+      .rank-count {
+        color: var(--muted);
+        font-size: 11px;
+      }
       .related-head {
         display: flex;
         align-items: center;
@@ -910,7 +927,7 @@
         return `<div><label>${label}</label><div id='${listId}' class='chip-list'>${chips}</div>${expandBtn}</div>`;
       }
 
-      function sortLabelsByRelatedCount(labels, indexMap, relatedSerials) {
+      function rankLabelsByRelatedCount(labels, indexMap, relatedSerials) {
         const values = Array.isArray(labels)
           ? labels.map((item) => String(item || "").trim()).filter(Boolean)
           : [];
@@ -935,7 +952,82 @@
           if (b.count !== a.count) return b.count - a.count;
           return String(a.label).localeCompare(String(b.label), "ja");
         });
-        return scored.map((row) => row.label);
+        return scored;
+      }
+
+      function buildSubjectPrefixedSubtopicRanks(subtopics, subjects, relatedSerials) {
+        const subtopicRanks = rankLabelsByRelatedCount(subtopics, state.indexBySubtopic, relatedSerials);
+        if (!subtopicRanks.length) return [];
+        const subjectList = Array.isArray(subjects)
+          ? subjects.map((item) => String(item || "").trim()).filter(Boolean)
+          : [];
+        if (!subjectList.length) return subtopicRanks;
+        const serialSet = new Set(
+          Array.isArray(relatedSerials)
+            ? relatedSerials.map((serial) => String(serial || "").trim()).filter(Boolean)
+            : []
+        );
+        const subjectSerialSets = {};
+        subjectList.forEach((subject) => {
+          subjectSerialSets[subject] = new Set(
+            Array.isArray(state.indexBySubject[subject]) ? state.indexBySubject[subject] : []
+          );
+        });
+        return subtopicRanks.map((row) => {
+          const subtopic = row.label;
+          const subtopicSerials = Array.isArray(state.indexBySubtopic[subtopic]) ? state.indexBySubtopic[subtopic] : [];
+          let bestSubject = "";
+          let bestScore = -1;
+          subjectList.forEach((subject) => {
+            const subjectSet = subjectSerialSets[subject];
+            let score = 0;
+            if (serialSet.size && subtopicSerials.length) {
+              subtopicSerials.forEach((serial) => {
+                if (serialSet.has(serial) && subjectSet.has(serial)) score += 1;
+              });
+            }
+            if (
+              score > bestScore ||
+              (score === bestScore && bestSubject && String(subject).localeCompare(String(bestSubject), "ja") < 0) ||
+              (score === bestScore && !bestSubject)
+            ) {
+              bestScore = score;
+              bestSubject = subject;
+            }
+          });
+          const label = bestSubject ? `${bestSubject}/${subtopic}` : subtopic;
+          return { label, count: row.count };
+        });
+      }
+
+      function renderRankedMetaChips(label, rows, collapseLimit) {
+        const values = Array.isArray(rows)
+          ? rows
+              .map((row) => ({
+                label: String((row && row.label) || "").trim(),
+                count: Number((row && row.count) || 0),
+              }))
+              .filter((row) => row.label)
+          : [];
+        if (!values.length) {
+          return `<div class='hint'>${label}: なし</div>`;
+        }
+        const limit = Number.isFinite(collapseLimit) && collapseLimit > 0 ? collapseLimit : 0;
+        const shouldCollapse = limit > 0 && values.length > limit;
+        const listId = nextRenderId("ranklist");
+        const chips = values
+          .map((row, idx) => {
+            const safe = escapeHtmlForMarkdown(row.label);
+            const rank = idx + 1;
+            const extraClass = shouldCollapse && idx >= limit ? "chip-extra is-hidden" : "";
+            const countText = row.count > 0 ? `<span class='rank-count'>${row.count}件</span>` : "";
+            return `<span class='chip rank-chip ${extraClass}'><span class='rank-no'>${rank}位</span><span>${safe}</span>${countText}</span>`;
+          })
+          .join(" ");
+        const expandBtn = shouldCollapse
+          ? `<button type='button' class='expand-btn' data-expand-target='${listId}' data-open='0'>すべて表示 (${values.length})</button>`
+          : "";
+        return `<div><label>${label}</label><div id='${listId}' class='chip-list rank-list'>${chips}</div>${expandBtn}</div>`;
       }
 
       function renderRelatedSerials(tag) {
@@ -1233,8 +1325,12 @@
         }
         const item = state.tagCatalogByTag[tag];
         const relatedSerials = getRelatedSerialsForTag(tag);
-        const rankedSubjects = sortLabelsByRelatedCount(item.subjects || [], state.indexBySubject, relatedSerials);
-        const rankedSubtopics = sortLabelsByRelatedCount(item.subtopics || [], state.indexBySubtopic, relatedSerials);
+        const rankedSubjects = rankLabelsByRelatedCount(item.subjects || [], state.indexBySubject, relatedSerials);
+        const rankedSubtopics = buildSubjectPrefixedSubtopicRanks(
+          item.subtopics || [],
+          rankedSubjects.map((row) => row.label),
+          relatedSerials
+        );
         const detailTitle = document.getElementById("detailTitle");
         const detailHint = document.getElementById("detailHint");
         const detailBody = document.getElementById("detailBody");
@@ -1275,8 +1371,8 @@
               ${renderTagMetaChips("同義語(結合)", equivalents, true)}
               ${renderTagMetaChips("別名", item.aliases || [], true)}
               ${renderTagMetaChips("関連タグ", item.related_tags || [], true)}
-              ${renderTagMetaChips("科目", rankedSubjects, false, 3)}
-              ${renderTagMetaChips("小項目", rankedSubtopics, false, 3)}
+              ${renderRankedMetaChips("科目", rankedSubjects, 3)}
+              ${renderRankedMetaChips("小項目", rankedSubtopics, 3)}
             </div>
           </section>
 
