@@ -31,9 +31,10 @@
       .header-inner {
         max-width: 1240px;
         margin: 0 auto;
-        padding: 18px 16px;
+        padding: 14px 16px;
+      }
+      .top-nav {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
@@ -47,6 +48,20 @@
         margin: 4px 0 0;
         color: var(--muted);
         font-size: 13px;
+      }
+      .menu-toggle {
+        min-width: 44px;
+        min-height: 40px;
+        font-size: 18px;
+        padding: 0;
+      }
+      .top-panels {
+        margin-top: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+      }
+      .top-panels[hidden] {
+        display: none;
       }
       .top-links {
         display: flex;
@@ -65,6 +80,11 @@
       .top-links a:hover {
         border-color: var(--accent);
       }
+      .top-links button {
+        color: var(--accent);
+        border-radius: 999px;
+        padding: 7px 12px;
+      }
       main {
         max-width: 1240px;
         margin: 0 auto;
@@ -75,7 +95,7 @@
         border-radius: 12px;
         background: var(--paper);
         padding: 12px;
-        margin-bottom: 14px;
+        margin-top: 10px;
       }
       .auth-top {
         display: flex;
@@ -191,6 +211,16 @@
         border-radius: 10px;
         background: #fff;
       }
+      .result-list.is-compact {
+        max-height: none;
+      }
+      .single-hit-note {
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #1f463e;
+        background: #eef8f5;
+      }
       .result-item {
         width: 100%;
         text-align: left;
@@ -269,6 +299,33 @@
         font-size: 12px;
         padding: 5px 10px;
       }
+      .related-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .serial-open-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #c4cec7;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #21433b;
+        font-size: 12px;
+        padding: 5px 10px;
+        text-decoration: none;
+      }
+      .expand-btn {
+        margin-top: 8px;
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+      .is-hidden {
+        display: none !important;
+      }
       .tag-description {
         line-height: 1.7;
         font-size: 14px;
@@ -341,7 +398,7 @@
         clip: rect(0, 0, 0, 0);
         border: 0;
       }
-      @media (max-width: 960px) {
+      @media (max-width: 1280px) {
         .layout {
           grid-template-columns: 1fr;
         }
@@ -360,34 +417,39 @@
   <body>
     <header>
       <div class="header-inner">
-        <div>
-          <h1 class="title">タグ学習ラボ</h1>
-          <div class="subtitle">タグ辞書を起点に、用語の深掘り解説とQ&Aを行う学習ページ</div>
+        <div class="top-nav">
+          <div>
+            <h1 class="title">タグ学習ラボ</h1>
+            <div class="subtitle">タグ辞書を起点に、用語の深掘り解説とQ&Aを行う学習ページ</div>
+          </div>
+          <button id="menuToggleBtn" class="menu-toggle" type="button" aria-expanded="false" aria-label="メニュー">☰</button>
         </div>
-        <nav class="top-links" aria-label="ページ移動">
-          <a href="./index.html">高機能ビューへ</a>
-          <a href="./simple.html">かんたんビューへ</a>
-        </nav>
+        <div id="topPanels" class="top-panels" hidden>
+          <nav class="top-links" aria-label="ページ移動">
+            <a href="./index.html">高機能ビューへ</a>
+            <a href="./simple.html">かんたんビューへ</a>
+            <button id="authPanelToggle" type="button">ログイン</button>
+          </nav>
+          <section class="auth" id="authPanel" aria-label="ログイン状態" hidden>
+            <div class="auth-top">
+              <div class="auth-status" id="authStatus">ログイン状態: 未確認</div>
+              <div class="btn-row">
+                <button id="authRefreshBtn" type="button">状態更新</button>
+                <button id="authSignOutBtn" type="button">ログアウト</button>
+              </div>
+            </div>
+            <div class="auth-inputs">
+              <input id="authEmail" type="email" autocomplete="username" placeholder="メールアドレス（管理者ログイン用）" />
+              <input id="authPassword" type="password" autocomplete="current-password" placeholder="パスワード" />
+              <button id="authSignInBtn" type="button" class="btn-accent">ログイン</button>
+            </div>
+            <div class="auth-note" id="authNote">AI公開がOFFのとき、生成機能は管理者ログインが必要です。</div>
+          </section>
+        </div>
       </div>
     </header>
 
     <main>
-      <section class="auth" aria-label="ログイン状態">
-        <div class="auth-top">
-          <div class="auth-status" id="authStatus">ログイン状態: 未確認</div>
-          <div class="btn-row">
-            <button id="authRefreshBtn" type="button">状態更新</button>
-            <button id="authSignOutBtn" type="button">ログアウト</button>
-          </div>
-        </div>
-        <div class="auth-inputs">
-          <input id="authEmail" type="email" autocomplete="username" placeholder="メールアドレス（管理者ログイン用）" />
-          <input id="authPassword" type="password" autocomplete="current-password" placeholder="パスワード" />
-          <button id="authSignInBtn" type="button" class="btn-accent">ログイン</button>
-        </div>
-        <div class="auth-note" id="authNote">AI公開がOFFのとき、生成機能は管理者ログインが必要です。</div>
-      </section>
-
       <div class="layout">
         <section class="panel" aria-label="タグ検索">
           <div class="panel-head">
@@ -430,6 +492,8 @@
         tagCatalog: [],
         tagCatalogByTag: {},
         indexByTag: {},
+        indexBySubject: {},
+        indexBySubtopic: {},
         tagEquivalentByNormalized: {},
         selectedTag: "",
         aiPublicGeneration: false,
@@ -439,6 +503,7 @@
         tagQaCache: {},
         qaViewed: new Set(),
         qaLiked: new Set(),
+        renderSeq: 0,
       };
 
       function normalizeRole(role) {
@@ -538,7 +603,39 @@
           const serials = state.indexByTag[label] || [];
           serials.forEach((serial) => set.add(serial));
         });
-        return Array.from(set).sort((a, b) => String(a).localeCompare(String(b), "ja"));
+        return Array.from(set).sort(compareSerialNewestFirst);
+      }
+
+      function parseSerialForSort(value) {
+        const raw = normalizeAscii(String(value || "")).trim().toUpperCase();
+        let match = raw.match(/^([AB])(\d{2})-(\d{3})$/);
+        if (match) {
+          return {
+            examType: match[1],
+            session: Number(match[2]),
+            number: Number(match[3])
+          };
+        }
+        match = raw.match(/^([AB])(\d{1,2})-(\d{1,3})$/);
+        if (match) {
+          return {
+            examType: match[1],
+            session: Number(match[2]),
+            number: Number(match[3])
+          };
+        }
+        return null;
+      }
+
+      function compareSerialNewestFirst(a, b) {
+        const pa = parseSerialForSort(a);
+        const pb = parseSerialForSort(b);
+        if (pa && pb) {
+          if (pa.session !== pb.session) return pb.session - pa.session;
+          if (pa.examType !== pb.examType) return String(pb.examType).localeCompare(String(pa.examType), "ja");
+          if (pa.number !== pb.number) return pb.number - pa.number;
+        }
+        return String(b).localeCompare(String(a), "ja");
       }
 
       function canUseAiGeneration() {
@@ -668,7 +765,33 @@
           .filter(Boolean);
       }
 
-      function searchTags() {
+      function describeSingleHit(terms, tag) {
+        const first = terms && terms.length ? terms[0] : "";
+        const normalizedTerm = normalizeTagKey(String(first).replace(/^#/, ""));
+        const normalizedTag = normalizeTagKey(tag);
+        if (normalizedTerm && normalizedTerm !== normalizedTag) {
+          return `入力「${escapeHtmlForMarkdown(first)}」は同義語として解釈され、<strong>${escapeHtmlForMarkdown(tag)}</strong>を自動表示しました。`;
+        }
+        return `入力に一致した<strong>${escapeHtmlForMarkdown(tag)}</strong>を自動表示しました。`;
+      }
+
+      function focusDetailSection(target = "description") {
+        const title = document.getElementById("detailTitle");
+        const description = document.getElementById("tagDescription");
+        if (target === "header" && title && typeof title.scrollIntoView === "function") {
+          title.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (description && typeof description.scrollIntoView === "function") {
+          description.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (title && typeof title.scrollIntoView === "function") {
+          title.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        if (title && typeof title.focus === "function") {
+          title.setAttribute("tabindex", "-1");
+          title.focus({ preventScroll: true });
+        }
+      }
+
+      async function searchTags(options = {}) {
         const terms = getSearchTerms();
         let rows = [];
         if (!terms.length) {
@@ -698,6 +821,15 @@
             .map((row) => row.item);
         }
         renderSearchResults(rows, terms);
+        const shouldAutoOpenSingle = options.autoOpenSingle !== false;
+        if (shouldAutoOpenSingle && terms.length && rows.length === 1) {
+          const tag = rows[0].tag;
+          if (state.selectedTag !== tag) {
+            await selectTag(tag, { fromSearch: true, searchTerms: terms, focusDetail: true });
+          } else {
+            focusDetailSection();
+          }
+        }
       }
 
       function renderSearchResults(rows, terms) {
@@ -706,6 +838,7 @@
         if (!list || !meta) return;
 
         if (!rows.length) {
+          list.classList.remove("is-compact");
           list.innerHTML = "<div class='empty'>該当タグがありません。</div>";
           meta.textContent = terms.length
             ? `検索語 ${terms.length} 個 / 0 件`
@@ -713,22 +846,32 @@
           return;
         }
 
+        if (terms.length && rows.length === 1) {
+          list.classList.add("is-compact");
+          list.innerHTML = `<div class='single-hit-note'>${describeSingleHit(terms, rows[0].tag)}</div>`;
+          meta.textContent = `検索語 ${terms.length} 個 / 1 件（自動表示）`;
+          return;
+        }
+
+        list.classList.remove("is-compact");
+
         meta.textContent = terms.length
           ? `検索語 ${terms.length} 個 / ${rows.length} 件`
-          : `人気順で ${rows.length} 件を表示`;
+          : `候補 ${rows.length} 件（複数候補）`;
 
         const frag = document.createDocumentFragment();
         rows.forEach((item) => {
           const btn = document.createElement("button");
           btn.className = "result-item" + (state.selectedTag === item.tag ? " active" : "");
           btn.type = "button";
+          btn.dataset.tag = item.tag || "";
           btn.setAttribute("role", "option");
           btn.setAttribute("aria-selected", state.selectedTag === item.tag ? "true" : "false");
           btn.innerHTML =
             `<div class='result-item-title'>${escapeHtmlForMarkdown(item.tag || "")}</div>` +
             `<div class='result-item-meta'>関連問題 ${Number(item.related_count || 0)} / 閲覧 ${Number(item.view_count || 0)}</div>`;
           btn.addEventListener("click", () => {
-            selectTag(item.tag);
+            selectTag(item.tag, { focusDetail: true, fromSearch: true, searchTerms: getSearchTerms() });
           });
           frag.appendChild(btn);
         });
@@ -736,38 +879,75 @@
         list.appendChild(frag);
       }
 
-      function renderTagMetaChips(label, items, onClick) {
-        if (!items || !items.length) {
+      function nextRenderId(prefix) {
+        state.renderSeq += 1;
+        return `${prefix}-${state.renderSeq}`;
+      }
+
+      function renderTagMetaChips(label, items, onClick, collapseLimit) {
+        const values = Array.isArray(items)
+          ? items.map((item) => String(item || "").trim()).filter(Boolean)
+          : [];
+        if (!values.length) {
           return `<div class='hint'>${label}: なし</div>`;
         }
-        const chips = items
-          .map((item) => {
+        const limit = Number.isFinite(collapseLimit) && collapseLimit > 0 ? collapseLimit : 0;
+        const shouldCollapse = limit > 0 && values.length > limit;
+        const listId = nextRenderId("chiplist");
+        const chips = values
+          .map((item, idx) => {
             const safe = escapeHtmlForMarkdown(item);
+            const extraClass = shouldCollapse && idx >= limit ? "chip-extra is-hidden" : "";
             if (onClick) {
-              return `<button type='button' class='chip-button' data-chip='${safe}'>${safe}</button>`;
+              return `<button type='button' class='chip-button ${extraClass}' data-chip='${safe}'>${safe}</button>`;
             }
-            return `<span class='chip'>${safe}</span>`;
+            return `<span class='chip ${extraClass}'>${safe}</span>`;
           })
           .join(" ");
-        return `<div><label>${label}</label><div class='chip-list'>${chips}</div></div>`;
+        const expandBtn = shouldCollapse
+          ? `<button type='button' class='expand-btn' data-expand-target='${listId}' data-open='0'>すべて表示 (${values.length})</button>`
+          : "";
+        return `<div><label>${label}</label><div id='${listId}' class='chip-list'>${chips}</div>${expandBtn}</div>`;
+      }
+
+      function sortLabelsByRelatedCount(labels, indexMap, relatedSerials) {
+        const values = Array.isArray(labels)
+          ? labels.map((item) => String(item || "").trim()).filter(Boolean)
+          : [];
+        if (!values.length) return [];
+        const serialSet = new Set(
+          Array.isArray(relatedSerials)
+            ? relatedSerials.map((serial) => String(serial || "").trim()).filter(Boolean)
+            : []
+        );
+        const uniq = Array.from(new Set(values));
+        const scored = uniq.map((label) => {
+          const serials = (indexMap && Array.isArray(indexMap[label])) ? indexMap[label] : [];
+          let count = 0;
+          if (serialSet.size && serials.length) {
+            serials.forEach((serial) => {
+              if (serialSet.has(serial)) count += 1;
+            });
+          }
+          return { label, count };
+        });
+        scored.sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return String(a.label).localeCompare(String(b.label), "ja");
+        });
+        return scored.map((row) => row.label);
       }
 
       function renderRelatedSerials(tag) {
         const serials = getRelatedSerialsForTag(tag);
-        const top = serials.slice(0, 80);
         if (!serials.length) {
           return `<div class='qa-empty'>関連問題はありません。</div>`;
         }
-        const chips = top
-          .map((serial) => `<button type='button' class='chip-button serial-chip' data-serial='${escapeHtmlForMarkdown(serial)}'>${escapeHtmlForMarkdown(serial)}</button>`)
-          .join(" ");
-        const over = serials.length > top.length ? `（先頭 ${top.length} 件表示）` : "";
+        const highViewUrl = `./index.html?q=${encodeURIComponent(`#${tag}`)}&sort=desc`;
         return `
-          <div class='hint'>関連問題: ${serials.length} 件 ${over}</div>
-          <div class='chip-list'>${chips}</div>
-          <div class='btn-row' style='margin-top:8px;'>
-            <a class='chip' href='./index.html' target='_blank' rel='noopener'>高機能ビューを開く</a>
-            <button type='button' id='copyTagQueryBtn' data-tag='${escapeHtmlForMarkdown(tag)}'>#${escapeHtmlForMarkdown(tag)} をコピー</button>
+          <div class='related-head'>
+            <div class='hint'>関連問題: ${serials.length} 件</div>
+            <a class='serial-open-link' href='${escapeHtmlForMarkdown(highViewUrl)}' target='_blank' rel='noopener noreferrer'>関連問題を高機能ビューで開く（新しい順）</a>
           </div>
         `;
       }
@@ -1013,57 +1193,58 @@
         });
       }
 
-      function attachSerialChipHandlers(root) {
-        root.querySelectorAll("button.serial-chip").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const serial = btn.getAttribute("data-serial") || "";
-            if (!serial) return;
-            try {
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(serial);
-                btn.textContent = `${serial} (コピー済み)`;
-                setTimeout(() => {
-                  btn.textContent = serial;
-                }, 900);
-              }
-            } catch (_err) {
-              // noop
+      function attachExpandHandlers(root) {
+        root.querySelectorAll("button[data-expand-target]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const targetId = btn.getAttribute("data-expand-target");
+            if (!targetId) return;
+            const list = root.querySelector(`#${targetId}`);
+            if (!list) return;
+            const isOpen = btn.getAttribute("data-open") === "1";
+            list.querySelectorAll(".chip-extra").forEach((el) => {
+              el.classList.toggle("is-hidden", isOpen);
+            });
+            if (isOpen) {
+              btn.setAttribute("data-open", "0");
+              const size = Number(btn.getAttribute("data-total") || list.querySelectorAll(".chip-button,.chip").length || 0);
+              btn.textContent = `すべて表示 (${size})`;
+            } else {
+              btn.setAttribute("data-open", "1");
+              btn.textContent = "省略表示";
             }
           });
         });
-
-        const copyTagQueryBtn = root.querySelector("#copyTagQueryBtn");
-        if (copyTagQueryBtn) {
-          copyTagQueryBtn.addEventListener("click", async () => {
-            const tag = copyTagQueryBtn.getAttribute("data-tag") || "";
-            if (!tag) return;
-            const text = `#${tag}`;
-            try {
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text);
-                copyTagQueryBtn.textContent = `${text} をコピー済み`;
-                setTimeout(() => {
-                  copyTagQueryBtn.textContent = `${text} をコピー`;
-                }, 1000);
-              }
-            } catch (_err) {
-              // noop
-            }
-          });
-        }
       }
 
-      async function selectTag(tag) {
+      async function selectTag(tag, options = {}) {
         if (!tag || !state.tagCatalogByTag[tag]) return;
         state.selectedTag = tag;
-        searchTags();
+        if (options.refreshSearchList) {
+          await searchTags({ autoOpenSingle: false });
+        } else {
+          const resultList = document.getElementById("resultList");
+          if (resultList) {
+            resultList.querySelectorAll(".result-item").forEach((btn) => {
+              const active = (btn.dataset.tag || "") === tag;
+              btn.classList.toggle("active", active);
+              btn.setAttribute("aria-selected", active ? "true" : "false");
+            });
+          }
+        }
         const item = state.tagCatalogByTag[tag];
+        const relatedSerials = getRelatedSerialsForTag(tag);
+        const rankedSubjects = sortLabelsByRelatedCount(item.subjects || [], state.indexBySubject, relatedSerials);
+        const rankedSubtopics = sortLabelsByRelatedCount(item.subtopics || [], state.indexBySubtopic, relatedSerials);
         const detailTitle = document.getElementById("detailTitle");
         const detailHint = document.getElementById("detailHint");
         const detailBody = document.getElementById("detailBody");
         if (!detailBody || !detailTitle || !detailHint) return;
         detailTitle.textContent = `タグ詳細: ${tag}`;
-        detailHint.textContent = "タグ説明・関連問題・AI深掘り・Q&A";
+        if (options.fromSearch && Array.isArray(options.searchTerms) && options.searchTerms.length) {
+          detailHint.textContent = `検索入力: ${options.searchTerms.join(" ")} / 表示中: ${tag}`;
+        } else {
+          detailHint.textContent = "タグ説明・関連問題・AI深掘り・Q&A";
+        }
 
         const equivalents = getEquivalentTagsForTerm(tag).filter((v) => v !== tag);
         detailBody.innerHTML = `
@@ -1074,6 +1255,17 @@
             <h3>タグ説明</h3>
             <div class='section-body'>
               <div id='tagDescription' class='tag-description'></div>
+              <div class='btn-row' style='margin-top:10px;'>
+                <button type='button' id='tagDeepDiveLoadBtn'>深掘りを表示</button>
+                <button type='button' id='tagDeepDiveGenerateBtn' class='btn-accent'>深掘りを生成</button>
+                <button type='button' id='tagQaReloadBtn'>Q&Aを表示</button>
+                <button type='button' id='tagQaGenerateBtn' class='btn-accent'>Q&Aを生成</button>
+              </div>
+              <textarea id='tagQaInput' style='margin-top:8px;' placeholder='このタグについて質問を入力（例: 病態との関連を教えて）'></textarea>
+              <div id='tagDeepDiveStatus' class='status'></div>
+              <div id='tagDeepDiveBody' class='tag-description'></div>
+              <div id='tagQaStatus' class='status'></div>
+              <div id='tagQaList'></div>
             </div>
           </section>
 
@@ -1083,39 +1275,14 @@
               ${renderTagMetaChips("同義語(結合)", equivalents, true)}
               ${renderTagMetaChips("別名", item.aliases || [], true)}
               ${renderTagMetaChips("関連タグ", item.related_tags || [], true)}
-              ${renderTagMetaChips("科目", item.subjects || [], false)}
-              ${renderTagMetaChips("小項目", item.subtopics || [], false)}
+              ${renderTagMetaChips("科目", rankedSubjects, false, 3)}
+              ${renderTagMetaChips("小項目", rankedSubtopics, false, 3)}
             </div>
           </section>
 
           <section class='section'>
             <h3>関連問題</h3>
             <div class='section-body' id='relatedSerialsBox'>${renderRelatedSerials(tag)}</div>
-          </section>
-
-          <section class='section'>
-            <h3>タグ深掘り解説</h3>
-            <div class='section-body'>
-              <div class='btn-row'>
-                <button type='button' id='tagDeepDiveLoadBtn'>保存済みを読み込む</button>
-                <button type='button' id='tagDeepDiveGenerateBtn' class='btn-accent'>深掘り解説を生成</button>
-              </div>
-              <div id='tagDeepDiveStatus' class='status'></div>
-              <div id='tagDeepDiveBody' class='tag-description'></div>
-            </div>
-          </section>
-
-          <section class='section'>
-            <h3>タグQ&A</h3>
-            <div class='section-body'>
-              <textarea id='tagQaInput' placeholder='このタグについて質問を入力（例: 病態との関連を教えて）'></textarea>
-              <div class='btn-row' style='margin-top:8px;'>
-                <button type='button' id='tagQaGenerateBtn' class='btn-accent'>質問して回答を生成</button>
-                <button type='button' id='tagQaReloadBtn'>Q&Aを再読込</button>
-              </div>
-              <div id='tagQaStatus' class='status'></div>
-              <div id='tagQaList'></div>
-            </div>
           </section>
         `;
 
@@ -1124,9 +1291,12 @@
           tagDescription,
           (item.description || "").trim() || "このタグの説明は未登録です。"
         );
+        if (options.focusDetail) {
+          focusDetailSection(options.focusTarget);
+        }
 
         attachMetaChipHandlers(detailBody);
-        attachSerialChipHandlers(detailBody);
+        attachExpandHandlers(detailBody);
 
         const deepDiveStatus = document.getElementById("tagDeepDiveStatus");
         const deepDiveBody = document.getElementById("tagDeepDiveBody");
@@ -1228,13 +1398,17 @@
       }
 
       async function loadData() {
-        const [tagCatalog, indexByTag] = await Promise.all([
+        const [tagCatalog, indexByTag, indexBySubject, indexBySubtopic] = await Promise.all([
           fetch("../output/web/index/tag_catalog.json").then((r) => (r.ok ? r.json() : [])),
           fetch("../output/web/index/index_by_tag.json").then((r) => (r.ok ? r.json() : {})),
+          fetch("../output/web/index/index_by_subject.json").then((r) => (r.ok ? r.json() : {})),
+          fetch("../output/web/index/index_by_subtopic.json").then((r) => (r.ok ? r.json() : {})),
         ]);
 
         state.tagCatalog = Array.isArray(tagCatalog) ? tagCatalog : [];
         state.indexByTag = indexByTag || {};
+        state.indexBySubject = indexBySubject || {};
+        state.indexBySubtopic = indexBySubtopic || {};
         state.tagCatalogByTag = {};
         state.tagCatalog.forEach((item) => {
           const tag = item && item.tag ? String(item.tag).trim() : "";
@@ -1325,16 +1499,39 @@
         });
       }
 
+      function initMenuBar() {
+        const menuToggleBtn = document.getElementById("menuToggleBtn");
+        const topPanels = document.getElementById("topPanels");
+        const authPanel = document.getElementById("authPanel");
+        const authPanelToggle = document.getElementById("authPanelToggle");
+        if (menuToggleBtn && topPanels) {
+          menuToggleBtn.addEventListener("click", () => {
+            const nextOpen = topPanels.hidden;
+            topPanels.hidden = !nextOpen;
+            menuToggleBtn.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+            if (!nextOpen && authPanel) {
+              authPanel.hidden = true;
+            }
+          });
+        }
+        if (authPanel && authPanelToggle) {
+          authPanelToggle.addEventListener("click", () => {
+            authPanel.hidden = !authPanel.hidden;
+          });
+        }
+      }
+
       async function init() {
+        initMenuBar();
         initAuthUi();
         initSearchUi();
         await Promise.all([loadData(), loadAiConfig(), loadAuthState()]);
         renderAuthStatus();
-        searchTags();
+        await searchTags({ autoOpenSingle: false });
 
         const initialTag = (new URL(window.location.href).searchParams.get("tag") || "").trim();
         if (initialTag && state.tagCatalogByTag[initialTag]) {
-          selectTag(initialTag);
+          selectTag(initialTag, { focusDetail: true, focusTarget: "header" });
           return;
         }
         if (state.tagCatalog.length) {

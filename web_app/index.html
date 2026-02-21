@@ -1286,7 +1286,7 @@
 	            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
 	            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
 	            <button type="button" data-menu-target="practiceRatingPanel">練習問題公開管理</button>
-	            <a href="./tag_study.html">タグ学習ラボ</a>
+	            <a href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ</a>
 	            <a href="./simple.html">かんたんビューへのリンク</a>
 	          </nav>
 	        </div>
@@ -4064,6 +4064,14 @@
         syncSearchQueryToUrl();
       }
 
+      function openTagStudyLab(tag) {
+        const normalizedTag = String(tag || "").trim();
+        if (!normalizedTag) return;
+        const url = new URL("./tag_study.html", window.location.href);
+        url.searchParams.set("tag", normalizedTag);
+        window.open(url.toString(), "_blank", "noopener,noreferrer");
+      }
+
       function normalizeFilterLookupKey(value) {
         return normalizeAscii(String(value || ""))
           .replace(/\s+/g, "")
@@ -5329,6 +5337,13 @@
             }
             const filters = document.createElement("div");
             filters.className = "tag-description-filters";
+            const tagStudyLink = document.createElement("button");
+            tagStudyLink.className = "chip-link";
+            tagStudyLink.textContent = "タグ学習ラボで開く";
+            tagStudyLink.addEventListener("click", () => {
+              openTagStudyLab(tag);
+            });
+            filters.appendChild(tagStudyLink);
             const tagFilter = document.createElement("button");
             tagFilter.className = "chip-link";
             tagFilter.textContent = "このタグで検索";
@@ -6737,6 +6752,13 @@
             }
             const filters = document.createElement("div");
             filters.className = "tag-description-filters";
+            const tagStudyLink = document.createElement("button");
+            tagStudyLink.className = "chip-link";
+            tagStudyLink.textContent = "タグ学習ラボで開く";
+            tagStudyLink.addEventListener("click", () => {
+              openTagStudyLab(tag);
+            });
+            filters.appendChild(tagStudyLink);
             const tagFilter = document.createElement("button");
             tagFilter.className = "chip-link";
             tagFilter.textContent = "このタグで検索";
