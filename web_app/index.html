@@ -335,7 +335,25 @@
         font-size: 18px;
       }
       .filter-summary {
-        flex-basis: 100%;
+        flex: 1 1 420px;
+        min-width: 280px;
+      }
+      .result-page-nav {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .result-page-nav[hidden] {
+        display: none;
+      }
+      .result-page-nav input {
+        width: 84px;
+        min-height: 36px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 2px solid var(--line);
+        font-size: 13px;
       }
       .answer-trend-content {
         display: block;
@@ -1561,6 +1579,12 @@
       </select>
       <span id="countInfo" aria-live="polite"></span>
       <div id="filterSummary" class="note filter-summary"></div>
+      <div id="resultPageNav" class="result-page-nav" hidden>
+        <span id="resultPageInfo" aria-live="polite">ページ 1/1</span>
+        <label for="resultPageJumpInput">ページ移動</label>
+        <input id="resultPageJumpInput" type="number" min="1" step="1" inputmode="numeric" />
+        <button id="resultPageJumpBtn" type="button">移動</button>
+      </div>
     </div>
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
@@ -1662,6 +1686,11 @@
         ,pendingStatSortRefresh: false
         ,qaDrafts: {}
         ,authRenderSnapshot: ""
+        ,randomOrderSeed: ""
+        ,currentResultPage: 1
+        ,pendingResultPage: null
+        ,lastResultViewKey: ""
+        ,resultTotalPages: 1
       };
 
       function normalizeRole(role) {
@@ -4577,6 +4606,148 @@
         return String(Math.floor(num));
       }
 
+      function normalizePositiveIntParamValue(raw) {
+        if (raw === undefined) return undefined;
+        const text = String(raw || "").trim();
+        if (!text) return "";
+        const num = Number(text);
+        if (!Number.isFinite(num) || num < 1) return "";
+        return String(Math.floor(num));
+      }
+
+      function normalizeRandomSeedParamValue(raw) {
+        const normalized = normalizePositiveIntParamValue(raw);
+        return normalized || "";
+      }
+
+      function createRandomOrderSeed() {
+        try {
+          if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+            const arr = new Uint32Array(1);
+            window.crypto.getRandomValues(arr);
+            const value = Number(arr[0]) || 1;
+            return String(value);
+          }
+        } catch (_err) {
+          // noop
+        }
+        return String(Math.floor(Math.random() * 0x7fffffff) + 1);
+      }
+
+      function getPersistedRandomSeed() {
+        try {
+          return String(sessionStorage.getItem("ahakiRandomSeed") || "").trim();
+        } catch (_err) {
+          return "";
+        }
+      }
+
+      function setPersistedRandomSeed(seed) {
+        const normalized = normalizeRandomSeedParamValue(seed);
+        if (!normalized) return;
+        try {
+          sessionStorage.setItem("ahakiRandomSeed", normalized);
+        } catch (_err) {
+          // noop
+        }
+      }
+
+      function clearPersistedRandomSeed() {
+        try {
+          sessionStorage.removeItem("ahakiRandomSeed");
+        } catch (_err) {
+          // noop
+        }
+      }
+
+      function ensureRandomOrderSeed(sortSession, createIfMissing = true) {
+        const sort = String(sortSession || "").trim() || "random";
+        if (sort !== "random") {
+          state.randomOrderSeed = "";
+          return "";
+        }
+        const current = normalizeRandomSeedParamValue(state.randomOrderSeed);
+        if (current) {
+          state.randomOrderSeed = current;
+          setPersistedRandomSeed(current);
+          return current;
+        }
+        const persisted = normalizeRandomSeedParamValue(getPersistedRandomSeed());
+        if (persisted) {
+          state.randomOrderSeed = persisted;
+          return persisted;
+        }
+        if (!createIfMissing) return "";
+        const seed = createRandomOrderSeed();
+        state.randomOrderSeed = seed;
+        setPersistedRandomSeed(seed);
+        return seed;
+      }
+
+      function buildResultViewKey(sortSession) {
+        const keyword = String((document.getElementById("keyword") && document.getElementById("keyword").value) || "").trim();
+        const subject = String((document.getElementById("subjectSelect") && document.getElementById("subjectSelect").value) || "").trim();
+        const subtopic = String((document.getElementById("subtopicSelect") && document.getElementById("subtopicSelect").value) || "").trim();
+        const examType = String((document.getElementById("examTypeSelect") && document.getElementById("examTypeSelect").value) || "").trim();
+        const sessionFrom = normalizeSessionParamValue(document.getElementById("sessionFrom") ? document.getElementById("sessionFrom").value : "");
+        const sessionTo = normalizeSessionParamValue(document.getElementById("sessionTo") ? document.getElementById("sessionTo").value : "");
+        const progress = String((document.getElementById("progressStateFilter") && document.getElementById("progressStateFilter").value) || "").trim();
+        const answeredFilterEl = document.getElementById("answeredFilter");
+        const answered = isRoleAtLeast("student")
+          ? "all"
+          : String((answeredFilterEl && answeredFilterEl.value) || "all").trim();
+        const sort = String(sortSession || (document.getElementById("sortSession") && document.getElementById("sortSession").value) || "random").trim() || "random";
+        const randomSeed = sort === "random" ? ensureRandomOrderSeed(sort, true) : "";
+        return [
+          keyword,
+          subject,
+          subtopic,
+          examType,
+          sessionFrom || "",
+          sessionTo || "",
+          progress,
+          answered,
+          sort,
+          randomSeed
+        ].join("\u0001");
+      }
+
+      function updateResultPageNavigator(totalPages) {
+        const nav = document.getElementById("resultPageNav");
+        const info = document.getElementById("resultPageInfo");
+        const input = document.getElementById("resultPageJumpInput");
+        const btn = document.getElementById("resultPageJumpBtn");
+        if (!nav || !info || !input || !btn) return;
+        const normalizedTotal = Math.max(1, Number(totalPages || 1));
+        state.resultTotalPages = normalizedTotal;
+        if (!Number.isFinite(state.currentResultPage) || state.currentResultPage < 1) {
+          state.currentResultPage = 1;
+        }
+        if (state.currentResultPage > normalizedTotal) {
+          state.currentResultPage = normalizedTotal;
+        }
+        info.textContent = `ページ ${state.currentResultPage}/${normalizedTotal}`;
+        input.value = String(state.currentResultPage);
+        input.min = "1";
+        input.max = String(normalizedTotal);
+        const disabled = normalizedTotal <= 1;
+        input.disabled = disabled;
+        btn.disabled = disabled;
+        nav.hidden = false;
+      }
+
+      function jumpToResultPage(rawPage) {
+        const total = Math.max(1, Number(state.resultTotalPages || 1));
+        const parsed = Number(rawPage);
+        if (!Number.isFinite(parsed)) return false;
+        const next = Math.max(1, Math.min(total, Math.floor(parsed)));
+        if (next === state.currentResultPage) return false;
+        state.currentResultPage = next;
+        state.pendingResultPage = next;
+        renderResults(filterQuestions());
+        return true;
+      }
+
       function getSearchStateFromUrl() {
         const empty = {
           keyword: undefined,
@@ -4587,7 +4758,9 @@
           sessionTo: undefined,
           progress: undefined,
           answered: undefined,
-          sort: undefined
+          sort: undefined,
+          randomSeed: undefined,
+          page: undefined
         };
         try {
           const url = new URL(window.location.href);
@@ -4604,7 +4777,9 @@
             sessionTo: normalizeSessionParamValue(read("sessionTo")),
             progress: read("progress"),
             answered: read("answered"),
-            sort: read("sort")
+            sort: read("sort"),
+            randomSeed: normalizeRandomSeedParamValue(read("rseed")),
+            page: normalizePositiveIntParamValue(read("page"))
           };
           return stateFromUrl;
         } catch (_err) {
@@ -4673,6 +4848,25 @@
             sortSelect.value = "random";
           }
         }
+        const activeSort = String((sortSelect && sortSelect.value) || "random").trim() || "random";
+        if (activeSort === "random") {
+          if (data.randomSeed !== undefined) {
+            state.randomOrderSeed = normalizeRandomSeedParamValue(data.randomSeed);
+            if (state.randomOrderSeed) {
+              setPersistedRandomSeed(state.randomOrderSeed);
+            }
+          }
+        } else {
+          state.randomOrderSeed = "";
+        }
+        if (data.page !== undefined) {
+          const parsedPage = Number(data.page || 1);
+          state.pendingResultPage = Number.isFinite(parsedPage) && parsedPage >= 1
+            ? Math.floor(parsedPage)
+            : 1;
+        } else {
+          state.pendingResultPage = null;
+        }
       }
 
       function syncSearchQueryToUrl() {
@@ -4697,6 +4891,8 @@
           const progress = String((progressSelect && progressSelect.value) || "").trim();
           const answered = String((answeredSelect && answeredSelect.value) || "").trim();
           const sort = String((sortSelect && sortSelect.value) || "").trim();
+          const randomSeed = ensureRandomOrderSeed(sort || "random", true);
+          const page = normalizePositiveIntParamValue(state.currentResultPage || 1);
 
           const url = new URL(window.location.href);
           const beforeUrl = `${url.pathname}${url.search}${url.hash}`;
@@ -4731,6 +4927,19 @@
             url.searchParams.set("sort", sort);
           } else {
             url.searchParams.delete("sort");
+          }
+
+          if ((sort || "random") === "random" && randomSeed) {
+            url.searchParams.set("rseed", randomSeed);
+            setPersistedRandomSeed(randomSeed);
+          } else {
+            url.searchParams.delete("rseed");
+          }
+
+          if (page && Number(page) > 1) {
+            url.searchParams.set("page", page);
+          } else {
+            url.searchParams.delete("page");
           }
 
           const nextUrl = `${url.pathname}${url.search}${url.hash}`;
@@ -4835,13 +5044,20 @@
 	          else score = 0;
 	          return { score, missRate };
 	        };
-	        const shuffleInPlace = (arr) => {
+	        const createSeededRng = (seedValue) => {
+	          let seed = Number(normalizeRandomSeedParamValue(seedValue)) || 1;
+	          return () => {
+	            seed = (seed * 1664525 + 1013904223) >>> 0;
+	            return seed / 4294967296;
+	          };
+	        };
+	        const shuffleInPlace = (arr, rng) => {
 	          for (let i = arr.length - 1; i > 0; i -= 1) {
-	            const j = Math.floor(Math.random() * (i + 1));
+	            const j = Math.floor(rng() * (i + 1));
 	            [arr[i], arr[j]] = [arr[j], arr[i]];
 	          }
 	        };
-	        const shuffleQuestionsDiversified = (items) => {
+	        const shuffleQuestionsDiversified = (items, rng) => {
 	          if (!Array.isArray(items) || items.length <= 1) return items;
 	          const buckets = {};
 	          items.forEach((q) => {
@@ -4856,11 +5072,11 @@
 	            buckets[key].push(q);
 	          });
 	          const keys = Object.keys(buckets);
-	          keys.forEach((key) => shuffleInPlace(buckets[key]));
-	          shuffleInPlace(keys);
+	          keys.forEach((key) => shuffleInPlace(buckets[key], rng));
+	          shuffleInPlace(keys, rng);
 	          const result = [];
 	          while (keys.length) {
-	            const keyIndex = Math.floor(Math.random() * keys.length);
+	            const keyIndex = Math.floor(rng() * keys.length);
 	            const key = keys[keyIndex];
 	            const bucket = buckets[key];
 	            const item = bucket.pop();
@@ -4872,7 +5088,9 @@
 	          return result;
 	        };
 	        if (sortSession === "random") {
-	          return shuffleQuestionsDiversified(filtered.slice());
+	          const seed = ensureRandomOrderSeed(sortSession, true);
+	          const rng = createSeededRng(seed);
+	          return shuffleQuestionsDiversified(filtered.slice(), rng);
 	        } else if (sortSession === "asc") {
 	          filtered.sort((a, b) => {
 	            const sessionDiff = (a.exam_session || 0) - (b.exam_session || 0);
@@ -7057,54 +7275,84 @@
 	          target.appendChild(card);
 	        }
 
+        const queryKey = buildResultViewKey(sortSession);
+        const pendingPage = state.pendingResultPage;
+        if (state.lastResultViewKey !== queryKey) {
+          state.lastResultViewKey = queryKey;
+          const parsedPage = Number(pendingPage || 1);
+          state.currentResultPage = Number.isFinite(parsedPage) && parsedPage >= 1
+            ? Math.floor(parsedPage)
+            : 1;
+        } else if (pendingPage !== null && pendingPage !== undefined) {
+          const parsedPage = Number(pendingPage || 1);
+          if (Number.isFinite(parsedPage) && parsedPage >= 1) {
+            state.currentResultPage = Math.floor(parsedPage);
+          }
+        }
+        state.pendingResultPage = null;
+
         const subset = list;
-        let idx = 0;
         const batchSize = 20;
+        const totalPages = subset.length ? Math.ceil(subset.length / batchSize) : 1;
+        if (!Number.isFinite(state.currentResultPage) || state.currentResultPage < 1) {
+          state.currentResultPage = 1;
+        }
+        if (state.currentResultPage > totalPages) {
+          state.currentResultPage = totalPages;
+        }
+        updateResultPageNavigator(totalPages);
+        const pageStart = Math.max(0, (state.currentResultPage - 1) * batchSize);
+        const pageEnd = Math.min(pageStart + batchSize, subset.length);
+        const pageItems = subset.slice(pageStart, pageEnd);
         const more = document.createElement("button");
-        const updateLabel = () => {
-          more.textContent = `さらに表示 (${idx}/${subset.length})`;
-        };
-        function renderBatch(batch) {
+        more.type = "button";
+        const renderBatch = (batch) => {
           const frag = document.createDocumentFragment();
-          batch.forEach(item => {
+          batch.forEach((item) => {
             appendCard(item, frag);
           });
           container.appendChild(frag);
-        }
-        async function renderChunk() {
-          const end = Math.min(idx + batchSize, subset.length);
-          const batch = subset.slice(idx, end);
-          idx = end;
+        };
+        const refreshMoreButton = () => {
+          moreContainer.innerHTML = "";
+          if (state.currentResultPage >= totalPages) return;
+          const nextPage = state.currentResultPage + 1;
+          more.textContent = `さらに表示 (${nextPage}/${totalPages})`;
+          moreContainer.appendChild(more);
+        };
+        const renderPage = async () => {
           more.disabled = true;
           const statsLoaded = state.answerStatsLoaded.has("*");
-          await ensureOverridesLoaded(batch.map(item => item.serial));
+          await ensureOverridesLoaded(pageItems.map((item) => item.serial));
           if (canTeacherEdit) {
-            await ensureEditRequestsLoaded(batch.map(item => item.serial));
+            await ensureEditRequestsLoaded(pageItems.map((item) => item.serial));
           }
-          await ensureAnswerStatsLoaded(batch.map(item => item.serial));
+          await ensureAnswerStatsLoaded(pageItems.map((item) => item.serial));
           if (isStatSort && !statsLoaded && state.answerStatsLoaded.has("*")) {
             state.pendingStatSortRefresh = true;
             flushDeferredRenderIfSafe();
-            return;
+            more.disabled = false;
+            return false;
           }
-          const resolvedBatch = batch.map(item => applyOverridesToQuestion(item));
+          const resolvedBatch = pageItems.map((item) => applyOverridesToQuestion(item));
           await ensureTagViewCountsForQuestions(resolvedBatch);
           renderBatch(resolvedBatch);
           more.disabled = false;
-          updateLabel();
-          if (idx >= subset.length) {
-            more.remove();
-          }
-        }
+          return true;
+        };
 
-        renderChunk();
-        if (idx < subset.length) {
-          updateLabel();
-          more.addEventListener("click", () => {
-            renderChunk();
-          });
-          moreContainer.appendChild(more);
-        }
+        more.addEventListener("click", () => {
+          if (more.disabled || state.currentResultPage >= totalPages) return;
+          state.currentResultPage += 1;
+          renderResults(filterQuestions());
+        });
+
+        (async () => {
+          const rendered = await renderPage();
+          if (!rendered) return;
+          refreshMoreButton();
+          syncSearchQueryToUrl();
+        })();
       }
 
       function init() {
@@ -7400,6 +7648,11 @@
 	        document.getElementById("sessionTo").value = "";
 	        document.getElementById("progressStateFilter").value = "";
 	        document.getElementById("sortSession").value = "random";
+          state.randomOrderSeed = "";
+          clearPersistedRandomSeed();
+          state.currentResultPage = 1;
+          state.pendingResultPage = null;
+          state.lastResultViewKey = "";
 	        saveTagVisibility();
 	        updateSubtopicOptions("");
 	        renderResults(filterQuestions());
@@ -7411,6 +7664,24 @@
         document.getElementById("sortSession").addEventListener("change", () => {
           renderResults(filterQuestions());
         });
+        const resultPageJumpBtn = document.getElementById("resultPageJumpBtn");
+        const resultPageJumpInput = document.getElementById("resultPageJumpInput");
+        if (resultPageJumpBtn && resultPageJumpInput) {
+          const runPageJump = () => {
+            const ok = jumpToResultPage(resultPageJumpInput.value);
+            if (!ok) {
+              resultPageJumpInput.value = String(state.currentResultPage || 1);
+            }
+          };
+          resultPageJumpBtn.addEventListener("click", () => {
+            runPageJump();
+          });
+          resultPageJumpInput.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            runPageJump();
+          });
+        }
         const answeredFilterEl = document.getElementById("answeredFilter");
         if (answeredFilterEl) {
           answeredFilterEl.addEventListener("change", () => {
@@ -7500,6 +7771,9 @@
           renderTagDisambiguationHints();
         });
         document.addEventListener("keydown", (e) => {
+          if (e.metaKey || e.ctrlKey || e.altKey) {
+            return;
+          }
           const active = document.activeElement;
           const isInput =
             active &&
