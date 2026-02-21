@@ -808,6 +808,21 @@
         }
       }
 
+      function syncSelectedTagToUrl(tag) {
+        const normalizedTag = String(tag || "").trim();
+        if (!normalizedTag) return;
+        try {
+          const url = new URL(window.location.href);
+          const beforeUrl = `${url.pathname}${url.search}${url.hash}`;
+          url.searchParams.set("tag", normalizedTag);
+          const afterUrl = `${url.pathname}${url.search}${url.hash}`;
+          if (afterUrl === beforeUrl) return;
+          history.replaceState(null, "", afterUrl);
+        } catch (_err) {
+          // noop
+        }
+      }
+
       async function searchTags(options = {}) {
         const terms = getSearchTerms();
         let rows = [];
@@ -1311,6 +1326,7 @@
       async function selectTag(tag, options = {}) {
         if (!tag || !state.tagCatalogByTag[tag]) return;
         state.selectedTag = tag;
+        syncSelectedTagToUrl(tag);
         if (options.refreshSearchList) {
           await searchTags({ autoOpenSingle: false });
         } else {
