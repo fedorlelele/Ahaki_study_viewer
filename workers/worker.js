@@ -4,6 +4,18 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
   "Access-Control-Allow-Headers": "Authorization,Content-Type"
 };
+const ANALYTICS_TIME_ZONE = "Asia/Tokyo";
+const ANALYTICS_DATE_PARTS_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: ANALYTICS_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
+const ANALYTICS_HOUR_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: ANALYTICS_TIME_ZONE,
+  hour: "2-digit",
+  hourCycle: "h23"
+});
 
 export default {
   async fetch(request, env) {
@@ -793,7 +805,7 @@ async function handleAnalytics(request, env) {
     const user = await authenticate(request, env);
     if (!user) return jsonResponse({ message: "Unauthorized" }, 401);
     const role = getRole(user);
-    if (!isRoleAtLeast(role, "teacher")) {
+    if (!isRoleAtLeast(role, "admin")) {
       return jsonResponse({ message: "Forbidden" }, 403);
     }
 
@@ -871,14 +883,89 @@ function normalizeAnalyticsProps(value) {
   return out;
 }
 
-function analyticsActorKeyFromRow(row) {
+function analyticsDateKeyInTimeZone(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts = ANALYTICS_DATE_PARTS_FORMATTER.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "";
+  const month = parts.find((part) => part.type === "month")?.value || "";
+  const day = parts.find((part) => part.type === "day")?.value || "";
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
+}
+
+function analyticsHourKeyInTimeZone(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const hour = ANALYTICS_HOUR_FORMATTER.format(date);
+  return /^[0-2][0-9]$/.test(hour) ? hour : "";
+}
+
+function analyticsHourLabelFromKey(hourKey) {
+  const normalized = String(hourKey || "").trim();
+  if (!/^[0-2][0-9]$/.test(normalized)) return "不明";
+  return `${normalized}:00-${normalized}:59`;
+}
+
+function classifyAnalyticsClientDevice(request) {
+  const uaRaw = request && request.headers ? String(request.headers.get("user-agent") || "") : "";
+  const ua = uaRaw.toLowerCase();
+  const platformHintRaw = request && request.headers ? String(request.headers.get("sec-ch-ua-platform") || "") : "";
+  const platformHint = platformHintRaw.replace(/["']/g, "").toLowerCase();
+  const mobileHint = request && request.headers ? String(request.headers.get("sec-ch-ua-mobile") || "").trim() : "";
+  const isMobile = mobileHint === "?1" || /iphone|android|mobile/.test(ua);
+
+  let osFamily = "Other";
+  if (platformHint.includes("ios") || /iphone|ipad|ipod/.test(ua)) {
+    osFamily = "iOS";
+  } else if (platformHint.includes("android") || /android/.test(ua)) {
+    osFamily = "Android";
+  } else if (platformHint.includes("windows") || /windows/.test(ua)) {
+    osFamily = "Windows";
+  } else if (platformHint.includes("mac") || /mac os x|macintosh/.test(ua)) {
+    osFamily = "Mac";
+  } else if (platformHint.includes("linux") || /linux/.test(ua)) {
+    osFamily = "Linux";
+  }
+
+  let deviceFamily = "Other";
+  if (/iphone/.test(ua)) {
+    deviceFamily = "iPhone";
+  } else if (/ipad/.test(ua)) {
+    deviceFamily = "iPad";
+  } else if (/android/.test(ua) && isMobile) {
+    deviceFamily = "Android Phone";
+  } else if (/android/.test(ua)) {
+    deviceFamily = "Android Tablet";
+  } else if (/windows/.test(ua) || platformHint.includes("windows")) {
+    deviceFamily = "Windows";
+  } else if (/mac os x|macintosh/.test(ua) || platformHint.includes("mac")) {
+    deviceFamily = "Mac";
+  } else if (/linux/.test(ua) || platformHint.includes("linux")) {
+    deviceFamily = "Linux";
+  } else if (isMobile) {
+    deviceFamily = "Mobile";
+  }
+
+  return {
+    device_family: deviceFamily,
+    os_family: osFamily,
+    is_mobile: Boolean(isMobile)
+  };
+}
+
+function analyticsActorInfoFromRow(row) {
   const userId = sanitizeAnalyticsText(row && row.user_id ? row.user_id : "", 120);
-  if (userId) return `user:${userId}`;
+  if (userId) return { key: `user:${userId}`, actor_type: "user", actor_id: userId };
   const anonId = sanitizeAnalyticsText(row && row.anon_id ? row.anon_id : "", 120);
-  if (anonId) return `anon:${anonId}`;
+  if (anonId) return { key: `anon:${anonId}`, actor_type: "guest", actor_id: anonId };
   const sessionId = sanitizeAnalyticsText(row && row.session_id ? row.session_id : "", 120);
-  if (sessionId) return `session:${sessionId}`;
-  return "unknown";
+  if (sessionId) return { key: `session:${sessionId}`, actor_type: "guest_session", actor_id: sessionId };
+  return { key: "unknown", actor_type: "unknown", actor_id: "" };
+}
+
+function analyticsActorKeyFromRow(row) {
+  return analyticsActorInfoFromRow(row).key;
 }
 
 function parseJsonObject(value) {
@@ -994,6 +1081,7 @@ async function insertSupabaseRows(env, table, rows) {
 async function collectAnalyticsEvents(env, body, user, request) {
   const nowIso = new Date().toISOString();
   const role = user ? getRole(user) : "";
+  const clientMeta = classifyAnalyticsClientDevice(request);
   const fallbackSessionId = sanitizeAnalyticsText(body && body.session_id ? body.session_id : "", 120);
   const fallbackAnonId = sanitizeAnalyticsText(body && body.anon_id ? body.anon_id : "", 120);
   const sourcePage = sanitizeAnalyticsText(body && body.page ? body.page : "", 120);
@@ -1026,7 +1114,8 @@ async function collectAnalyticsEvents(env, body, user, request) {
       request_id: sanitizeAnalyticsText(item.request_id || sourceRequestId, 120),
       props: {
         ...sourceProps,
-        ...normalizeAnalyticsProps(item.props || {})
+        ...normalizeAnalyticsProps(item.props || {}),
+        ...clientMeta
       }
     };
   }).filter(Boolean);
@@ -1095,7 +1184,7 @@ async function buildAnalyticsOverview(env, days) {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const events = await fetchSupabaseRowsSince(env, {
     table: "analytics_events",
-    select: "occurred_at,event_name,user_id,anon_id,session_id",
+    select: "occurred_at,event_name,user_id,anon_id,session_id,page",
     sinceIso: since,
     orderColumn: "occurred_at",
     limit: 1000,
@@ -1105,23 +1194,73 @@ async function buildAnalyticsOverview(env, days) {
   const weeklyActors = new Set();
   let searchSubmitted = 0;
   let resultsRendered = 0;
+  const viewUsageMap = {
+    index: {
+      view: "高機能ビュー",
+      page: "index",
+      actors: new Set(),
+      answer_actors: new Set(),
+      event_count: 0,
+      answers: 0,
+      search_submitted: 0,
+      results_rendered: 0,
+      ai_generate_completed: 0
+    },
+    simple: {
+      view: "かんたんビュー",
+      page: "simple",
+      actors: new Set(),
+      answer_actors: new Set(),
+      event_count: 0,
+      answers: 0,
+      search_submitted: 0,
+      results_rendered: 0,
+      ai_generate_completed: 0
+    }
+  };
   events.forEach((row) => {
     const actor = analyticsActorKeyFromRow(row);
-    const date = String(row && row.occurred_at ? row.occurred_at : "").slice(0, 10);
+    const eventName = String(row && row.event_name || "");
+    const date = analyticsDateKeyInTimeZone(row && row.occurred_at ? row.occurred_at : "");
     if (date) {
       if (!actorsByDay[date]) actorsByDay[date] = new Set();
       actorsByDay[date].add(actor);
     }
-    if (row && row.event_name === "search_submitted") searchSubmitted += 1;
-    if (row && row.event_name === "results_rendered") resultsRendered += 1;
+    if (eventName === "search_submitted") searchSubmitted += 1;
+    if (eventName === "results_rendered") resultsRendered += 1;
+    const page = sanitizeAnalyticsText(row && row.page ? row.page : "", 120).toLowerCase();
+    const viewBucket = page === "index" || page === "simple" ? viewUsageMap[page] : null;
+    if (viewBucket) {
+      viewBucket.event_count += 1;
+      viewBucket.actors.add(actor);
+      if (eventName === "search_submitted") viewBucket.search_submitted += 1;
+      if (eventName === "results_rendered") viewBucket.results_rendered += 1;
+      if (eventName === "ai_generate_completed") viewBucket.ai_generate_completed += 1;
+      if (eventName === "question_answered") {
+        viewBucket.answers += 1;
+        viewBucket.answer_actors.add(actor);
+      }
+    }
     const ts = Date.parse(row && row.occurred_at ? row.occurred_at : "");
     if (Number.isFinite(ts) && Date.now() - ts <= 7 * 24 * 60 * 60 * 1000) {
       weeklyActors.add(actor);
     }
   });
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = analyticsDateKeyInTimeZone(new Date());
   const dau = actorsByDay[todayKey] ? actorsByDay[todayKey].size : 0;
   const wau = weeklyActors.size;
+  const studyViewUsage = Object.values(viewUsageMap).map((item) => ({
+    view: item.view,
+    page: item.page,
+    actors: item.actors.size,
+    answer_actors: item.answer_actors.size,
+    event_count: item.event_count,
+    answers: item.answers,
+    answers_per_actor: item.actors.size > 0 ? item.answers / item.actors.size : 0,
+    search_submitted: item.search_submitted,
+    results_rendered: item.results_rendered,
+    ai_generate_completed: item.ai_generate_completed
+  }));
 
   const usageRows = await fetchSupabaseRowsSince(env, {
     table: "ai_usage_logs",
@@ -1157,10 +1296,12 @@ async function buildAnalyticsOverview(env, days) {
     ok: true,
     days,
     since,
+    time_zone: ANALYTICS_TIME_ZONE,
     dau,
     wau,
     search_submitted: searchSubmitted,
     results_rendered: resultsRendered,
+    study_view_usage: studyViewUsage,
     ai_success_rate: geminiCount > 0 ? successCount / geminiCount : 0,
     ai_success_count: successCount,
     ai_total_count: geminiCount,
@@ -1188,22 +1329,67 @@ async function buildAnalyticsLearning(env, days) {
   const actorStats = {};
   rows.forEach((row) => {
     const eventName = String(row && row.event_name || "");
-    const actor = analyticsActorKeyFromRow(row);
+    const actorInfo = analyticsActorInfoFromRow(row);
+    const actor = actorInfo.key;
     if (eventName === "ai_generate_completed") {
       aiActors.add(actor);
       return;
     }
     if (eventName !== "question_answered") return;
-    const date = String(row && row.occurred_at ? row.occurred_at : "").slice(0, 10);
+    const props = parseJsonObject(row && row.props);
+    const date = analyticsDateKeyInTimeZone(row && row.occurred_at ? row.occurred_at : "");
     if (!date) return;
     if (!byDay[date]) byDay[date] = { date, answers: 0, correct: 0 };
     byDay[date].answers += 1;
-    const props = parseJsonObject(row && row.props);
     const isCorrect = Boolean(props.is_correct);
     if (isCorrect) byDay[date].correct += 1;
-    if (!actorStats[actor]) actorStats[actor] = { answers: 0, correct: 0 };
-    actorStats[actor].answers += 1;
+    const subject = sanitizeAnalyticsText(props.subject || "", 120) || "未設定";
+    const hourKey = analyticsHourKeyInTimeZone(row && row.occurred_at ? row.occurred_at : "") || "unknown";
+    const deviceFamily = sanitizeAnalyticsText(props.device_family || "", 80) || "不明";
+    const osFamily = sanitizeAnalyticsText(props.os_family || "", 80) || "不明";
+    const deviceKey = `${deviceFamily}||${osFamily}`;
+    if (!actorStats[actor]) {
+      actorStats[actor] = {
+        actor_key: actor,
+        actor_type: actorInfo.actor_type,
+        actor_id: actorInfo.actor_id,
+        answers: 0,
+        correct: 0,
+        subject_stats: {},
+        hour_stats: {},
+        device_stats: {}
+      };
+    }
+    const stat = actorStats[actor];
+    stat.answers += 1;
     if (isCorrect) actorStats[actor].correct += 1;
+    if (!stat.subject_stats[subject]) {
+      stat.subject_stats[subject] = { subject, answers: 0, correct: 0 };
+    }
+    stat.subject_stats[subject].answers += 1;
+    if (isCorrect) stat.subject_stats[subject].correct += 1;
+
+    if (!stat.hour_stats[hourKey]) {
+      stat.hour_stats[hourKey] = {
+        hour_key: hourKey,
+        time_slot: analyticsHourLabelFromKey(hourKey),
+        answers: 0,
+        correct: 0
+      };
+    }
+    stat.hour_stats[hourKey].answers += 1;
+    if (isCorrect) stat.hour_stats[hourKey].correct += 1;
+
+    if (!stat.device_stats[deviceKey]) {
+      stat.device_stats[deviceKey] = {
+        device_family: deviceFamily,
+        os_family: osFamily,
+        answers: 0,
+        correct: 0
+      };
+    }
+    stat.device_stats[deviceKey].answers += 1;
+    if (isCorrect) stat.device_stats[deviceKey].correct += 1;
   });
 
   let aiAnswers = 0;
@@ -1220,6 +1406,110 @@ async function buildAnalyticsLearning(env, days) {
     nonAiAnswers += stat.answers;
     nonAiCorrect += stat.correct;
   });
+  const actorTypeSummary = {
+    user: { actors: 0, answers: 0, correct: 0 },
+    guest: { actors: 0, answers: 0, correct: 0 },
+    guest_session: { actors: 0, answers: 0, correct: 0 },
+    unknown: { actors: 0, answers: 0, correct: 0 }
+  };
+  const actorItemsAll = Object.values(actorStats).map((stat) => {
+    const isAi = aiActors.has(stat.actor_key);
+    const bucket = actorTypeSummary[stat.actor_type] || actorTypeSummary.unknown;
+    bucket.actors += 1;
+    bucket.answers += stat.answers;
+    bucket.correct += stat.correct;
+    const devices = Object.values(stat.device_stats || {})
+      .sort((a, b) => b.answers - a.answers)
+      .map((item) => `${item.device_family}(${item.os_family})`);
+    const topDevice = devices.length ? devices[0] : "不明";
+    return {
+      actor_key: stat.actor_key,
+      actor_type: stat.actor_type,
+      actor_id: stat.actor_id,
+      cohort: isAi ? "ai" : "non_ai",
+      answers: stat.answers,
+      correct: stat.correct,
+      accuracy: stat.answers > 0 ? stat.correct / stat.answers : 0,
+      top_device: topDevice,
+      devices
+    };
+  });
+  const actorItems = actorItemsAll
+    .sort((a, b) => b.answers - a.answers || b.correct - a.correct || String(a.actor_key).localeCompare(String(b.actor_key)))
+    .slice(0, 300);
+  const actorMapByKey = {};
+  actorItemsAll.forEach((item) => {
+    actorMapByKey[item.actor_key] = item;
+  });
+  const actorSubjectItems = [];
+  const actorHourItems = [];
+  const actorDeviceItems = [];
+  Object.values(actorStats).forEach((stat) => {
+    const base = actorMapByKey[stat.actor_key];
+    if (!base) return;
+    Object.values(stat.subject_stats || {}).forEach((item) => {
+      actorSubjectItems.push({
+        actor_key: base.actor_key,
+        actor_type: base.actor_type,
+        cohort: base.cohort,
+        subject: item.subject,
+        answers: item.answers,
+        correct: item.correct,
+        accuracy: item.answers > 0 ? item.correct / item.answers : 0
+      });
+    });
+    Object.values(stat.hour_stats || {}).forEach((item) => {
+      actorHourItems.push({
+        actor_key: base.actor_key,
+        actor_type: base.actor_type,
+        cohort: base.cohort,
+        hour_key: item.hour_key,
+        time_slot: item.time_slot,
+        answers: item.answers,
+        correct: item.correct,
+        accuracy: item.answers > 0 ? item.correct / item.answers : 0
+      });
+    });
+    Object.values(stat.device_stats || {}).forEach((item) => {
+      actorDeviceItems.push({
+        actor_key: base.actor_key,
+        actor_type: base.actor_type,
+        cohort: base.cohort,
+        device_family: item.device_family,
+        os_family: item.os_family,
+        answers: item.answers,
+        correct: item.correct,
+        accuracy: item.answers > 0 ? item.correct / item.answers : 0
+      });
+    });
+  });
+  const sortedActorSubjectItems = actorSubjectItems
+    .sort(
+      (a, b) =>
+        b.answers - a.answers ||
+        b.correct - a.correct ||
+        String(a.actor_key).localeCompare(String(b.actor_key)) ||
+        String(a.subject).localeCompare(String(b.subject))
+    )
+    .slice(0, 1500);
+  const sortedActorHourItems = actorHourItems
+    .sort(
+      (a, b) =>
+        b.answers - a.answers ||
+        b.correct - a.correct ||
+        String(a.actor_key).localeCompare(String(b.actor_key)) ||
+        String(a.hour_key).localeCompare(String(b.hour_key))
+    )
+    .slice(0, 1500);
+  const sortedActorDeviceItems = actorDeviceItems
+    .sort(
+      (a, b) =>
+        b.answers - a.answers ||
+        b.correct - a.correct ||
+        String(a.actor_key).localeCompare(String(b.actor_key)) ||
+        String(a.device_family).localeCompare(String(b.device_family))
+    )
+    .slice(0, 1500);
 
   const progressRows = await fetchSupabaseRowsAll(env, {
     table: "user_progress",
@@ -1251,6 +1541,7 @@ async function buildAnalyticsLearning(env, days) {
     ok: true,
     days,
     since,
+    time_zone: ANALYTICS_TIME_ZONE,
     review_due: reviewDue,
     ai_group: {
       answers: aiAnswers,
@@ -1265,7 +1556,36 @@ async function buildAnalyticsLearning(env, days) {
     accuracy_lift:
       (aiAnswers > 0 ? aiCorrect / aiAnswers : 0) -
       (nonAiAnswers > 0 ? nonAiCorrect / nonAiAnswers : 0),
-    by_day: daily
+    by_day: daily,
+    actor_answer_stats_total: actorItemsAll.length,
+    actor_answer_stats: actorItems,
+    actor_subject_stats_total: actorSubjectItems.length,
+    actor_subject_stats: sortedActorSubjectItems,
+    actor_time_slot_stats_total: actorHourItems.length,
+    actor_time_slot_stats: sortedActorHourItems,
+    actor_device_stats_total: actorDeviceItems.length,
+    actor_device_stats: sortedActorDeviceItems,
+    actor_type_summary: {
+      user: {
+        ...actorTypeSummary.user,
+        accuracy: actorTypeSummary.user.answers > 0 ? actorTypeSummary.user.correct / actorTypeSummary.user.answers : 0
+      },
+      guest: {
+        ...actorTypeSummary.guest,
+        accuracy: actorTypeSummary.guest.answers > 0 ? actorTypeSummary.guest.correct / actorTypeSummary.guest.answers : 0
+      },
+      guest_session: {
+        ...actorTypeSummary.guest_session,
+        accuracy:
+          actorTypeSummary.guest_session.answers > 0
+            ? actorTypeSummary.guest_session.correct / actorTypeSummary.guest_session.answers
+            : 0
+      },
+      unknown: {
+        ...actorTypeSummary.unknown,
+        accuracy: actorTypeSummary.unknown.answers > 0 ? actorTypeSummary.unknown.correct / actorTypeSummary.unknown.answers : 0
+      }
+    }
   });
 }
 

@@ -445,7 +445,7 @@
 	          <nav class="top-links" aria-label="ページ移動">
 	            <a href="./index.html">高機能ビューへ</a>
 	            <a href="./simple.html">かんたんビューへ</a>
-	            <a href="./analytics.html">データ分析へ</a>
+	            <a id="analyticsMenuLink" href="./analytics.html" hidden>データ分析へ</a>
 	            <button id="authPanelToggle" type="button">ログイン</button>
 	          </nav>
           <section class="auth" id="authPanel" aria-label="ログイン状態" hidden>
@@ -844,6 +844,7 @@
           state.authSession = null;
           state.roleRank = 0;
           renderAuthStatus();
+          updateAnalyticsMenuLinkVisibility();
           loadTagDeepDiveRatingState();
           return;
         }
@@ -852,6 +853,7 @@
         const role = state.authSession && state.authSession.user ? getUserRole(state.authSession.user) : "";
         state.roleRank = roleRank(role);
         renderAuthStatus();
+        updateAnalyticsMenuLinkVisibility();
         loadTagDeepDiveRatingState();
       }
 
@@ -878,6 +880,12 @@
         }
         const role = getUserRole(user) || "unapproved";
         statusEl.textContent = `ログイン状態: ${user.email || "(no email)"} / role=${role}`;
+      }
+
+      function updateAnalyticsMenuLinkVisibility() {
+        const link = document.getElementById("analyticsMenuLink");
+        if (!link) return;
+        link.hidden = state.roleRank < roleRank("admin");
       }
 
       function scoreTagItem(item, terms) {
@@ -1878,6 +1886,7 @@
           const role = session && session.user ? getUserRole(session.user) : "";
           state.roleRank = roleRank(role);
           renderAuthStatus();
+          updateAnalyticsMenuLinkVisibility();
           loadTagDeepDiveRatingState();
           if (state.selectedTag && state.tagCatalogByTag[state.selectedTag]) {
             selectTag(state.selectedTag).catch(() => {});

@@ -208,7 +208,7 @@
       <div class="subtitle">視覚障害者・音声操作向けの簡易インターフェース</div>
       <div class="top-actions">
         <a href="./index.html">高機能ビューを開く</a>
-        <a href="./analytics.html">データ分析へ</a>
+        <a id="analyticsMenuLink" href="./analytics.html" hidden>データ分析へ</a>
       </div>
     </header>
     <main class="container" role="main">
@@ -327,8 +327,8 @@
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
-      const state = {
-        questions: [],
+	      const state = {
+	        questions: [],
         subtopicsBySubject: {},
         examTypes: [],
         filtered: [],
@@ -343,6 +343,29 @@
 	        overridesLoaded: new Set(),
 	        lastAnalyticsResultsKey: ""
 	      };
+
+	      function normalizeRole(role) {
+	        if (role === "admin" || role === "teacher" || role === "student") return role;
+	        return "";
+	      }
+
+	      function getUserRole(user) {
+	        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+	        return normalizeRole(role);
+	      }
+
+	      async function updateAnalyticsMenuLinkVisibility() {
+	        const link = document.getElementById("analyticsMenuLink");
+	        if (!link) return;
+	        if (!supabaseClient) {
+	          link.hidden = true;
+	          return;
+	        }
+	        const { data } = await supabaseClient.auth.getSession();
+	        const session = data && data.session ? data.session : null;
+	        const role = session && session.user ? getUserRole(session.user) : "";
+	        link.hidden = role !== "admin";
+	      }
 
       const stepGuide = document.getElementById("stepGuide");
       const stepSubject = document.getElementById("stepSubject");
@@ -740,7 +763,7 @@
         resultOverlay.classList.add("show");
         const dialog = resultOverlay.querySelector(".dialog");
         if (dialog) dialog.focus();
-        markAnswered(q.serial, state.selectedIndex, isCorrect);
+        markAnswered(q, state.selectedIndex, isCorrect);
         const anonId = getAnonId();
         if (supabaseClient) {
           supabaseClient
@@ -1056,8 +1079,8 @@
         });
       }
 
-      document.querySelectorAll(".backBtn").forEach(btn => {
-        btn.addEventListener("click", () => {
+	      document.querySelectorAll(".backBtn").forEach(btn => {
+	        btn.addEventListener("click", () => {
           if (!stepExamType.hidden) {
             showStep("subtopic");
           } else if (!stepSubtopic.hidden) {
@@ -1065,12 +1088,19 @@
           } else if (!stepSubject.hidden) {
             showStep("guide");
           }
-        });
-      });
+	        });
+	      });
 
-      loadData().then(() => {
-        loadAnsweredState();
-        updateState();
+	      updateAnalyticsMenuLinkVisibility().catch(() => {});
+	      if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.onAuthStateChange === "function") {
+	        supabaseClient.auth.onAuthStateChange(() => {
+	          updateAnalyticsMenuLinkVisibility().catch(() => {});
+	        });
+	      }
+
+	      loadData().then(() => {
+	        loadAnsweredState();
+	        updateState();
         showStep("guide");
       });
 
@@ -1078,7 +1108,9 @@
         return Boolean(state.answeredMap[serial]);
       }
 
-	      function markAnswered(serial, selectedIndex, isCorrect) {
+	      function markAnswered(question, selectedIndex, isCorrect) {
+	        const serial = question && question.serial ? String(question.serial) : "";
+	        if (!serial) return;
 	        state.answeredMap[serial] = { selectedIndex, isCorrect };
 	        trackAnalyticsEvent("question_answered", {
 	          surface: "simple_question",
@@ -1086,7 +1118,11 @@
 	          entity_id: serial,
 	          props: {
 	            selected_index: Number(selectedIndex) || 0,
-	            is_correct: Boolean(isCorrect)
+	            is_correct: Boolean(isCorrect),
+	            subject: question && question.subject ? String(question.subject) : "",
+	            subtopics: question && Array.isArray(question.subtopics) ? question.subtopics : [],
+	            exam_type: question && question.exam_type ? String(question.exam_type) : "",
+	            exam_session: question && question.exam_session ? String(question.exam_session) : ""
 	          }
 	        });
 	        saveAnsweredState();

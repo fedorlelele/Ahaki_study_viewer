@@ -238,7 +238,7 @@
           <input id="authPassword" type="password" autocomplete="current-password" placeholder="パスワード" />
           <button id="authSignInBtn" type="button" class="btn-accent">ログイン</button>
         </div>
-        <div class="auth-note" id="authNote">teacher / admin ロールで閲覧できます。</div>
+        <div class="auth-note" id="authNote">admin ロールで閲覧できます。</div>
       </section>
 
       <div class="toolbar">
@@ -270,6 +270,7 @@
             <div class="metric"><div class="k">Helpful率</div><div class="v" id="metricHelpful">-</div></div>
             <div class="metric"><div class="k">平均応答(ms)</div><div class="v" id="metricLatency">-</div></div>
           </div>
+          <div id="overviewViewUsage"></div>
         </div>
       </section>
 
@@ -283,8 +284,16 @@
             <div class="metric"><div class="k">AI群 正答率</div><div class="v" id="metricAiAcc">-</div></div>
             <div class="metric"><div class="k">非AI群 正答率</div><div class="v" id="metricNonAiAcc">-</div></div>
             <div class="metric"><div class="k">Accuracy Lift</div><div class="v" id="metricLift">-</div></div>
+            <div class="metric"><div class="k">ログイン回答者数</div><div class="v" id="metricUserActors">-</div></div>
+            <div class="metric"><div class="k">ゲスト回答者数</div><div class="v" id="metricGuestActors">-</div></div>
           </div>
+          <div class="status" id="learningTimeZoneNote">日別集計の基準タイムゾーン: -</div>
           <div id="learningDaily"></div>
+          <div id="learningActorSummary"></div>
+          <div id="learningActors"></div>
+          <div id="learningActorDevices"></div>
+          <div id="learningActorSubjects"></div>
+          <div id="learningActorTimeSlots"></div>
         </div>
       </section>
 
@@ -361,6 +370,17 @@
         return `${(n * 100).toFixed(1)}%`;
       }
 
+      function formatActorType(value) {
+        if (value === "user") return "ログイン";
+        if (value === "guest") return "ゲスト";
+        if (value === "guest_session") return "ゲスト(セッションのみ)";
+        return "不明";
+      }
+
+      function formatCohort(value) {
+        return value === "ai" ? "AI群" : "非AI群";
+      }
+
       function setText(id, value) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -428,7 +448,7 @@
         if (message) {
           noteEl.textContent = message;
         } else {
-          noteEl.textContent = "teacher / admin ロールで分析APIを参照できます。";
+          noteEl.textContent = "admin ロールで分析APIを参照できます。";
         }
         const user = state.authSession && state.authSession.user ? state.authSession.user : null;
         if (!user) {
@@ -463,6 +483,21 @@
         setText("metricAiSuccess", formatPct(data.ai_success_rate));
         setText("metricHelpful", formatPct(data.helpful_rate));
         setText("metricLatency", formatInt(data.avg_latency_ms));
+        renderTable(
+          "overviewViewUsage",
+          "ビュー別使用状況",
+          [
+            { key: "view", label: "ビュー" },
+            { key: "actors", label: "利用者数", format: formatInt },
+            { key: "answer_actors", label: "回答者数", format: formatInt },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "answers_per_actor", label: "1人あたり回答", format: (v) => Number(v || 0).toFixed(2) },
+            { key: "search_submitted", label: "検索実行数", format: formatInt },
+            { key: "results_rendered", label: "結果表示数", format: formatInt },
+            { key: "ai_generate_completed", label: "AI生成完了", format: formatInt }
+          ],
+          data.study_view_usage || []
+        );
       }
 
       function renderLearning(data) {
@@ -471,6 +506,14 @@
         setText("metricNonAiAcc", formatPct(data.non_ai_group && data.non_ai_group.accuracy));
         const lift = Number(data.accuracy_lift || 0);
         setText("metricLift", `${lift >= 0 ? "+" : ""}${(lift * 100).toFixed(1)}pt`);
+        const typeSummary = data.actor_type_summary || {};
+        const userActors = Number(typeSummary.user && typeSummary.user.actors || 0);
+        const guestActors =
+          Number(typeSummary.guest && typeSummary.guest.actors || 0) +
+          Number(typeSummary.guest_session && typeSummary.guest_session.actors || 0);
+        setText("metricUserActors", formatInt(userActors));
+        setText("metricGuestActors", formatInt(guestActors));
+        setText("learningTimeZoneNote", `日別集計の基準タイムゾーン: ${String(data.time_zone || "UTC")}`);
         renderTable(
           "learningDaily",
           "日別推移",
@@ -481,6 +524,82 @@
             { key: "accuracy", label: "正答率", format: formatPct }
           ],
           data.by_day || []
+        );
+        renderTable(
+          "learningActorSummary",
+          "回答者種別サマリー",
+          [
+            { key: "actor_type", label: "種別", format: formatActorType },
+            { key: "actors", label: "人数", format: formatInt },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          [
+            { actor_type: "user", ...(typeSummary.user || {}) },
+            { actor_type: "guest", ...(typeSummary.guest || {}) },
+            { actor_type: "guest_session", ...(typeSummary.guest_session || {}) }
+          ]
+        );
+        const totalActorCount = Number(data.actor_answer_stats_total || 0);
+        renderTable(
+          "learningActors",
+          `ユーザー別回答（上位300 / 全${formatInt(totalActorCount)}人）`,
+          [
+            { key: "cohort", label: "群", format: formatCohort },
+            { key: "actor_type", label: "種別", format: formatActorType },
+            { key: "actor_key", label: "識別キー" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data.actor_answer_stats || []
+        );
+        const totalDeviceRows = Number(data.actor_device_stats_total || 0);
+        renderTable(
+          "learningActorDevices",
+          `ユーザー×端末（上位1500 / 全${formatInt(totalDeviceRows)}行）`,
+          [
+            { key: "cohort", label: "群", format: formatCohort },
+            { key: "actor_type", label: "種別", format: formatActorType },
+            { key: "actor_key", label: "識別キー" },
+            { key: "device_family", label: "端末" },
+            { key: "os_family", label: "OS" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data.actor_device_stats || []
+        );
+        const totalSubjectRows = Number(data.actor_subject_stats_total || 0);
+        renderTable(
+          "learningActorSubjects",
+          `ユーザー×科目（上位1500 / 全${formatInt(totalSubjectRows)}行）`,
+          [
+            { key: "cohort", label: "群", format: formatCohort },
+            { key: "actor_type", label: "種別", format: formatActorType },
+            { key: "actor_key", label: "識別キー" },
+            { key: "subject", label: "科目" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data.actor_subject_stats || []
+        );
+        const totalTimeRows = Number(data.actor_time_slot_stats_total || 0);
+        renderTable(
+          "learningActorTimeSlots",
+          `ユーザー×時間帯（上位1500 / 全${formatInt(totalTimeRows)}行）`,
+          [
+            { key: "cohort", label: "群", format: formatCohort },
+            { key: "actor_type", label: "種別", format: formatActorType },
+            { key: "actor_key", label: "識別キー" },
+            { key: "time_slot", label: "時間帯(JST)" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data.actor_time_slot_stats || []
         );
       }
 
@@ -550,8 +669,8 @@
         setStatus("読み込み中...");
         try {
           const role = state.role || "";
-          if (!state.authSession || roleRank(role) < roleRank("teacher")) {
-            throw new Error("teacher 以上のログインが必要です。");
+          if (!state.authSession || roleRank(role) < roleRank("admin")) {
+            throw new Error("admin ログインが必要です。");
           }
           const [overview, learning, aiQuality, content] = await Promise.all([
             fetchAnalytics(`/analytics/overview?days=${encodeURIComponent(days)}`),

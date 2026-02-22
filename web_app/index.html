@@ -1304,7 +1304,7 @@
 	            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
 	            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
 	            <button type="button" data-menu-target="practiceRatingPanel">練習問題公開管理</button>
-	            <a href="./analytics.html" target="_blank" rel="noopener noreferrer">データ分析</a>
+	            <a id="analyticsMenuLink" href="./analytics.html" target="_blank" rel="noopener noreferrer" hidden>データ分析</a>
 	            <a href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ</a>
 	            <a href="./simple.html">かんたんビューへのリンク</a>
 	          </nav>
@@ -1800,8 +1800,8 @@
         el.hidden = !publicOpen;
       }
 
-      function applyTopMenuRoleVisibility() {
-	        const requiredRoleByTarget = {
+	      function applyTopMenuRoleVisibility() {
+		        const requiredRoleByTarget = {
 	          progressPanel: "student",
 	          answerTrendPanel: "teacher",
 	          historyPanel: "teacher",
@@ -1811,7 +1811,7 @@
 	          aiUsagePanel: "admin",
 	          practiceRatingPanel: "teacher"
 	        };
-        document.querySelectorAll("#topMenuContent [data-menu-target]").forEach((btn) => {
+	        document.querySelectorAll("#topMenuContent [data-menu-target]").forEach((btn) => {
           const targetId = btn.getAttribute("data-menu-target");
           const requiredRole = requiredRoleByTarget[targetId] || "guest";
           const visible = requiredRole === "guest" ? true : isRoleAtLeast(requiredRole);
@@ -1822,9 +1822,13 @@
               panel.open = false;
               panel.hidden = true;
             }
-          }
-        });
-      }
+	          }
+	        });
+	        const analyticsMenuLink = document.getElementById("analyticsMenuLink");
+	        if (analyticsMenuLink) {
+	          analyticsMenuLink.hidden = !isRoleAtLeast("admin");
+	        }
+	      }
 
       function getProgressStatusLabel(status) {
         if (status === "mastered") return "理解済み";
@@ -9390,7 +9394,7 @@
         if (card) {
           card.classList.add("show-explanation");
         }
-        markAnswered(question.serial, selectedIndex, isCorrect);
+        markAnswered(question, selectedIndex, isCorrect);
         const retryBtn = card ? card.querySelector(".retry-btn") : null;
         if (retryBtn) {
           retryBtn.disabled = false;
@@ -9430,7 +9434,9 @@
         return state.sessionAnswered[serial] || null;
       }
 
-	      function markAnswered(serial, selectedIndex, isCorrect) {
+	      function markAnswered(question, selectedIndex, isCorrect) {
+	        const serial = question && question.serial ? String(question.serial) : "";
+	        if (!serial) return;
 	        state.sessionAnswered[serial] = {
 	          selectedIndex: Number(selectedIndex),
 	          isCorrect: Boolean(isCorrect)
@@ -9445,7 +9451,11 @@
 	          entity_id: serial,
 	          props: {
 	            selected_index: Number(selectedIndex) || 0,
-	            is_correct: Boolean(isCorrect)
+	            is_correct: Boolean(isCorrect),
+	            subject: question && question.subject ? String(question.subject) : "",
+	            subtopics: question && Array.isArray(question.subtopics) ? question.subtopics : [],
+	            exam_type: question && question.exam_type ? String(question.exam_type) : "",
+	            exam_session: question && question.exam_session ? String(question.exam_session) : ""
 	          }
 	        });
 	        saveAnsweredState();
