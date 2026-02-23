@@ -822,6 +822,10 @@ async function handleAnalytics(request, env) {
     if (path === "/analytics/content" && request.method === "GET") {
       return buildAnalyticsContent(env, days);
     }
+    if (path === "/analytics/user_detail" && request.method === "GET") {
+      const actorKey = sanitizeAnalyticsText(url.searchParams.get("actor_key") || "", 160);
+      return buildAnalyticsUserDetail(env, days, actorKey);
+    }
 
     return jsonResponse({ message: "Not found" }, 404);
   } catch (err) {
@@ -1744,6 +1748,158 @@ async function buildAnalyticsContent(env, days) {
     top_questions: topQuestions,
     top_tags: topTags,
     top_ai_entities: topAiEntities
+  });
+}
+
+async function buildAnalyticsUserDetail(env, days, actorKey) {
+  if (!actorKey) {
+    return jsonResponse({ message: "actor_key is required" }, 400);
+  }
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await fetchSupabaseRowsSince(env, {
+    table: "analytics_events",
+    select: "occurred_at,event_name,user_id,anon_id,session_id,props",
+    sinceIso: since,
+    orderColumn: "occurred_at",
+    extraQuery: "event_name=in.(question_answered,ai_generate_completed)",
+    limit: 1000,
+    maxRows: 100000
+  });
+
+  let actorSeen = false;
+  let actorType = "unknown";
+  let actorId = "";
+  let answers = 0;
+  let correct = 0;
+  const aiActors = new Set();
+  const byDay = {};
+  const subjectMap = {};
+  const hourMap = {};
+  const deviceMap = {};
+
+  rows.forEach((row) => {
+    const eventName = String(row && row.event_name || "");
+    const actorInfo = analyticsActorInfoFromRow(row);
+    const rowActorKey = actorInfo.key;
+    if (eventName === "ai_generate_completed") {
+      aiActors.add(rowActorKey);
+    }
+    if (rowActorKey !== actorKey) return;
+    actorSeen = true;
+    actorType = actorInfo.actor_type;
+    actorId = actorInfo.actor_id;
+    if (eventName !== "question_answered") return;
+    const props = parseJsonObject(row && row.props);
+    const isCorrect = Boolean(props.is_correct);
+    answers += 1;
+    if (isCorrect) correct += 1;
+
+    const date = analyticsDateKeyInTimeZone(row && row.occurred_at ? row.occurred_at : "");
+    if (date) {
+      if (!byDay[date]) byDay[date] = { date, answers: 0, correct: 0 };
+      byDay[date].answers += 1;
+      if (isCorrect) byDay[date].correct += 1;
+    }
+
+    const subject = sanitizeAnalyticsText(props.subject || "", 120) || "未設定";
+    if (!subjectMap[subject]) subjectMap[subject] = { subject, answers: 0, correct: 0 };
+    subjectMap[subject].answers += 1;
+    if (isCorrect) subjectMap[subject].correct += 1;
+
+    const hourKey = analyticsHourKeyInTimeZone(row && row.occurred_at ? row.occurred_at : "") || "unknown";
+    if (!hourMap[hourKey]) {
+      hourMap[hourKey] = {
+        hour_key: hourKey,
+        time_slot: analyticsHourLabelFromKey(hourKey),
+        answers: 0,
+        correct: 0
+      };
+    }
+    hourMap[hourKey].answers += 1;
+    if (isCorrect) hourMap[hourKey].correct += 1;
+
+    const deviceFamily = sanitizeAnalyticsText(props.device_family || "", 80) || "不明";
+    const osFamily = sanitizeAnalyticsText(props.os_family || "", 80) || "不明";
+    const deviceKey = `${deviceFamily}||${osFamily}`;
+    if (!deviceMap[deviceKey]) {
+      deviceMap[deviceKey] = {
+        device_family: deviceFamily,
+        os_family: osFamily,
+        answers: 0,
+        correct: 0
+      };
+    }
+    deviceMap[deviceKey].answers += 1;
+    if (isCorrect) deviceMap[deviceKey].correct += 1;
+  });
+
+  if (!actorSeen) {
+    return jsonResponse({ message: "actor not found" }, 404);
+  }
+
+  const byDayItems = Object.values(byDay)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .map((item) => ({
+      date: item.date,
+      answers: item.answers,
+      correct: item.correct,
+      accuracy: item.answers > 0 ? item.correct / item.answers : 0
+    }));
+
+  const subjectItems = Object.values(subjectMap)
+    .sort((a, b) => b.answers - a.answers || b.correct - a.correct || String(a.subject).localeCompare(String(b.subject)))
+    .map((item) => ({
+      subject: item.subject,
+      answers: item.answers,
+      correct: item.correct,
+      accuracy: item.answers > 0 ? item.correct / item.answers : 0
+    }));
+
+  const hourItems = Object.values(hourMap)
+    .sort((a, b) => String(a.hour_key).localeCompare(String(b.hour_key)))
+    .map((item) => ({
+      hour_key: item.hour_key,
+      time_slot: item.time_slot,
+      answers: item.answers,
+      correct: item.correct,
+      accuracy: item.answers > 0 ? item.correct / item.answers : 0
+    }));
+
+  const deviceItems = Object.values(deviceMap)
+    .sort(
+      (a, b) =>
+        b.answers - a.answers ||
+        b.correct - a.correct ||
+        String(a.device_family).localeCompare(String(b.device_family)) ||
+        String(a.os_family).localeCompare(String(b.os_family))
+    )
+    .map((item) => ({
+      device_family: item.device_family,
+      os_family: item.os_family,
+      answers: item.answers,
+      correct: item.correct,
+      accuracy: item.answers > 0 ? item.correct / item.answers : 0
+    }));
+
+  const cohort = aiActors.has(actorKey) ? "ai" : "non_ai";
+  return jsonResponse({
+    ok: true,
+    days,
+    since,
+    time_zone: ANALYTICS_TIME_ZONE,
+    actor_key: actorKey,
+    actor_type: actorType,
+    actor_id: actorId,
+    cohort,
+    summary: {
+      answers,
+      correct,
+      accuracy: answers > 0 ? correct / answers : 0
+    },
+    by_day: byDayItems,
+    subject_stats: subjectItems,
+    time_slot_stats: hourItems,
+    device_stats: deviceItems
   });
 }
 

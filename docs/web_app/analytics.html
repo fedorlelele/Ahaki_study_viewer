@@ -101,12 +101,45 @@
         gap: 8px;
         align-items: center;
       }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .tab-btn {
+        border-radius: 999px;
+        padding: 8px 14px;
+        background: #fff;
+        border: 1px solid var(--line);
+        color: #314559;
+      }
+      .tab-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
       .status {
         font-size: 13px;
         color: var(--muted);
       }
       .status.error {
         color: var(--warn);
+      }
+      .detail-controls {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.2fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .detail-grid {
+        margin-top: 10px;
       }
       button,
       input,
@@ -204,6 +237,9 @@
         .grid {
           grid-template-columns: 1fr 1fr;
         }
+        .detail-controls {
+          grid-template-columns: 1fr;
+        }
       }
       @media (max-width: 640px) {
         .grid {
@@ -256,7 +292,15 @@
         <div id="pageStatus" class="status">待機中</div>
       </div>
 
-      <section class="panel" aria-label="概要">
+      <div class="tabs" role="tablist" aria-label="分析カテゴリ">
+        <button id="tabBtnOverview" class="tab-btn active" type="button" data-tab="overview">概要</button>
+        <button id="tabBtnLearning" class="tab-btn" type="button" data-tab="learning">学習効果</button>
+        <button id="tabBtnAiQuality" class="tab-btn" type="button" data-tab="ai_quality">AI品質</button>
+        <button id="tabBtnContent" class="tab-btn" type="button" data-tab="content">コンテンツ分析</button>
+        <button id="tabBtnUserDetail" class="tab-btn" type="button" data-tab="user_detail">ユーザー詳細</button>
+      </div>
+
+      <section id="tabPanelOverview" class="panel tab-panel active" aria-label="概要">
         <div class="panel-head">
           <h2>概要</h2>
         </div>
@@ -274,7 +318,7 @@
         </div>
       </section>
 
-      <section class="panel" aria-label="学習効果">
+      <section id="tabPanelLearning" class="panel tab-panel" aria-label="学習効果">
         <div class="panel-head">
           <h2>学習効果</h2>
         </div>
@@ -297,7 +341,7 @@
         </div>
       </section>
 
-      <section class="panel" aria-label="AI品質">
+      <section id="tabPanelAiQuality" class="panel tab-panel" aria-label="AI品質">
         <div class="panel-head">
           <h2>AI品質</h2>
         </div>
@@ -307,7 +351,7 @@
         </div>
       </section>
 
-      <section class="panel" aria-label="コンテンツ分析">
+      <section id="tabPanelContent" class="panel tab-panel" aria-label="コンテンツ分析">
         <div class="panel-head">
           <h2>コンテンツ分析</h2>
         </div>
@@ -315,6 +359,37 @@
           <div id="contentQuestions"></div>
           <div id="contentTags"></div>
           <div id="contentAiEntities"></div>
+        </div>
+      </section>
+
+      <section id="tabPanelUserDetail" class="panel tab-panel" aria-label="ユーザー詳細">
+        <div class="panel-head">
+          <h2>ユーザー詳細</h2>
+        </div>
+        <div class="panel-body">
+          <div class="detail-controls">
+            <select id="userDetailActorSelect">
+              <option value="">ユーザー（上位）を選択</option>
+            </select>
+            <input
+              id="userDetailActorInput"
+              type="text"
+              placeholder="actor_key を入力（例: user:xxxx / anon:xxxx / session:xxxx）"
+            />
+            <button id="userDetailLoadBtn" type="button" class="btn-accent">詳細表示</button>
+          </div>
+          <div id="userDetailStatus" class="status">ユーザーを選択して詳細を表示してください。</div>
+          <div class="grid detail-grid">
+            <div class="metric"><div class="k">識別キー</div><div class="v" id="userDetailMetricActor" style="font-size: 14px;">-</div></div>
+            <div class="metric"><div class="k">種別 / 群</div><div class="v" id="userDetailMetricType" style="font-size: 16px;">-</div></div>
+            <div class="metric"><div class="k">回答数</div><div class="v" id="userDetailMetricAnswers">-</div></div>
+            <div class="metric"><div class="k">正解数</div><div class="v" id="userDetailMetricCorrect">-</div></div>
+            <div class="metric"><div class="k">正答率</div><div class="v" id="userDetailMetricAccuracy">-</div></div>
+          </div>
+          <div id="userDetailDaily"></div>
+          <div id="userDetailDevices"></div>
+          <div id="userDetailSubjects"></div>
+          <div id="userDetailTimeSlots"></div>
         </div>
       </section>
     </main>
@@ -330,6 +405,11 @@
       const state = {
         authSession: null,
         role: "",
+        activeTab: "overview",
+        learningActorOptions: [],
+        latestLearningData: null,
+        userDetailActorKey: "",
+        userDetailLoading: false
       };
 
       function normalizeRole(role) {
@@ -378,7 +458,18 @@
       }
 
       function formatCohort(value) {
-        return value === "ai" ? "AI群" : "非AI群";
+        if (value === "ai") return "AI群";
+        if (value === "non_ai") return "非AI群";
+        return "不明";
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
       }
 
       function setText(id, value) {
@@ -392,14 +483,17 @@
         if (!target) return;
         const list = Array.isArray(rows) ? rows : [];
         if (!list.length) {
-          target.innerHTML = `<div class="empty">${title}: データなし</div>`;
+          target.innerHTML = `<div class="empty">${escapeHtml(title)}: データなし</div>`;
           return;
         }
-        const header = columns.map((col) => `<th>${col.label}</th>`).join("");
+        const header = columns.map((col) => `<th>${escapeHtml(col.label)}</th>`).join("");
         const body = list
           .map((row) => {
             const tds = columns
-              .map((col) => `<td>${col.format ? col.format(row[col.key], row) : String(row[col.key] ?? "")}</td>`)
+              .map((col) => {
+                const value = col.format ? col.format(row[col.key], row) : String(row[col.key] ?? "");
+                return `<td>${escapeHtml(value)}</td>`;
+              })
               .join("");
             return `<tr>${tds}</tr>`;
           })
@@ -475,6 +569,260 @@
         return payload || {};
       }
 
+      function setActiveTab(tabKey) {
+        const normalized = String(tabKey || "overview");
+        const tabKeys = ["overview", "learning", "ai_quality", "content", "user_detail"];
+        if (!tabKeys.includes(normalized)) return;
+        state.activeTab = normalized;
+        tabKeys.forEach((key) => {
+          const btn = document.querySelector(`.tab-btn[data-tab="${key}"]`);
+          const panelId =
+            key === "overview"
+              ? "tabPanelOverview"
+              : key === "learning"
+                ? "tabPanelLearning"
+                : key === "ai_quality"
+                  ? "tabPanelAiQuality"
+                  : key === "content"
+                    ? "tabPanelContent"
+                    : "tabPanelUserDetail";
+          const panel = document.getElementById(panelId);
+          if (btn) btn.classList.toggle("active", key === normalized);
+          if (panel) panel.classList.toggle("active", key === normalized);
+        });
+      }
+
+      function initTabs() {
+        document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            setActiveTab(btn.dataset.tab || "overview");
+          });
+        });
+      }
+
+      function setUserDetailStatus(text, isError = false) {
+        const el = document.getElementById("userDetailStatus");
+        if (!el) return;
+        el.textContent = text;
+        el.classList.toggle("error", isError);
+      }
+
+      function buildActorOptionLabel(item) {
+        const key = String(item && item.actor_key ? item.actor_key : "");
+        const actorType = formatActorType(String(item && item.actor_type ? item.actor_type : ""));
+        const cohort = formatCohort(String(item && item.cohort ? item.cohort : ""));
+        const answers = formatInt(item && item.answers ? item.answers : 0);
+        return `${key} (${actorType} / ${cohort} / 回答${answers})`;
+      }
+
+      function updateUserDetailActorOptions(rows) {
+        const select = document.getElementById("userDetailActorSelect");
+        const input = document.getElementById("userDetailActorInput");
+        if (!select || !input) return;
+        const previousKey = String(input.value || state.userDetailActorKey || "").trim();
+        const options = Array.isArray(rows)
+          ? rows
+            .map((item) => ({
+              actor_key: String(item && item.actor_key ? item.actor_key : "").trim(),
+              actor_type: String(item && item.actor_type ? item.actor_type : ""),
+              cohort: String(item && item.cohort ? item.cohort : ""),
+              answers: Number(item && item.answers ? item.answers : 0)
+            }))
+            .filter((item) => Boolean(item.actor_key))
+          : [];
+        state.learningActorOptions = options;
+        const html = [
+          `<option value="">ユーザー（上位）を選択</option>`,
+          ...options.map((item) => `<option value="${escapeHtml(item.actor_key)}">${escapeHtml(buildActorOptionLabel(item))}</option>`)
+        ].join("");
+        select.innerHTML = html;
+        if (previousKey && options.some((item) => item.actor_key === previousKey)) {
+          select.value = previousKey;
+          input.value = previousKey;
+          state.userDetailActorKey = previousKey;
+          return;
+        }
+        if (previousKey) {
+          input.value = previousKey;
+          state.userDetailActorKey = previousKey;
+          return;
+        }
+        if (options.length) {
+          select.value = options[0].actor_key;
+          input.value = options[0].actor_key;
+          state.userDetailActorKey = options[0].actor_key;
+        }
+      }
+
+      function selectedActorKey() {
+        const input = document.getElementById("userDetailActorInput");
+        const select = document.getElementById("userDetailActorSelect");
+        const fromInput = String(input && input.value ? input.value : "").trim();
+        if (fromInput) return fromInput;
+        const fromSelect = String(select && select.value ? select.value : "").trim();
+        return fromSelect;
+      }
+
+      function isNotFoundError(err) {
+        const msg = String(err && err.message ? err.message : err || "").trim().toLowerCase();
+        return msg === "not found" || msg === "http 404" || msg.includes(" 404");
+      }
+
+      function buildUserDetailFromLearning(actorKey) {
+        const learning = state.latestLearningData;
+        if (!learning || typeof learning !== "object") return null;
+        const answerRows = Array.isArray(learning.actor_answer_stats) ? learning.actor_answer_stats : [];
+        const subjectRows = Array.isArray(learning.actor_subject_stats) ? learning.actor_subject_stats : [];
+        const timeRows = Array.isArray(learning.actor_time_slot_stats) ? learning.actor_time_slot_stats : [];
+        const deviceRows = Array.isArray(learning.actor_device_stats) ? learning.actor_device_stats : [];
+        const summaryRow =
+          answerRows.find((row) => String(row && row.actor_key || "") === actorKey) ||
+          subjectRows.find((row) => String(row && row.actor_key || "") === actorKey) ||
+          timeRows.find((row) => String(row && row.actor_key || "") === actorKey) ||
+          deviceRows.find((row) => String(row && row.actor_key || "") === actorKey);
+        if (!summaryRow) return null;
+
+        const actorSubjects = subjectRows.filter((row) => String(row && row.actor_key || "") === actorKey);
+        const actorTimes = timeRows.filter((row) => String(row && row.actor_key || "") === actorKey);
+        const actorDevices = deviceRows.filter((row) => String(row && row.actor_key || "") === actorKey);
+
+        return {
+          ok: true,
+          time_zone: String(learning.time_zone || "UTC"),
+          actor_key: actorKey,
+          actor_type: String(summaryRow.actor_type || "unknown"),
+          cohort: String(summaryRow.cohort || "non_ai"),
+          summary: {
+            answers: Number(summaryRow.answers || 0),
+            correct: Number(summaryRow.correct || 0),
+            accuracy: Number(summaryRow.accuracy || 0)
+          },
+          by_day: [],
+          subject_stats: actorSubjects,
+          time_slot_stats: actorTimes,
+          device_stats: actorDevices
+        };
+      }
+
+      function resetUserDetailMetrics() {
+        setText("userDetailMetricActor", "-");
+        setText("userDetailMetricType", "-");
+        setText("userDetailMetricAnswers", "-");
+        setText("userDetailMetricCorrect", "-");
+        setText("userDetailMetricAccuracy", "-");
+      }
+
+      function clearUserDetailTables() {
+        renderTable("userDetailDaily", "日別推移", [], []);
+        renderTable("userDetailDevices", "端末別", [], []);
+        renderTable("userDetailSubjects", "科目別", [], []);
+        renderTable("userDetailTimeSlots", "時間帯別", [], []);
+      }
+
+      function renderUserDetail(data) {
+        const actorKey = String(data && data.actor_key ? data.actor_key : "");
+        const actorTypeText = formatActorType(String(data && data.actor_type ? data.actor_type : ""));
+        const cohortText = formatCohort(String(data && data.cohort ? data.cohort : ""));
+        const summary = data && data.summary ? data.summary : {};
+        state.userDetailActorKey = actorKey;
+        setText("userDetailMetricActor", actorKey || "-");
+        setText("userDetailMetricType", `${actorTypeText} / ${cohortText}`);
+        setText("userDetailMetricAnswers", formatInt(summary.answers));
+        setText("userDetailMetricCorrect", formatInt(summary.correct));
+        setText("userDetailMetricAccuracy", formatPct(summary.accuracy));
+        const timeZone = String(data && data.time_zone ? data.time_zone : "UTC");
+        setUserDetailStatus(`表示中: ${actorKey || "(unknown)"}（${actorTypeText} / ${cohortText} / ${timeZone}集計）`);
+        renderTable(
+          "userDetailDaily",
+          "日別推移",
+          [
+            { key: "date", label: "日付" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data && Array.isArray(data.by_day) ? data.by_day : []
+        );
+        renderTable(
+          "userDetailDevices",
+          "端末別",
+          [
+            { key: "device_family", label: "端末" },
+            { key: "os_family", label: "OS" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data && Array.isArray(data.device_stats) ? data.device_stats : []
+        );
+        renderTable(
+          "userDetailSubjects",
+          "科目別",
+          [
+            { key: "subject", label: "科目" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data && Array.isArray(data.subject_stats) ? data.subject_stats : []
+        );
+        renderTable(
+          "userDetailTimeSlots",
+          "時間帯別 (JST)",
+          [
+            { key: "time_slot", label: "時間帯" },
+            { key: "answers", label: "回答数", format: formatInt },
+            { key: "correct", label: "正解数", format: formatInt },
+            { key: "accuracy", label: "正答率", format: formatPct }
+          ],
+          data && Array.isArray(data.time_slot_stats) ? data.time_slot_stats : []
+        );
+      }
+
+      async function loadUserDetail(actorKeyOverride) {
+        const actorKey = String(actorKeyOverride || selectedActorKey() || "").trim();
+        const input = document.getElementById("userDetailActorInput");
+        const select = document.getElementById("userDetailActorSelect");
+        const button = document.getElementById("userDetailLoadBtn");
+        if (input && actorKey) input.value = actorKey;
+        if (select && actorKey) select.value = actorKey;
+        if (!actorKey) {
+          state.userDetailActorKey = "";
+          resetUserDetailMetrics();
+          clearUserDetailTables();
+          setUserDetailStatus("ユーザーを選択して詳細を表示してください。");
+          return;
+        }
+        state.userDetailActorKey = actorKey;
+        const days = Math.max(1, Math.min(90, Number(document.getElementById("daysSelect").value || "30")));
+        state.userDetailLoading = true;
+        if (button) button.disabled = true;
+        setUserDetailStatus("ユーザー詳細を読み込み中...");
+        try {
+          const data = await fetchAnalytics(
+            `/analytics/user_detail?days=${encodeURIComponent(days)}&actor_key=${encodeURIComponent(actorKey)}`
+          );
+          renderUserDetail(data);
+        } catch (err) {
+          if (isNotFoundError(err)) {
+            const fallback = buildUserDetailFromLearning(actorKey);
+            if (fallback) {
+              renderUserDetail(fallback);
+              setUserDetailStatus(
+                `表示中: ${actorKey}（互換表示: /analytics/user_detail が未配備のため learning 集計から表示）`
+              );
+              return;
+            }
+          }
+          resetUserDetailMetrics();
+          clearUserDetailTables();
+          setUserDetailStatus(`読み込み失敗: ${String(err && err.message ? err.message : err)}`, true);
+        } finally {
+          state.userDetailLoading = false;
+          if (button) button.disabled = false;
+        }
+      }
+
       function renderOverview(data) {
         setText("metricDau", formatInt(data.dau));
         setText("metricWau", formatInt(data.wau));
@@ -501,6 +849,7 @@
       }
 
       function renderLearning(data) {
+        state.latestLearningData = data && typeof data === "object" ? data : null;
         setText("metricReviewDue", formatInt(data.review_due));
         setText("metricAiAcc", formatPct(data.ai_group && data.ai_group.accuracy));
         setText("metricNonAiAcc", formatPct(data.non_ai_group && data.non_ai_group.accuracy));
@@ -601,6 +950,7 @@
           ],
           data.actor_time_slot_stats || []
         );
+        updateUserDetailActorOptions(data.actor_answer_stats || []);
       }
 
       function renderAiQuality(data) {
@@ -682,10 +1032,35 @@
           renderLearning(learning);
           renderAiQuality(aiQuality);
           renderContent(content);
+          await loadUserDetail(state.userDetailActorKey);
           setStatus(`更新完了（${days}日）`);
         } catch (err) {
           setStatus(`読み込み失敗: ${String(err && err.message ? err.message : err)}`, true);
         }
+      }
+
+      function initUserDetailUi() {
+        const select = document.getElementById("userDetailActorSelect");
+        const input = document.getElementById("userDetailActorInput");
+        const button = document.getElementById("userDetailLoadBtn");
+        if (!select || !input || !button) return;
+
+        select.addEventListener("change", () => {
+          const key = String(select.value || "").trim();
+          if (!key) return;
+          input.value = key;
+          loadUserDetail(key);
+        });
+
+        button.addEventListener("click", () => {
+          loadUserDetail();
+        });
+
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          loadUserDetail();
+        });
       }
 
       function initAuthUi() {
@@ -752,7 +1127,12 @@
       }
 
       async function init() {
+        initTabs();
+        initUserDetailUi();
         initAuthUi();
+        setActiveTab(state.activeTab);
+        resetUserDetailMetrics();
+        clearUserDetailTables();
         document.getElementById("refreshBtn").addEventListener("click", () => {
           loadDashboard();
         });
