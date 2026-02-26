@@ -217,6 +217,50 @@
         gap: 10px;
         padding: 14px 24px 20px;
       }
+      .senryu-recommend {
+        margin: 0 24px 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+      }
+      .senryu-recommend-header {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .senryu-recommend-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 8px;
+      }
+      .senryu-recommend-item {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff;
+      }
+      .senryu-recommend-poem {
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--ink);
+        margin-bottom: 6px;
+      }
+      .senryu-recommend-meta {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .senryu-recommend-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .senryu-recommend-subject {
+        color: var(--muted);
+        font-size: 12px;
+      }
       .controls input,
       .controls select,
       .controls button {
@@ -1303,6 +1347,7 @@
 	            <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
 	            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
 	            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
+	            <button type="button" data-menu-target="senryuRankingPanel">川柳ランキング</button>
 	            <button type="button" data-menu-target="practiceRatingPanel">練習問題公開管理</button>
 	            <a id="analyticsMenuLink" href="./analytics.html" target="_blank" rel="noopener noreferrer" hidden>データ分析</a>
 	            <a href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ</a>
@@ -1491,6 +1536,24 @@
 	          <div class="proposal-list-wide" id="practiceRatingList"></div>
 	        </div>
 	        </details>
+	        <details class="inline" id="senryuRankingPanel" hidden>
+	        <summary>川柳ランキング</summary>
+	        <div class="history-panel">
+	          <div class="history-controls">
+	            <label for="senryuRankingDays">集計期間</label>
+	            <select id="senryuRankingDays">
+	              <option value="7">7日</option>
+	              <option value="14">14日</option>
+	              <option value="30" selected>30日</option>
+	              <option value="60">60日</option>
+	              <option value="90">90日</option>
+	            </select>
+	            <button id="senryuRankingRefreshBtn" type="button">再読み込み</button>
+	          </div>
+	          <div class="note" id="senryuRankingStatus">未取得</div>
+	          <div class="proposal-list-wide" id="senryuRankingList"></div>
+	        </div>
+	        </details>
 	      <div class="auth-container">
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
@@ -1526,6 +1589,10 @@
       <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
       <div class="note" id="aiPublicNotice" hidden>AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。</div>
     </div>
+    <section id="senryuRecommendBox" class="senryu-recommend" hidden aria-label="おすすめ川柳">
+      <div id="senryuRecommendHeader" class="senryu-recommend-header">おすすめ川柳を読み込み中...</div>
+      <div id="senryuRecommendList" class="senryu-recommend-list"></div>
+    </section>
     <div class="controls" role="search" aria-label="検索と絞り込み">
       <div class="search-row">
         <input id="keyword" type="text" placeholder="キーワード検索（例: #解剖学 筋）" aria-label="キーワード検索" />
@@ -1642,6 +1709,7 @@
 	        qaViewed: new Set(),
 	        qaLiked: new Set()
 	        ,practiceRatings: {}
+	        ,senryuRatings: {}
 	        ,deepDiveRatings: {}
 	        ,practiceAdminItems: []
 	        ,practiceAdminSelected: new Set()
@@ -1721,6 +1789,36 @@
 
       function canUseAiGeneration() {
         return isRoleAtLeast("admin") || state.aiPublicGeneration || state.aiPublicPaidActive;
+      }
+
+      function sampleRandomItems(items, count) {
+        const list = Array.isArray(items) ? items.slice() : [];
+        for (let i = list.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = list[i];
+          list[i] = list[j];
+          list[j] = tmp;
+        }
+        return list.slice(0, Math.max(0, Number(count || 0)));
+      }
+
+      async function submitSenryuVoteById(id, voteType) {
+        if (!window.AI_API_BASE || !id) return;
+        const endpoint = voteType === "helpful"
+          ? "question_senryu/helpful"
+          : "question_senryu/not_helpful";
+        const headers = { "Content-Type": "application/json" };
+        try {
+          const token = await getAuthAccessToken();
+          if (token) headers.Authorization = `Bearer ${token}`;
+        } catch (_err) {
+          // ignore
+        }
+        fetch(`${window.AI_API_BASE}/ai/${endpoint}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ id })
+        }).catch(() => {});
       }
 
       function buildAuthRenderSnapshot(session) {
@@ -1814,7 +1912,10 @@
 	        document.querySelectorAll("#topMenuContent [data-menu-target]").forEach((btn) => {
           const targetId = btn.getAttribute("data-menu-target");
           const requiredRole = requiredRoleByTarget[targetId] || "guest";
-          const visible = requiredRole === "guest" ? true : isRoleAtLeast(requiredRole);
+          let visible = requiredRole === "guest" ? true : isRoleAtLeast(requiredRole);
+          if (targetId === "senryuRankingPanel" && !window.AI_API_BASE) {
+            visible = false;
+          }
           btn.hidden = !visible;
           if (!visible && targetId) {
             const panel = document.getElementById(targetId);
@@ -3271,6 +3372,298 @@
 	          publishPracticeQuestions(getSelectedPracticeQuestionIds(), false);
 	        });
 	        updatePracticeBulkActionState();
+	      }
+
+	      function renderSenryuRankingPanel(payload) {
+	        const listEl = document.getElementById("senryuRankingList");
+	        if (!listEl) return;
+	        listEl.textContent = "";
+	        if (!payload || payload.ok !== true) {
+	          listEl.textContent = "データはありません。";
+	          return;
+	        }
+	        const items = Array.isArray(payload.items) ? payload.items : [];
+	        if (!items.length) {
+	          listEl.textContent = "ランキング対象の川柳はまだありません。";
+	          return;
+	        }
+	        const table = document.createElement("table");
+	        table.className = "trend-table";
+	        const thead = document.createElement("thead");
+	        const headerRow = document.createElement("tr");
+	        ["順位", "スコア", "良い", "悪い", "問題", "川柳", "解説", "生成日時"].forEach((label) => {
+	          const th = document.createElement("th");
+	          th.textContent = label;
+	          headerRow.appendChild(th);
+	        });
+	        thead.appendChild(headerRow);
+	        table.appendChild(thead);
+
+	        const tbody = document.createElement("tbody");
+	        items.forEach((item, index) => {
+	          const row = document.createElement("tr");
+	          const rankTd = document.createElement("td");
+	          rankTd.textContent = String(index + 1);
+	          row.appendChild(rankTd);
+
+	          const score = Number(item && item.score ? item.score : 0);
+	          const goodCount = Number(item && item.good_count ? item.good_count : 0);
+	          const badCount = Number(item && item.bad_count ? item.bad_count : 0);
+	          const scoreTd = document.createElement("td");
+	          scoreTd.textContent = score > 0 ? `+${score}` : String(score);
+	          row.appendChild(scoreTd);
+
+	          const goodTd = document.createElement("td");
+	          goodTd.textContent = String(goodCount);
+	          row.appendChild(goodTd);
+
+	          const badTd = document.createElement("td");
+	          badTd.textContent = String(badCount);
+	          row.appendChild(badTd);
+
+	          const serial = String(item && item.base_serial ? item.base_serial : "").trim();
+	          const serialTd = document.createElement("td");
+	          if (serial) {
+	            const serialBtn = document.createElement("button");
+	            serialBtn.className = "chip-link";
+	            serialBtn.textContent = serial;
+	            serialBtn.addEventListener("click", () => {
+	              applyFilters({ keyword: serial });
+	              const panel = document.getElementById("senryuRankingPanel");
+	              if (panel) panel.open = false;
+	              const main = document.getElementById("mainContent");
+	              if (main) {
+	                main.scrollIntoView({ behavior: "smooth", block: "start" });
+	              }
+	            });
+	            serialTd.appendChild(serialBtn);
+	          } else {
+	            serialTd.textContent = "-";
+	          }
+	          row.appendChild(serialTd);
+
+	          const senryuTd = document.createElement("td");
+	          senryuTd.innerHTML = escapeHtmlForMarkdown(String(item && item.senryu ? item.senryu : "")).replace(/\n/g, "<br>");
+	          row.appendChild(senryuTd);
+
+	          const commentaryTd = document.createElement("td");
+	          commentaryTd.innerHTML = escapeHtmlForMarkdown(String(item && item.commentary ? item.commentary : "")).replace(/\n/g, "<br>");
+	          row.appendChild(commentaryTd);
+
+	          const createdAtTd = document.createElement("td");
+	          createdAtTd.textContent = String(item && item.created_at ? item.created_at : "").slice(0, 16).replace("T", " ");
+	          row.appendChild(createdAtTd);
+
+	          tbody.appendChild(row);
+	        });
+	        table.appendChild(tbody);
+	        listEl.appendChild(table);
+	      }
+
+	      async function loadSenryuRankingList() {
+	        const statusEl = document.getElementById("senryuRankingStatus");
+	        const daysEl = document.getElementById("senryuRankingDays");
+	        const refreshBtn = document.getElementById("senryuRankingRefreshBtn");
+	        if (!statusEl || !daysEl || !refreshBtn) return;
+	        if (!window.AI_API_BASE) {
+	          statusEl.textContent = "AI_API_BASE が設定されていません。";
+	          renderSenryuRankingPanel(null);
+	          return;
+	        }
+	        const days = Math.max(1, Math.min(90, Number(daysEl.value || 30)));
+	        refreshBtn.disabled = true;
+	        statusEl.textContent = "読み込み中...";
+	        try {
+	          const resp = await fetch(
+	            `${window.AI_API_BASE}/ai/question_senryu_ranking?days=${encodeURIComponent(days)}&limit=50`
+	          );
+	          if (!resp.ok) {
+	            const errorText = await resp.text();
+	            throw new Error(parseApiErrorText(errorText, `HTTP ${resp.status}`));
+	          }
+	          const payload = await resp.json();
+	          renderSenryuRankingPanel(payload);
+	          statusEl.textContent = `ランキング件数: ${Number(payload && payload.count ? payload.count : 0)}件 / 期間: ${days}日`;
+	        } catch (err) {
+	          statusEl.textContent = `取得に失敗しました: ${err && err.message ? err.message : "error"}`;
+	          renderSenryuRankingPanel(null);
+	        } finally {
+	          refreshBtn.disabled = false;
+	        }
+	      }
+
+	      function initSenryuRankingPanel() {
+	        const panel = document.getElementById("senryuRankingPanel");
+	        const daysEl = document.getElementById("senryuRankingDays");
+	        const refreshBtn = document.getElementById("senryuRankingRefreshBtn");
+	        if (!panel || !daysEl || !refreshBtn) return;
+	        panel.addEventListener("toggle", () => {
+	          if (!panel.open) return;
+	          loadSenryuRankingList();
+	        });
+	        refreshBtn.addEventListener("click", () => {
+	          loadSenryuRankingList();
+	        });
+	        daysEl.addEventListener("change", () => {
+	          if (!panel.open) return;
+	          loadSenryuRankingList();
+	        });
+	      }
+
+	      function renderRecommendedSenryu(items) {
+	        const box = document.getElementById("senryuRecommendBox");
+	        const headerEl = document.getElementById("senryuRecommendHeader");
+	        const listEl = document.getElementById("senryuRecommendList");
+	        if (!box || !headerEl || !listEl) return;
+	        listEl.textContent = "";
+	        const list = Array.isArray(items) ? items : [];
+	        if (!list.length) {
+	          box.hidden = true;
+	          return;
+	        }
+	        headerEl.textContent = "おすすめ川柳（ランダム2件）";
+	        list.forEach((item) => {
+	          const row = document.createElement("div");
+	          row.className = "senryu-recommend-item";
+
+	          const poem = document.createElement("div");
+	          poem.className = "senryu-recommend-poem";
+	          poem.textContent = String(item && item.senryu ? item.senryu : "");
+	          row.appendChild(poem);
+
+	          let helpfulCount = Number(item && item.good_count ? item.good_count : 0);
+	          let notHelpfulCount = Number(item && item.bad_count ? item.bad_count : 0);
+	          const ratingKey = getSenryuRatingKey(item);
+	          const rated = state.senryuRatings[ratingKey] || "";
+
+	          const meta = document.createElement("div");
+	          meta.className = "senryu-recommend-meta";
+	          const subject = document.createElement("span");
+	          subject.className = "senryu-recommend-subject";
+	          subject.textContent = `科目: ${String(item && item.subject ? item.subject : "不明")}`;
+	          meta.appendChild(subject);
+
+	          const serial = String(item && item.base_serial ? item.base_serial : "").trim();
+	          const jumpBtn = document.createElement("button");
+	          jumpBtn.className = "chip-link";
+	          jumpBtn.textContent = serial ? `問題へ (${serial})` : "問題へ";
+	          jumpBtn.disabled = !serial;
+	          jumpBtn.addEventListener("click", () => {
+	            if (!serial) return;
+	            applyFilters({ keyword: serial });
+	            const main = document.getElementById("mainContent");
+	            if (main) {
+	              main.scrollIntoView({ behavior: "smooth", block: "start" });
+	            }
+	          });
+	          meta.appendChild(jumpBtn);
+	          row.appendChild(meta);
+
+	          const actions = document.createElement("div");
+	          actions.className = "senryu-recommend-actions";
+	          const helpfulBtn = document.createElement("button");
+	          helpfulBtn.className = "chip-link";
+	          helpfulBtn.textContent = `👍 ${helpfulCount}${rated === "helpful" ? " ✓" : ""}`;
+	          helpfulBtn.setAttribute("aria-label", "このおすすめ川柳を良い評価する");
+	          const notHelpfulBtn = document.createElement("button");
+	          notHelpfulBtn.className = "chip-link";
+	          notHelpfulBtn.textContent = `👎 ${notHelpfulCount}${rated === "not_helpful" ? " ✓" : ""}`;
+	          notHelpfulBtn.setAttribute("aria-label", "このおすすめ川柳を悪い評価する");
+	          if (rated) {
+	            helpfulBtn.disabled = true;
+	            notHelpfulBtn.disabled = true;
+	          }
+	          helpfulBtn.addEventListener("click", () => {
+	            if (state.senryuRatings[ratingKey]) return;
+	            state.senryuRatings[ratingKey] = "helpful";
+	            saveSenryuRatingState();
+	            helpfulCount += 1;
+	            helpfulBtn.textContent = `👍 ${helpfulCount} ✓`;
+	            helpfulBtn.disabled = true;
+	            notHelpfulBtn.disabled = true;
+	            const entityId = item && item.id ? String(item.id) : ratingKey;
+	            submitAiFeedbackEvent({
+	              feature: "question_senryu",
+	              rating: "helpful",
+	              entity_type: "question_senryu",
+	              entity_id: entityId
+	            });
+	            trackAnalyticsEvent("ai_feedback_submitted", {
+	              surface: "question_senryu_recommend",
+	              entity_type: "question_senryu",
+	              entity_id: entityId,
+	              props: { feature: "question_senryu", rating: "helpful" }
+	            });
+	            if (item && item.id) {
+	              submitSenryuVoteById(item.id, "helpful");
+	            }
+	          });
+	          notHelpfulBtn.addEventListener("click", () => {
+	            if (state.senryuRatings[ratingKey]) return;
+	            state.senryuRatings[ratingKey] = "not_helpful";
+	            saveSenryuRatingState();
+	            notHelpfulCount += 1;
+	            notHelpfulBtn.textContent = `👎 ${notHelpfulCount} ✓`;
+	            helpfulBtn.disabled = true;
+	            notHelpfulBtn.disabled = true;
+	            const entityId = item && item.id ? String(item.id) : ratingKey;
+	            submitAiFeedbackEvent({
+	              feature: "question_senryu",
+	              rating: "not_helpful",
+	              entity_type: "question_senryu",
+	              entity_id: entityId
+	            });
+	            trackAnalyticsEvent("ai_feedback_submitted", {
+	              surface: "question_senryu_recommend",
+	              entity_type: "question_senryu",
+	              entity_id: entityId,
+	              props: { feature: "question_senryu", rating: "not_helpful" }
+	            });
+	            if (item && item.id) {
+	              submitSenryuVoteById(item.id, "not_helpful");
+	            }
+	          });
+	          actions.appendChild(helpfulBtn);
+	          actions.appendChild(notHelpfulBtn);
+	          row.appendChild(actions);
+	          listEl.appendChild(row);
+	        });
+	        box.hidden = false;
+	      }
+
+	      async function loadRecommendedSenryu() {
+	        const box = document.getElementById("senryuRecommendBox");
+	        const headerEl = document.getElementById("senryuRecommendHeader");
+	        const listEl = document.getElementById("senryuRecommendList");
+	        if (!box || !headerEl || !listEl) return;
+	        if (!window.AI_API_BASE) {
+	          box.hidden = true;
+	          return;
+	        }
+	        headerEl.textContent = "おすすめ川柳を読み込み中...";
+	        listEl.textContent = "";
+	        try {
+	          const resp = await fetch(
+	            `${window.AI_API_BASE}/ai/question_senryu_ranking?days=${encodeURIComponent(365)}&limit=200`
+	          );
+	          if (!resp.ok) throw new Error("API error");
+	          const payload = await resp.json();
+	          const rows = Array.isArray(payload && payload.items) ? payload.items : [];
+	          const enriched = rows
+	            .map((item) => {
+	              const serial = String(item && item.base_serial ? item.base_serial : "").trim();
+	              const q = serial ? state.questionBySerial[serial] : null;
+	              return {
+	                ...item,
+	                subject: q && q.subject ? q.subject : ""
+	              };
+	            })
+	            .filter((item) => String(item && item.senryu ? item.senryu : "").trim());
+	          const picked = sampleRandomItems(enriched, 2);
+	          renderRecommendedSenryu(picked);
+	        } catch (_err) {
+	          box.hidden = true;
+	        }
 	      }
 
 	      function loadDeepDiveSerials() {
@@ -6935,6 +7328,259 @@
 	            extraPanel.appendChild(practiceMainBtn);
 	          }
 
+	          const senryuPanel = document.createElement("div");
+	          senryuPanel.className = "deep-dive-panel";
+	          senryuPanel.hidden = true;
+	          const senryuHeader = document.createElement("div");
+	          senryuHeader.className = "note";
+	          senryuHeader.textContent = "問題にちなんだ川柳（解説付き）";
+	          senryuPanel.appendChild(senryuHeader);
+	          const senryuList = document.createElement("div");
+	          senryuPanel.appendChild(senryuList);
+	          const senryuActions = document.createElement("div");
+	          senryuActions.className = "proposal-actions";
+	          senryuPanel.appendChild(senryuActions);
+	          const senryuRefreshBtn = document.createElement("button");
+	          senryuRefreshBtn.className = "chip-link";
+	          senryuRefreshBtn.textContent = "再読み込み";
+	          senryuActions.appendChild(senryuRefreshBtn);
+	          const senryuGenerateBtn = document.createElement("button");
+	          senryuGenerateBtn.className = "chip-link";
+	          senryuGenerateBtn.textContent = "3つ生成";
+	          senryuGenerateBtn.hidden = !canUseAiGeneration();
+	          senryuActions.appendChild(senryuGenerateBtn);
+
+	          const renderSenryuItems = (items) => {
+	            senryuList.textContent = "";
+	            const list = Array.isArray(items) ? items : [];
+	            if (!list.length) {
+	              senryuHeader.textContent = "川柳はまだありません。";
+	              return;
+	            }
+	            senryuHeader.textContent = `川柳件数: ${list.length}`;
+	            list.forEach((item, idx) => {
+	              const entry = document.createElement("div");
+	              entry.className = "proposal-item";
+	              const meta = document.createElement("div");
+	              meta.className = "note qa-meta";
+	              const infoSpan = document.createElement("span");
+	              const createdAt = String(item && item.created_at ? item.created_at : "");
+	              infoSpan.textContent = createdAt
+	                ? `No.${idx + 1} / ${createdAt.slice(0, 16).replace("T", " ")}`
+	                : `No.${idx + 1}`;
+	              meta.appendChild(infoSpan);
+
+	              const copyBtn = document.createElement("button");
+	              copyBtn.className = "icon-mini-btn";
+	              copyBtn.textContent = "⧉";
+	              copyBtn.setAttribute("aria-label", "川柳をコピー");
+	              copyBtn.setAttribute("title", "川柳をコピー");
+	              copyBtn.addEventListener("click", () => {
+	                const poem = String(item && item.senryu ? item.senryu : "").trim();
+	                const commentary = String(item && item.commentary ? item.commentary : "").trim();
+	                copyToClipboard(`${poem}\n\n解説:\n${commentary}`.trim());
+	              });
+	              meta.appendChild(copyBtn);
+
+	              let helpfulCount = Number(item && item.good_count ? item.good_count : 0);
+	              let notHelpfulCount = Number(item && item.bad_count ? item.bad_count : 0);
+	              const ratingKey = getSenryuRatingKey(item);
+	              const rated = state.senryuRatings[ratingKey] || "";
+	              const helpfulBtn = document.createElement("button");
+	              helpfulBtn.className = "chip-link";
+	              helpfulBtn.textContent = `👍 ${helpfulCount}${rated === "helpful" ? " ✓" : ""}`;
+	              helpfulBtn.setAttribute("aria-label", "良い評価を付ける");
+	              const notHelpfulBtn = document.createElement("button");
+	              notHelpfulBtn.className = "chip-link";
+	              notHelpfulBtn.textContent = `👎 ${notHelpfulCount}${rated === "not_helpful" ? " ✓" : ""}`;
+	              notHelpfulBtn.setAttribute("aria-label", "悪い評価を付ける");
+	              if (rated) {
+	                helpfulBtn.disabled = true;
+	                notHelpfulBtn.disabled = true;
+	              }
+	              helpfulBtn.addEventListener("click", () => {
+	                if (state.senryuRatings[ratingKey]) return;
+	                state.senryuRatings[ratingKey] = "helpful";
+	                saveSenryuRatingState();
+	                helpfulCount += 1;
+	                helpfulBtn.textContent = `👍 ${helpfulCount} ✓`;
+	                helpfulBtn.disabled = true;
+	                notHelpfulBtn.disabled = true;
+	                const entityId = item && item.id ? String(item.id) : ratingKey;
+	                submitAiFeedbackEvent({
+	                  feature: "question_senryu",
+	                  rating: "helpful",
+	                  entity_type: "question_senryu",
+	                  entity_id: entityId
+	                });
+	                trackAnalyticsEvent("ai_feedback_submitted", {
+	                  surface: "question_senryu",
+	                  entity_type: "question_senryu",
+	                  entity_id: entityId,
+	                  props: { feature: "question_senryu", rating: "helpful" }
+	                });
+	                if (item && item.id) {
+	                  submitSenryuVoteById(item.id, "helpful");
+	                }
+	              });
+	              notHelpfulBtn.addEventListener("click", () => {
+	                if (state.senryuRatings[ratingKey]) return;
+	                state.senryuRatings[ratingKey] = "not_helpful";
+	                saveSenryuRatingState();
+	                notHelpfulCount += 1;
+	                notHelpfulBtn.textContent = `👎 ${notHelpfulCount} ✓`;
+	                helpfulBtn.disabled = true;
+	                notHelpfulBtn.disabled = true;
+	                const entityId = item && item.id ? String(item.id) : ratingKey;
+	                submitAiFeedbackEvent({
+	                  feature: "question_senryu",
+	                  rating: "not_helpful",
+	                  entity_type: "question_senryu",
+	                  entity_id: entityId
+	                });
+	                trackAnalyticsEvent("ai_feedback_submitted", {
+	                  surface: "question_senryu",
+	                  entity_type: "question_senryu",
+	                  entity_id: entityId,
+	                  props: { feature: "question_senryu", rating: "not_helpful" }
+	                });
+	                if (item && item.id) {
+	                  submitSenryuVoteById(item.id, "not_helpful");
+	                }
+	              });
+	              meta.appendChild(helpfulBtn);
+	              meta.appendChild(notHelpfulBtn);
+
+	              const poemEl = document.createElement("div");
+	              poemEl.className = "note";
+	              poemEl.textContent = String(item && item.senryu ? item.senryu : "");
+	              const commentaryEl = document.createElement("div");
+	              renderMarkdownToElement(commentaryEl, String(item && item.commentary ? item.commentary : ""));
+
+	              entry.appendChild(meta);
+	              entry.appendChild(poemEl);
+	              entry.appendChild(commentaryEl);
+	              senryuList.appendChild(entry);
+	            });
+	          };
+
+	          const loadQuestionSenryu = async () => {
+	            if (!window.AI_API_BASE) {
+	              senryuHeader.textContent = "AI_API_BASE が設定されていません。";
+	              return;
+	            }
+	            senryuHeader.textContent = "読み込み中...";
+	            senryuRefreshBtn.disabled = true;
+	            try {
+	              const headers = {};
+	              const token = await getAuthAccessToken().catch(() => "");
+	              if (token) headers.Authorization = `Bearer ${token}`;
+	              const resp = await fetch(
+	                `${window.AI_API_BASE}/ai/question_senryu?serial=${encodeURIComponent(q.serial)}`,
+	                { headers }
+	              );
+	              if (!resp.ok) throw new Error("API error");
+	              const payload = await resp.json();
+	              const items = Array.isArray(payload.items) ? payload.items : [];
+	              renderSenryuItems(items);
+	            } catch (_err) {
+	              senryuHeader.textContent = "読み込みに失敗しました。";
+	            } finally {
+	              senryuRefreshBtn.disabled = false;
+	            }
+	          };
+
+	          const runSenryuGenerate = async () => {
+	            if (!window.AI_API_BASE) {
+	              senryuHeader.textContent = "AI_API_BASE が設定されていません。";
+	              return;
+	            }
+	            let token = "";
+	            if (supabaseClient) {
+	              const { data } = await supabaseClient.auth.getSession();
+	              const session = data && data.session ? data.session : null;
+	              token = session && session.access_token ? session.access_token : "";
+	            }
+	            if (!state.aiPublicGeneration && !isRoleAtLeast("admin")) {
+	              senryuHeader.textContent = "管理者ログインが必要です。";
+	              return;
+	            }
+	            senryuHeader.textContent = "生成中...";
+	            announceStatusNow("川柳を生成中です");
+	            senryuGenerateBtn.disabled = true;
+	            try {
+	              const headers = { "Content-Type": "application/json" };
+	              if (token) headers.Authorization = `Bearer ${token}`;
+	              const resp = await fetch(`${window.AI_API_BASE}/ai/question_senryu`, {
+	                method: "POST",
+	                headers,
+	                body: JSON.stringify({
+	                  serial: q.serial,
+	                  subject: q.subject || "",
+	                  subtopics: q.subtopics || [],
+	                  tags: q.tags || [],
+	                  case_text: q.case_text || "",
+	                  stem: q.stem || "",
+	                  choices: q.choices || [],
+	                  answer: formatAnswerLabel(q) || "",
+	                  explanation: expText || "",
+	                  model: "gemini-3-flash-preview"
+	                })
+	              });
+	              if (!resp.ok) {
+	                const errorText = await resp.text();
+	                throw new Error(parseApiErrorText(errorText, `HTTP ${resp.status}`));
+	              }
+	              const payload = await resp.json();
+	              const items = Array.isArray(payload.items) ? payload.items : [];
+	              trackAnalyticsEvent("ai_generate_completed", {
+	                surface: "question_senryu",
+	                entity_type: "question",
+	                entity_id: q.serial,
+	                request_id: payload && payload.request_id ? payload.request_id : "",
+	                props: {
+	                  feature: "question_senryu",
+	                  generated_count: items.length
+	                }
+	              });
+	              renderSenryuItems(items);
+	              senryuHeader.textContent = "生成完了";
+	              announceStatusNow("川柳の生成が完了しました");
+	              loadQuestionSenryu();
+	            } catch (err) {
+	              senryuHeader.textContent = "生成に失敗しました。";
+	              announceStatusNow("川柳の生成に失敗しました");
+	              renderMarkdownToElement(senryuList, String(err && err.message ? err.message : err || ""));
+	            } finally {
+	              senryuGenerateBtn.disabled = false;
+	            }
+	          };
+
+	          senryuRefreshBtn.addEventListener("click", () => {
+	            loadQuestionSenryu();
+	          });
+	          senryuGenerateBtn.addEventListener("click", () => {
+	            runSenryuGenerate();
+	          });
+
+	          const senryuMainBtn = document.createElement("button");
+	          senryuMainBtn.className = "action-btn";
+	          setActionButtonLabel(senryuMainBtn, "川", "川柳");
+	          senryuMainBtn.setAttribute("aria-label", "問題にちなんだ川柳を生成して表示");
+	          senryuMainBtn.hidden = !window.AI_API_BASE;
+	          senryuMainBtn.addEventListener("click", () => {
+	            if (senryuPanel.hidden) {
+	              senryuPanel.hidden = false;
+	              loadQuestionSenryu();
+	              senryuPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+	            } else {
+	              senryuPanel.hidden = true;
+	            }
+	          });
+	          if (!senryuMainBtn.hidden) {
+	            extraPanel.appendChild(senryuMainBtn);
+	          }
+
 	          const deepDivePanel = document.createElement("div");
 	          deepDivePanel.className = "deep-dive-panel";
 	          deepDivePanel.hidden = true;
@@ -7373,6 +8019,7 @@
 	          }
 	          card.appendChild(actions);
 	          card.appendChild(practicePanel);
+	          card.appendChild(senryuPanel);
 	          card.appendChild(deepDivePanel);
 
 	          target.appendChild(card);
@@ -7463,6 +8110,7 @@
 	        loadTagVisibility();
 	        loadQaLikedState();
 	        loadPracticeRatingState();
+	        loadSenryuRatingState();
 	        loadDeepDiveRatingState();
 	        loadQaDraftState();
 	        loadTagViewedSessionState();
@@ -7491,6 +8139,7 @@
           );
           applySearchStateFromUrl(searchStateFromUrl);
           renderResults(filterQuestions());
+          loadRecommendedSenryu();
           syncSearchQueryToUrl();
         });
 
@@ -7498,6 +8147,7 @@
 	        initAiGenerationPanel();
 	        initAiUsagePanel();
 	        initPracticeRatingPanel();
+	        initSenryuRankingPanel();
 	        applyTopMenuRoleVisibility();
         const menuToggleBtn = document.getElementById("menuToggleBtn");
         const topMenuContent = document.getElementById("topMenuContent");
@@ -7525,6 +8175,7 @@
 	          "tagDisablePanel",
 	          "aiGenerationPanel",
 	          "aiUsagePanel",
+	          "senryuRankingPanel",
 	          "practiceRatingPanel"
 	        ];
         const closeAuthPanel = () => {
@@ -7667,6 +8318,12 @@
         if (aiUsagePanel) {
           aiUsagePanel.addEventListener("toggle", () => {
             if (aiUsagePanel.open) closeAuthPanel();
+          });
+        }
+        const senryuRankingPanel = document.getElementById("senryuRankingPanel");
+        if (senryuRankingPanel) {
+          senryuRankingPanel.addEventListener("toggle", () => {
+            if (senryuRankingPanel.open) closeAuthPanel();
           });
         }
         if (updateMoreBtn) {
@@ -7998,7 +8655,7 @@
           if (topMenuContent) topMenuContent.hidden = false;
           if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "true");
 	          const closeMenuTargets = () => {
-	            ["updateInfo", "settingsPanel", "progressPanel", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel", "aiUsagePanel", "practiceRatingPanel"].forEach((id) => {
+	            ["updateInfo", "settingsPanel", "progressPanel", "userReadme", "answerTrendPanel", "historyPanel", "proposalPanel", "tagDisablePanel", "aiGenerationPanel", "aiUsagePanel", "senryuRankingPanel", "practiceRatingPanel"].forEach((id) => {
 	              const el = document.getElementById(id);
 	              if (el && el.tagName === "DETAILS") {
 	                el.open = false;
@@ -8143,6 +8800,7 @@
 	          applyTopMenuRoleVisibility();
 	          loadQaLikedState();
 	          loadPracticeRatingState();
+	          loadSenryuRatingState();
 	          loadDeepDiveRatingState();
 	          loadQaDraftState();
 	          renderResults(filterQuestions());
@@ -8196,10 +8854,11 @@
               }
             }
             applyTopMenuRoleVisibility();
-            applyProgressFilterVisibility();
+	            applyProgressFilterVisibility();
 	            applyAnsweredFilterVisibility();
 	            loadQaLikedState();
 	            loadPracticeRatingState();
+	            loadSenryuRatingState();
 	            loadDeepDiveRatingState();
 	            loadQaDraftState();
 	            if (isRoleAtLeast("admin")) {
@@ -9652,6 +10311,56 @@
 	      function savePracticeRatingState() {
 	        const key = getPracticeRatingsStorageKey();
 	        localStorage.setItem(key, JSON.stringify(state.practiceRatings || {}));
+	      }
+
+	      function getSenryuRatingActorId() {
+	        if (state.authSession && state.authSession.user && state.authSession.user.id) {
+	          return `user:${state.authSession.user.id}`;
+	        }
+	        return `anon:${getAnonId()}`;
+	      }
+
+	      function getSenryuRatingsStorageKey() {
+	        return `senryuRatings:${getSenryuRatingActorId()}`;
+	      }
+
+	      function getSenryuRatingKey(item) {
+	        if (item && item.id) return `id:${item.id}`;
+	        const serial = String(item && item.base_serial ? item.base_serial : "").trim();
+	        const senryu = String(item && item.senryu ? item.senryu : "").trim();
+	        return `fallback:${serial}:${senryu}`;
+	      }
+
+	      function loadSenryuRatingState() {
+	        state.senryuRatings = {};
+	        const key = getSenryuRatingsStorageKey();
+	        const raw = localStorage.getItem(key);
+	        if (!raw) return;
+	        try {
+	          const data = JSON.parse(raw);
+	          if (!data || typeof data !== "object") return;
+	          Object.keys(data).forEach((value) => {
+	            const rating = data[value];
+	            if (rating === "good") {
+	              state.senryuRatings[value] = "helpful";
+	              return;
+	            }
+	            if (rating === "bad") {
+	              state.senryuRatings[value] = "not_helpful";
+	              return;
+	            }
+	            if (rating === "helpful" || rating === "not_helpful") {
+	              state.senryuRatings[value] = rating;
+	            }
+	          });
+	        } catch (_err) {
+	          localStorage.removeItem(key);
+	        }
+	      }
+
+	      function saveSenryuRatingState() {
+	        const key = getSenryuRatingsStorageKey();
+	        localStorage.setItem(key, JSON.stringify(state.senryuRatings || {}));
 	      }
 
 	      function getDeepDiveRatingActorId() {

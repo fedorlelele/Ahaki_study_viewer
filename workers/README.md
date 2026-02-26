@@ -52,6 +52,11 @@
   - `question_type`: `mcq` (4択) / `tf` (○×) / `short` (一問一答)。未指定時は `mcq`。
 - `POST /ai/practice_questions/helpful`
 - `POST /ai/practice_questions/not_helpful`
+- `GET /ai/question_senryu?serial=...`
+- `POST /ai/question_senryu`（1回で3つ生成・各項目に解説付き）
+- `POST /ai/question_senryu/helpful`
+- `POST /ai/question_senryu/not_helpful`
+- `GET /ai/question_senryu_ranking?days=30&limit=50`
 - `GET /admin/practice_questions?days=30&serial=...`（teacher/admin向け評価一覧）
 - `POST /admin/practice_questions/publish`（teacher/adminが個別/一括で公開・非公開）
 
@@ -81,5 +86,6 @@ window.AI_API_BASE = "https://<worker>.workers.dev";
   - `workers/sql/ai_feedback_events.sql`
 - タグ学習機能を使う場合は `workers/sql/tag_study_tables.sql` を Supabase SQL Editor で実行してください。
 - 問題別の練習問題機能を使う場合は `workers/sql/practice_question_tables.sql` を Supabase SQL Editor で実行してください。
+- 問題別の川柳機能を使う場合は `workers/sql/question_senryu_tables.sql` を Supabase SQL Editor で実行してください。
 - teacher/admin が生成した練習問題は初期状態で非公開です（生成者本人のみ閲覧可）。
 - 非公開/公開の切り替えは `POST /admin/practice_questions/publish` で個別・一括実行できます。

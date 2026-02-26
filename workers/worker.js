@@ -194,6 +194,31 @@ async function handleAi(request, env) {
     const body = await readJson(request);
     return incrementQaCounter(env, body, "like_count");
   }
+  if (path === "/ai/question_senryu") {
+    if (request.method === "GET") {
+      const serial = (url.searchParams.get("serial") || "").trim();
+      if (!serial) {
+        return jsonResponse({ message: "serial is required" }, 400);
+      }
+      return fetchQuestionSenryu(env, serial);
+    }
+    if (request.method === "POST") {
+      return handleQuestionSenryu(request, env);
+    }
+  }
+  if (path === "/ai/question_senryu/helpful" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementQuestionSenryuCounter(env, body, "good_count");
+  }
+  if (path === "/ai/question_senryu/not_helpful" && request.method === "POST") {
+    const body = await readJson(request);
+    return incrementQuestionSenryuCounter(env, body, "bad_count");
+  }
+  if (path === "/ai/question_senryu_ranking" && request.method === "GET") {
+    const days = Math.max(1, Math.min(365, Number(url.searchParams.get("days") || "30")));
+    const limit = Math.max(1, Math.min(100, Number(url.searchParams.get("limit") || "30")));
+    return fetchQuestionSenryuRanking(env, { days, limit });
+  }
   if (path === "/ai/practice_questions") {
     if (request.method === "GET") {
       const serial = (url.searchParams.get("serial") || "").trim();
@@ -2142,6 +2167,206 @@ async function handleQuestionQa(request, env) {
   });
 }
 
+async function handleQuestionSenryu(request, env) {
+  const requestId = createRequestId("senryu");
+  const startedAt = Date.now();
+  const user = await authenticate(request, env);
+  const role = user ? getRole(user) : "";
+  const allowPublic = await isAiGenerationPublicEnabled(env);
+  if (!allowPublic && !isRoleAtLeast(role, "admin")) {
+    return jsonResponse({ message: "Forbidden", request_id: requestId }, 403);
+  }
+  const body = await readJson(request);
+  const serial = String(body.serial || "").trim();
+  if (!serial) {
+    return jsonResponse({ message: "serial is required", request_id: requestId }, 400);
+  }
+  const prompt = buildQuestionSenryuPrompt(body);
+  const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
+  const inputChars = prompt.length;
+  const gemini = await resolveGeminiRoute(env, role);
+  if (!gemini.apiKey) {
+    return jsonResponse({ message: "Gemini API key is not configured.", request_id: requestId }, 500);
+  }
+  const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
+  const fallbackModel = "gemini-3-flash-preview";
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  if (!limit.ok) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "question_senryu",
+      outcome: "rate_limited",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: requestedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: "worker_rate_limited",
+      prompt_version: promptVersion
+    });
+    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
+  }
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ]
+  };
+  const callGemini = (model) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+  let usedModel = requestedModel;
+  let resp = await callGemini(usedModel);
+  if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
+    usedModel = fallbackModel;
+    resp = await callGemini(usedModel);
+  }
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    const parsedError = parseGeminiError(errorText);
+    if (isGeminiRateLimit(resp.status, parsedError)) {
+      await safeLogAiUsage(env, {
+        mode: gemini.mode,
+        endpoint: "question_senryu",
+        outcome: "rate_limited",
+        serial,
+        user_id: user && user.id ? user.id : null,
+        model: usedModel,
+        request_id: requestId,
+        latency_ms: Date.now() - startedAt,
+        input_chars: inputChars,
+        output_chars: 0,
+        error_code: "gemini_rate_limited",
+        prompt_version: promptVersion,
+        fallback_model: usedModel !== requestedModel ? usedModel : null
+      });
+      return jsonResponse(
+        {
+          message: "Gemini API rate limit",
+          model: usedModel,
+          mode: gemini.mode,
+          detail: parsedError.detail,
+          request_id: requestId
+        },
+        429
+      );
+    }
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "question_senryu",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: 0,
+      error_code: sanitizeAnalyticsText(parsedError.status || "gemini_error", 80),
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
+    });
+    return jsonResponse(
+      {
+        message: "Gemini API error",
+        model: usedModel,
+        mode: gemini.mode,
+        detail: parsedError.detail,
+        request_id: requestId
+      },
+      500
+    );
+  }
+  const data = await resp.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
+  const outputChars = text.length;
+  const parsed = parseQuestionSenryu(text);
+  if (!parsed.items || parsed.items.length < 3) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "question_senryu",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: outputChars,
+      char_count: outputChars,
+      error_code: "invalid_ai_output",
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
+    });
+    return jsonResponse(
+      {
+        message: "Invalid AI output",
+        detail: "items must be an array of 3 senryu entries",
+        model: usedModel,
+        mode: gemini.mode,
+        request_id: requestId
+      },
+      502
+    );
+  }
+  try {
+    const inserted = await insertQuestionSenryuItems(env, {
+      baseSerial: serial,
+      items: parsed.items.slice(0, 3),
+      createdBy: user && user.id ? user.id : null,
+      model: usedModel,
+      mode: gemini.mode
+    });
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "question_senryu",
+      outcome: "success",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: outputChars,
+      char_count: outputChars,
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
+    });
+    return jsonResponse({ ok: true, items: inserted, model: usedModel, mode: gemini.mode, request_id: requestId });
+  } catch (err) {
+    await safeLogAiUsage(env, {
+      mode: gemini.mode,
+      endpoint: "question_senryu",
+      outcome: "error",
+      serial,
+      user_id: user && user.id ? user.id : null,
+      model: usedModel,
+      request_id: requestId,
+      latency_ms: Date.now() - startedAt,
+      input_chars: inputChars,
+      output_chars: outputChars,
+      char_count: outputChars,
+      error_code: "supabase_insert_failed",
+      prompt_version: promptVersion,
+      fallback_model: usedModel !== requestedModel ? usedModel : null
+    });
+    return jsonResponse(
+      { message: "Supabase insert failed", detail: String(err && err.message ? err.message : err || ""), request_id: requestId },
+      500
+    );
+  }
+}
+
 async function handlePracticeQuestions(request, env) {
   const requestId = createRequestId("pq");
   const startedAt = Date.now();
@@ -2941,6 +3166,87 @@ function buildPracticeQuestionsPrompt(body, questionType) {
   ].join("\n");
 }
 
+function buildQuestionSenryuPrompt(body) {
+  const serial = String(body.serial || "").trim();
+  const subject = String(body.subject || "").trim();
+  const subtopics = Array.isArray(body.subtopics)
+    ? body.subtopics.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const tags = Array.isArray(body.tags)
+    ? body.tags.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const caseText = String(body.case_text || "").trim();
+  const stem = String(body.stem || "").trim();
+  const choices = Array.isArray(body.choices)
+    ? body.choices.map((v) => String(v || "").trim()).filter(Boolean)
+    : [];
+  const answer = String(body.answer || "").trim();
+  const explanation = String(body.explanation || "").trim();
+  return [
+    "あなたは医療系国家試験向けの学習川柳を作るAIです。",
+    "次の元問題に関連する川柳を3つ作成してください。各川柳には学習者向けの短い解説を付けます。",
+    "",
+    "【元問題】",
+    `シリアル: ${serial || "（不明）"}`,
+    `科目: ${subject || "（不明）"}`,
+    `小項目: ${subtopics.length ? subtopics.join(" / ") : "（なし）"}`,
+    `タグ: ${tags.length ? tags.join(" / ") : "（なし）"}`,
+    caseText ? `症例文:\n${caseText}` : "症例文: （なし）",
+    stem ? `問題文:\n${stem}` : "問題文: （なし）",
+    `選択肢:\n${choices.length ? choices.map((c, i) => `${i + 1}. ${c}`).join("\n") : "（なし）"}`,
+    answer ? `正答: ${answer}` : "正答: （不明）",
+    explanation ? `解説:\n${explanation}` : "解説: （なし）",
+    "",
+    "【要件】",
+    "- 川柳は3つ。各川柳は内容が被らないようにする",
+    "- 川柳は日本語で1行（5-7-5に近い自然なリズムを意識）",
+    "- 解説(commentary)は2〜4文で、問題との関連・覚えるポイントを書く",
+    "- 医学的に不確かな内容は断定しすぎない",
+    "",
+    "【出力形式（JSONのみ）】",
+    "{\"items\":[{\"senryu\":\"...\",\"commentary\":\"...\"},{\"senryu\":\"...\",\"commentary\":\"...\"},{\"senryu\":\"...\",\"commentary\":\"...\"}]}",
+    "",
+    "注意:",
+    "- 余計な前置き・Markdown・コードブロックは出力しない",
+    "- items は必ず3要素にする"
+  ].join("\n");
+}
+
+function parseQuestionSenryu(text) {
+  if (!text) return { items: [] };
+  try {
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}");
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      const json = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      const rawItems = Array.isArray(json.items) ? json.items : [];
+      const items = rawItems
+        .map((raw) => {
+          const senryu = String(
+            raw && (raw.senryu ?? raw.poem ?? raw.senryu_text)
+              ? (raw.senryu ?? raw.poem ?? raw.senryu_text)
+              : ""
+          ).trim();
+          const commentary = String(
+            raw && (raw.commentary ?? raw.explanation ?? raw.note)
+              ? (raw.commentary ?? raw.explanation ?? raw.note)
+              : ""
+          ).trim();
+          if (!senryu || !commentary) return null;
+          return {
+            senryu: senryu.slice(0, 120),
+            commentary: commentary.slice(0, 1200)
+          };
+        })
+        .filter(Boolean);
+      return { items };
+    }
+  } catch (_err) {
+    // fall through
+  }
+  return { items: [] };
+}
+
 function parsePracticeQuestions(text, questionType) {
   if (!text) return { items: [] };
   const type = normalizePracticeQuestionType(questionType);
@@ -3135,6 +3441,145 @@ async function incrementQaCounter(env, body, field) {
   );
   if (!update.ok) return jsonResponse({ message: "Supabase update failed" }, 500);
   return jsonResponse({ ok: true, [field]: next });
+}
+
+async function fetchQuestionSenryu(env, serial) {
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_senryu?select=id,base_serial,senryu,commentary,good_count,bad_count,created_at&base_serial=eq.${encodeURIComponent(serial)}&order=created_at.desc&limit=30`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json().catch(() => []);
+  return jsonResponse({ ok: true, items: Array.isArray(rows) ? rows : [] });
+}
+
+async function insertQuestionSenryuItems(env, params) {
+  const baseSerial = String(params && params.baseSerial ? params.baseSerial : "").trim();
+  const items = Array.isArray(params && params.items ? params.items : null) ? params.items : [];
+  if (!baseSerial || !items.length) return [];
+  const payload = items.map((item) => ({
+    base_serial: baseSerial,
+    senryu: String(item && item.senryu ? item.senryu : "").trim(),
+    commentary: String(item && item.commentary ? item.commentary : "").trim(),
+    created_by: params.createdBy || null,
+    model: params.model || "",
+    mode: params.mode || ""
+  }));
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/question_senryu`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!resp.ok) {
+    const detail = await resp.text();
+    throw new Error(detail || "Supabase insert failed");
+  }
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function incrementQuestionSenryuCounter(env, body, field) {
+  const id = body.id;
+  if (!id) return jsonResponse({ message: "id required" }, 400);
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_senryu?select=id,${field}&id=eq.${encodeURIComponent(id)}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) return jsonResponse({ message: "Supabase fetch failed" }, 500);
+  const rows = await resp.json().catch(() => []);
+  const row = rows && rows[0] ? rows[0] : null;
+  if (!row) return jsonResponse({ message: "Not found" }, 404);
+  const current = Number(row[field] || 0);
+  const next = current + 1;
+  const update = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_senryu?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ [field]: next })
+    }
+  );
+  if (!update.ok) return jsonResponse({ message: "Supabase update failed" }, 500);
+  return jsonResponse({ ok: true, [field]: next });
+}
+
+async function fetchQuestionSenryuRanking(env, params) {
+  const safeDays = Math.max(1, Math.min(365, Number(params && params.days ? params.days : 30)));
+  const safeLimit = Math.max(1, Math.min(100, Number(params && params.limit ? params.limit : 30)));
+  const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_senryu?select=id,base_serial,senryu,commentary,good_count,bad_count,created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=1000`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json().catch(() => []);
+  const ranked = (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const goodCount = Number(row && row.good_count ? row.good_count : 0);
+      const badCount = Number(row && row.bad_count ? row.bad_count : 0);
+      const score = goodCount - badCount;
+      const totalVotes = goodCount + badCount;
+      return {
+        id: row && row.id ? row.id : null,
+        base_serial: row && row.base_serial ? row.base_serial : "",
+        senryu: row && row.senryu ? row.senryu : "",
+        commentary: row && row.commentary ? row.commentary : "",
+        good_count: goodCount,
+        bad_count: badCount,
+        score,
+        total_votes: totalVotes,
+        created_at: row && row.created_at ? row.created_at : ""
+      };
+    })
+    .filter((item) => item.senryu)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.good_count !== a.good_count) return b.good_count - a.good_count;
+      if (b.total_votes !== a.total_votes) return b.total_votes - a.total_votes;
+      if (a.bad_count !== b.bad_count) return a.bad_count - b.bad_count;
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    })
+    .slice(0, safeLimit);
+  return jsonResponse({
+    ok: true,
+    days: safeDays,
+    limit: safeLimit,
+    count: ranked.length,
+    items: ranked
+  });
 }
 
 async function fetchPracticeQuestions(env, serial, user) {

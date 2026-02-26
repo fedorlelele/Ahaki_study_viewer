@@ -39,6 +39,7 @@
   - 深掘り解説生成
   - 問題ごとのQ&A生成
   - 問題ごとの関連練習問題生成（4択 / ○× / 一問一答を各5問）+ helpful / not_helpful フィードバック（教師/管理者生成分は初期非公開、後で公開可能）
+  - 問題ごとの学習川柳生成（1回3件・解説付き）+ good / bad 評価 + ランキング表示（問題リンク付き）
   - 管理者による AI機能の一時公開切り替え
   - 分析ページ（`web_app/analytics.html`）で学習・AI品質・コンテンツ指標を可視化
 - タグ辞書
@@ -103,6 +104,8 @@ WebUIは分割ファイルを優先読み込みし、manifest がない場合の
 - `workers/sql/ai_usage_logs.sql`
 - `workers/sql/analytics_events.sql`
 - `workers/sql/ai_feedback_events.sql`
+- `workers/sql/practice_question_tables.sql`（練習問題機能）
+- `workers/sql/question_senryu_tables.sql`（学習川柳機能）
 
 ## 6. ローカル起動
 
