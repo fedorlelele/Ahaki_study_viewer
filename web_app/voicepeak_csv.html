@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VOICEPEAK CSV出力 | Ahaki Study Viewer</title>
+    <style>
+      :root {
+        --bg-1: #ffffff;
+        --bg-2: #edf3f9;
+        --card: rgba(255, 255, 255, 0.94);
+        --ink: #111111;
+        --muted: #475569;
+        --line: #1f2937;
+        --accent: #0b5cab;
+        --accent-soft: #dbeafe;
+        --warning: #92400e;
+        --warning-bg: #fef3c7;
+        --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        background:
+          radial-gradient(circle at top left, #eff6ff 0, rgba(239, 246, 255, 0.85) 28%, rgba(239, 246, 255, 0) 60%),
+          linear-gradient(180deg, var(--bg-1), var(--bg-2));
+        min-height: 100vh;
+      }
+      a {
+        color: var(--accent);
+      }
+      .page-shell {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 24px 0 48px;
+      }
+      .hero {
+        background:
+          linear-gradient(135deg, rgba(11, 92, 171, 0.1), rgba(255, 255, 255, 0.88)),
+          #ffffff;
+        border: 2px solid var(--line);
+        border-radius: 28px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+      .hero-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        text-decoration: none;
+        padding: 8px 12px;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+      }
+      .eyebrow {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4.4vw, 42px);
+        line-height: 1.1;
+        letter-spacing: 0.02em;
+      }
+      .hero-copy {
+        margin: 12px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .hero-points {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 20px;
+      }
+      .hero-point {
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(31, 41, 55, 0.18);
+        background: rgba(255, 255, 255, 0.72);
+      }
+      .hero-point strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+      }
+      .layout {
+        display: grid;
+        gap: 18px;
+        margin-top: 20px;
+      }
+      .panel {
+        background: var(--card);
+        border: 2px solid var(--line);
+        border-radius: 24px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+      .panel-header h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .panel-subtitle {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 14px;
+      }
+      label,
+      fieldset {
+        display: block;
+      }
+      label span,
+      .fieldset-title {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      select,
+      input,
+      button,
+      textarea {
+        font: inherit;
+      }
+      select,
+      input {
+        width: 100%;
+        min-height: 46px;
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        color: var(--ink);
+      }
+      fieldset {
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+      }
+      .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+      }
+      .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 2px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
+      .checkbox-item input {
+        width: 18px;
+        height: 18px;
+        min-height: 18px;
+        margin: 0;
+      }
+      .speaker-box {
+        display: grid;
+        gap: 8px;
+      }
+      .help-text {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      button {
+        min-height: 46px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        border: 2px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+      }
+      .summary-card {
+        padding: 16px;
+        border-radius: 18px;
+        background: #fff;
+        border: 2px solid var(--line);
+      }
+      .summary-card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+      .summary-value {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .status-note {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: #fff;
+        border: 2px solid var(--line);
+        line-height: 1.7;
+      }
+      .status-note.warning {
+        background: var(--warning-bg);
+        border-color: #d97706;
+        color: var(--warning);
+      }
+      textarea {
+        width: 100%;
+        min-height: 360px;
+        padding: 14px 16px;
+        border: 2px solid var(--line);
+        border-radius: 18px;
+        background: #0f172a;
+        color: #f8fafc;
+        line-height: 1.7;
+        resize: vertical;
+      }
+      .preview-footnote {
+        margin: 12px 0 0;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .note-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+      .note-list li + li {
+        margin-top: 6px;
+      }
+      @media (max-width: 720px) {
+        .page-shell {
+          width: min(100% - 20px, 1120px);
+          padding-top: 16px;
+        }
+        .hero,
+        .panel {
+          border-radius: 20px;
+          padding: 18px;
+        }
+        textarea {
+          min-height: 300px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-top">
+          <a class="back-link" href="./index.html">← 学習ビューへ戻る</a>
+        </div>
+        <span class="eyebrow">VOICEPEAK CSV Export</span>
+        <h1>VOICEPEAK用CSV出力</h1>
+        <p class="hero-copy">
+          問題データを絞り込み、VOICEPEAKのCSVインポート向けに一括出力します。
+          1列目に話者名、2列目以降に症例文・問題文・選択肢・回答・解説・深掘り解説を順番に並べます。
+        </p>
+        <div class="hero-points">
+          <div class="hero-point">
+            <strong>範囲指定</strong>
+            科目・小項目・種別・回数で対象問題を絞り込みます。
+          </div>
+          <div class="hero-point">
+            <strong>出力項目指定</strong>
+            読ませたい項目だけチェックしてCSVに含めます。
+          </div>
+          <div class="hero-point">
+            <strong>話者固定</strong>
+            女性1-3、男性1-3、女の子のいずれかを1列目に設定します。
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel" aria-labelledby="filterHeading">
+          <div class="panel-header">
+            <h2 id="filterHeading">出力範囲</h2>
+            <span class="panel-subtitle" id="filterSummary">全範囲</span>
+          </div>
+          <div class="grid">
+            <label>
+              <span>科目</span>
+              <select id="subjectSelect">
+                <option value="">すべての科目</option>
+              </select>
+            </label>
+            <label>
+              <span>小項目</span>
+              <select id="subtopicSelect" disabled>
+                <option value="">すべての小項目</option>
+              </select>
+            </label>
+            <label>
+              <span>種別</span>
+              <select id="examTypeSelect">
+                <option value="">すべて</option>
+                <option value="A">あん摩マッサージ指圧師</option>
+                <option value="B">はり師・きゅう師</option>
+              </select>
+            </label>
+            <label>
+              <span>回数 From</span>
+              <input id="sessionFrom" type="number" min="1" placeholder="例: 20" />
+            </label>
+            <label>
+              <span>回数 To</span>
+              <input id="sessionTo" type="number" min="1" placeholder="例: 33" />
+            </label>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="settingsHeading">
+          <div class="panel-header">
+            <h2 id="settingsHeading">出力設定</h2>
+            <span class="panel-subtitle">CSVの中身と話者を決めます</span>
+          </div>
+          <div class="grid">
+            <fieldset>
+              <span class="fieldset-title">CSVに含める内容</span>
+              <div class="checkbox-grid">
+                <label class="checkbox-item"><input id="includeCaseText" type="checkbox" checked /> 症例文</label>
+                <label class="checkbox-item"><input id="includeStem" type="checkbox" checked /> 問題文</label>
+                <label class="checkbox-item"><input id="includeChoices" type="checkbox" checked /> 選択肢</label>
+                <label class="checkbox-item"><input id="includeAnswer" type="checkbox" /> 回答</label>
+                <label class="checkbox-item"><input id="includeExplanation" type="checkbox" /> 解説</label>
+                <label class="checkbox-item"><input id="includeDeepDive" type="checkbox" /> 深掘り解説</label>
+              </div>
+            </fieldset>
+            <fieldset class="speaker-box">
+              <span class="fieldset-title">話者</span>
+              <select id="speakerSelect">
+                <option value="女性1">女性1</option>
+                <option value="女性2">女性2</option>
+                <option value="女性3">女性3</option>
+                <option value="男性1">男性1</option>
+                <option value="男性2">男性2</option>
+                <option value="男性3">男性3</option>
+                <option value="女の子">女の子</option>
+              </select>
+              <p class="help-text">
+                1列目にはこの値をそのまま書き出します。VOICEPEAK側のナレーター名と一致しない環境では、話者指定として認識されません。
+              </p>
+            </fieldset>
+          </div>
+          <div class="actions">
+            <button id="previewBtn" class="primary" type="button">プレビュー更新</button>
+            <button id="downloadBtn" type="button" disabled>CSVダウンロード</button>
+            <button id="resetBtn" type="button">条件をリセット</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="summaryHeading">
+          <div class="panel-header">
+            <h2 id="summaryHeading">出力サマリ</h2>
+            <span class="panel-subtitle" id="previewMeta">プレビュー未生成</span>
+          </div>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <strong>対象問題数</strong>
+              <div class="summary-value" id="questionCount">0</div>
+            </div>
+            <div class="summary-card">
+              <strong>CSV行数</strong>
+              <div class="summary-value" id="rowCount">0</div>
+            </div>
+            <div class="summary-card">
+              <strong>読み上げブロック数</strong>
+              <div class="summary-value" id="utteranceCount">0</div>
+            </div>
+          </div>
+          <div id="statusNote" class="status-note">問題データを読み込み中です。</div>
+        </section>
+
+        <section class="panel" aria-labelledby="previewHeading">
+          <div class="panel-header">
+            <h2 id="previewHeading">CSVプレビュー</h2>
+            <span class="panel-subtitle">先頭20行のみ表示</span>
+          </div>
+          <textarea id="previewArea" readonly spellcheck="false" aria-label="CSVプレビュー"></textarea>
+          <p class="preview-footnote">
+            プレビューでは先頭20行のみ表示します。ダウンロード時は該当する全件を出力します。
+          </p>
+        </section>
+
+        <section class="panel" aria-labelledby="notesHeading">
+          <div class="panel-header">
+            <h2 id="notesHeading">補足</h2>
+          </div>
+          <ul class="note-list">
+            <li>CSVは `1列目=話者 / 2列目以降=セリフ` です。列順は 症例文 → 問題文 → 選択肢 → 回答 → 解説 → 深掘り解説 です。</li>
+            <li>VOICEPEAKのCSVインポート制約に合わせ、半角カンマは全角カンマ、改行とタブは空白に自動変換します。</li>
+            <li>解説や深掘り解説にMarkdown記法が含まれる場合は、読み上げ向けに簡易的にプレーンテキスト化します。</li>
+            <li>読み指定はCSVには入れられないため、読み間違いやすい語はVOICEPEAK側のユーザー辞書を併用してください。</li>
+          </ul>
+        </section>
+      </main>
+    </div>
+
+    <script src="./config.js"></script>
+    <script>
+      const PREVIEW_ROW_LIMIT = 20;
+      const DEFAULT_CONTENT_SELECTION = {
+        caseText: true,
+        stem: true,
+        choices: true,
+        answer: false,
+        explanation: false,
+        deepDive: false
+      };
+
+      const state = {
+        questions: [],
+        subtopicsBySubject: {},
+        csvText: "",
+        exportRows: [],
+        deepDiveBySerial: {},
+        deepDiveSerials: new Set(),
+        deepDiveIndexLoaded: false
+      };
+      const ASCII_TO_FULLWIDTH = str => String(str || "").replace(/[0-9]/g, d => String.fromCharCode(d.charCodeAt(0) + 0xFEE0));
+
+      function normalizeChunkPath(path) {
+        return String(path || "")
+          .trim()
+          .replace(/^\/+/, "")
+          .replace(/\\/g, "/");
+      }
+
+      function pauseMainThread() {
+        return new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      async function loadQuestionsFromChunks() {
+        const manifestResp = await fetch("../output/web/questions_manifest.json");
+        if (!manifestResp.ok) {
+          throw new Error("chunk manifest not found");
+        }
+        const manifest = await manifestResp.json();
+        const chunks = Array.isArray(manifest && manifest.chunks) ? manifest.chunks : [];
+        if (!chunks.length) {
+          return [];
+        }
+        const loaded = [];
+        for (let i = 0; i < chunks.length; i += 1) {
+          const chunk = chunks[i] || {};
+          const relPath = normalizeChunkPath(chunk.path);
+          if (!relPath) continue;
+          const resp = await fetch(`../output/web/${relPath}`);
+          if (!resp.ok) {
+            throw new Error(`failed to fetch chunk: ${relPath}`);
+          }
+          const rows = await resp.json();
+          if (Array.isArray(rows) && rows.length) {
+            loaded.push(...rows);
+          }
+          if (i % 2 === 1) {
+            await pauseMainThread();
+          }
+        }
+        return loaded;
+      }
+
+      async function loadQuestionsWithFallback() {
+        try {
+          return await loadQuestionsFromChunks();
+        } catch (_err) {
+          const resp = await fetch("../output/web/questions.json");
+          if (!resp.ok) {
+            throw new Error("questions.json load failed");
+          }
+          return resp.json();
+        }
+      }
+
+      function loadDeepDiveIndex() {
+        if (!window.AI_API_BASE) {
+          state.deepDiveIndexLoaded = true;
+          return Promise.resolve();
+        }
+        return fetch(`${window.AI_API_BASE}/ai/deep_dive_index`)
+          .then((resp) => (resp.ok ? resp.json() : { serials: [] }))
+          .then((data) => {
+            const serials = Array.isArray(data && data.serials) ? data.serials : [];
+            state.deepDiveSerials = new Set(
+              serials.map((value) => String(value || "").trim()).filter(Boolean)
+            );
+            state.deepDiveIndexLoaded = true;
+          })
+          .catch(() => {
+            state.deepDiveIndexLoaded = true;
+          });
+      }
+
+      function buildSubtopicsBySubject(questions) {
+        const map = {};
+        (questions || []).forEach((q) => {
+          const subject = String((q && q.subject) || "").trim();
+          if (!subject) return;
+          if (!map[subject]) map[subject] = new Set();
+          const subtopics = Array.isArray(q && q.subtopics) ? q.subtopics : [];
+          subtopics.forEach((name) => {
+            const value = String(name || "").trim();
+            if (value) map[subject].add(value);
+          });
+        });
+        const out = {};
+        Object.keys(map)
+          .sort((a, b) => a.localeCompare(b, "ja"))
+          .forEach((subject) => {
+            out[subject] = Array.from(map[subject]).sort((a, b) => a.localeCompare(b, "ja"));
+          });
+        return out;
+      }
+
+      function populateSubjectOptions() {
+        const select = document.getElementById("subjectSelect");
+        const subjects = Array.from(
+          new Set(
+            state.questions
+              .map((q) => String((q && q.subject) || "").trim())
+              .filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b, "ja"));
+        select.innerHTML = '<option value="">すべての科目</option>';
+        subjects.forEach((subject) => {
+          const option = document.createElement("option");
+          option.value = subject;
+          option.textContent = subject;
+          select.appendChild(option);
+        });
+      }
+
+      function updateSubtopicOptions(subject) {
+        const select = document.getElementById("subtopicSelect");
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">すべての小項目</option>';
+        if (!subject) {
+          select.disabled = true;
+          return;
+        }
+        select.disabled = false;
+        const items = state.subtopicsBySubject[subject] || [];
+        items.forEach((subtopic) => {
+          const option = document.createElement("option");
+          option.value = subtopic;
+          option.textContent = subtopic;
+          select.appendChild(option);
+        });
+        if (items.includes(currentValue)) {
+          select.value = currentValue;
+        }
+      }
+
+      function readContentSelection() {
+        return {
+          caseText: Boolean(document.getElementById("includeCaseText").checked),
+          stem: Boolean(document.getElementById("includeStem").checked),
+          choices: Boolean(document.getElementById("includeChoices").checked),
+          answer: Boolean(document.getElementById("includeAnswer").checked),
+          explanation: Boolean(document.getElementById("includeExplanation").checked),
+          deepDive: Boolean(document.getElementById("includeDeepDive").checked)
+        };
+      }
+
+      function hasSelectedContent(selection) {
+        return Object.values(selection).some(Boolean);
+      }
+
+      function readFilters() {
+        const sessionFromRaw = String(document.getElementById("sessionFrom").value || "").trim();
+        const sessionToRaw = String(document.getElementById("sessionTo").value || "").trim();
+        return {
+          subject: String(document.getElementById("subjectSelect").value || "").trim(),
+          subtopic: String(document.getElementById("subtopicSelect").value || "").trim(),
+          examType: String(document.getElementById("examTypeSelect").value || "").trim(),
+          sessionFrom: sessionFromRaw ? Number(sessionFromRaw) : null,
+          sessionTo: sessionToRaw ? Number(sessionToRaw) : null,
+          speaker: String(document.getElementById("speakerSelect").value || "女性1").trim(),
+          include: readContentSelection()
+        };
+      }
+
+      function filterQuestions(filters) {
+        return state.questions.filter((q) => {
+          const subject = String((q && q.subject) || "").trim();
+          const serial = String((q && q.serial) || "").trim();
+          const session = Number(q && q.exam_session) || 0;
+          const subtopics = Array.isArray(q && q.subtopics) ? q.subtopics : [];
+          if (filters.subject && subject !== filters.subject) return false;
+          if (filters.subtopic && !subtopics.includes(filters.subtopic)) return false;
+          if (filters.examType && !serial.startsWith(filters.examType)) return false;
+          if (filters.sessionFrom !== null && session < filters.sessionFrom) return false;
+          if (filters.sessionTo !== null && session > filters.sessionTo) return false;
+          return true;
+        });
+      }
+
+      function stripMarkdown(text) {
+        return String(text || "")
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+          .replace(/^#{1,6}\s*/gm, "")
+          .replace(/^\s*[-*+]\s+/gm, "")
+          .replace(/^\s*\d+\.\s+/gm, "")
+          .replace(/^>\s*/gm, "")
+          .replace(/`([^`]+)`/g, "$1")
+          .replace(/[*_~]/g, "")
+          .replace(/\|/g, " ");
+      }
+
+      function formatFullWidthNumber(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return "";
+        return ASCII_TO_FULLWIDTH(num);
+      }
+
+      function buildStemPrefix(question) {
+        const serial = String((question && question.serial) || "").trim();
+        const match = serial.match(/^([A-Z])(\d+)-(\d+)$/i);
+        const examCode = match ? match[1].toUpperCase() : "";
+        const session = match ? Number(match[2]) : Number(question && question.exam_session);
+        const questionNo = match ? Number(match[3]) : null;
+        const examLabel = examCode === "A" ? "あん摩" : examCode === "B" ? "はりきゅう" : "";
+        const sessionLabel = formatFullWidthNumber(session);
+        const questionLabel = formatFullWidthNumber(questionNo);
+        if (examLabel && sessionLabel && questionLabel) {
+          return `${examLabel}第${sessionLabel}回、第${questionLabel}問、`;
+        }
+        return serial ? `${serial}、` : "";
+      }
+
+      function getDeepDiveExplanation(question) {
+        const embedded = question && question.deep_dive && question.deep_dive.explanation
+          ? String(question.deep_dive.explanation)
+          : "";
+        if (embedded.trim()) return embedded;
+        const serial = String((question && question.serial) || "").trim();
+        return serial ? String(state.deepDiveBySerial[serial] || "") : "";
+      }
+
+      function looksLikeSectionTitle(text) {
+        const value = String(text || "").trim();
+        if (!value) return false;
+        if (value.length > 64) return false;
+        if (/[。．！？!?]$/.test(value)) return false;
+        if (/[。．]/.test(value)) return false;
+        return true;
+      }
+
+      function parseDeepDiveHeading(trimmedLine) {
+        const line = String(trimmedLine || "").trim();
+        if (!line) return null;
+        if (/^深[掘堀]り?解説[:：]?\s*$/u.test(line)) {
+          return { heading: "", inlineBody: "", isHeading: true };
+        }
+        const markdownMatch = line.match(/^#{1,6}\s+(.+?)\s*$/);
+        if (markdownMatch) {
+          return {
+            heading: markdownMatch[1].trim(),
+            inlineBody: "",
+            isHeading: true
+          };
+        }
+        const levelMatch = line.match(/^[-*+]\s+(Level\s*\d+|レベル\s*\d+)\s*[:：]\s*(.*)$/i)
+          || line.match(/^(Level\s*\d+|レベル\s*\d+)\s*[:：]\s*(.*)$/i);
+        if (levelMatch) {
+          return {
+            heading: levelMatch[1].trim(),
+            inlineBody: levelMatch[2] ? levelMatch[2].trim() : "",
+            isHeading: true
+          };
+        }
+        return null;
+      }
+
+      function splitDeepDiveSections(text) {
+        const source = String(text || "").replace(/\r\n?/g, "\n").trim();
+        if (!source) return [];
+        const lines = source.split("\n");
+        const sections = [];
+        let currentHeading = "";
+        let currentBody = [];
+
+        const pushCurrent = () => {
+          const heading = String(currentHeading || "").trim();
+          const body = currentBody.join("\n").trim();
+          if (!heading && !body) return;
+          sections.push({ heading, body });
+        };
+
+        for (let i = 0; i < lines.length; i += 1) {
+          const rawLine = lines[i];
+          const trimmed = String(rawLine || "").trim();
+          if (!trimmed) {
+            if (currentBody.length && currentBody[currentBody.length - 1] !== "") {
+              currentBody.push("");
+            }
+            continue;
+          }
+
+          const headingInfo = parseDeepDiveHeading(trimmed);
+          if (headingInfo && headingInfo.isHeading) {
+            if (!headingInfo.heading && !headingInfo.inlineBody) {
+              continue;
+            }
+            pushCurrent();
+            currentHeading = headingInfo.heading;
+            currentBody = [];
+            if (headingInfo.inlineBody) {
+              const nextNonEmpty = lines.slice(i + 1).find((line) => String(line || "").trim());
+              const nextIsHeading = Boolean(parseDeepDiveHeading(nextNonEmpty || ""));
+              if (looksLikeSectionTitle(headingInfo.inlineBody) && nextNonEmpty && !nextIsHeading) {
+                currentHeading = `${headingInfo.heading} ${headingInfo.inlineBody}`.trim();
+              } else {
+                currentBody.push(headingInfo.inlineBody);
+              }
+            }
+            continue;
+          }
+
+          currentBody.push(trimmed);
+        }
+
+        pushCurrent();
+        return sections.length ? sections : [{ heading: "", body: source }];
+      }
+
+      function formatDeepDiveSection(section) {
+        const heading = String(section && section.heading ? section.heading : "").trim();
+        const body = String(section && section.body ? section.body : "").trim();
+        if (heading && body) return `${heading}、${body}`;
+        if (heading) return heading;
+        return body;
+      }
+
+      async function ensureDeepDiveForQuestions(questions) {
+        if (!window.AI_API_BASE) {
+          return { fetched: 0, found: 0, skipped: questions.length };
+        }
+        if (!state.deepDiveIndexLoaded) {
+          await loadDeepDiveIndex();
+        }
+        const targets = (questions || [])
+          .map((question) => {
+            const serial = String((question && question.serial) || "").trim();
+            if (!serial) return "";
+            if (state.deepDiveBySerial[serial]) return "";
+            if (question && question.deep_dive && question.deep_dive.explanation) return "";
+            if (state.deepDiveSerials.size && !state.deepDiveSerials.has(serial)) return "";
+            return serial;
+          })
+          .filter(Boolean);
+        if (!targets.length) {
+          const found = (questions || []).filter((question) => getDeepDiveExplanation(question)).length;
+          return { fetched: 0, found, skipped: Math.max((questions || []).length - found, 0) };
+        }
+        const results = await Promise.all(
+          targets.map((serial) =>
+            fetch(`${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(serial)}`)
+              .then((resp) => (resp.ok ? resp.json() : { found: false }))
+              .then((payload) => {
+                const explanation =
+                  payload && payload.found && payload.data && payload.data.explanation
+                    ? String(payload.data.explanation)
+                    : "";
+                if (explanation.trim()) {
+                  state.deepDiveBySerial[serial] = explanation;
+                }
+                return explanation.trim();
+              })
+              .catch(() => "")
+          )
+        );
+        const found = results.filter(Boolean).length;
+        const skipped = Math.max(targets.length - found, 0);
+        return { fetched: targets.length, found, skipped };
+      }
+
+      function sanitizeCsvCell(value, options) {
+        const opts = options || {};
+        let text = value == null ? "" : String(value);
+        if (opts.stripMarkdown) {
+          text = stripMarkdown(text);
+        }
+        return text
+          .replace(/\r\n?/g, "\n")
+          .replace(/\n+/g, " ")
+          .replace(/\t+/g, " ")
+          .replace(/,/g, "，")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function normalizeCaseTextNarration(text) {
+        const source = String(text || "");
+        if (!source.trim()) return "";
+        return source.replace(
+          /(について、)\s*[AB]\d{2}-\d{3}(?:、(?:[AB]\d{2}-)?\d{3})*\s*の問いに答えよ。/g,
+          "$1以下の問いに答えよ。"
+        );
+      }
+
+      function buildAnswerBlock(question) {
+        if (question && question.answer_none) {
+          return "解答、なし";
+        }
+        let indices = [];
+        if (Array.isArray(question && question.answer_indices)) {
+          indices = question.answer_indices
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value) && value > 0);
+        }
+        if (!indices.length) {
+          const answerIndex = Number(question && question.answer_index);
+          if (Number.isFinite(answerIndex) && answerIndex > 0) {
+            indices = [answerIndex];
+          }
+        }
+        if (!indices.length) return "";
+        return `解答、${indices.map((value) => formatFullWidthNumber(value)).join("、")}`;
+      }
+
+      function appendSegment(target, label, value, options) {
+        const text = sanitizeCsvCell(value, options);
+        if (!text) return;
+        const safeLabel = String(label || "");
+        const separator = !safeLabel ? "" : safeLabel.endsWith("、") ? "" : " ";
+        target.push(`${safeLabel}${separator}${text}`);
+      }
+
+      function buildSegments(question, selection) {
+        const segments = [];
+        if (selection.caseText) {
+          appendSegment(segments, "症例文", normalizeCaseTextNarration(question && question.case_text));
+        }
+        if (selection.stem) {
+          appendSegment(segments, buildStemPrefix(question), question && question.stem);
+        }
+        if (selection.choices) {
+          const choices = Array.isArray(question && question.choices) ? question.choices : [];
+          choices.forEach((choice, index) => {
+            appendSegment(segments, `${formatFullWidthNumber(index + 1)}、`, choice);
+          });
+        }
+        if (selection.answer) {
+          const answerBlock = sanitizeCsvCell(buildAnswerBlock(question));
+          if (answerBlock) segments.push(answerBlock);
+        }
+        if (selection.explanation) {
+          appendSegment(segments, "解説、", question && question.explanation_latest, {
+            stripMarkdown: true
+          });
+        }
+        if (selection.deepDive) {
+          const deepDiveSections = splitDeepDiveSections(getDeepDiveExplanation(question));
+          deepDiveSections.forEach((section, index) => {
+            appendSegment(
+              segments,
+              index === 0 ? "深堀り解説、" : "",
+              formatDeepDiveSection(section),
+              { stripMarkdown: true }
+            );
+          });
+        }
+        return segments;
+      }
+
+      function buildExportRows(filters) {
+        const filteredQuestions = filterQuestions(filters);
+        const rows = [];
+        let utteranceCount = 0;
+        filteredQuestions.forEach((question) => {
+          const segments = buildSegments(question, filters.include);
+          if (!segments.length) return;
+          rows.push({
+            serial: String((question && question.serial) || ""),
+            row: [filters.speaker, ...segments]
+          });
+          utteranceCount += segments.length;
+        });
+        const introText = buildScopeAnnouncement(filters);
+        if (rows.length && introText) {
+          rows.unshift({
+            serial: "",
+            row: [filters.speaker, introText]
+          });
+          utteranceCount += 1;
+        }
+        return {
+          filteredQuestions,
+          rows,
+          utteranceCount
+        };
+      }
+
+      function buildCsvText(rows) {
+        if (!rows.length) return "";
+        return rows.map((item) => item.row.join(",")).join("\n") + "\n";
+      }
+
+      function buildPreviewText(rows) {
+        if (!rows.length) return "";
+        return rows
+          .slice(0, PREVIEW_ROW_LIMIT)
+          .map((item) => item.row.join(","))
+          .join("\n");
+      }
+
+      function formatNumber(value) {
+        return Number(value || 0).toLocaleString("ja-JP");
+      }
+
+      function buildFilterSummary(filters) {
+        const parts = [];
+        if (filters.subject) parts.push(`科目: ${filters.subject}`);
+        if (filters.subtopic) parts.push(`小項目: ${filters.subtopic}`);
+        if (filters.examType) {
+          parts.push(
+            filters.examType === "A" ? "種別: あん摩マッサージ指圧師" : "種別: はり師・きゅう師"
+          );
+        }
+        if (filters.sessionFrom !== null || filters.sessionTo !== null) {
+          const fromLabel = filters.sessionFrom !== null ? `${filters.sessionFrom}回` : "";
+          const toLabel = filters.sessionTo !== null ? `${filters.sessionTo}回` : "";
+          parts.push(`回数: ${fromLabel || "先頭"} - ${toLabel || "最新"}`);
+        }
+        return parts.length ? parts.join(" / ") : "全範囲";
+      }
+
+      function buildSessionRangeLabel(filters) {
+        if (filters.sessionFrom !== null && filters.sessionTo !== null) {
+          return `第${formatFullWidthNumber(filters.sessionFrom)}回から第${formatFullWidthNumber(filters.sessionTo)}回`;
+        }
+        if (filters.sessionFrom !== null) {
+          return `第${formatFullWidthNumber(filters.sessionFrom)}回以降`;
+        }
+        if (filters.sessionTo !== null) {
+          return `第${formatFullWidthNumber(filters.sessionTo)}回まで`;
+        }
+        return "全範囲";
+      }
+
+      function buildScopeAnnouncement(filters) {
+        const subjectLabel = filters.subject || "全科目";
+        const subtopicLabel = filters.subtopic || "すべての小項目";
+        let examTypeLabel = "すべての試験種別";
+        if (filters.examType === "A") {
+          examTypeLabel = "あん摩マッサージ指圧師";
+        } else if (filters.examType === "B") {
+          examTypeLabel = "はり師・きゅう師";
+        }
+        const parts = [
+          `科目、${subjectLabel}。`,
+          `小項目、${subtopicLabel}。`,
+          `試験種別、${examTypeLabel}。`,
+          `回数、${buildSessionRangeLabel(filters)}。`
+        ];
+        return sanitizeCsvCell(parts.join(" "));
+      }
+
+      function setStatus(message, isWarning) {
+        const status = document.getElementById("statusNote");
+        status.textContent = message;
+        status.classList.toggle("warning", Boolean(isWarning));
+      }
+
+      function updateSummary(filters, exportData) {
+        document.getElementById("filterSummary").textContent = buildFilterSummary(filters);
+        document.getElementById("questionCount").textContent = formatNumber(
+          exportData.filteredQuestions.length
+        );
+        document.getElementById("rowCount").textContent = formatNumber(exportData.rows.length);
+        document.getElementById("utteranceCount").textContent = formatNumber(exportData.utteranceCount);
+        const firstQuestionRow = exportData.rows.find((item) => item && item.serial);
+        document.getElementById("previewMeta").textContent = exportData.rows.length
+          ? `${firstQuestionRow && firstQuestionRow.serial ? firstQuestionRow.serial : "案内行のみ"} から ${formatNumber(exportData.rows.length)} 行`
+          : "出力対象なし";
+      }
+
+      function buildFileName(filters) {
+        const stamp = new Date()
+          .toISOString()
+          .replace(/[-:]/g, "")
+          .replace(/\..+$/, "")
+          .replace("T", "_");
+        const parts = ["voicepeak", filters.speaker];
+        if (filters.examType) parts.push(filters.examType);
+        if (filters.subject) {
+          parts.push(filters.subject.replace(/[\\/:*?"<>|\s]+/g, "-").slice(0, 24));
+        }
+        parts.push(stamp);
+        return `${parts.filter(Boolean).join("_")}.csv`;
+      }
+
+      async function refreshPreview() {
+        const filters = readFilters();
+        const downloadBtn = document.getElementById("downloadBtn");
+        if (filters.sessionFrom !== null && filters.sessionTo !== null && filters.sessionFrom > filters.sessionTo) {
+          document.getElementById("previewArea").value = "";
+          downloadBtn.disabled = true;
+          updateSummary(filters, { filteredQuestions: [], rows: [], utteranceCount: 0 });
+          setStatus("回数Fromは回数To以下にしてください。", true);
+          return;
+        }
+        if (!hasSelectedContent(filters.include)) {
+          document.getElementById("previewArea").value = "";
+          downloadBtn.disabled = true;
+          updateSummary(filters, { filteredQuestions: filterQuestions(filters), rows: [], utteranceCount: 0 });
+          setStatus("CSVに含める内容を1つ以上選択してください。", true);
+          return;
+        }
+
+        let filteredQuestions = filterQuestions(filters);
+        let deepDiveInfo = null;
+        downloadBtn.disabled = true;
+        if (filters.include.deepDive) {
+          setStatus("深堀り解説を読み込み中です。", false);
+          deepDiveInfo = await ensureDeepDiveForQuestions(filteredQuestions);
+        }
+
+        const exportData = buildExportRows(filters);
+        state.exportRows = exportData.rows;
+        state.csvText = buildCsvText(exportData.rows);
+
+        document.getElementById("previewArea").value = buildPreviewText(exportData.rows);
+        downloadBtn.disabled = !state.csvText;
+        updateSummary(filters, exportData);
+
+        if (!exportData.filteredQuestions.length) {
+          setStatus("条件に一致する問題がありません。", true);
+          return;
+        }
+        if (!exportData.rows.length) {
+          if (filters.include.deepDive && deepDiveInfo && !deepDiveInfo.found) {
+            setStatus("深堀り解説が1件も見つからなかったため、CSV行を生成できませんでした。", true);
+            return;
+          }
+          setStatus("一致する問題はありますが、選択した項目に本文がないためCSV行を生成できませんでした。", true);
+          return;
+        }
+        if (filters.include.deepDive && deepDiveInfo) {
+          setStatus(
+            `${formatNumber(exportData.filteredQuestions.length)}問から ${formatNumber(
+              exportData.rows.length
+            )}行を生成しました。深堀り解説は ${formatNumber(deepDiveInfo.found)} 件読み込みました。`,
+            false
+          );
+          return;
+        }
+        setStatus(
+          `${formatNumber(exportData.filteredQuestions.length)}問から ${formatNumber(
+            exportData.rows.length
+          )}行のCSVを生成できます。`,
+          false
+        );
+      }
+
+      function downloadCsv() {
+        if (!state.csvText) return;
+        const filters = readFilters();
+        const blob = new Blob([state.csvText], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = buildFileName(filters);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      }
+
+      function resetControls() {
+        document.getElementById("subjectSelect").value = "";
+        document.getElementById("subtopicSelect").value = "";
+        document.getElementById("examTypeSelect").value = "";
+        document.getElementById("sessionFrom").value = "";
+        document.getElementById("sessionTo").value = "";
+        document.getElementById("speakerSelect").value = "女性1";
+        document.getElementById("includeCaseText").checked = DEFAULT_CONTENT_SELECTION.caseText;
+        document.getElementById("includeStem").checked = DEFAULT_CONTENT_SELECTION.stem;
+        document.getElementById("includeChoices").checked = DEFAULT_CONTENT_SELECTION.choices;
+        document.getElementById("includeAnswer").checked = DEFAULT_CONTENT_SELECTION.answer;
+        document.getElementById("includeExplanation").checked = DEFAULT_CONTENT_SELECTION.explanation;
+        document.getElementById("includeDeepDive").checked = DEFAULT_CONTENT_SELECTION.deepDive;
+        updateSubtopicOptions("");
+        refreshPreview();
+      }
+
+      async function init() {
+        try {
+          const questions = await loadQuestionsWithFallback();
+          state.questions = Array.isArray(questions) ? questions : [];
+          state.subtopicsBySubject = buildSubtopicsBySubject(state.questions);
+          await loadDeepDiveIndex();
+          populateSubjectOptions();
+          updateSubtopicOptions("");
+          document.getElementById("subjectSelect").addEventListener("change", (event) => {
+            updateSubtopicOptions(String(event.target.value || "").trim());
+          });
+          document.getElementById("previewBtn").addEventListener("click", refreshPreview);
+          document.getElementById("downloadBtn").addEventListener("click", downloadCsv);
+          document.getElementById("resetBtn").addEventListener("click", resetControls);
+          refreshPreview();
+        } catch (error) {
+          document.getElementById("previewArea").value = "";
+          setStatus(`問題データの読み込みに失敗しました: ${error.message || error}`, true);
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>
