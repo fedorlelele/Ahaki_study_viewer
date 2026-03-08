@@ -483,12 +483,22 @@
           .replace(/\\/g, "/");
       }
 
+      function appendCacheVersion(url, versionToken) {
+        const token = String(versionToken || "").trim();
+        if (!token) return url;
+        const joiner = url.includes("?") ? "&" : "?";
+        return `${url}${joiner}v=${encodeURIComponent(token)}`;
+      }
+
       function pauseMainThread() {
         return new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       async function loadQuestionsFromChunks() {
-        const manifestResp = await fetch("../output/web/questions_manifest.json");
+        const manifestResp = await fetch(
+          appendCacheVersion("../output/web/questions_manifest.json", Date.now()),
+          { cache: "no-store" }
+        );
         if (!manifestResp.ok) {
           throw new Error("chunk manifest not found");
         }
@@ -497,12 +507,22 @@
         if (!chunks.length) {
           return [];
         }
+        const chunkVersion = [
+          manifest && manifest.generated_at,
+          manifest && manifest.total,
+          chunks.length,
+        ]
+          .filter(Boolean)
+          .join("_");
         const loaded = [];
         for (let i = 0; i < chunks.length; i += 1) {
           const chunk = chunks[i] || {};
           const relPath = normalizeChunkPath(chunk.path);
           if (!relPath) continue;
-          const resp = await fetch(`../output/web/${relPath}`);
+          const resp = await fetch(
+            appendCacheVersion(`../output/web/${relPath}`, chunkVersion),
+            { cache: "no-store" }
+          );
           if (!resp.ok) {
             throw new Error(`failed to fetch chunk: ${relPath}`);
           }
@@ -521,7 +541,10 @@
         try {
           return await loadQuestionsFromChunks();
         } catch (_err) {
-          const resp = await fetch("../output/web/questions.json");
+          const resp = await fetch(
+            appendCacheVersion("../output/web/questions.json", Date.now()),
+            { cache: "no-store" }
+          );
           if (!resp.ok) {
             throw new Error("questions.json load failed");
           }

@@ -221,33 +221,17 @@ def build_question_json(record):
     }
 
 
-def main():
-    base_dir = Path(__file__).resolve().parent
-    input_dir = base_dir / "kokushitxt"
-    output_dir = base_dir / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
+def load_subject_cache(conn):
+    rows = conn.execute("SELECT id, name FROM subjects").fetchall()
+    return {name: subject_id for subject_id, name in rows}
 
-    db_path = output_dir / "ahaki.sqlite"
-    json_dir = output_dir / "questions_json"
-    json_dir.mkdir(parents=True, exist_ok=True)
 
-    txt_files = sorted(
-        [p for p in input_dir.iterdir() if p.suffix.lower() == ".txt"]
-    )
-    if not txt_files:
-        raise FileNotFoundError(f"No .txt files found in {input_dir}")
-
-    conn = sqlite3.connect(db_path)
-    init_db(conn)
-
-    subject_cache = {}
+def upsert_questions_from_txt_files(conn, txt_files, json_dir):
+    subject_cache = load_subject_cache(conn)
+    imported_count = 0
 
     for txt_path in txt_files:
-        try:
-            df = build_dataframe(str(txt_path))
-        except Exception as exc:
-            print(f"Error processing {txt_path.name}: {exc}")
-            continue
+        df = build_dataframe(str(txt_path))
 
         for _, row in df.iterrows():
             serial = row["Serial Number"]
@@ -343,6 +327,35 @@ def main():
                 json.dumps(question_json, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
+            imported_count += 1
+
+    return imported_count
+
+
+def main():
+    base_dir = Path(__file__).resolve().parent
+    input_dir = base_dir / "kokushitxt"
+    output_dir = base_dir / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    db_path = output_dir / "ahaki.sqlite"
+    json_dir = output_dir / "questions_json"
+    json_dir.mkdir(parents=True, exist_ok=True)
+
+    txt_files = sorted(
+        [p for p in input_dir.iterdir() if p.suffix.lower() == ".txt"]
+    )
+    if not txt_files:
+        raise FileNotFoundError(f"No .txt files found in {input_dir}")
+
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+
+    try:
+        upsert_questions_from_txt_files(conn, txt_files, json_dir)
+    except Exception:
+        conn.close()
+        raise
 
     conn.commit()
     conn.close()

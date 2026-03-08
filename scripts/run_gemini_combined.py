@@ -118,6 +118,40 @@ def list_models(api_key):
         return {"_error": f"URL error: {err.reason}"}
 
 
+def resolve_api_key(args):
+    if args.api_key:
+        return args.api_key, "cli", "custom"
+    if args.api_key_source == "paid":
+        return os.environ.get("GEMINI_API_KEY_PAID", ""), "GEMINI_API_KEY_PAID", "paid"
+    if args.api_key_source == "free":
+        return (
+            os.environ.get("GEMINI_API_KEY_FREE", "") or os.environ.get("GEMINI_API_KEY", ""),
+            "GEMINI_API_KEY_FREE/GEMINI_API_KEY",
+            "free",
+        )
+    if args.api_key_source == "legacy":
+        return os.environ.get("GEMINI_API_KEY", ""), "GEMINI_API_KEY", "legacy"
+
+    paid = os.environ.get("GEMINI_API_KEY_PAID", "")
+    if paid:
+        return paid, "GEMINI_API_KEY_PAID", "paid"
+    free = os.environ.get("GEMINI_API_KEY_FREE", "") or os.environ.get("GEMINI_API_KEY", "")
+    if free:
+        return free, "GEMINI_API_KEY_FREE/GEMINI_API_KEY", "free"
+    return "", "auto", "free"
+
+
+def resolve_model(args, mode):
+    if args.model:
+        return args.model
+    default_model = "gemini-3-flash-preview"
+    if mode == "paid":
+        return os.environ.get("GEMINI_MODEL_PAID", "") or os.environ.get("GEMINI_MODEL", "") or default_model
+    if mode == "legacy":
+        return os.environ.get("GEMINI_MODEL", "") or default_model
+    return os.environ.get("GEMINI_MODEL_FREE", "") or os.environ.get("GEMINI_MODEL", "") or default_model
+
+
 def read_usage(path):
     if not path.exists():
         return {"date": "", "count": 0}
@@ -162,10 +196,19 @@ def parse_args():
     parser.add_argument("--mode-tag", default="append", choices=["append", "replace", "skip"])
     parser.add_argument("--mode-sub", default="append", choices=["append", "replace", "skip"])
     parser.add_argument("--version", default="auto", help="Explanation version or auto.")
-    parser.add_argument("--model", default="gemini-3.0-flash-preview", help="Gemini model id.")
+    parser.add_argument("--model", default="", help="Gemini model id.")
     parser.add_argument("--thinking-budget", type=int, default=1024,
                         help="Thinking budget; set to 0 to disable.")
     parser.add_argument("--api-key", default="", help="Override GEMINI_API_KEY.")
+    parser.add_argument(
+        "--api-key-source",
+        default="free",
+        choices=["auto", "paid", "free", "legacy"],
+        help=(
+            "API key source. paid=GEMINI_API_KEY_PAID, free=GEMINI_API_KEY_FREE fallback GEMINI_API_KEY, "
+            "legacy=GEMINI_API_KEY, auto=PAID->FREE."
+        ),
+    )
     parser.add_argument("--list-models", action="store_true",
                         help="List available models and exit.")
     parser.add_argument("--output-dir", default="output/gemini_batches",
@@ -183,10 +226,14 @@ def main():
     repo_root = Path(__file__).resolve().parent.parent
     load_env(repo_root / ".env")
 
-    api_key = args.api_key or os.environ.get("GEMINI_API_KEY", "")
+    api_key, key_label, route_mode = resolve_api_key(args)
     if not api_key:
-        print("GEMINI_API_KEY is not set. Add it to .env or pass --api-key.", file=sys.stderr)
+        print(
+            "API key is not set. Set GEMINI_API_KEY_PAID/GEMINI_API_KEY_FREE/GEMINI_API_KEY or pass --api-key.",
+            file=sys.stderr,
+        )
         return 1
+    model = resolve_model(args, route_mode)
 
     if args.list_models:
         resp = list_models(api_key)
@@ -198,6 +245,9 @@ def main():
             methods = ", ".join(model.get("supportedGenerationMethods", []) or [])
             print(f"{name} ({methods})")
         return 0
+
+    print(f"API key source: {key_label}")
+    print(f"Model: {model}")
 
     usage_path = Path("output/gemini_usage.json")
     usage = read_usage(usage_path)
@@ -232,11 +282,11 @@ def main():
             break
 
         thinking_budget = args.thinking_budget if args.thinking_budget > 0 else None
-        response = call_gemini(api_key, args.model, prompt, thinking_budget)
+        response = call_gemini(api_key, model, prompt, thinking_budget)
         if "_error" in response:
             payload = response.get("_payload", "")
             if thinking_budget and "thinking" in payload.lower():
-                response = call_gemini(api_key, args.model, prompt, None)
+                response = call_gemini(api_key, model, prompt, None)
             else:
                 print(f"API error: {response['_error']}\n{payload}", file=sys.stderr)
                 return 1

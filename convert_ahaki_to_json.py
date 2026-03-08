@@ -1,15 +1,49 @@
-import pandas as pd
-import os
-import re
+import codecs
 import json     # JSON for generation
+import os
+from pathlib import Path
+import re
+
+import pandas as pd
 
 # ──────────────────────────────────
 # 1. Text -> DataFrame
 # ──────────────────────────────────
+def read_exam_text(file_path):
+    raw = Path(file_path).read_bytes()
+
+    if raw.startswith(codecs.BOM_UTF8):
+        return raw.decode("utf-8-sig")
+    if raw.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return raw.decode("utf-16")
+
+    # Older source files are often UTF-16 without an explicit hint.
+    if b"\x00" in raw[:256]:
+        for encoding in ("utf-16", "utf-16-le", "utf-16-be"):
+            try:
+                return raw.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+
+    for encoding in ("utf-8", "utf-8-sig", "cp932"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+
+    raise UnicodeDecodeError(
+        "unknown",
+        raw,
+        0,
+        len(raw),
+        f"Unsupported text encoding: {file_path}",
+    )
+
+
 def process_questions(file_path):
     """Import without missing lines including case text"""
-    with open(file_path, 'r', encoding='utf-16') as f:
-        lines = [ln.strip() for ln in f if ln.strip()]
+    text = read_exam_text(file_path)
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
 
     combined, current, in_q = [], [], False
     for ln in lines:
@@ -97,8 +131,8 @@ def store_case_details_next_to_questions(df):
         serials = set(serial_re.findall(text))
         for m in grouped_re.finditer(text):
             prefix = m.group(1)
-            nums = re.findall(r'\d{1,3}', m.group(0))
-            for num in nums:
+            serials.add(f'{prefix}-{int(m.group(2)):03}')
+            for num in re.findall(r'[、,](\d{1,3})', m.group(0)):
                 serials.add(f'{prefix}-{int(num):03}')
         return sorted(serials)
 
