@@ -229,6 +229,14 @@
         color: var(--muted);
         margin-bottom: 8px;
       }
+      .senryu-recommend-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+      }
       .senryu-recommend-list {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -256,10 +264,16 @@
         display: flex;
         gap: 6px;
         margin-top: 6px;
+        flex-wrap: wrap;
       }
       .senryu-recommend-subject {
         color: var(--muted);
         font-size: 12px;
+      }
+      .senryu-recommend-commentary {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
       }
       .controls input,
       .controls select,
@@ -1590,8 +1604,11 @@
       <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
       <div class="note" id="aiPublicNotice" hidden>AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。</div>
     </div>
-    <section id="senryuRecommendBox" class="senryu-recommend" hidden aria-label="おすすめ川柳">
-      <div id="senryuRecommendHeader" class="senryu-recommend-header">おすすめ川柳を読み込み中...</div>
+    <section id="senryuRecommendBox" class="senryu-recommend" hidden aria-label="あはき川柳">
+      <div class="senryu-recommend-header-row">
+        <div id="senryuRecommendHeader" class="senryu-recommend-header">あはき川柳を読み込み中...</div>
+        <button id="senryuRecommendMoreBtn" class="chip-link" type="button" hidden>さらに表示</button>
+      </div>
       <div id="senryuRecommendList" class="senryu-recommend-list"></div>
     </section>
     <div class="controls" role="search" aria-label="検索と絞り込み">
@@ -1763,6 +1780,8 @@
 	        ,lastResultViewKey: ""
 	        ,resultTotalPages: 1
 	        ,lastAnalyticsResultsKey: ""
+        ,recommendedSenryuPool: []
+        ,recommendedSenryuVisibleCount: 2
 	      };
 
       function normalizeRole(role) {
@@ -1820,6 +1839,12 @@
           headers,
           body: JSON.stringify({ id })
         }).catch(() => {});
+      }
+
+      function getVisibleRecommendedSenryuItems() {
+        const pool = Array.isArray(state.recommendedSenryuPool) ? state.recommendedSenryuPool : [];
+        const count = Math.max(0, Number(state.recommendedSenryuVisibleCount || 0));
+        return pool.slice(0, count);
       }
 
       function buildAuthRenderSnapshot(session) {
@@ -3538,14 +3563,16 @@
 	        const box = document.getElementById("senryuRecommendBox");
 	        const headerEl = document.getElementById("senryuRecommendHeader");
 	        const listEl = document.getElementById("senryuRecommendList");
-	        if (!box || !headerEl || !listEl) return;
+	        const moreBtn = document.getElementById("senryuRecommendMoreBtn");
+	        if (!box || !headerEl || !listEl || !moreBtn) return;
 	        listEl.textContent = "";
 	        const list = Array.isArray(items) ? items : [];
 	        if (!list.length) {
+	          moreBtn.hidden = true;
 	          box.hidden = true;
 	          return;
 	        }
-	        headerEl.textContent = "おすすめ川柳（ランダム2件）";
+	        headerEl.textContent = "あはき川柳";
 	        list.forEach((item) => {
 	          const row = document.createElement("div");
 	          row.className = "senryu-recommend-item";
@@ -3602,6 +3629,8 @@
 	            state.senryuRatings[ratingKey] = "helpful";
 	            saveSenryuRatingState();
 	            helpfulCount += 1;
+	            item.good_count = helpfulCount;
+	            item.score = Number(item.score || 0) + 1;
 	            helpfulBtn.textContent = `👍 ${helpfulCount} ✓`;
 	            helpfulBtn.disabled = true;
 	            notHelpfulBtn.disabled = true;
@@ -3627,6 +3656,8 @@
 	            state.senryuRatings[ratingKey] = "not_helpful";
 	            saveSenryuRatingState();
 	            notHelpfulCount += 1;
+	            item.bad_count = notHelpfulCount;
+	            item.score = Number(item.score || 0) - 1;
 	            notHelpfulBtn.textContent = `👎 ${notHelpfulCount} ✓`;
 	            helpfulBtn.disabled = true;
 	            notHelpfulBtn.disabled = true;
@@ -3646,12 +3677,34 @@
 	            if (item && item.id) {
 	              submitSenryuVoteById(item.id, "not_helpful");
 	            }
+	            if (Number(item.score || 0) <= 0) {
+	              state.recommendedSenryuPool = (state.recommendedSenryuPool || []).filter((candidate) => candidate !== item);
+	              renderRecommendedSenryu(getVisibleRecommendedSenryuItems());
+	            }
 	          });
 	          actions.appendChild(helpfulBtn);
 	          actions.appendChild(notHelpfulBtn);
+	          const commentaryBtn = document.createElement("button");
+	          commentaryBtn.className = "chip-link";
+	          commentaryBtn.textContent = "解説を表示";
+	          const commentaryEl = document.createElement("div");
+	          commentaryEl.className = "senryu-recommend-commentary";
+	          commentaryEl.hidden = true;
+	          renderMarkdownToElement(commentaryEl, String(item && item.commentary ? item.commentary : ""));
+	          commentaryBtn.addEventListener("click", () => {
+	            const willShow = commentaryEl.hidden;
+	            commentaryEl.hidden = !willShow;
+	            commentaryBtn.textContent = willShow ? "解説を隠す" : "解説を表示";
+	          });
+	          actions.appendChild(commentaryBtn);
 	          row.appendChild(actions);
+	          row.appendChild(commentaryEl);
 	          listEl.appendChild(row);
 	        });
+	        const total = Array.isArray(state.recommendedSenryuPool) ? state.recommendedSenryuPool.length : 0;
+	        const remaining = Math.max(0, total - list.length);
+	        moreBtn.hidden = remaining <= 0;
+	        moreBtn.textContent = remaining > 0 ? `さらに表示 (${Math.min(2, remaining)}件)` : "さらに表示";
 	        box.hidden = false;
 	      }
 
@@ -3659,13 +3712,16 @@
 	        const box = document.getElementById("senryuRecommendBox");
 	        const headerEl = document.getElementById("senryuRecommendHeader");
 	        const listEl = document.getElementById("senryuRecommendList");
-	        if (!box || !headerEl || !listEl) return;
+	        const moreBtn = document.getElementById("senryuRecommendMoreBtn");
+	        if (!box || !headerEl || !listEl || !moreBtn) return;
 	        if (!window.AI_API_BASE) {
+	          moreBtn.hidden = true;
 	          box.hidden = true;
 	          return;
 	        }
-	        headerEl.textContent = "おすすめ川柳を読み込み中...";
+	        headerEl.textContent = "あはき川柳を読み込み中...";
 	        listEl.textContent = "";
+	        moreBtn.hidden = true;
 	        try {
 	          const resp = await fetch(
 	            `${window.AI_API_BASE}/ai/question_senryu_ranking?days=${encodeURIComponent(365)}&limit=200`
@@ -3682,10 +3738,15 @@
 	                subject: q && q.subject ? q.subject : ""
 	              };
 	            })
-	            .filter((item) => String(item && item.senryu ? item.senryu : "").trim());
-	          const picked = sampleRandomItems(enriched, 2);
-	          renderRecommendedSenryu(picked);
+	            .filter((item) => {
+	              if (!String(item && item.senryu ? item.senryu : "").trim()) return false;
+	              return Number(item && item.score ? item.score : 0) > 0;
+	            });
+	          state.recommendedSenryuPool = sampleRandomItems(enriched, enriched.length);
+	          state.recommendedSenryuVisibleCount = 2;
+	          renderRecommendedSenryu(getVisibleRecommendedSenryuItems());
 	        } catch (_err) {
+	          moreBtn.hidden = true;
 	          box.hidden = true;
 	        }
 	      }
@@ -8353,6 +8414,13 @@
         if (updateMoreBtn) {
           updateMoreBtn.addEventListener("click", () => {
             renderUpdateLog(state.updateShown + 3);
+          });
+        }
+        const senryuRecommendMoreBtn = document.getElementById("senryuRecommendMoreBtn");
+        if (senryuRecommendMoreBtn) {
+          senryuRecommendMoreBtn.addEventListener("click", () => {
+            state.recommendedSenryuVisibleCount += 2;
+            renderRecommendedSenryu(getVisibleRecommendedSenryuItems());
           });
         }
 
