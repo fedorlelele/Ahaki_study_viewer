@@ -1,0 +1,1720 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ahaki プリント作成ビュー</title>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "e88f0886e93c42adae0ff3dd06807843"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
+    <style>
+      :root {
+        --bg-1: #ffffff;
+        --bg-2: #f1f5f9;
+        --card: #ffffff;
+        --ink: #111111;
+        --muted: #475569;
+        --line: #1f2937;
+        --accent: #0b5cab;
+        --accent-soft: #d9e9fb;
+        --warn: #8a4b08;
+        --warn-bg: #fff4db;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+        color: var(--ink);
+        font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      }
+      a {
+        color: var(--accent);
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 20px;
+        background: rgba(255, 255, 255, 0.96);
+        border-bottom: 2px solid var(--line);
+        backdrop-filter: blur(10px);
+      }
+      .topbar h1 {
+        margin: 0;
+        font-size: clamp(20px, 3vw, 28px);
+      }
+      .top-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .top-links a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+        padding: 8px 12px;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .top-links a:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .page {
+        width: min(1200px, calc(100% - 32px));
+        margin: 20px auto 40px;
+      }
+      .hero,
+      .card {
+        background: var(--card);
+        border: 2px solid var(--line);
+        border-radius: 18px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      }
+      .hero {
+        padding: 24px;
+        margin-bottom: 18px;
+      }
+      .hero h2 {
+        margin: 0 0 8px;
+        font-size: clamp(24px, 4vw, 36px);
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .hero-notes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .hero-note {
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        font-size: 14px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+        gap: 18px;
+      }
+      .card {
+        padding: 20px;
+      }
+      .card h3 {
+        margin: 0 0 16px;
+        font-size: 20px;
+      }
+      .section-label {
+        margin: 18px 0 8px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .section-label:first-of-type {
+        margin-top: 0;
+      }
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .field.full {
+        grid-column: 1 / -1;
+      }
+      label {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      input,
+      select,
+      button {
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 12px;
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        font: inherit;
+        color: var(--ink);
+        background: #fff;
+      }
+      input:focus,
+      select:focus,
+      button:focus {
+        outline: 4px solid rgba(11, 92, 171, 0.18);
+        outline-offset: 2px;
+      }
+      .field-help {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .toggle-list {
+        display: grid;
+        gap: 10px;
+      }
+      .toggle-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+      }
+      .toggle-item input {
+        width: 20px;
+        min-height: 20px;
+        margin-top: 2px;
+      }
+      .toggle-item label {
+        margin: 0;
+        font-size: 15px;
+      }
+      .toggle-item .field-help {
+        margin-top: 2px;
+      }
+      .action-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+      button {
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      button.secondary {
+        background: #fff;
+      }
+      button.accent-soft {
+        background: var(--accent-soft);
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .status {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        font-size: 14px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+      .status.warn {
+        border-color: #d59f46;
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .summary-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .summary-item {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+      }
+      .summary-item strong {
+        display: block;
+        font-size: 24px;
+        margin-bottom: 6px;
+      }
+      .summary-item span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .inline-note {
+        margin: 0 0 16px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      .subtopic-breakdown {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        margin: 16px 0;
+      }
+      .subtopic-chip {
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .subtopic-chip strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .preview-table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+      }
+      th,
+      td {
+        padding: 12px;
+        border-bottom: 1px solid #cbd5e1;
+        vertical-align: top;
+        text-align: left;
+        font-size: 14px;
+      }
+      thead th {
+        position: sticky;
+        top: 0;
+        background: #eff6ff;
+        z-index: 1;
+      }
+      .serial-cell {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .stem-cell {
+        min-width: 320px;
+      }
+      .empty {
+        padding: 28px 12px;
+        text-align: center;
+        color: var(--muted);
+      }
+      .footnote {
+        margin-top: 14px;
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 640px) {
+        .page {
+          width: min(100%, calc(100% - 20px));
+          margin-top: 10px;
+        }
+        .topbar {
+          padding: 12px;
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .field-grid,
+        .action-grid {
+          grid-template-columns: 1fr;
+        }
+        .summary-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .stem-cell {
+          min-width: 220px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Ahaki プリント作成ビュー</h1>
+      <nav class="top-links" aria-label="ページ移動">
+        <a href="./index.html">高機能ビュー</a>
+        <a href="./simple.html">かんたんビュー</a>
+        <a href="./voicepeak_csv.html">VOICEPEAK CSV出力</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="hero">
+        <h2>検索結果から配布用テキストをまとめて作成</h2>
+        <p>
+          科目・小項目・試験種別・回数範囲・シリアル範囲・キーワードで絞り込み、並び順や出力内容を指定して
+          `.txt` を生成します。科目を選ぶと、その科目内の小項目ごと、さらに試験種別ごとに別ファイルへ分割して `.zip` でも保存できます。
+        </p>
+        <div class="hero-notes">
+          <div class="hero-note">解説または深掘り解説を含める場合、解答は自動で同梱します。</div>
+          <div class="hero-note">ZIP 保存は、現在の検索条件を引き継いだうえで、選択科目内の小項目ごと・種別ごとに分割します。</div>
+          <div class="hero-note">スペース区切りキーワードは AND 検索です。`筋 伸張` のように入力できます。</div>
+        </div>
+      </section>
+
+      <div class="layout">
+        <section class="card" aria-labelledby="filterTitle">
+          <h3 id="filterTitle">出力条件</h3>
+
+          <div class="section-label">検索条件</div>
+          <div class="field-grid">
+            <div class="field full">
+              <label for="keywordInput">キーワード</label>
+              <input id="keywordInput" type="text" placeholder="例: 生理学 受容器 A33-010" />
+              <div class="field-help">問題文、症例文、選択肢、タグ、小項目、通常解説、シリアルを対象に検索します。</div>
+            </div>
+            <div class="field">
+              <label for="subjectSelect">科目</label>
+              <select id="subjectSelect">
+                <option value="">すべて</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="subtopicSelect">小項目</label>
+              <select id="subtopicSelect">
+                <option value="">すべて</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="examTypeSelect">試験種別</label>
+              <select id="examTypeSelect">
+                <option value="">すべて</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="sortSelect">並び順</label>
+              <select id="sortSelect">
+                <option value="serial_asc">シリアル昇順</option>
+                <option value="serial_desc">シリアル降順</option>
+                <option value="session_desc">新しい回数順</option>
+                <option value="session_asc">古い回数順</option>
+                <option value="subject_serial">科目順→シリアル昇順</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="sessionFrom">回数 From</label>
+              <input id="sessionFrom" type="number" min="1" step="1" placeholder="例: 20" />
+            </div>
+            <div class="field">
+              <label for="sessionTo">回数 To</label>
+              <input id="sessionTo" type="number" min="1" step="1" placeholder="例: 34" />
+            </div>
+            <div class="field">
+              <label for="serialFrom">シリアル From</label>
+              <input id="serialFrom" type="text" placeholder="例: A20-001" />
+            </div>
+            <div class="field">
+              <label for="serialTo">シリアル To</label>
+              <input id="serialTo" type="text" placeholder="例: A33-160" />
+            </div>
+          </div>
+
+          <div class="section-label">出力内容</div>
+          <div class="field-grid">
+            <div class="field full">
+              <label for="numberingSelect">問題番号の形式</label>
+              <select id="numberingSelect">
+                <option value="serial">シリアルを使う（A01-001 など）</option>
+                <option value="continuous">通し番号を使う（問題1, 問題2 ...）</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="toggle-list">
+            <div class="toggle-item">
+              <input id="includeAnswer" type="checkbox" />
+              <div>
+                <label for="includeAnswer">解答を含める</label>
+                <div class="field-help">選択肢番号の正答を出力します。</div>
+              </div>
+            </div>
+            <div class="toggle-item">
+              <input id="includeExplanation" type="checkbox" />
+              <div>
+                <label for="includeExplanation">解説を含める</label>
+                <div class="field-help">`explanation_latest` を使います。ON にすると解答も自動で付きます。</div>
+              </div>
+            </div>
+            <div class="toggle-item">
+              <input id="includeDeepDive" type="checkbox" />
+              <div>
+                <label for="includeDeepDive">深掘り解説を含める</label>
+                <div class="field-help">Supabase の `deep_dive_explanations` から取得します。ON にすると解答も自動で付きます。</div>
+                <div class="field-help">深掘り解説付き出力は 100 件固定です。上限を超える場合は保存せず、検索条件を絞るよう案内します。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-grid">
+            <button id="searchBtn" class="primary" type="button">条件を反映</button>
+            <button id="resetBtn" class="secondary" type="button">条件をリセット</button>
+            <button id="downloadTxtBtn" class="accent-soft" type="button" disabled>現在の結果を TXT 保存</button>
+            <button id="downloadZipBtn" class="accent-soft" type="button" disabled>選択科目を小項目・種別別 ZIP 保存</button>
+          </div>
+
+          <div id="statusBox" class="status">問題データを読み込み中です...</div>
+        </section>
+
+        <section class="card" aria-labelledby="previewTitle">
+          <h3 id="previewTitle">出力プレビュー</h3>
+          <p id="filterSummary" class="inline-note">条件を読み込み中です。</p>
+
+          <div class="summary-list">
+            <div class="summary-item">
+              <strong id="totalCount">0</strong>
+              <span>現在の対象問題数</span>
+            </div>
+            <div class="summary-item">
+              <strong id="deepDiveCount">0</strong>
+              <span>深掘り解説あり</span>
+            </div>
+            <div class="summary-item">
+              <strong id="explanationCount">0</strong>
+              <span>通常解説あり</span>
+            </div>
+            <div class="summary-item">
+              <strong id="subtopicFileCount">0</strong>
+              <span>ZIP 内の想定ファイル数</span>
+            </div>
+          </div>
+
+          <div id="subtopicBreakdown" class="subtopic-breakdown"></div>
+
+          <div class="preview-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 88px;">出力番号</th>
+                  <th style="width: 110px;">シリアル</th>
+                  <th style="width: 150px;">科目</th>
+                  <th class="stem-cell">問題文</th>
+                  <th style="width: 180px;">小項目</th>
+                </tr>
+              </thead>
+              <tbody id="previewBody">
+                <tr>
+                  <td class="empty" colspan="5">読み込み中です...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footnote">
+            プレビューは先頭 40 件です。ZIP 保存では、現在の検索条件を反映したうえで、選択中の科目内にある小項目ごと・
+            種別ごとにテキストを分割します。小項目未設定の問題は `未分類` ファイルにまとめます。
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const state = {
+        questions: [],
+        filtered: [],
+        subtopicsBySubject: {},
+        allSubtopics: [],
+        deepDiveSerials: new Set(),
+        deepDiveLatestBySerial: {},
+        deepDiveBySerial: {},
+        deepDiveFetchedSerials: new Set(),
+        deepDiveIndexLoaded: false,
+        deepDiveIndexPromise: null,
+        ready: false,
+      };
+
+      const DEFAULT_DEEP_DIVE_EXPORT_LIMIT = 100;
+      const SUPABASE_URL = window.SUPABASE_URL || "";
+      const SUPABASE_KEY = window.SUPABASE_KEY || "";
+      const supabaseClient =
+        window.supabase && SUPABASE_URL && SUPABASE_KEY
+          ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+          : null;
+      const collator = new Intl.Collator("ja");
+      const encoder = new TextEncoder();
+      const CRC32_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i += 1) {
+          let value = i;
+          for (let j = 0; j < 8; j += 1) {
+            value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+          }
+          table[i] = value >>> 0;
+        }
+        return table;
+      })();
+
+      const els = {
+        keywordInput: document.getElementById("keywordInput"),
+        subjectSelect: document.getElementById("subjectSelect"),
+        subtopicSelect: document.getElementById("subtopicSelect"),
+        examTypeSelect: document.getElementById("examTypeSelect"),
+        sessionFrom: document.getElementById("sessionFrom"),
+        sessionTo: document.getElementById("sessionTo"),
+        serialFrom: document.getElementById("serialFrom"),
+        serialTo: document.getElementById("serialTo"),
+        sortSelect: document.getElementById("sortSelect"),
+        numberingSelect: document.getElementById("numberingSelect"),
+        includeAnswer: document.getElementById("includeAnswer"),
+        includeExplanation: document.getElementById("includeExplanation"),
+        includeDeepDive: document.getElementById("includeDeepDive"),
+        searchBtn: document.getElementById("searchBtn"),
+        resetBtn: document.getElementById("resetBtn"),
+        downloadTxtBtn: document.getElementById("downloadTxtBtn"),
+        downloadZipBtn: document.getElementById("downloadZipBtn"),
+        statusBox: document.getElementById("statusBox"),
+        filterSummary: document.getElementById("filterSummary"),
+        totalCount: document.getElementById("totalCount"),
+        deepDiveCount: document.getElementById("deepDiveCount"),
+        explanationCount: document.getElementById("explanationCount"),
+        subtopicFileCount: document.getElementById("subtopicFileCount"),
+        subtopicBreakdown: document.getElementById("subtopicBreakdown"),
+        previewBody: document.getElementById("previewBody"),
+      };
+
+      function setStatus(message, mode = "") {
+        els.statusBox.textContent = message;
+        els.statusBox.className = mode === "warn" ? "status warn" : "status";
+      }
+
+      function appendCacheVersion(path, version) {
+        const url = new URL(path, window.location.href);
+        url.searchParams.set("v", String(version || Date.now()));
+        return url.toString();
+      }
+
+      function normalizeChunkPath(path) {
+        return String(path || "").replace(/^\.?\/*/, "");
+      }
+
+      function pauseMainThread() {
+        return new Promise((resolve) => window.setTimeout(resolve, 0));
+      }
+
+      async function loadQuestionsFromChunks() {
+        const manifestResp = await fetch(
+          appendCacheVersion("../output/web/questions_manifest.json", Date.now()),
+          { cache: "no-store" }
+        );
+        if (!manifestResp.ok) {
+          throw new Error("questions_manifest.json の取得に失敗しました。");
+        }
+        const manifest = await manifestResp.json();
+        const chunks = Array.isArray(manifest && manifest.chunks) ? manifest.chunks : [];
+        if (!chunks.length) return [];
+        const chunkVersion = [
+          manifest && manifest.generated_at,
+          manifest && manifest.total,
+          chunks.length,
+        ].filter(Boolean).join("_");
+        const loaded = [];
+        for (let i = 0; i < chunks.length; i += 1) {
+          const chunk = chunks[i] || {};
+          const relPath = normalizeChunkPath(chunk.path);
+          if (!relPath) continue;
+          setStatus(`問題データを読み込み中です... ${i + 1}/${chunks.length} チャンク`);
+          const resp = await fetch(
+            appendCacheVersion(`../output/web/${relPath}`, chunkVersion),
+            { cache: "no-store" }
+          );
+          if (!resp.ok) {
+            throw new Error(`チャンク取得に失敗しました: ${relPath}`);
+          }
+          const rows = await resp.json();
+          if (Array.isArray(rows) && rows.length) {
+            loaded.push(...rows);
+          }
+          if (i % 2 === 1) {
+            await pauseMainThread();
+          }
+        }
+        return loaded;
+      }
+
+      async function loadQuestionsWithFallback() {
+        try {
+          return await loadQuestionsFromChunks();
+        } catch (_error) {
+          setStatus("questions_manifest.json が読めなかったため questions.json を読み込みます...");
+          const resp = await fetch(
+            appendCacheVersion("../output/web/questions.json", Date.now()),
+            { cache: "no-store" }
+          );
+          if (!resp.ok) {
+            throw new Error("questions.json の取得にも失敗しました。");
+          }
+          return resp.json();
+        }
+      }
+
+      async function ensureDeepDiveIndexLoaded() {
+        if (!supabaseClient) {
+          state.deepDiveIndexLoaded = true;
+          return;
+        }
+        if (state.deepDiveIndexLoaded) return;
+        if (state.deepDiveIndexPromise) {
+          await state.deepDiveIndexPromise;
+          return;
+        }
+        state.deepDiveIndexPromise = (async () => {
+          const limit = 1000;
+          for (let offset = 0; offset < 200000; offset += limit) {
+            const { data, error } = await supabaseClient
+              .from("deep_dive_explanations")
+              .select("serial, updated_at")
+              .order("updated_at", { ascending: false })
+              .range(offset, offset + limit - 1);
+            if (error) {
+              throw error;
+            }
+            const rows = Array.isArray(data) ? data : [];
+            rows.forEach((row) => {
+              const serial = normalizeText(row && row.serial);
+              if (!serial) return;
+              state.deepDiveSerials.add(serial);
+              if (row.updated_at) {
+                state.deepDiveLatestBySerial[serial] = String(row.updated_at);
+              }
+            });
+            if (rows.length < limit) {
+              break;
+            }
+          }
+          state.deepDiveIndexLoaded = true;
+        })();
+        try {
+          await state.deepDiveIndexPromise;
+        } finally {
+          state.deepDiveIndexPromise = null;
+        }
+      }
+
+      function normalizeText(value) {
+        return String(value || "").trim();
+      }
+
+      function normalizeSerialInput(value) {
+        const raw = normalizeText(value).toUpperCase();
+        if (!raw) return "";
+        const compact = raw.replace(/\s+/g, "").replace(/_/g, "-");
+        const match = compact.match(/^([A-Z])(\d{2})-?(\d{3})$/);
+        if (match) {
+          return `${match[1]}${match[2]}-${match[3]}`;
+        }
+        return compact;
+      }
+
+      function parseSerialParts(serial) {
+        const normalized = normalizeSerialInput(serial);
+        const match = normalized.match(/^([A-Z])(\d+)-(\d+)$/);
+        if (!match) {
+          return {
+            raw: normalized,
+            type: "",
+            session: Number.MAX_SAFE_INTEGER,
+            number: Number.MAX_SAFE_INTEGER,
+          };
+        }
+        return {
+          raw: normalized,
+          type: match[1],
+          session: Number(match[2]),
+          number: Number(match[3]),
+        };
+      }
+
+      function isValidSerialParts(parts) {
+        return Boolean(parts && parts.type && Number.isFinite(parts.session) && Number.isFinite(parts.number))
+          && parts.session !== Number.MAX_SAFE_INTEGER
+          && parts.number !== Number.MAX_SAFE_INTEGER;
+      }
+
+      function compareSerialValue(a, b) {
+        const pa = a && a._serialParts ? a._serialParts : parseSerialParts(a && a.serial);
+        const pb = b && b._serialParts ? b._serialParts : parseSerialParts(b && b.serial);
+        if (pa.type !== pb.type) return collator.compare(pa.type, pb.type);
+        if (pa.session !== pb.session) return pa.session - pb.session;
+        if (pa.number !== pb.number) return pa.number - pb.number;
+        return collator.compare(pa.raw, pb.raw);
+      }
+
+      function compareBySession(a, b, desc = false) {
+        const sign = desc ? -1 : 1;
+        const pa = a._serialParts;
+        const pb = b._serialParts;
+        if (pa.session !== pb.session) return (pa.session - pb.session) * sign;
+        if (pa.type !== pb.type) return collator.compare(pa.type, pb.type);
+        if (pa.number !== pb.number) return (pa.number - pb.number) * sign;
+        return collator.compare(a.serial || "", b.serial || "");
+      }
+
+      function compareBySubjectSerial(a, b) {
+        const subjectDiff = collator.compare(a.subject || "", b.subject || "");
+        if (subjectDiff) return subjectDiff;
+        return compareSerialValue(a, b);
+      }
+
+      function buildSearchText(question) {
+        const answerParts = [];
+        if (Array.isArray(question.answer_indices) && question.answer_indices.length) {
+          answerParts.push(question.answer_indices.join(" "));
+        }
+        if (question.answer_index) {
+          answerParts.push(String(question.answer_index));
+        }
+        if (question.answer_text) {
+          answerParts.push(String(question.answer_text));
+        }
+        if (question.answer_none) {
+          answerParts.push("なし");
+        }
+        const deepDiveText = question.deep_dive && question.deep_dive.explanation
+          ? question.deep_dive.explanation
+          : "";
+        return [
+          question.serial,
+          question.subject,
+          question.exam_type,
+          question.case_text,
+          question.stem,
+          Array.isArray(question.choices) ? question.choices.join(" ") : "",
+          Array.isArray(question.tags) ? question.tags.join(" ") : "",
+          Array.isArray(question.subtopics) ? question.subtopics.join(" ") : "",
+          question.explanation_latest,
+          deepDiveText,
+          answerParts.join(" "),
+        ]
+          .filter(Boolean)
+          .join("\n")
+          .toLowerCase();
+      }
+
+      function preprocessQuestions(rows) {
+        return (Array.isArray(rows) ? rows : []).map((question) => {
+          const serial = normalizeText(question.serial);
+          return {
+            ...question,
+            serial,
+            _serialParts: parseSerialParts(serial),
+            _searchText: buildSearchText(question),
+          };
+        });
+      }
+
+      function populateSelect(select, items, placeholder) {
+        const currentValue = select.value;
+        select.innerHTML = "";
+        const head = document.createElement("option");
+        head.value = "";
+        head.textContent = placeholder;
+        select.appendChild(head);
+        items.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item;
+          option.textContent = item;
+          select.appendChild(option);
+        });
+        if (currentValue && items.includes(currentValue)) {
+          select.value = currentValue;
+        } else {
+          select.value = "";
+        }
+      }
+
+      function rebuildSelectOptions() {
+        const subjectMap = {};
+        const subjects = new Set();
+        const examTypes = new Set();
+        const allSubtopics = new Set();
+        state.questions.forEach((question) => {
+          if (question.subject) {
+            subjects.add(question.subject);
+          }
+          if (question.exam_type) {
+            examTypes.add(question.exam_type);
+          }
+          const subject = question.subject || "";
+          if (!subjectMap[subject]) {
+            subjectMap[subject] = new Set();
+          }
+          const subtopics = Array.isArray(question.subtopics) ? question.subtopics : [];
+          subtopics.forEach((item) => {
+            if (!item) return;
+            subjectMap[subject].add(item);
+            allSubtopics.add(item);
+          });
+        });
+        state.subtopicsBySubject = {};
+        Object.keys(subjectMap).forEach((subject) => {
+          state.subtopicsBySubject[subject] = Array.from(subjectMap[subject]).sort(collator.compare);
+        });
+        state.allSubtopics = Array.from(allSubtopics).sort(collator.compare);
+        populateSelect(
+          els.subjectSelect,
+          Array.from(subjects).sort(collator.compare),
+          "すべて"
+        );
+        populateSelect(
+          els.examTypeSelect,
+          Array.from(examTypes).sort(collator.compare),
+          "すべて"
+        );
+        updateSubtopicOptions();
+      }
+
+      function updateSubtopicOptions() {
+        const subject = normalizeText(els.subjectSelect.value);
+        const items = subject
+          ? (state.subtopicsBySubject[subject] || [])
+          : state.allSubtopics;
+        populateSelect(els.subtopicSelect, items, "すべて");
+      }
+
+      function getKeywordTerms() {
+        return normalizeText(els.keywordInput.value)
+          .toLowerCase()
+          .split(/\s+/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      function matchesKeyword(question, terms) {
+        if (!terms.length) return true;
+        return terms.every((term) => question._searchText.includes(term));
+      }
+
+      function getNumberOrNull(value) {
+        const text = normalizeText(value);
+        if (!text) return null;
+        const num = Number(text);
+        return Number.isFinite(num) ? num : null;
+      }
+
+      function filterQuestions() {
+        const terms = getKeywordTerms();
+        const subject = normalizeText(els.subjectSelect.value);
+        const subtopic = normalizeText(els.subtopicSelect.value);
+        const examType = normalizeText(els.examTypeSelect.value);
+        const sessionFrom = getNumberOrNull(els.sessionFrom.value);
+        const sessionTo = getNumberOrNull(els.sessionTo.value);
+        const serialFrom = parseSerialParts(els.serialFrom.value);
+        const serialTo = parseSerialParts(els.serialTo.value);
+        const hasSerialFrom = isValidSerialParts(serialFrom);
+        const hasSerialTo = isValidSerialParts(serialTo);
+
+        const filtered = state.questions.filter((question) => {
+          if (subject && question.subject !== subject) return false;
+          if (subtopic && !(question.subtopics || []).includes(subtopic)) return false;
+          if (examType && question.exam_type !== examType) return false;
+          const session = Number(question.exam_session) || 0;
+          if (sessionFrom !== null && session < sessionFrom) return false;
+          if (sessionTo !== null && session > sessionTo) return false;
+          if (hasSerialFrom && compareSerialValue(question, { serial: serialFrom.raw, _serialParts: serialFrom }) < 0) {
+            return false;
+          }
+          if (hasSerialTo && compareSerialValue(question, { serial: serialTo.raw, _serialParts: serialTo }) > 0) {
+            return false;
+          }
+          return matchesKeyword(question, terms);
+        });
+
+        const sortKey = els.sortSelect.value;
+        if (sortKey === "serial_desc") {
+          filtered.sort((a, b) => compareSerialValue(b, a));
+        } else if (sortKey === "session_desc") {
+          filtered.sort((a, b) => compareBySession(a, b, true));
+        } else if (sortKey === "session_asc") {
+          filtered.sort((a, b) => compareBySession(a, b, false));
+        } else if (sortKey === "subject_serial") {
+          filtered.sort(compareBySubjectSerial);
+        } else {
+          filtered.sort(compareSerialValue);
+        }
+
+        return filtered;
+      }
+
+      function buildFilterSummary() {
+        const parts = [];
+        const keyword = normalizeText(els.keywordInput.value);
+        const subject = normalizeText(els.subjectSelect.value);
+        const subtopic = normalizeText(els.subtopicSelect.value);
+        const examType = normalizeText(els.examTypeSelect.value);
+        const sessionFrom = normalizeText(els.sessionFrom.value);
+        const sessionTo = normalizeText(els.sessionTo.value);
+        const serialFrom = normalizeSerialInput(els.serialFrom.value);
+        const serialTo = normalizeSerialInput(els.serialTo.value);
+        const sortLabels = {
+          serial_asc: "シリアル昇順",
+          serial_desc: "シリアル降順",
+          session_desc: "新しい回数順",
+          session_asc: "古い回数順",
+          subject_serial: "科目順→シリアル昇順",
+        };
+        if (keyword) parts.push(`キーワード: ${keyword}`);
+        if (subject) parts.push(`科目: ${subject}`);
+        if (subtopic) parts.push(`小項目: ${subtopic}`);
+        if (examType) parts.push(`試験種別: ${examType}`);
+        if (sessionFrom || sessionTo) {
+          parts.push(`回数: ${sessionFrom || "..."}〜${sessionTo || "..."}`);
+        }
+        if (serialFrom || serialTo) {
+          parts.push(`シリアル: ${serialFrom || "..."}〜${serialTo || "..."}`);
+        }
+        parts.push(`並び順: ${sortLabels[els.sortSelect.value] || "シリアル昇順"}`);
+        return parts.length ? parts.join(" / ") : "条件なし";
+      }
+
+      function getExportMode() {
+        const includeExplanation = els.includeExplanation.checked;
+        const includeDeepDive = els.includeDeepDive.checked;
+        return {
+          numbering: els.numberingSelect.value === "continuous" ? "continuous" : "serial",
+          includeExplanation,
+          includeDeepDive,
+          includeAnswer: els.includeAnswer.checked || includeExplanation || includeDeepDive,
+        };
+      }
+
+      function getDeepDiveExportLimit() {
+        return DEFAULT_DEEP_DIVE_EXPORT_LIMIT;
+      }
+
+      function getDeepDiveExportCandidateCount() {
+        return state.filtered.filter((question) => hasDeepDiveAvailable(question)).length;
+      }
+
+      async function ensureDeepDiveExportWithinLimit() {
+        const mode = getExportMode();
+        if (!mode.includeDeepDive) {
+          return { ok: true, count: 0, limit: getDeepDiveExportLimit() };
+        }
+        if (!supabaseClient) {
+          return { ok: false, count: 0, limit: getDeepDiveExportLimit(), reason: "missing_config" };
+        }
+        if (!state.deepDiveIndexLoaded) {
+          setStatus("深掘り解説件数を確認中です...");
+          await ensureDeepDiveIndexLoaded();
+        }
+        const limit = getDeepDiveExportLimit();
+        const count = getDeepDiveExportCandidateCount();
+        if (count > limit) {
+          return { ok: false, count, limit, reason: "over_limit" };
+        }
+        return { ok: true, count, limit };
+      }
+
+      function formatAnswerLabel(question) {
+        const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
+        if (question.answer_none) return "なし";
+        const indices = Array.isArray(question.answer_indices)
+          ? question.answer_indices.filter((value) => Number(value) >= 1)
+          : [];
+        if (indices.length) {
+          return indices
+            .map((value) => nums[Number(value) - 1] || String(value))
+            .join("・");
+        }
+        const answerIndex = Number(question.answer_index) || 0;
+        if (answerIndex >= 1) {
+          return nums[answerIndex - 1] || String(answerIndex);
+        }
+        return normalizeText(question.answer_text);
+      }
+
+      function normalizeDeepDiveRow(row) {
+        if (!row) return null;
+        const tags = Array.isArray(row.tags)
+          ? row.tags
+          : typeof row.tags === "string"
+            ? (() => {
+                try {
+                  const parsed = JSON.parse(row.tags);
+                  return Array.isArray(parsed) ? parsed : [];
+                } catch (_error) {
+                  return [];
+                }
+              })()
+            : [];
+        return {
+          serial: normalizeText(row.serial),
+          explanation: normalizeText(row.explanation),
+          tags,
+          updated_at: normalizeText(row.updated_at),
+        };
+      }
+
+      function getDeepDiveRecord(question) {
+        const serial = normalizeText(question && question.serial);
+        if (!serial) return null;
+        if (Object.prototype.hasOwnProperty.call(state.deepDiveBySerial, serial)) {
+          return state.deepDiveBySerial[serial];
+        }
+        return question && question.deep_dive ? normalizeDeepDiveRow(question.deep_dive) : null;
+      }
+
+      function getDeepDiveText(question) {
+        const record = getDeepDiveRecord(question);
+        return normalizeText(record && record.explanation);
+      }
+
+      function hasDeepDiveAvailable(question) {
+        if (getDeepDiveText(question)) return true;
+        return state.deepDiveSerials.has(normalizeText(question && question.serial));
+      }
+
+      async function ensureDeepDiveContentLoaded(questions, progressCallback) {
+        if (!supabaseClient || !Array.isArray(questions) || !questions.length) {
+          return;
+        }
+        await ensureDeepDiveIndexLoaded().catch((error) => {
+          console.warn("deep dive index load failed", error);
+        });
+        const serials = Array.from(
+          new Set(
+            questions
+              .map((question) => normalizeText(question && question.serial))
+              .filter(Boolean)
+          )
+        );
+        const pending = serials.filter((serial) => {
+          if (state.deepDiveFetchedSerials.has(serial)) {
+            return false;
+          }
+          if (state.deepDiveIndexLoaded && !state.deepDiveSerials.has(serial)) {
+            state.deepDiveFetchedSerials.add(serial);
+            state.deepDiveBySerial[serial] = null;
+            return false;
+          }
+          return true;
+        });
+        let completed = 0;
+        const chunkSize = 150;
+        for (let i = 0; i < pending.length; i += chunkSize) {
+          const chunk = pending.slice(i, i + chunkSize);
+          const { data, error } = await supabaseClient
+            .from("deep_dive_explanations")
+            .select("serial, explanation, tags, updated_at")
+            .in("serial", chunk);
+          if (error) {
+            throw error;
+          }
+          const map = {};
+          (Array.isArray(data) ? data : []).forEach((row) => {
+            const normalized = normalizeDeepDiveRow(row);
+            if (!normalized || !normalized.serial) return;
+            map[normalized.serial] = normalized;
+            state.deepDiveSerials.add(normalized.serial);
+            if (normalized.updated_at) {
+              state.deepDiveLatestBySerial[normalized.serial] = normalized.updated_at;
+            }
+          });
+          chunk.forEach((serial) => {
+            state.deepDiveFetchedSerials.add(serial);
+            state.deepDiveBySerial[serial] = map[serial] || null;
+          });
+          completed += chunk.length;
+          if (typeof progressCallback === "function") {
+            progressCallback(completed, pending.length);
+          }
+        }
+      }
+
+      function getExamTypeShortLabel(examType) {
+        const value = normalizeText(examType);
+        if (value === "あん摩マッサージ指圧師") return "あマ指";
+        if (value === "はり師・きゅう師") return "はき";
+        return value || "種別未設定";
+      }
+
+      function buildQuestionBlock(question, index, mode) {
+        const lines = [];
+        const title = mode.numbering === "continuous" ? `問題${index + 1}` : (question.serial || `問題${index + 1}`);
+        if (question.case_text) {
+          lines.push(String(question.case_text));
+        }
+        lines.push(`${title}　${question.stem || ""}`);
+        const choices = Array.isArray(question.choices) ? question.choices : [];
+        const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
+        choices.forEach((choice, choiceIndex) => {
+          const label = nums[choiceIndex] || String(choiceIndex + 1);
+          lines.push(`${label}．${choice}`);
+        });
+        if (mode.includeAnswer) {
+          const answerLabel = formatAnswerLabel(question);
+          lines.push("");
+          lines.push(answerLabel ? `解答　${answerLabel}` : "解答");
+        }
+        if (mode.includeExplanation) {
+          const explanationText = normalizeText(question.explanation_latest);
+          if (explanationText) {
+            lines.push("解説");
+            lines.push(explanationText);
+          }
+        }
+        if (mode.includeDeepDive) {
+          const deepDiveText = getDeepDiveText(question);
+          if (deepDiveText) {
+            lines.push("深掘り解説");
+            lines.push(deepDiveText);
+          }
+        }
+        return lines.join("\n");
+      }
+
+      function formatLocalTimestamp(date = new Date()) {
+        const pad = (value) => String(value).padStart(2, "0");
+        return [
+          date.getFullYear(),
+          pad(date.getMonth() + 1),
+          pad(date.getDate()),
+          "_",
+          pad(date.getHours()),
+          pad(date.getMinutes()),
+        ].join("");
+      }
+
+      function formatDisplayDate(date = new Date()) {
+        return new Intl.DateTimeFormat("ja-JP", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+      }
+
+      function getSortLabel() {
+        const labels = {
+          serial_asc: "シリアル昇順",
+          serial_desc: "シリアル降順",
+          session_desc: "新しい回数順",
+          session_asc: "古い回数順",
+          subject_serial: "科目順→シリアル昇順",
+        };
+        return labels[els.sortSelect.value] || "シリアル昇順";
+      }
+
+      function buildExportHeader(title, list, mode, summaryText) {
+        const contentParts = [];
+        if (mode.includeAnswer) contentParts.push("解答");
+        if (mode.includeExplanation) contentParts.push("解説");
+        if (mode.includeDeepDive) contentParts.push("深掘り解説");
+        const numberingLabel = mode.numbering === "continuous"
+          ? "通し番号（問題1, 問題2 ...）"
+          : "シリアル";
+        return [
+          title,
+          `出力日時: ${formatDisplayDate(new Date())}`,
+          `検索条件: ${summaryText || "条件なし"}`,
+          `問題数: ${list.length}件`,
+          `並び順: ${getSortLabel()}`,
+          `問題番号: ${numberingLabel}`,
+          `出力内容: ${contentParts.length ? contentParts.join(" / ") : "問題のみ"}`,
+        ].join("\n");
+      }
+
+      function buildExportText(title, list, mode, summaryText) {
+        const blocks = list.map((question, index) => buildQuestionBlock(question, index, mode));
+        return [buildExportHeader(title, list, mode, summaryText), "", ...blocks].join("\n\n");
+      }
+
+      function sanitizeFilename(value) {
+        const text = normalizeText(value)
+          .replace(/[\\/:*?"<>|]/g, "_")
+          .replace(/\s+/g, " ")
+          .trim();
+        return text || "export";
+      }
+
+      function downloadText(filename, text) {
+        const blob = new Blob(["\uFEFF", text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function getSubtopicGroups() {
+        const subject = normalizeText(els.subjectSelect.value);
+        if (!subject) return [];
+        const selectedSubtopic = normalizeText(els.subtopicSelect.value);
+        const groups = new Map();
+        state.filtered.forEach((question) => {
+          if (question.subject !== subject) return;
+          const subtopics = Array.isArray(question.subtopics) && question.subtopics.length
+            ? question.subtopics
+            : ["未分類"];
+          const examTypeLabel = normalizeText(question.exam_type) || "種別未設定";
+          subtopics.forEach((subtopic) => {
+            if (selectedSubtopic && subtopic !== selectedSubtopic) return;
+            const key = `${subtopic}||${examTypeLabel}`;
+            if (!groups.has(key)) {
+              groups.set(key, {
+                subtopic,
+                examType: examTypeLabel,
+                questions: [],
+              });
+            }
+            groups.get(key).questions.push(question);
+          });
+        });
+        return Array.from(groups.values()).sort((a, b) => {
+          const subtopicDiff = collator.compare(a.subtopic, b.subtopic);
+          if (subtopicDiff) return subtopicDiff;
+          return collator.compare(a.examType, b.examType);
+        });
+      }
+
+      function renderSubtopicBreakdown(groups) {
+        els.subtopicBreakdown.innerHTML = "";
+        if (!groups.length) return;
+        groups.slice(0, 12).forEach((group) => {
+          const div = document.createElement("div");
+          div.className = "subtopic-chip";
+          const title = document.createElement("strong");
+          title.textContent = `${group.subtopic} / ${getExamTypeShortLabel(group.examType)}`;
+          div.appendChild(title);
+          const info = document.createElement("span");
+          info.textContent = `${group.questions.length} 問`;
+          div.appendChild(info);
+          els.subtopicBreakdown.appendChild(div);
+        });
+        if (groups.length > 12) {
+          const div = document.createElement("div");
+          div.className = "subtopic-chip";
+          div.innerHTML = `<strong>ほか ${groups.length - 12} 小項目</strong><span>ZIP 保存時にすべて出力します。</span>`;
+          els.subtopicBreakdown.appendChild(div);
+        }
+      }
+
+      function renderPreview() {
+        const mode = getExportMode();
+        const groups = getSubtopicGroups();
+        const deepDiveAvailable = state.filtered.filter((question) => hasDeepDiveAvailable(question)).length;
+        const explanationAvailable = state.filtered.filter((question) => normalizeText(question.explanation_latest)).length;
+        els.filterSummary.textContent = `現在の条件: ${buildFilterSummary()}`;
+        els.totalCount.textContent = String(state.filtered.length);
+        els.deepDiveCount.textContent = String(deepDiveAvailable);
+        els.explanationCount.textContent = String(explanationAvailable);
+        els.subtopicFileCount.textContent = String(groups.length);
+        renderSubtopicBreakdown(groups);
+
+        els.previewBody.innerHTML = "";
+        if (!state.filtered.length) {
+          els.previewBody.innerHTML = "<tr><td class='empty' colspan='5'>条件に合う問題がありません。</td></tr>";
+          return;
+        }
+
+        state.filtered.slice(0, 40).forEach((question, index) => {
+          const row = document.createElement("tr");
+          const numberCell = document.createElement("td");
+          numberCell.className = "serial-cell";
+          numberCell.textContent = mode.numbering === "continuous"
+            ? `問題${index + 1}`
+            : String(question.serial || "");
+          const serialCell = document.createElement("td");
+          serialCell.className = "serial-cell";
+          serialCell.textContent = question.serial || "";
+          const subjectCell = document.createElement("td");
+          subjectCell.textContent = question.subject || "";
+          const stemCell = document.createElement("td");
+          stemCell.className = "stem-cell";
+          stemCell.textContent = question.stem || "";
+          const subtopicCell = document.createElement("td");
+          subtopicCell.textContent = (question.subtopics || []).join(" / ") || "未分類";
+          row.appendChild(numberCell);
+          row.appendChild(serialCell);
+          row.appendChild(subjectCell);
+          row.appendChild(stemCell);
+          row.appendChild(subtopicCell);
+          els.previewBody.appendChild(row);
+        });
+      }
+
+      function syncActionButtons() {
+        const hasResults = state.ready && state.filtered.length > 0;
+        const hasSubjectGroups = hasResults && getSubtopicGroups().length > 0;
+        const mode = getExportMode();
+        const overDeepDiveLimit =
+          mode.includeDeepDive &&
+          state.deepDiveIndexLoaded &&
+          getDeepDiveExportCandidateCount() > getDeepDiveExportLimit();
+        els.downloadTxtBtn.disabled = !hasResults || overDeepDiveLimit;
+        els.downloadZipBtn.disabled = !hasSubjectGroups || overDeepDiveLimit;
+      }
+
+      function applyFilters() {
+        if (!state.ready) return;
+        state.filtered = filterQuestions();
+        renderPreview();
+        syncActionButtons();
+
+        const mode = getExportMode();
+        const deepDiveAvailable = state.filtered.filter((question) => hasDeepDiveAvailable(question)).length;
+        const explanationAvailable = state.filtered.filter((question) => normalizeText(question.explanation_latest)).length;
+        const groups = getSubtopicGroups();
+        const deepDiveLimit = getDeepDiveExportLimit();
+        const lines = [
+          `対象問題数: ${state.filtered.length}件`,
+          `通常解説あり: ${explanationAvailable}件`,
+          `深掘り解説あり: ${deepDiveAvailable}件`,
+        ];
+        if (mode.includeDeepDive && !supabaseClient) {
+          lines.push("深掘り解説の取得には config.js の Supabase 設定が必要です。");
+        }
+        if (mode.includeDeepDive && supabaseClient && !state.deepDiveIndexLoaded) {
+          lines.push("深掘り解説件数は Supabase 索引の読み込み後に更新されます。");
+        }
+        if (mode.includeDeepDive) {
+          lines.push(`深掘り解説付き出力の上限: ${deepDiveLimit}件`);
+        }
+        if (mode.includeDeepDive && deepDiveAvailable < state.filtered.length) {
+          lines.push(`深掘り解説なし: ${state.filtered.length - deepDiveAvailable}件`);
+        }
+        if (mode.includeDeepDive && state.deepDiveIndexLoaded && deepDiveAvailable > deepDiveLimit) {
+          lines.push(`上限超過: ${deepDiveAvailable}件が対象です。条件を絞ってください。`);
+        }
+        if (normalizeText(els.subjectSelect.value)) {
+          lines.push(`小項目別 ZIP 想定ファイル数: ${groups.length}件`);
+        } else {
+          lines.push("小項目別 ZIP は科目を選択すると有効になります。");
+        }
+        setStatus(
+          lines.join("\n"),
+          mode.includeDeepDive && (
+            deepDiveAvailable < state.filtered.length ||
+            (state.deepDiveIndexLoaded && deepDiveAvailable > deepDiveLimit)
+          )
+            ? "warn"
+            : ""
+        );
+      }
+
+      function resetControls() {
+        els.keywordInput.value = "";
+        els.subjectSelect.value = "";
+        updateSubtopicOptions();
+        els.examTypeSelect.value = "";
+        els.sessionFrom.value = "";
+        els.sessionTo.value = "";
+        els.serialFrom.value = "";
+        els.serialTo.value = "";
+        els.sortSelect.value = "serial_asc";
+        els.numberingSelect.value = "serial";
+        els.includeAnswer.checked = false;
+        els.includeExplanation.checked = false;
+        els.includeDeepDive.checked = false;
+        applyFilters();
+      }
+
+      function buildCurrentExportTitle() {
+        const subject = normalizeText(els.subjectSelect.value);
+        const subtopic = normalizeText(els.subtopicSelect.value);
+        const examType = normalizeText(els.examTypeSelect.value);
+        const parts = ["Ahakiプリント"];
+        if (subject) parts.push(subject);
+        if (subtopic) parts.push(subtopic);
+        if (examType) parts.push(examType);
+        return parts.join(" / ");
+      }
+
+      async function downloadCurrentTxt() {
+        if (!state.filtered.length) {
+          setStatus("TXT 保存できる問題がありません。", "warn");
+          return;
+        }
+        const mode = getExportMode();
+        if (mode.includeDeepDive) {
+          const limitCheck = await ensureDeepDiveExportWithinLimit();
+          if (limitCheck.reason === "missing_config") {
+            setStatus("深掘り解説を出力するには config.js の Supabase 設定が必要です。", "warn");
+            return;
+          }
+          if (!limitCheck.ok) {
+            setStatus(
+              `深掘り解説付き出力は最大 ${limitCheck.limit} 件です。\n現在 ${limitCheck.count} 件が対象です。検索条件を絞ってください。`,
+              "warn"
+            );
+            return;
+          }
+          setStatus(`深掘り解説を Supabase から取得中です... 0/${limitCheck.count}`);
+          try {
+            await ensureDeepDiveContentLoaded(state.filtered, (loaded, total) => {
+              setStatus(`深掘り解説を Supabase から取得中です... ${loaded}/${total}`);
+            });
+          } catch (error) {
+            console.error(error);
+            setStatus(`深掘り解説の取得に失敗しました。\n${error && error.message ? error.message : String(error)}`, "warn");
+            return;
+          }
+        }
+        const title = buildCurrentExportTitle();
+        const text = buildExportText(title, state.filtered, mode, buildFilterSummary());
+        const filename = `${sanitizeFilename(title)}_${formatLocalTimestamp()}.txt`;
+        downloadText(filename, text);
+        setStatus(`TXT を保存しました: ${filename}`);
+      }
+
+      function crc32(bytes) {
+        let crc = 0xffffffff;
+        for (let i = 0; i < bytes.length; i += 1) {
+          crc = CRC32_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+        }
+        return (crc ^ 0xffffffff) >>> 0;
+      }
+
+      function createBuffer(size) {
+        return new Uint8Array(new ArrayBuffer(size));
+      }
+
+      function writeDosDateTime(view, offset, date) {
+        const seconds = Math.floor(date.getSeconds() / 2);
+        const dosTime = (date.getHours() << 11) | (date.getMinutes() << 5) | seconds;
+        const dosDate = ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+        view.setUint16(offset, dosTime, true);
+        view.setUint16(offset + 2, dosDate, true);
+      }
+
+      function createZipBlob(files) {
+        const localParts = [];
+        const centralParts = [];
+        let offset = 0;
+        const now = new Date();
+
+        files.forEach((file) => {
+          const nameBytes = encoder.encode(file.name);
+          const dataBytes = encoder.encode(`\uFEFF${file.content}`);
+          const crc = crc32(dataBytes);
+
+          const localHeader = createBuffer(30);
+          const localView = new DataView(localHeader.buffer);
+          localView.setUint32(0, 0x04034b50, true);
+          localView.setUint16(4, 20, true);
+          localView.setUint16(6, 0x0800, true);
+          localView.setUint16(8, 0, true);
+          writeDosDateTime(localView, 10, now);
+          localView.setUint32(14, crc, true);
+          localView.setUint32(18, dataBytes.length, true);
+          localView.setUint32(22, dataBytes.length, true);
+          localView.setUint16(26, nameBytes.length, true);
+          localView.setUint16(28, 0, true);
+
+          localParts.push(localHeader, nameBytes, dataBytes);
+
+          const centralHeader = createBuffer(46);
+          const centralView = new DataView(centralHeader.buffer);
+          centralView.setUint32(0, 0x02014b50, true);
+          centralView.setUint16(4, 20, true);
+          centralView.setUint16(6, 20, true);
+          centralView.setUint16(8, 0x0800, true);
+          centralView.setUint16(10, 0, true);
+          writeDosDateTime(centralView, 12, now);
+          centralView.setUint32(16, crc, true);
+          centralView.setUint32(20, dataBytes.length, true);
+          centralView.setUint32(24, dataBytes.length, true);
+          centralView.setUint16(28, nameBytes.length, true);
+          centralView.setUint16(30, 0, true);
+          centralView.setUint16(32, 0, true);
+          centralView.setUint16(34, 0, true);
+          centralView.setUint16(36, 0, true);
+          centralView.setUint32(38, 0, true);
+          centralView.setUint32(42, offset, true);
+
+          centralParts.push(centralHeader, nameBytes);
+          offset += localHeader.length + nameBytes.length + dataBytes.length;
+        });
+
+        let centralSize = 0;
+        centralParts.forEach((part) => {
+          centralSize += part.length;
+        });
+
+        const endRecord = createBuffer(22);
+        const endView = new DataView(endRecord.buffer);
+        endView.setUint32(0, 0x06054b50, true);
+        endView.setUint16(4, 0, true);
+        endView.setUint16(6, 0, true);
+        endView.setUint16(8, files.length, true);
+        endView.setUint16(10, files.length, true);
+        endView.setUint32(12, centralSize, true);
+        endView.setUint32(16, offset, true);
+        endView.setUint16(20, 0, true);
+
+        return new Blob([...localParts, ...centralParts, endRecord], {
+          type: "application/zip",
+        });
+      }
+
+      function downloadBlob(filename, blob) {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      async function downloadSubtopicZip() {
+        const subject = normalizeText(els.subjectSelect.value);
+        if (!subject) {
+          setStatus("小項目・種別別 ZIP を保存するには科目を選択してください。", "warn");
+          return;
+        }
+        const groups = getSubtopicGroups();
+        if (!groups.length) {
+          setStatus("小項目・種別別 ZIP に入れる問題がありません。", "warn");
+          return;
+        }
+        const mode = getExportMode();
+        if (mode.includeDeepDive) {
+          const limitCheck = await ensureDeepDiveExportWithinLimit();
+          if (limitCheck.reason === "missing_config") {
+            setStatus("深掘り解説を出力するには config.js の Supabase 設定が必要です。", "warn");
+            return;
+          }
+          if (!limitCheck.ok) {
+            setStatus(
+              `深掘り解説付き出力は最大 ${limitCheck.limit} 件です。\n現在 ${limitCheck.count} 件が対象です。検索条件を絞ってください。`,
+              "warn"
+            );
+            return;
+          }
+          setStatus(`深掘り解説を Supabase から取得中です... 0/${limitCheck.count}`);
+          try {
+            await ensureDeepDiveContentLoaded(state.filtered, (loaded, total) => {
+              setStatus(`深掘り解説を Supabase から取得中です... ${loaded}/${total}`);
+            });
+          } catch (error) {
+            console.error(error);
+            setStatus(`深掘り解説の取得に失敗しました。\n${error && error.message ? error.message : String(error)}`, "warn");
+            return;
+          }
+        }
+        const baseSummary = buildFilterSummary();
+        const files = groups.map((group) => {
+          const title = `${subject} / ${group.subtopic} / ${group.examType}`;
+          const text = buildExportText(
+            title,
+            group.questions,
+            mode,
+            `${baseSummary} / 小項目別出力: ${group.subtopic} / 種別: ${group.examType}`
+          );
+          return {
+            name: `${sanitizeFilename(subject)}_${sanitizeFilename(group.subtopic)}_${sanitizeFilename(group.examType)}.txt`,
+            content: text,
+          };
+        });
+        const blob = createZipBlob(files);
+        const zipName = `${sanitizeFilename(subject)}_小項目種別別プリント_${formatLocalTimestamp()}.zip`;
+        downloadBlob(zipName, blob);
+        setStatus(`ZIP を保存しました: ${zipName}\nファイル数: ${files.length}`);
+      }
+
+      function registerEvents() {
+        els.subjectSelect.addEventListener("change", () => {
+          const currentSubtopic = normalizeText(els.subtopicSelect.value);
+          updateSubtopicOptions();
+          if (currentSubtopic) {
+            els.subtopicSelect.value = currentSubtopic;
+          }
+          applyFilters();
+        });
+        els.subtopicSelect.addEventListener("change", applyFilters);
+        els.examTypeSelect.addEventListener("change", applyFilters);
+        els.sortSelect.addEventListener("change", applyFilters);
+        els.numberingSelect.addEventListener("change", applyFilters);
+        els.includeAnswer.addEventListener("change", applyFilters);
+        els.includeExplanation.addEventListener("change", applyFilters);
+        els.includeDeepDive.addEventListener("change", applyFilters);
+        els.searchBtn.addEventListener("click", applyFilters);
+        els.resetBtn.addEventListener("click", resetControls);
+        els.downloadTxtBtn.addEventListener("click", downloadCurrentTxt);
+        els.downloadZipBtn.addEventListener("click", downloadSubtopicZip);
+
+        [
+          els.keywordInput,
+          els.sessionFrom,
+          els.sessionTo,
+          els.serialFrom,
+          els.serialTo,
+        ].forEach((element) => {
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              applyFilters();
+            }
+          });
+          element.addEventListener("blur", () => {
+            if (element === els.serialFrom || element === els.serialTo) {
+              element.value = normalizeSerialInput(element.value);
+            }
+          });
+        });
+      }
+
+      async function init() {
+        registerEvents();
+        try {
+          const rows = await loadQuestionsWithFallback();
+          state.questions = preprocessQuestions(rows);
+          rebuildSelectOptions();
+          state.ready = true;
+          if (supabaseClient) {
+            ensureDeepDiveIndexLoaded()
+              .then(() => {
+                if (state.ready) applyFilters();
+              })
+              .catch((error) => {
+                console.warn("deep dive index load failed", error);
+                if (state.ready) applyFilters();
+              });
+          }
+          applyFilters();
+          setStatus(`問題データを読み込みました。全 ${state.questions.length} 問です。`);
+        } catch (error) {
+          console.error(error);
+          state.ready = false;
+          setStatus(`読み込みに失敗しました。\n${error && error.message ? error.message : String(error)}`, "warn");
+          els.previewBody.innerHTML = "<tr><td class='empty' colspan='5'>データを読み込めませんでした。</td></tr>";
+        }
+        syncActionButtons();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
