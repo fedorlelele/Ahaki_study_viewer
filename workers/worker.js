@@ -171,6 +171,20 @@ async function handleAi(request, env) {
   if (path === "/ai/tts" && request.method === "POST") {
     return handleTtsSynthesis(request, env);
   }
+  if (path === "/ai/question_beginner_qa" && request.method === "GET") {
+    const serial = (url.searchParams.get("serial") || "").trim();
+    if (!serial) {
+      return jsonResponse({ message: "serial is required" }, 400);
+    }
+    return fetchQuestionBeginnerQa(env, serial);
+  }
+  if (path === "/ai/question_beginner_qa_batch" && request.method === "GET") {
+    const serials = normalizeQuestionSerialList(url.searchParams.get("serials") || "", 100);
+    if (!serials.length) {
+      return jsonResponse({ message: "serials are required" }, 400);
+    }
+    return fetchQuestionBeginnerQaBatch(env, serials);
+  }
   if (path === "/ai/question_qa") {
     if (request.method === "GET") {
       const serial = (url.searchParams.get("serial") || "").trim();
@@ -3361,6 +3375,99 @@ async function saveQuestionQa(env, record) {
   });
 }
 
+function normalizeQuestionBeginnerQaItems(items) {
+  const rawItems = Array.isArray(items) ? items : [];
+  return rawItems
+    .map((raw, index) => {
+      if (!raw || typeof raw !== "object") return null;
+      const focus = sanitizeAnalyticsText(raw.focus || "", 80);
+      const question = sanitizeAnalyticsText(raw.question || "", 120);
+      const answer = String(raw.answer || "").trim().slice(0, 1200);
+      const orderRaw = Number(raw.order);
+      const order = Number.isFinite(orderRaw) && orderRaw >= 1 ? Math.floor(orderRaw) : index + 1;
+      if (!question || !answer) return null;
+      return {
+        order,
+        focus,
+        question,
+        answer
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order)
+    .slice(0, 5);
+}
+
+function normalizeQuestionBeginnerQaRow(row) {
+  if (!row || typeof row !== "object") return null;
+  const serial = sanitizeAnalyticsText(row.serial || "", 32);
+  if (!serial) return null;
+  return {
+    serial,
+    items: normalizeQuestionBeginnerQaItems(row.items),
+    updated_at: row.updated_at || "",
+    prompt_version: sanitizeAnalyticsText(row.prompt_version || "", 40)
+  };
+}
+
+async function fetchQuestionBeginnerQa(env, serial) {
+  const safeSerial = sanitizeAnalyticsText(serial || "", 32);
+  if (!safeSerial) {
+    return jsonResponse({ message: "serial is required" }, 400);
+  }
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_beginner_qa?select=serial,items,updated_at,prompt_version&serial=eq.${encodeURIComponent(safeSerial)}&is_active=eq.true&limit=1`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json().catch(() => []);
+  const record = Array.isArray(rows) && rows.length ? normalizeQuestionBeginnerQaRow(rows[0]) : null;
+  return jsonResponse({ ok: true, item: record });
+}
+
+async function fetchQuestionBeginnerQaBatch(env, serials) {
+  const safeSerials = normalizeQuestionSerialList(serials, 100);
+  if (!safeSerials.length) {
+    return jsonResponse({ message: "serials are required" }, 400);
+  }
+  const resp = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/question_beginner_qa?select=serial,items,updated_at,prompt_version&serial=${encodeURIComponent(buildSupabaseTextInFilter(safeSerials))}&is_active=eq.true&limit=${safeSerials.length}`,
+    {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  if (!resp.ok) {
+    const detail = await resp.text();
+    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+  }
+  const rows = await resp.json().catch(() => []);
+  const itemsBySerial = {};
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const normalized = normalizeQuestionBeginnerQaRow(row);
+    if (!normalized) return;
+    itemsBySerial[normalized.serial] = normalized;
+  });
+  return jsonResponse({
+    ok: true,
+    requested: safeSerials.length,
+    count: Object.keys(itemsBySerial).length,
+    items_by_serial: itemsBySerial
+  });
+}
+
 async function fetchQuestionQa(env, serial) {
   const resp = await fetch(
     `${env.SUPABASE_URL}/rest/v1/question_qa?select=id,serial,question,answer,view_count,like_count,created_at&serial=eq.${encodeURIComponent(serial)}&status=eq.ok&order=like_count.desc&order=view_count.desc&order=created_at.desc`,
@@ -5104,9 +5211,30 @@ function normalizePracticeQuestionIds(values) {
   return Array.from(dedup);
 }
 
+function normalizeQuestionSerialList(values, maxCount = 100) {
+  const list = Array.isArray(values) ? values : String(values || "").split(",");
+  const dedup = new Set();
+  const out = [];
+  list.forEach((value) => {
+    const serial = sanitizeAnalyticsText(value, 32);
+    if (!serial || dedup.has(serial)) {
+      return;
+    }
+    dedup.add(serial);
+    out.push(serial);
+  });
+  return out.slice(0, Math.max(1, maxCount));
+}
+
 function buildSupabaseInFilter(ids) {
   const values = normalizePracticeQuestionIds(ids);
   return `in.(${values.join(",")})`;
+}
+
+function buildSupabaseTextInFilter(values) {
+  const items = normalizeQuestionSerialList(values, 100)
+    .map((value) => `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`);
+  return `in.(${items.join(",")})`;
 }
 
 async function safeLogAiUsage(env, payload) {

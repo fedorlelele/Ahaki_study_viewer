@@ -1734,10 +1734,12 @@
 	        ,practiceAdminSelected: new Set()
 	        ,deepDiveSerials: new Set()
 	        ,deepDiveSerialsLoaded: false
-	        ,deepDiveLatestBySerial: {}
+        ,deepDiveLatestBySerial: {}
         ,qaSerials: new Set()
         ,qaSerialsLoaded: false
         ,qaLatestBySerial: {}
+        ,beginnerQaBySerial: {}
+        ,beginnerQaLoaded: new Set()
         ,tagCatalogByTag: {}
         ,tagEquivalentByNormalized: {}
         ,tagViewCounts: {}
@@ -3813,6 +3815,66 @@
       function ensureQaSerialsLoaded() {
         if (state.qaSerialsLoaded) return Promise.resolve();
         return loadQaSerials();
+      }
+
+      function normalizeBeginnerQaItems(items) {
+        return (Array.isArray(items) ? items : [])
+          .map((item, index) => {
+            if (!item || typeof item !== "object") return null;
+            const question = String(item.question || "").trim();
+            const answer = String(item.answer || "").trim();
+            const focus = String(item.focus || "").trim();
+            const orderRaw = Number(item.order);
+            const order = Number.isFinite(orderRaw) && orderRaw >= 1 ? Math.floor(orderRaw) : index + 1;
+            if (!question || !answer) return null;
+            return {
+              order,
+              focus: focus.slice(0, 80),
+              question: question.slice(0, 120),
+              answer: answer.slice(0, 1200)
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.order - b.order)
+          .slice(0, 5);
+      }
+
+      async function ensureBeginnerQaLoaded(serials) {
+        const pending = Array.from(new Set((Array.isArray(serials) ? serials : []).filter(Boolean)))
+          .filter((serial) => !state.beginnerQaLoaded.has(serial));
+        if (!pending.length) return;
+        if (!window.AI_API_BASE) {
+          pending.forEach((serial) => {
+            state.beginnerQaBySerial[serial] = [];
+            state.beginnerQaLoaded.add(serial);
+          });
+          return;
+        }
+        const chunkSize = 50;
+        for (let i = 0; i < pending.length; i += chunkSize) {
+          const chunk = pending.slice(i, i + chunkSize);
+          try {
+            const resp = await fetch(
+              `${window.AI_API_BASE}/ai/question_beginner_qa_batch?serials=${encodeURIComponent(chunk.join(","))}`
+            );
+            if (!resp.ok) throw new Error("API error");
+            const payload = await resp.json();
+            const itemsBySerial = payload && payload.items_by_serial && typeof payload.items_by_serial === "object"
+              ? payload.items_by_serial
+              : {};
+            chunk.forEach((serial) => {
+              const row = itemsBySerial[serial];
+              state.beginnerQaBySerial[serial] = row ? normalizeBeginnerQaItems(row.items) : [];
+              state.beginnerQaLoaded.add(serial);
+            });
+          } catch (err) {
+            console.warn("やさしいQ&Aの取得に失敗しました。", err);
+            chunk.forEach((serial) => {
+              state.beginnerQaBySerial[serial] = [];
+              state.beginnerQaLoaded.add(serial);
+            });
+          }
+        }
       }
 
       function loadUserReadme() {
@@ -6591,11 +6653,51 @@
           }
           card.appendChild(explanation);
 
+          const beginnerQaItems = normalizeBeginnerQaItems(state.beginnerQaBySerial[q.serial]);
+          if (beginnerQaItems.length) {
+            const beginnerQaSection = document.createElement("div");
+            beginnerQaSection.className = "deep-dive-panel";
+            const beginnerQaHeader = document.createElement("div");
+            beginnerQaHeader.className = "note";
+            beginnerQaHeader.textContent = `やさしいQ&A (${beginnerQaItems.length}件)`;
+            beginnerQaSection.appendChild(beginnerQaHeader);
+            const beginnerQaList = document.createElement("div");
+            beginnerQaItems.forEach((item) => {
+              const entry = document.createElement("div");
+              entry.className = "proposal-item";
+              const qBtn = document.createElement("button");
+              qBtn.className = "chip-link";
+              qBtn.textContent = item.question || "質問";
+              const meta = document.createElement("div");
+              meta.className = "note qa-meta";
+              if (item.focus) {
+                const focus = document.createElement("span");
+                focus.textContent = item.focus;
+                meta.appendChild(focus);
+              }
+              const aBox = document.createElement("div");
+              aBox.className = "note qa-answer";
+              aBox.hidden = true;
+              qBtn.addEventListener("click", () => {
+                aBox.hidden = !aBox.hidden;
+              });
+              renderMarkdownToElement(aBox, item.answer || "");
+              entry.appendChild(qBtn);
+              if (meta.childNodes.length) {
+                entry.appendChild(meta);
+              }
+              entry.appendChild(aBox);
+              beginnerQaList.appendChild(entry);
+            });
+            beginnerQaSection.appendChild(beginnerQaList);
+            card.appendChild(beginnerQaSection);
+          }
+
           const qaSection = document.createElement("div");
           qaSection.className = "deep-dive-panel";
           const qaHeader = document.createElement("div");
           qaHeader.className = "note";
-          qaHeader.textContent = "Q&A（全ユーザーの質問と回答）";
+          qaHeader.textContent = "みんなのQ&A（全ユーザーの質問と回答）";
           qaSection.appendChild(qaHeader);
           const qaList = document.createElement("div");
           qaSection.appendChild(qaList);
@@ -8164,6 +8266,7 @@
             await ensureEditRequestsLoaded(pageItems.map((item) => item.serial));
           }
           await ensureAnswerStatsLoaded(pageItems.map((item) => item.serial));
+          await ensureBeginnerQaLoaded(pageItems.map((item) => item.serial));
           if (isStatSort && !statsLoaded && state.answerStatsLoaded.has("*")) {
             state.pendingStatSortRefresh = true;
             flushDeferredRenderIfSafe();

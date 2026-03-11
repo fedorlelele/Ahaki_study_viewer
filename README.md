@@ -229,6 +229,27 @@ python scripts/run_gemini_deep_dive.py --limit 20 --api-key-source paid
 - `--max-retries`: API/出力形式エラー時の再試行回数
 - `--dry-run`: 1件分のプロンプトを表示して終了
 
+### 10.2 初学者向けやさしいQ&Aの一括生成 (CLI)
+
+初学者向けの事前生成Q&A（`question_beginner_qa`）を Gemini で生成し、Supabase に直接登録します。  
+各問題につき **5件固定** のQ&Aを保存し、Pages側では静的JSONに埋め込まず API で取得します。
+
+事前に Supabase SQL Editor で `workers/sql/question_beginner_qa_tables.sql` を実行してください。
+
+実行例:
+
+```bash
+python scripts/run_gemini_beginner_qa.py --limit 20 --api-key-source free
+```
+
+主なオプション:
+
+- `--serials`: 対象シリアル指定（例: `A01-001,A01-002` or `A01-001..A01-020`）
+- `--exam-type` / `--exam-session` / `--subject`: 生成対象フィルタ
+- `--force`: 既存のQ&Aがある問題も再生成する
+- `--prompt-version`: Supabase に保存する prompt version
+- `--dry-run`: 1件分のプロンプトを表示して終了
+
 ## 11. バックアップ
 
 最重要は `output/ahaki.sqlite` です。  

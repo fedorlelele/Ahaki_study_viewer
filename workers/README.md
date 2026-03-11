@@ -45,6 +45,8 @@
 
 主な問題別AI API:
 
+- `GET /ai/question_beginner_qa?serial=...`
+- `GET /ai/question_beginner_qa_batch?serials=A01-001,A01-002,...`
 - `GET /ai/question_qa?serial=...`
 - `POST /ai/question_qa`
 - `GET /ai/practice_questions?serial=...`
@@ -85,6 +87,7 @@ window.AI_API_BASE = "https://<worker>.workers.dev";
   - `workers/sql/analytics_events.sql`
   - `workers/sql/ai_feedback_events.sql`
 - タグ学習機能を使う場合は `workers/sql/tag_study_tables.sql` を Supabase SQL Editor で実行してください。
+- 初学者向けの事前生成Q&Aを使う場合は `workers/sql/question_beginner_qa_tables.sql` を Supabase SQL Editor で実行してください。
 - 問題別の練習問題機能を使う場合は `workers/sql/practice_question_tables.sql` を Supabase SQL Editor で実行してください。
 - 問題別の川柳機能を使う場合は `workers/sql/question_senryu_tables.sql` を Supabase SQL Editor で実行してください。
 - teacher/admin が生成した練習問題は初期状態で非公開です（生成者本人のみ閲覧可）。

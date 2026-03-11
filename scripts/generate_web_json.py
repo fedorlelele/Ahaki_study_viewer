@@ -473,7 +473,6 @@ def main():
     tags = load_tags(conn)
     subtopics = load_subtopics(conn)
     deep_dive = load_deep_dive(conn) if args.embed_deep_dive else {}
-    qa_map = load_question_qa(conn)
     (
         tag_descriptions,
         tag_alias_to_canonical,
@@ -512,7 +511,6 @@ def main():
             "tags": list(dict.fromkeys(tags.get(qid, []))),
             "subtopics": subtopics.get(qid, []),
             "deep_dive": (deep_dive.get(q["serial"]) or None) if args.embed_deep_dive else None,
-            "qa_list": qa_map.get(q["serial"], []),
         }
         output.append(record)
 
