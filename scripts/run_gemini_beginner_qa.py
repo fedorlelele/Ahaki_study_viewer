@@ -448,25 +448,51 @@ def validate_beginner_qa_items(items):
     return ""
 
 
-def retry_wait_seconds(error_text, base_wait):
-    text = str(error_text or "")
-    marker = "retry in "
-    idx = text.lower().find(marker)
-    if idx < 0:
-        return float(base_wait)
-    tail = text[idx + len(marker) :]
-    digits = []
-    for ch in tail:
-        if ch.isdigit() or ch == ".":
-            digits.append(ch)
+def parse_duration_seconds(text):
+    total = 0.0
+    matched = False
+    for value_text, unit in re.findall(r"(\d+(?:\.\d+)?)([hms])", str(text or "").lower()):
+        try:
+            value = float(value_text)
+        except Exception:
+            continue
+        matched = True
+        if unit == "h":
+            total += value * 3600
+        elif unit == "m":
+            total += value * 60
         else:
-            break
-    if not digits:
+            total += value
+    return total if matched else 0.0
+
+
+def extract_retry_delay_seconds(error_text):
+    text = str(error_text or "")
+    match = re.search(r'"retryDelay"\s*:\s*"([0-9.]+)s"', text, flags=re.IGNORECASE)
+    if match:
+        try:
+            return float(match.group(1))
+        except Exception:
+            return 0.0
+    match = re.search(r"retry in\s+([0-9hms.]+)", text, flags=re.IGNORECASE)
+    if match:
+        return parse_duration_seconds(match.group(1))
+    return 0.0
+
+
+def is_daily_quota_exhausted(error_text):
+    text = str(error_text or "").lower()
+    return (
+        "generate_requests_per_model_per_day" in text
+        or "generaterequestsperdayperprojectpermodel" in text
+    )
+
+
+def retry_wait_seconds(error_text, base_wait):
+    retry_delay = extract_retry_delay_seconds(error_text)
+    if retry_delay <= 0:
         return float(base_wait)
-    try:
-        return max(float(base_wait), float("".join(digits)) + 0.5)
-    except Exception:
-        return float(base_wait)
+    return max(float(base_wait), retry_delay + 0.5)
 
 
 def build_supabase_text_in_filter(values):
@@ -569,6 +595,16 @@ def generate_beginner_qa_record(item, api_key, model, args, cfg):
         payload, api_error = call_gemini(api_key, model, prompt, args.max_output_tokens)
         if api_error:
             error = api_error
+            if is_daily_quota_exhausted(error):
+                return {
+                    "ok": False,
+                    "serial": item["serial"],
+                    "subject": item["subject"],
+                    "error": error,
+                    "raw_text": raw_text,
+                    "stop_run": True,
+                    "retry_after_seconds": extract_retry_delay_seconds(error),
+                }
         else:
             raw_text = extract_text(payload)
             items = parse_beginner_qa_response(raw_text)
@@ -736,6 +772,7 @@ def main():
 
     inserted = 0
     failed = []
+    stop_requested = None
     with out_path.open("w", encoding="utf-8") as out_file:
         if max_workers == 1:
             for idx, item in enumerate(targets, start=1):
@@ -762,11 +799,24 @@ def main():
                     progress["last_serial"] = item["serial"]
                     progress["last_status"] = "failed"
                     progress["last_error"] = result.get("error") or "unknown error"
+                    if result.get("stop_run"):
+                        progress["last_status"] = "stopped"
+                        progress["stop_reason"] = "daily_quota_exhausted"
                     write_progress_file(progress_path, progress)
                     log_stderr(
                         f"[{progress['completed']}/{progress['total']}] failed serial={item['serial']} "
                         f"ok={progress['succeeded']} fail={progress['failed']} error={result.get('error') or 'unknown error'}"
                     )
+                    if result.get("stop_run"):
+                        stop_requested = result
+                        retry_after = float(result.get("retry_after_seconds") or 0.0)
+                        if retry_after > 0:
+                            log_stderr(
+                                f"stopping remaining targets: daily quota exhausted, retry after about {int(retry_after)} seconds"
+                            )
+                        else:
+                            log_stderr("stopping remaining targets: daily quota exhausted")
+                        break
                     continue
                 inserted += 1
                 out_row = {
@@ -794,12 +844,15 @@ def main():
                     f"items={len(result['items'])} ok={progress['succeeded']} fail={progress['failed']}"
                 )
         else:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            try:
                 future_map = {
                     executor.submit(generate_beginner_qa_record, item, api_key, model, args, cfg): (idx, item)
                     for idx, item in enumerate(targets, start=1)
                 }
                 for future in as_completed(future_map):
+                    if future.cancelled():
+                        continue
                     idx, item = future_map[future]
                     try:
                         result = future.result()
@@ -833,11 +886,28 @@ def main():
                         progress["last_serial"] = item["serial"]
                         progress["last_status"] = "failed"
                         progress["last_error"] = result.get("error") or "unknown error"
+                        if result.get("stop_run"):
+                            progress["last_status"] = "stopped"
+                            progress["stop_reason"] = "daily_quota_exhausted"
                         write_progress_file(progress_path, progress)
                         log_stderr(
                             f"[{progress['completed']}/{progress['total']}] failed serial={item['serial']} "
                             f"ok={progress['succeeded']} fail={progress['failed']} error={result.get('error') or 'unknown error'}"
                         )
+                        if result.get("stop_run"):
+                            stop_requested = result
+                            for other_future in future_map:
+                                if other_future is future:
+                                    continue
+                                other_future.cancel()
+                            retry_after = float(result.get("retry_after_seconds") or 0.0)
+                            if retry_after > 0:
+                                log_stderr(
+                                    f"stopping remaining targets: daily quota exhausted, retry after about {int(retry_after)} seconds"
+                                )
+                            else:
+                                log_stderr("stopping remaining targets: daily quota exhausted")
+                            break
                         continue
                     inserted += 1
                     out_row = {
@@ -864,8 +934,17 @@ def main():
                         f"[{progress['completed']}/{progress['total']}] saved serial={result['serial']} "
                         f"items={len(result['items'])} ok={progress['succeeded']} fail={progress['failed']}"
                     )
+            finally:
+                executor.shutdown(wait=True, cancel_futures=True)
 
     log_stdout(f"done: inserted={inserted}, failed={len(failed)}, saved={out_path}")
+    if stop_requested:
+        retry_after = float(stop_requested.get("retry_after_seconds") or 0.0)
+        if retry_after > 0:
+            log_stderr(f"stopped early: daily quota exhausted. retry after about {int(retry_after)} seconds")
+        else:
+            log_stderr("stopped early: daily quota exhausted")
+        return 1
     if failed:
         log_stderr("failed serials:")
         for item in failed[:20]:

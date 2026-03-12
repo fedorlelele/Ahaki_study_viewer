@@ -1,6 +1,8 @@
 import unittest
 
 from scripts.run_gemini_beginner_qa import (
+    extract_retry_delay_seconds,
+    is_daily_quota_exhausted,
     parse_beginner_qa_response,
     validate_beginner_qa_items,
 )
@@ -29,6 +31,28 @@ class RunGeminiBeginnerQaTests(unittest.TestCase):
             {"order": 1, "focus": "決め手", "question": "どこを見るの？", "answer": "ここを見ると分かります。"},
         ]
         self.assertIn("exactly 5", validate_beginner_qa_items(items))
+
+    def test_extract_retry_delay_seconds_from_quota_error(self):
+        text = """
+        HTTP 429: {
+          "error": {
+            "message": "Please retry in 22h22m15.181069156s.",
+            "details": [
+              {
+                "@type": "type.googleapis.com/google.rpc.RetryInfo",
+                "retryDelay": "80535s"
+              }
+            ]
+          }
+        }
+        """
+        self.assertEqual(extract_retry_delay_seconds(text), 80535.0)
+
+    def test_is_daily_quota_exhausted_detects_per_day_metric(self):
+        text = """
+        Quota exceeded for metric: generativelanguage.googleapis.com/generate_requests_per_model_per_day
+        """
+        self.assertTrue(is_daily_quota_exhausted(text))
 
 
 if __name__ == "__main__":
