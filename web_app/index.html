@@ -6653,8 +6653,10 @@
           }
           card.appendChild(explanation);
 
-          const beginnerQaItems = normalizeBeginnerQaItems(state.beginnerQaBySerial[q.serial]);
-          if (beginnerQaItems.length) {
+          const beginnerQaItems = showExplanation
+            ? normalizeBeginnerQaItems(state.beginnerQaBySerial[q.serial])
+            : [];
+          if (showExplanation && beginnerQaItems.length) {
             const beginnerQaSection = document.createElement("div");
             beginnerQaSection.className = "deep-dive-panel";
             const beginnerQaHeader = document.createElement("div");
@@ -8266,7 +8268,9 @@
             await ensureEditRequestsLoaded(pageItems.map((item) => item.serial));
           }
           await ensureAnswerStatsLoaded(pageItems.map((item) => item.serial));
-          await ensureBeginnerQaLoaded(pageItems.map((item) => item.serial));
+          if (showExplanation) {
+            await ensureBeginnerQaLoaded(pageItems.map((item) => item.serial));
+          }
           if (isStatSort && !statsLoaded && state.answerStatsLoaded.has("*")) {
             state.pendingStatSortRefresh = true;
             flushDeferredRenderIfSafe();

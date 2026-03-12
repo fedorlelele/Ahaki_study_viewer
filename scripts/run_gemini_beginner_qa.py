@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import os
 import re
@@ -28,6 +29,14 @@ def load_env(path):
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
             os.environ[key] = value
+
+
+def log_stdout(message):
+    print(message, flush=True)
+
+
+def log_stderr(message):
+    print(message, file=sys.stderr, flush=True)
 
 
 def normalize_digits(text):
@@ -198,6 +207,8 @@ def select_candidates(conn, args):
     order_sql = "ORDER BY q.serial"
     if args.order == "new":
         order_sql = "ORDER BY q.exam_session DESC, q.serial DESC"
+    elif args.order == "serial_desc":
+        order_sql = "ORDER BY q.serial DESC"
 
     rows = conn.execute(
         f"""
@@ -542,6 +553,70 @@ def upsert_beginner_qa(cfg, serial, items, model, prompt_version):
         return "", f"Request error: {err.__class__.__name__}: {err}"
 
 
+def write_progress_file(path, payload):
+    Path(path).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def generate_beginner_qa_record(item, api_key, model, args, cfg):
+    prompt = build_beginner_qa_prompt(item)
+    items = []
+    raw_text = ""
+    error = ""
+    for attempt in range(args.max_retries + 1):
+        payload, api_error = call_gemini(api_key, model, prompt, args.max_output_tokens)
+        if api_error:
+            error = api_error
+        else:
+            raw_text = extract_text(payload)
+            items = parse_beginner_qa_response(raw_text)
+            validation_error = validate_beginner_qa_items(items)
+            if not validation_error:
+                error = ""
+                break
+            error = f"format error: {validation_error}"
+        if attempt >= args.max_retries:
+            return {
+                "ok": False,
+                "serial": item["serial"],
+                "subject": item["subject"],
+                "error": error,
+                "raw_text": raw_text,
+            }
+        wait = retry_wait_seconds(error, args.retry_sleep_seconds)
+        time.sleep(wait)
+
+    _, save_error = upsert_beginner_qa(
+        cfg,
+        item["serial"],
+        items,
+        model=model,
+        prompt_version=args.prompt_version,
+    )
+    if save_error:
+        return {
+            "ok": False,
+            "serial": item["serial"],
+            "subject": item["subject"],
+            "error": f"save failed: {save_error}",
+            "raw_text": raw_text,
+        }
+    if args.sleep_seconds > 0:
+        time.sleep(args.sleep_seconds)
+    return {
+        "ok": True,
+        "serial": item["serial"],
+        "subject": item["subject"],
+        "items": items,
+        "model": model,
+        "prompt_version": args.prompt_version,
+        "raw_text": raw_text,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Generate beginner-friendly Q&A via Gemini and save to Supabase."
@@ -549,7 +624,12 @@ def parse_args():
     parser.add_argument("--db", default="output/ahaki.sqlite", help="Path to SQLite DB.")
     parser.add_argument("--limit", type=int, default=20, help="Max questions to generate when --serials is empty.")
     parser.add_argument("--serials", default="", help="Comma-separated serials or range (e.g. A01-001..A01-020).")
-    parser.add_argument("--order", choices=["new", "serial"], default="new", help="Order for auto selection.")
+    parser.add_argument(
+        "--order",
+        choices=["new", "serial", "serial_desc"],
+        default="new",
+        help="Order for auto selection.",
+    )
     parser.add_argument("--exam-type", default="", help="Filter by exam type code (A/B).")
     parser.add_argument("--exam-session", type=int, default=0, help="Filter by exam session number.")
     parser.add_argument("--subject", default="", help="Filter by subject name.")
@@ -572,8 +652,10 @@ def parse_args():
     parser.add_argument("--max-retries", type=int, default=3, help="Retries per target when API/format error occurs.")
     parser.add_argument("--retry-sleep-seconds", type=float, default=20.0, help="Base wait seconds before retry.")
     parser.add_argument("--sleep-seconds", type=float, default=1.2, help="Sleep between successful requests.")
+    parser.add_argument("--max-workers", type=int, default=1, help="Concurrent Gemini/Supabase workers.")
     parser.add_argument("--output-dir", default="output/gemini_batches", help="Output directory for JSONL log.")
     parser.add_argument("--out", default="", help="Output JSONL path (overrides --output-dir).")
+    parser.add_argument("--progress-file", default="", help="Progress JSON path (default: alongside --out).")
     parser.add_argument("--dry-run", action="store_true", help="Print first prompt and exit without API calls.")
     return parser.parse_args()
 
@@ -608,12 +690,13 @@ def main():
         print("No questions matched (already generated or filters returned none).")
         return 0
 
-    print(f"targets={len(targets)}")
+    max_workers = max(1, int(args.max_workers or 1))
+    log_stdout(f"targets={len(targets)} max_workers={max_workers}")
     if args.dry_run:
         sample = targets[0]
-        print(f"sample_serial={sample['serial']}")
-        print("----- prompt preview -----")
-        print(build_beginner_qa_prompt(sample))
+        log_stdout(f"sample_serial={sample['serial']}")
+        log_stdout("----- prompt preview -----")
+        log_stdout(build_beginner_qa_prompt(sample))
         return 0
 
     api_key, key_label, route_mode = resolve_api_key(args)
@@ -624,89 +707,172 @@ def main():
         )
         return 1
     model = resolve_model(args, route_mode)
-    print(f"API key source: {key_label}")
-    print(f"Model: {model}")
+    log_stdout(f"API key source: {key_label}")
+    log_stdout(f"Model: {model}")
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     out_path = Path(args.out) if args.out else Path(args.output_dir) / f"beginner_qa_batch_filled_{ts}.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    progress_path = Path(args.progress_file) if args.progress_file else out_path.with_suffix(".progress.json")
+
+    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    progress = {
+        "started_at": started_at,
+        "updated_at": started_at,
+        "total": len(targets),
+        "completed": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "remaining": len(targets),
+        "max_workers": max_workers,
+        "out_path": str(out_path),
+        "last_serial": "",
+        "last_status": "",
+        "last_error": "",
+    }
+    write_progress_file(progress_path, progress)
+    log_stdout(f"out_path={out_path}")
+    log_stdout(f"progress_file={progress_path}")
 
     inserted = 0
+    failed = []
     with out_path.open("w", encoding="utf-8") as out_file:
-        for idx, item in enumerate(targets, start=1):
-            prompt = build_beginner_qa_prompt(item)
-            items = []
-            raw_text = ""
-            error = ""
-
-            for attempt in range(args.max_retries + 1):
-                payload, api_error = call_gemini(api_key, model, prompt, args.max_output_tokens)
-                if api_error:
-                    error = api_error
-                else:
-                    raw_text = extract_text(payload)
-                    items = parse_beginner_qa_response(raw_text)
-                    validation_error = validate_beginner_qa_items(items)
-                    if not validation_error:
-                        error = ""
-                        break
-                    error = f"format error: {validation_error}"
-
-                if attempt >= args.max_retries:
-                    print(
-                        f"Failed serial={item['serial']} after retries. last_error={error}",
-                        file=sys.stderr,
+        if max_workers == 1:
+            for idx, item in enumerate(targets, start=1):
+                result = generate_beginner_qa_record(item, api_key, model, args, cfg)
+                if not result.get("ok"):
+                    failed.append({"serial": item["serial"], "error": result.get("error") or "unknown error"})
+                    out_file.write(
+                        json.dumps(
+                            {
+                                "serial": item["serial"],
+                                "subject": item["subject"],
+                                "error": result.get("error") or "unknown error",
+                                "raw_text": result.get("raw_text") or "",
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n"
                     )
-                    print(
-                        f"partial: inserted={inserted}, saved={out_path}",
-                        file=sys.stderr,
+                    out_file.flush()
+                    progress["completed"] += 1
+                    progress["failed"] += 1
+                    progress["remaining"] = max(0, progress["total"] - progress["completed"])
+                    progress["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    progress["last_serial"] = item["serial"]
+                    progress["last_status"] = "failed"
+                    progress["last_error"] = result.get("error") or "unknown error"
+                    write_progress_file(progress_path, progress)
+                    log_stderr(
+                        f"[{progress['completed']}/{progress['total']}] failed serial={item['serial']} "
+                        f"ok={progress['succeeded']} fail={progress['failed']} error={result.get('error') or 'unknown error'}"
                     )
-                    return 1
-                wait = retry_wait_seconds(error, args.retry_sleep_seconds)
-                print(
-                    f"[{idx}/{len(targets)}] {item['serial']} retry {attempt + 1}/{args.max_retries}: {error}"
+                    continue
+                inserted += 1
+                out_row = {
+                    "serial": result["serial"],
+                    "subject": result["subject"],
+                    "items": result["items"],
+                    "model": result["model"],
+                    "prompt_version": result["prompt_version"],
+                    "api_key_source": key_label,
+                    "generated_at": result["generated_at"],
+                    "raw_text": result["raw_text"],
+                }
+                out_file.write(json.dumps(out_row, ensure_ascii=False) + "\n")
+                out_file.flush()
+                progress["completed"] += 1
+                progress["succeeded"] += 1
+                progress["remaining"] = max(0, progress["total"] - progress["completed"])
+                progress["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                progress["last_serial"] = result["serial"]
+                progress["last_status"] = "saved"
+                progress["last_error"] = ""
+                write_progress_file(progress_path, progress)
+                log_stdout(
+                    f"[{progress['completed']}/{progress['total']}] saved serial={result['serial']} "
+                    f"items={len(result['items'])} ok={progress['succeeded']} fail={progress['failed']}"
                 )
-                print(f"  waiting {wait:.1f}s")
-                time.sleep(wait)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_map = {
+                    executor.submit(generate_beginner_qa_record, item, api_key, model, args, cfg): (idx, item)
+                    for idx, item in enumerate(targets, start=1)
+                }
+                for future in as_completed(future_map):
+                    idx, item = future_map[future]
+                    try:
+                        result = future.result()
+                    except Exception as err:  # pragma: no cover - defensive path
+                        result = {
+                            "ok": False,
+                            "serial": item["serial"],
+                            "subject": item["subject"],
+                            "error": f"worker failed: {err}",
+                            "raw_text": "",
+                        }
+                    if not result.get("ok"):
+                        failed.append({"serial": item["serial"], "error": result.get("error") or "unknown error"})
+                        out_file.write(
+                            json.dumps(
+                                {
+                                    "serial": item["serial"],
+                                    "subject": item["subject"],
+                                    "error": result.get("error") or "unknown error",
+                                    "raw_text": result.get("raw_text") or "",
+                                },
+                                ensure_ascii=False,
+                            )
+                            + "\n"
+                        )
+                        out_file.flush()
+                        progress["completed"] += 1
+                        progress["failed"] += 1
+                        progress["remaining"] = max(0, progress["total"] - progress["completed"])
+                        progress["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        progress["last_serial"] = item["serial"]
+                        progress["last_status"] = "failed"
+                        progress["last_error"] = result.get("error") or "unknown error"
+                        write_progress_file(progress_path, progress)
+                        log_stderr(
+                            f"[{progress['completed']}/{progress['total']}] failed serial={item['serial']} "
+                            f"ok={progress['succeeded']} fail={progress['failed']} error={result.get('error') or 'unknown error'}"
+                        )
+                        continue
+                    inserted += 1
+                    out_row = {
+                        "serial": result["serial"],
+                        "subject": result["subject"],
+                        "items": result["items"],
+                        "model": result["model"],
+                        "prompt_version": result["prompt_version"],
+                        "api_key_source": key_label,
+                        "generated_at": result["generated_at"],
+                        "raw_text": result["raw_text"],
+                    }
+                    out_file.write(json.dumps(out_row, ensure_ascii=False) + "\n")
+                    out_file.flush()
+                    progress["completed"] += 1
+                    progress["succeeded"] += 1
+                    progress["remaining"] = max(0, progress["total"] - progress["completed"])
+                    progress["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    progress["last_serial"] = result["serial"]
+                    progress["last_status"] = "saved"
+                    progress["last_error"] = ""
+                    write_progress_file(progress_path, progress)
+                    log_stdout(
+                        f"[{progress['completed']}/{progress['total']}] saved serial={result['serial']} "
+                        f"items={len(result['items'])} ok={progress['succeeded']} fail={progress['failed']}"
+                    )
 
-            _, save_error = upsert_beginner_qa(
-                cfg,
-                item["serial"],
-                items,
-                model=model,
-                prompt_version=args.prompt_version,
-            )
-            if save_error:
-                print(
-                    f"Failed serial={item['serial']} while saving to Supabase: {save_error}",
-                    file=sys.stderr,
-                )
-                print(
-                    f"partial: inserted={inserted}, saved={out_path}",
-                    file=sys.stderr,
-                )
-                return 1
-
-            inserted += 1
-            out_row = {
-                "serial": item["serial"],
-                "subject": item["subject"],
-                "items": items,
-                "model": model,
-                "prompt_version": args.prompt_version,
-                "api_key_source": key_label,
-                "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "raw_text": raw_text,
-            }
-            out_file.write(json.dumps(out_row, ensure_ascii=False) + "\n")
-            out_file.flush()
-            print(
-                f"[{idx}/{len(targets)}] saved serial={item['serial']} items={len(items)}"
-            )
-            if args.sleep_seconds > 0 and idx < len(targets):
-                time.sleep(args.sleep_seconds)
-
-    print(f"done: inserted={inserted}, saved={out_path}")
+    log_stdout(f"done: inserted={inserted}, failed={len(failed)}, saved={out_path}")
+    if failed:
+        log_stderr("failed serials:")
+        for item in failed[:20]:
+            log_stderr(f"  {item['serial']}: {item['error']}")
+        if len(failed) > 20:
+            log_stderr(f"  ... and {len(failed) - 20} more")
+        return 1
     return 0
 
 

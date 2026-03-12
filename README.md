@@ -247,8 +247,27 @@ python scripts/run_gemini_beginner_qa.py --limit 20 --api-key-source free
 - `--serials`: 対象シリアル指定（例: `A01-001,A01-002` or `A01-001..A01-020`）
 - `--exam-type` / `--exam-session` / `--subject`: 生成対象フィルタ
 - `--force`: 既存のQ&Aがある問題も再生成する
+- `--order serial_desc`: シリアルの大きい順で処理する
+- `--max-workers 4`: Gemini/Supabase を並列実行する
 - `--prompt-version`: Supabase に保存する prompt version
 - `--dry-run`: 1件分のプロンプトを表示して終了
+
+実行例:
+
+```bash
+# 未登録の問題を新しい順に20件、paidキーで並列4本
+python scripts/run_gemini_beginner_qa.py --limit 20 --order serial_desc --api-key-source paid --max-workers 4 --sleep-seconds 0
+
+# 未登録の全問題を新しい順に、paidキーで並列4本
+python scripts/run_gemini_beginner_qa.py --limit 0 --order serial_desc --api-key-source paid --max-workers 4 --sleep-seconds 0
+```
+
+`429` などのレート制限が出る場合は、`--max-workers 2` か `--max-workers 3` に下げてください。
+実行中は標準出力に `[完了件数/総件数]` が逐次出ます。加えて、同じフォルダに `*.progress.json` が作られるので、別ターミナルから進捗確認できます。
+
+```bash
+cat output/gemini_batches/beginner_qa_batch_filled_YYYYMMDD_HHMMSS.progress.json
+```
 
 ## 11. バックアップ
 
