@@ -816,6 +816,13 @@
       .card-actions details.inline > summary.inline-summary {
         min-height: 40px;
       }
+      .card-menu-panel {
+        min-width: 220px;
+      }
+      .card-menu-panel button {
+        width: 100%;
+        justify-content: flex-start;
+      }
       .action-btn {
         display: inline-flex;
         align-items: center;
@@ -5771,6 +5778,29 @@
           if (showExplanation) {
             card.classList.add("show-explanation");
           }
+          let closeCardMenu = () => {};
+          const menuPanels = [];
+          const hideMenuPanels = (exceptPanel = null) => {
+            menuPanels.forEach((panel) => {
+              if (panel !== exceptPanel) {
+                panel.hidden = true;
+              }
+            });
+          };
+          const toggleMenuPanel = async (panel, loader) => {
+            const shouldOpen = !!panel.hidden;
+            hideMenuPanels(panel);
+            closeCardMenu();
+            if (!shouldOpen) {
+              panel.hidden = true;
+              return;
+            }
+            panel.hidden = false;
+            if (typeof loader === "function") {
+              await loader();
+            }
+            panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          };
 
           const meta = document.createElement("div");
           meta.className = "meta";
@@ -6653,18 +6683,25 @@
           }
           card.appendChild(explanation);
 
-          const beginnerQaItems = showExplanation
-            ? normalizeBeginnerQaItems(state.beginnerQaBySerial[q.serial])
-            : [];
-          if (showExplanation && beginnerQaItems.length) {
-            const beginnerQaSection = document.createElement("div");
-            beginnerQaSection.className = "deep-dive-panel";
-            const beginnerQaHeader = document.createElement("div");
-            beginnerQaHeader.className = "note";
-            beginnerQaHeader.textContent = `やさしいQ&A (${beginnerQaItems.length}件)`;
-            beginnerQaSection.appendChild(beginnerQaHeader);
-            const beginnerQaList = document.createElement("div");
-            beginnerQaItems.forEach((item) => {
+          const beginnerQaSection = document.createElement("div");
+          beginnerQaSection.className = "deep-dive-panel";
+          beginnerQaSection.hidden = true;
+          menuPanels.push(beginnerQaSection);
+          const beginnerQaHeader = document.createElement("div");
+          beginnerQaHeader.className = "note";
+          beginnerQaHeader.textContent = "やさしいQ&A";
+          beginnerQaSection.appendChild(beginnerQaHeader);
+          const beginnerQaList = document.createElement("div");
+          beginnerQaSection.appendChild(beginnerQaList);
+          const renderBeginnerQaItems = (items) => {
+            beginnerQaList.textContent = "";
+            const list = normalizeBeginnerQaItems(items);
+            if (!list.length) {
+              beginnerQaHeader.textContent = "やさしいQ&Aはまだありません。";
+              return;
+            }
+            beginnerQaHeader.textContent = `やさしいQ&A (${list.length}件)`;
+            list.forEach((item) => {
               const entry = document.createElement("div");
               entry.className = "proposal-item";
               const qBtn = document.createElement("button");
@@ -6691,12 +6728,39 @@
               entry.appendChild(aBox);
               beginnerQaList.appendChild(entry);
             });
-            beginnerQaSection.appendChild(beginnerQaList);
-            card.appendChild(beginnerQaSection);
-          }
+          };
+          const loadBeginnerQaItems = async (force = false) => {
+            if (!force && state.beginnerQaLoaded.has(q.serial)) {
+              renderBeginnerQaItems(state.beginnerQaBySerial[q.serial]);
+              return;
+            }
+            if (!window.AI_API_BASE) {
+              beginnerQaHeader.textContent = "AI_API_BASE が設定されていません。";
+              beginnerQaList.textContent = "";
+              return;
+            }
+            beginnerQaHeader.textContent = "やさしいQ&Aを読み込み中...";
+            beginnerQaList.textContent = "";
+            try {
+              const resp = await fetch(
+                `${window.AI_API_BASE}/ai/question_beginner_qa?serial=${encodeURIComponent(q.serial)}`
+              );
+              if (!resp.ok) throw new Error("API error");
+              const payload = await resp.json();
+              const row = payload && payload.item && typeof payload.item === "object" ? payload.item : null;
+              const items = row ? normalizeBeginnerQaItems(row.items) : [];
+              state.beginnerQaBySerial[q.serial] = items;
+              state.beginnerQaLoaded.add(q.serial);
+              renderBeginnerQaItems(items);
+            } catch (_err) {
+              beginnerQaHeader.textContent = "やさしいQ&Aの読み込みに失敗しました。";
+            }
+          };
 
           const qaSection = document.createElement("div");
           qaSection.className = "deep-dive-panel";
+          qaSection.hidden = true;
+          menuPanels.push(qaSection);
           const qaHeader = document.createElement("div");
           qaHeader.className = "note";
           qaHeader.textContent = "みんなのQ&A（全ユーザーの質問と回答）";
@@ -6705,14 +6769,15 @@
           qaSection.appendChild(qaList);
           const qaActions = document.createElement("div");
           qaActions.className = "proposal-actions";
+          let qaLoaded = false;
           const renderQaItems = (items) => {
             qaList.textContent = "";
             const list = Array.isArray(items) ? items : [];
             if (!list.length) {
-              qaHeader.textContent = "Q&Aはまだありません。";
+              qaHeader.textContent = "みんなのQ&Aはまだありません。";
               return;
             }
-            qaHeader.textContent = `Q&A件数: ${list.length}`;
+            qaHeader.textContent = `みんなのQ&A件数: ${list.length}`;
             list.forEach(item => {
               const entry = document.createElement("div");
               entry.className = "proposal-item";
@@ -6741,11 +6806,11 @@
               readBtn.addEventListener("click", async () => {
                 const payloadText = buildQaSpeechPayload(item);
                 if (!payloadText) {
-                  qaHeader.textContent = `Q&A件数: ${list.length}（読み上げ対象なし）`;
+                  qaHeader.textContent = `みんなのQ&A件数: ${list.length}（読み上げ対象なし）`;
                   return;
                 }
                 const qualityLabel = getTtsQualityLabel(state.ttsQuality);
-                qaHeader.textContent = `Q&A読み上げを準備中...（${qualityLabel}）`;
+                qaHeader.textContent = `みんなのQ&Aを準備中...（${qualityLabel}）`;
                 announceStatusNow(`Q&A読み上げを準備中です（${qualityLabel}）`);
                 try {
                   const keySuffix = item && item.id
@@ -6759,12 +6824,12 @@
                   );
                   if (!result || !result.started) return;
                   qaHeader.textContent = result.fromCache
-                    ? `Q&A件数: ${list.length}（読み上げ完了 / キャッシュ利用）`
-                    : `Q&A件数: ${list.length}（読み上げ完了）`;
+                    ? `みんなのQ&A件数: ${list.length}（読み上げ完了 / キャッシュ利用）`
+                    : `みんなのQ&A件数: ${list.length}（読み上げ完了）`;
                   announceStatusNow("Q&A読み上げが完了しました");
                 } catch (err) {
                   const detail = String(err && err.message ? err.message : err || "読み上げに失敗しました。");
-                  qaHeader.textContent = `Q&A件数: ${list.length}（読み上げ失敗）`;
+                  qaHeader.textContent = `みんなのQ&A件数: ${list.length}（読み上げ失敗）`;
                   alert(`読み上げに失敗しました: ${detail}`);
                   announceStatusNow("Q&A読み上げに失敗しました");
                 }
@@ -6779,32 +6844,32 @@
                 likeBtn.setAttribute("aria-label", "いいねを付ける");
               }
               likeBtn.textContent = `👍 ${likeCount}`;
-	              likeBtn.addEventListener("click", async () => {
-	                if (state.qaLiked.has(likeKey)) return;
-	                state.qaLiked.add(likeKey);
-	                saveQaLikedState();
-	                likeCount += 1;
-	                likeBtn.textContent = `👍 ${likeCount}`;
-	                likeBtn.disabled = true;
-	                likeBtn.setAttribute("aria-label", "いいね済み");
-	                const entityId = item && item.id ? String(item.id) : likeKey;
-	                submitAiFeedbackEvent({
-	                  feature: "question_qa",
-	                  rating: "helpful",
-	                  entity_type: "question_qa",
-	                  entity_id: entityId
-	                });
-	                trackAnalyticsEvent("ai_feedback_submitted", {
-	                  surface: "question_qa",
-	                  entity_type: "question_qa",
-	                  entity_id: entityId,
-	                  props: { feature: "question_qa", rating: "helpful" }
-	                });
-	                if (!item.id) return;
-	                fetch(`${window.AI_API_BASE}/ai/question_qa/like`, {
-	                  method: "POST",
-	                  headers: { "Content-Type": "application/json" },
-	                  body: JSON.stringify({ id: item.id })
+              likeBtn.addEventListener("click", async () => {
+                if (state.qaLiked.has(likeKey)) return;
+                state.qaLiked.add(likeKey);
+                saveQaLikedState();
+                likeCount += 1;
+                likeBtn.textContent = `👍 ${likeCount}`;
+                likeBtn.disabled = true;
+                likeBtn.setAttribute("aria-label", "いいね済み");
+                const entityId = item && item.id ? String(item.id) : likeKey;
+                submitAiFeedbackEvent({
+                  feature: "question_qa",
+                  rating: "helpful",
+                  entity_type: "question_qa",
+                  entity_id: entityId
+                });
+                trackAnalyticsEvent("ai_feedback_submitted", {
+                  surface: "question_qa",
+                  entity_type: "question_qa",
+                  entity_id: entityId,
+                  props: { feature: "question_qa", rating: "helpful" }
+                });
+                if (!item.id) return;
+                fetch(`${window.AI_API_BASE}/ai/question_qa/like`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: item.id })
                 }).catch(() => {});
               });
               const viewSpan = document.createElement("span");
@@ -6839,12 +6904,21 @@
               qaList.appendChild(entry);
             });
           };
-          const loadQaItems = async () => {
-            if (!window.AI_API_BASE) {
-              qaHeader.textContent = "AI_API_BASE が設定されていません。";
+          const loadQaItems = async (force = false) => {
+            const localItems = Array.isArray(q.qa_list) ? q.qa_list : [];
+            if (qaLoaded && !force) {
               return;
             }
-            qaHeader.textContent = "読み込み中...";
+            if (!window.AI_API_BASE) {
+              if (localItems.length) {
+                renderQaItems(localItems);
+                qaLoaded = true;
+              } else {
+                qaHeader.textContent = "AI_API_BASE が設定されていません。";
+              }
+              return;
+            }
+            qaHeader.textContent = "みんなのQ&Aを読み込み中...";
             try {
               const resp = await fetch(
                 `${window.AI_API_BASE}/ai/question_qa?serial=${encodeURIComponent(q.serial)}`
@@ -6852,7 +6926,6 @@
               if (!resp.ok) throw new Error("API error");
               const data = await resp.json();
               const items = Array.isArray(data.items) ? data.items : [];
-              const localItems = Array.isArray(q.qa_list) ? q.qa_list : [];
               const merged = [];
               const seen = new Set();
               [...items, ...localItems].forEach((item) => {
@@ -6862,8 +6935,15 @@
                 merged.push(item);
               });
               renderQaItems(merged);
+              qaLoaded = true;
             } catch (_err) {
-              qaHeader.textContent = "読み込みに失敗しました。";
+              if (localItems.length) {
+                renderQaItems(localItems);
+                qaHeader.textContent = `みんなのQ&A件数: ${localItems.length}（通信失敗）`;
+                qaLoaded = true;
+              } else {
+                qaHeader.textContent = "みんなのQ&Aの読み込みに失敗しました。";
+              }
             }
           };
           if (canUseAiGeneration()) {
@@ -6922,34 +7002,35 @@
                     model: "gemini-3-flash-preview"
                   })
                 });
-	                const payload = await resp.json();
-	                if (!resp.ok) {
-	                  const detail =
-	                    (payload && (payload.detail || payload.message || payload.error)) ||
-	                    `HTTP ${resp.status}`;
+                const payload = await resp.json();
+                if (!resp.ok) {
+                  const detail =
+                    (payload && (payload.detail || payload.message || payload.error)) ||
+                    `HTTP ${resp.status}`;
                   qaHeader.textContent = `生成に失敗しました: ${String(detail).slice(0, 160)}`;
-	                  return;
-	                }
-	                trackAnalyticsEvent("ai_generate_completed", {
-	                  surface: "question_qa",
-	                  entity_type: "question",
-	                  entity_id: q.serial,
-	                  request_id: payload && payload.request_id ? payload.request_id : "",
-	                  props: {
-	                    feature: "question_qa",
-	                    status: payload && payload.status ? payload.status : "ok"
-	                  }
-	                });
-	                if (payload.status === "irrelevant") {
-	                  qaHeader.textContent = "質問が問題と無関係と判定されました。";
-	                  announceStatusNow("質問が問題と無関係と判定されました");
-	                  return;
-	                }
+                  return;
+                }
+                trackAnalyticsEvent("ai_generate_completed", {
+                  surface: "question_qa",
+                  entity_type: "question",
+                  entity_id: q.serial,
+                  request_id: payload && payload.request_id ? payload.request_id : "",
+                  props: {
+                    feature: "question_qa",
+                    status: payload && payload.status ? payload.status : "ok"
+                  }
+                });
+                if (payload.status === "irrelevant") {
+                  qaHeader.textContent = "質問が問題と無関係と判定されました。";
+                  announceStatusNow("質問が問題と無関係と判定されました");
+                  return;
+                }
                 qaHeader.textContent = "生成完了";
                 announceStatusNow("Q&A生成が完了しました");
                 qaInput.value = "";
                 clearQaDraft(q.serial);
-                loadQaItems();
+                qaLoaded = false;
+                await loadQaItems(true);
               } catch (_err) {
                 qaHeader.textContent = "生成に失敗しました。";
                 announceStatusNow("Q&A生成に失敗しました");
@@ -6962,11 +7043,6 @@
             qaActions.appendChild(qaSend);
           }
           qaSection.appendChild(qaActions);
-          card.appendChild(qaSection);
-          if (Array.isArray(q.qa_list) && q.qa_list.length) {
-            renderQaItems(q.qa_list);
-          }
-          loadQaItems();
 
           const actions = document.createElement("div");
           actions.className = "card-actions";
@@ -6981,18 +7057,6 @@
             btn.appendChild(iconSpan);
             btn.appendChild(textSpan);
           };
-          const copyBtn = document.createElement("button");
-          copyBtn.className = "action-btn icon-only";
-          setActionButtonLabel(copyBtn, "⧉", "");
-          copyBtn.setAttribute("aria-label", "この問題をクリップボードにコピー");
-          copyBtn.setAttribute("title", "問題をコピー");
-          copyBtn.addEventListener("click", () => {
-            const mode = getCopyMode();
-            const text = formatQuestionForCopy(q, mode);
-            copyToClipboard(text);
-          });
-          actions.appendChild(copyBtn);
-
           const ttsBtn = document.createElement("button");
           ttsBtn.className = "action-btn icon-only tts-btn";
           ttsBtn.setAttribute("data-serial", q.serial);
@@ -7169,8 +7233,8 @@
           extraDetails.className = "inline";
           const extraSummary = document.createElement("summary");
           extraSummary.className = "inline-summary action-summary icon-only";
-          extraSummary.setAttribute("aria-label", "追加操作");
-          extraSummary.setAttribute("title", "追加操作");
+          extraSummary.setAttribute("aria-label", "問題メニュー");
+          extraSummary.setAttribute("title", "問題メニュー");
           extraSummary.textContent = "";
           const extraIcon = document.createElement("span");
           extraIcon.className = "action-icon";
@@ -7179,21 +7243,15 @@
           extraSummary.appendChild(extraIcon);
           extraDetails.appendChild(extraSummary);
           const extraPanel = document.createElement("div");
-          extraPanel.className = "edit-panel";
+          extraPanel.className = "edit-panel card-menu-panel";
+          closeCardMenu = () => {
+            extraDetails.open = false;
+          };
 
-          const deepDivePromptBtn = document.createElement("button");
-          deepDivePromptBtn.className = "action-btn";
-          setActionButtonLabel(deepDivePromptBtn, "✎", "プロンプト");
-          deepDivePromptBtn.setAttribute("aria-label", "深掘り用プロンプトをクリップボードにコピー");
-	          deepDivePromptBtn.addEventListener("click", () => {
-	            const text = formatDeepDivePrompt(q);
-	            copyToClipboard(text);
-	          });
-	          extraPanel.appendChild(deepDivePromptBtn);
-
-	          const practicePanel = document.createElement("div");
-	          practicePanel.className = "deep-dive-panel";
-	          practicePanel.hidden = true;
+          const practicePanel = document.createElement("div");
+          practicePanel.className = "deep-dive-panel";
+          practicePanel.hidden = true;
+          menuPanels.push(practicePanel);
 	          const practiceHeader = document.createElement("div");
 	          practiceHeader.className = "note";
 	          practiceHeader.textContent = isRoleAtLeast("teacher")
@@ -7500,27 +7558,19 @@
 		            runPracticeGenerate("short", "一問一答練習問題を生成中です", "一問一答練習問題の生成が完了しました", "一問一答練習問題の生成に失敗しました");
 		          });
 
-	          const practiceMainBtn = document.createElement("button");
-	          practiceMainBtn.className = "action-btn";
-	          setActionButtonLabel(practiceMainBtn, "✦", "練習問題");
-	          practiceMainBtn.setAttribute("aria-label", "関連練習問題を表示");
-	          practiceMainBtn.hidden = !window.AI_API_BASE;
-	          practiceMainBtn.addEventListener("click", () => {
-	            if (practicePanel.hidden) {
-	              practicePanel.hidden = false;
-	              loadPracticeQuestions();
-	              practicePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-	            } else {
-	              practicePanel.hidden = true;
-	            }
-	          });
-	          if (!practiceMainBtn.hidden) {
-	            extraPanel.appendChild(practiceMainBtn);
-	          }
+          const practiceMainBtn = document.createElement("button");
+          practiceMainBtn.className = "action-btn";
+          setActionButtonLabel(practiceMainBtn, "✦", "練習問題");
+          practiceMainBtn.setAttribute("aria-label", "関連練習問題を表示");
+          practiceMainBtn.hidden = !window.AI_API_BASE;
+          practiceMainBtn.addEventListener("click", async () => {
+            await toggleMenuPanel(practicePanel, loadPracticeQuestions);
+          });
 
-	          const senryuPanel = document.createElement("div");
-	          senryuPanel.className = "deep-dive-panel";
-	          senryuPanel.hidden = true;
+          const senryuPanel = document.createElement("div");
+          senryuPanel.className = "deep-dive-panel";
+          senryuPanel.hidden = true;
+          menuPanels.push(senryuPanel);
 	          const senryuHeader = document.createElement("div");
 	          senryuHeader.className = "note";
 	          senryuHeader.textContent = "問題にちなんだ川柳（解説付き）";
@@ -7753,27 +7803,19 @@
 	            runSenryuGenerate();
 	          });
 
-	          const senryuMainBtn = document.createElement("button");
-	          senryuMainBtn.className = "action-btn";
-	          setActionButtonLabel(senryuMainBtn, "川", "川柳");
-	          senryuMainBtn.setAttribute("aria-label", "問題にちなんだ川柳を生成して表示");
-	          senryuMainBtn.hidden = !window.AI_API_BASE;
-	          senryuMainBtn.addEventListener("click", () => {
-	            if (senryuPanel.hidden) {
-	              senryuPanel.hidden = false;
-	              loadQuestionSenryu();
-	              senryuPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-	            } else {
-	              senryuPanel.hidden = true;
-	            }
-	          });
-	          if (!senryuMainBtn.hidden) {
-	            extraPanel.appendChild(senryuMainBtn);
-	          }
+          const senryuMainBtn = document.createElement("button");
+          senryuMainBtn.className = "action-btn";
+          setActionButtonLabel(senryuMainBtn, "川", "川柳");
+          senryuMainBtn.setAttribute("aria-label", "問題にちなんだ川柳を生成して表示");
+          senryuMainBtn.hidden = !window.AI_API_BASE;
+          senryuMainBtn.addEventListener("click", async () => {
+            await toggleMenuPanel(senryuPanel, loadQuestionSenryu);
+          });
 
-	          const deepDivePanel = document.createElement("div");
-	          deepDivePanel.className = "deep-dive-panel";
-	          deepDivePanel.hidden = true;
+          const deepDivePanel = document.createElement("div");
+          deepDivePanel.className = "deep-dive-panel";
+          deepDivePanel.hidden = true;
+          menuPanels.push(deepDivePanel);
 	          const deepDiveStatus = document.createElement("div");
           deepDiveStatus.className = "note";
           deepDivePanel.appendChild(deepDiveStatus);
@@ -7998,6 +8040,7 @@
             copyToClipboard(deepDiveRawText);
           });
           const showDeepDivePanel = () => {
+            hideMenuPanels(deepDivePanel);
             deepDivePanel.hidden = false;
           };
 	          const renderDeepDive = (explanationText, tags) => {
@@ -8172,22 +8215,62 @@
             if (hasDeepDive) {
               setActionButtonLabel(deepDiveMainBtn, "◎", "深掘り解説");
               deepDiveMainBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
-              deepDiveMainBtn.onclick = runDeepDiveView;
+              deepDiveMainBtn.onclick = () => {
+                closeCardMenu();
+                runDeepDiveView();
+              };
               return;
             }
             if (canUseAiGeneration()) {
-              setActionButtonLabel(deepDiveMainBtn, "◎", "深掘り生成");
+              setActionButtonLabel(deepDiveMainBtn, "◎", "深掘り解説");
               deepDiveMainBtn.setAttribute("aria-label", "深掘り解説と関連タグを生成");
-              deepDiveMainBtn.onclick = runDeepDiveGenerate;
+              deepDiveMainBtn.onclick = () => {
+                closeCardMenu();
+                runDeepDiveGenerate();
+              };
               return;
             }
             deepDiveMainBtn.hidden = true;
           };
 
           updateDeepDiveMainButton();
-          if (!deepDiveMainBtn.hidden) {
-            extraPanel.appendChild(deepDiveMainBtn);
-          }
+          const beginnerQaMainBtn = document.createElement("button");
+          beginnerQaMainBtn.className = "action-btn";
+          setActionButtonLabel(beginnerQaMainBtn, "？", "やさしいQ&A");
+          beginnerQaMainBtn.setAttribute("aria-label", "やさしいQ&Aを表示");
+          beginnerQaMainBtn.hidden = !window.AI_API_BASE;
+          beginnerQaMainBtn.addEventListener("click", async () => {
+            await toggleMenuPanel(beginnerQaSection, loadBeginnerQaItems);
+          });
+          const qaMainBtn = document.createElement("button");
+          qaMainBtn.className = "action-btn";
+          setActionButtonLabel(qaMainBtn, "Q", "みんなのQ&A");
+          qaMainBtn.setAttribute("aria-label", "みんなのQ&Aを表示");
+          qaMainBtn.addEventListener("click", async () => {
+            await toggleMenuPanel(qaSection, loadQaItems);
+          });
+          const copyMenuBtn = document.createElement("button");
+          copyMenuBtn.className = "action-btn";
+          setActionButtonLabel(copyMenuBtn, "⧉", "問題をコピー");
+          copyMenuBtn.setAttribute("aria-label", "この問題をクリップボードにコピー");
+          copyMenuBtn.addEventListener("click", () => {
+            const mode = getCopyMode();
+            const text = formatQuestionForCopy(q, mode);
+            copyToClipboard(text);
+            closeCardMenu();
+          });
+          [
+            deepDiveMainBtn,
+            beginnerQaMainBtn,
+            qaMainBtn,
+            practiceMainBtn,
+            senryuMainBtn,
+            copyMenuBtn
+          ].forEach((btn) => {
+            if (!btn.hidden) {
+              extraPanel.appendChild(btn);
+            }
+          });
           if (extraPanel.childNodes.length) {
             extraDetails.appendChild(extraPanel);
             actions.appendChild(extraDetails);
@@ -8208,6 +8291,8 @@
 	            actions.appendChild(retryBtn);
 	          }
 	          card.appendChild(actions);
+	          card.appendChild(beginnerQaSection);
+	          card.appendChild(qaSection);
 	          card.appendChild(practicePanel);
 	          card.appendChild(senryuPanel);
 	          card.appendChild(deepDivePanel);
@@ -8268,9 +8353,6 @@
             await ensureEditRequestsLoaded(pageItems.map((item) => item.serial));
           }
           await ensureAnswerStatsLoaded(pageItems.map((item) => item.serial));
-          if (showExplanation) {
-            await ensureBeginnerQaLoaded(pageItems.map((item) => item.serial));
-          }
           if (isStatSort && !statsLoaded && state.answerStatsLoaded.has("*")) {
             state.pendingStatSortRefresh = true;
             flushDeferredRenderIfSafe();
