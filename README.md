@@ -269,6 +269,42 @@ python scripts/run_gemini_beginner_qa.py --limit 0 --order serial_desc --api-key
 cat output/gemini_batches/beginner_qa_batch_filled_YYYYMMDD_HHMMSS.progress.json
 ```
 
+### 10.3 練習問題・川柳の一括生成 (CLI)
+
+WebUI で個別生成している `4択 / ○× / 一問一答 / 川柳` を、Gemini でまとめて生成して Supabase に直接登録します。  
+1問ごとに「不足している種別だけ」を **1リクエストにまとめて** 生成するため、別々に4回叩くよりリクエスト数を抑えられます。
+
+事前に Supabase SQL Editor で、未適用なら以下を実行してください。
+
+- `workers/sql/practice_question_tables.sql`
+- `workers/sql/question_senryu_tables.sql`
+
+実行例:
+
+```bash
+# 未登録の問題を新しい順に20件、paidキー + Flash-Lite で並列4本
+python scripts/run_gemini_practice_senryu.py --limit 20 --order serial_desc --api-key-source paid --model gemini-3.1-flash-lite-preview --max-workers 4 --sleep-seconds 0
+```
+
+主なオプション:
+
+- `--features mcq,tf,short,senryu`: 対象を絞る。例: `--features mcq,senryu`
+- `--serials`: 対象シリアル指定（例: `A01-001,A01-002` or `A01-001..A01-020`）
+- `--exam-type` / `--exam-session` / `--subject`: 生成対象フィルタ
+- `--force`: 既存件数が足りていても追加生成する（既存行は削除しない）
+- `--max-workers 4`: Gemini/Supabase を並列実行する
+- `--dry-run`: 1件分のプロンプトを表示して終了
+
+補足:
+
+- `practice_questions` は公開済み (`is_public = true`) で保存します
+- `question_senryu` も通常表示対象として保存します
+- 進捗は標準出力に `[完了件数/総件数]` で出し、同時に `*.progress.json` も更新します
+
+```bash
+cat output/gemini_batches/practice_senryu_batch_filled_YYYYMMDD_HHMMSS.progress.json
+```
+
 ## 11. バックアップ
 
 最重要は `output/ahaki.sqlite` です。  

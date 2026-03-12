@@ -3687,7 +3687,7 @@
 	            if (item && item.id) {
 	              submitSenryuVoteById(item.id, "not_helpful");
 	            }
-	            if (Number(item.score || 0) <= 0) {
+	            if (Number(item.score || 0) < 0) {
 	              state.recommendedSenryuPool = (state.recommendedSenryuPool || []).filter((candidate) => candidate !== item);
 	              renderRecommendedSenryu(getVisibleRecommendedSenryuItems());
 	            }
@@ -3750,7 +3750,7 @@
 	            })
 	            .filter((item) => {
 	              if (!String(item && item.senryu ? item.senryu : "").trim()) return false;
-	              return Number(item && item.score ? item.score : 0) > 0;
+	              return Number(item && item.score ? item.score : 0) >= 0;
 	            });
 	          state.recommendedSenryuPool = sampleRandomItems(enriched, enriched.length);
 	          state.recommendedSenryuVisibleCount = 2;
