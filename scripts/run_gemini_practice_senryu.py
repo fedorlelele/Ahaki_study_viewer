@@ -412,7 +412,111 @@ def get_supabase_config(args):
     return {"url": url.rstrip("/"), "key": key}, ""
 
 
-def fetch_existing_practice_counts(cfg, serials, batch_size=40):
+def is_retryable_supabase_status(status):
+    try:
+        value = int(status)
+    except (TypeError, ValueError):
+        return False
+    return value in (408, 429, 500, 502, 503, 504)
+
+
+def fetch_supabase_rows(cfg, endpoint, max_retries=4, retry_sleep_seconds=3.0, timeout=30, label="supabase"):
+    req = request.Request(endpoint, method="GET")
+    req.add_header("apikey", cfg["key"])
+    req.add_header("Authorization", f"Bearer {cfg['key']}")
+    req.add_header("Content-Type", "application/json")
+    for attempt in range(max(0, int(max_retries)) + 1):
+        try:
+            with request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except HTTPError as err:
+            payload = err.read().decode("utf-8", errors="replace")
+            if is_retryable_supabase_status(err.code) and attempt < max_retries:
+                wait = retry_sleep_seconds * (2 ** attempt)
+                log_stderr(
+                    f"{label}: transient HTTP {err.code}, retrying in {wait:.1f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"Supabase query failed: HTTP {err.code}: {payload}") from err
+        except URLError as err:
+            if attempt < max_retries:
+                wait = retry_sleep_seconds * (2 ** attempt)
+                log_stderr(
+                    f"{label}: transient URL error {err.reason}, retrying in {wait:.1f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"Supabase query failed: {err.reason}") from err
+        except Exception as err:
+            if attempt < max_retries:
+                wait = retry_sleep_seconds * (2 ** attempt)
+                log_stderr(
+                    f"{label}: transient error {err}, retrying in {wait:.1f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"Supabase query failed: {err}") from err
+    return []
+
+
+def post_supabase_json(
+    cfg,
+    endpoint,
+    payload,
+    max_retries=4,
+    retry_sleep_seconds=3.0,
+    timeout=30,
+    label="supabase",
+):
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    for attempt in range(max(0, int(max_retries)) + 1):
+        req = request.Request(endpoint, data=data, method="POST")
+        req.add_header("apikey", cfg["key"])
+        req.add_header("Authorization", f"Bearer {cfg['key']}")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Prefer", "return=minimal")
+        try:
+            with request.urlopen(req, timeout=timeout):
+                return ""
+        except HTTPError as err:
+            payload_text = err.read().decode("utf-8", errors="replace")
+            if is_retryable_supabase_status(err.code) and attempt < max_retries:
+                wait = retry_sleep_seconds * (2 ** attempt)
+                log_stderr(
+                    f"{label}: transient HTTP {err.code}, retrying in {wait:.1f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+            return f"HTTP {err.code}: {payload_text}"
+        except URLError as err:
+            if attempt < max_retries:
+                wait = retry_sleep_seconds * (2 ** attempt)
+                log_stderr(
+                    f"{label}: transient URL error {err.reason}, retrying in {wait:.1f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+            return f"URL error: {err.reason}"
+        except Exception as err:
+            if attempt < max_retries:
+                wait = retry_sleep_seconds * (2 ** attempt)
+                log_stderr(
+                    f"{label}: transient error {err}, retrying in {wait:.1f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(wait)
+                continue
+            return f"Request error: {err.__class__.__name__}: {err}"
+    return "Unknown Supabase error"
+
+
+def fetch_existing_practice_counts(cfg, serials, batch_size=20, max_retries=4, retry_sleep_seconds=3.0):
     counts = {}
     for start in range(0, len(serials), batch_size):
         chunk = serials[start : start + batch_size]
@@ -425,20 +529,13 @@ def fetch_existing_practice_counts(cfg, serials, batch_size=40):
             "&is_public=eq.true"
             "&limit=1000"
         )
-        req = request.Request(endpoint, method="GET")
-        req.add_header("apikey", cfg["key"])
-        req.add_header("Authorization", f"Bearer {cfg['key']}")
-        req.add_header("Content-Type", "application/json")
-        try:
-            with request.urlopen(req, timeout=30) as resp:
-                rows = json.loads(resp.read().decode("utf-8"))
-        except HTTPError as err:
-            payload = err.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Supabase query failed: HTTP {err.code}: {payload}") from err
-        except URLError as err:
-            raise RuntimeError(f"Supabase query failed: {err.reason}") from err
-        except Exception as err:
-            raise RuntimeError(f"Supabase query failed: {err}") from err
+        rows = fetch_supabase_rows(
+            cfg,
+            endpoint,
+            max_retries=max_retries,
+            retry_sleep_seconds=retry_sleep_seconds,
+            label="practice_counts",
+        )
         for row in rows or []:
             serial = str((row or {}).get("base_serial") or "").strip()
             question_type = normalize_practice_question_type((row or {}).get("question_type"))
@@ -449,7 +546,7 @@ def fetch_existing_practice_counts(cfg, serials, batch_size=40):
     return counts
 
 
-def fetch_existing_senryu_counts(cfg, serials, batch_size=40):
+def fetch_existing_senryu_counts(cfg, serials, batch_size=20, max_retries=4, retry_sleep_seconds=3.0):
     counts = {}
     for start in range(0, len(serials), batch_size):
         chunk = serials[start : start + batch_size]
@@ -461,20 +558,13 @@ def fetch_existing_senryu_counts(cfg, serials, batch_size=40):
             f"&base_serial={quote(build_supabase_text_in_filter(chunk))}"
             "&limit=1000"
         )
-        req = request.Request(endpoint, method="GET")
-        req.add_header("apikey", cfg["key"])
-        req.add_header("Authorization", f"Bearer {cfg['key']}")
-        req.add_header("Content-Type", "application/json")
-        try:
-            with request.urlopen(req, timeout=30) as resp:
-                rows = json.loads(resp.read().decode("utf-8"))
-        except HTTPError as err:
-            payload = err.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Supabase query failed: HTTP {err.code}: {payload}") from err
-        except URLError as err:
-            raise RuntimeError(f"Supabase query failed: {err.reason}") from err
-        except Exception as err:
-            raise RuntimeError(f"Supabase query failed: {err}") from err
+        rows = fetch_supabase_rows(
+            cfg,
+            endpoint,
+            max_retries=max_retries,
+            retry_sleep_seconds=retry_sleep_seconds,
+            label="senryu_counts",
+        )
         for row in rows or []:
             serial = str((row or {}).get("base_serial") or "").strip()
             if not serial:
@@ -483,7 +573,7 @@ def fetch_existing_senryu_counts(cfg, serials, batch_size=40):
     return counts
 
 
-def insert_practice_questions(cfg, serial, question_type, items, model, mode):
+def insert_practice_questions(cfg, serial, question_type, items, model, mode, max_retries=4, retry_sleep_seconds=3.0):
     if not items:
         return "", ""
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -507,27 +597,20 @@ def insert_practice_questions(cfg, serial, question_type, items, model, mode):
                 "published_by": None,
             }
         )
-    req = request.Request(
+    save_error = post_supabase_json(
+        cfg,
         f"{cfg['url']}/rest/v1/practice_questions",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        method="POST",
+        payload,
+        max_retries=max_retries,
+        retry_sleep_seconds=retry_sleep_seconds,
+        label="practice_insert",
     )
-    req.add_header("apikey", cfg["key"])
-    req.add_header("Authorization", f"Bearer {cfg['key']}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Prefer", "return=minimal")
-    try:
-        with request.urlopen(req, timeout=30):
-            return now, ""
-    except HTTPError as err:
-        return "", f"HTTP {err.code}: {err.read().decode('utf-8', errors='replace')}"
-    except URLError as err:
-        return "", f"URL error: {err.reason}"
-    except Exception as err:
-        return "", f"Request error: {err.__class__.__name__}: {err}"
+    if save_error:
+        return "", save_error
+    return now, ""
 
 
-def insert_question_senryu(cfg, serial, items, model, mode):
+def insert_question_senryu(cfg, serial, items, model, mode, max_retries=4, retry_sleep_seconds=3.0):
     if not items:
         return "", ""
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -543,24 +626,17 @@ def insert_question_senryu(cfg, serial, items, model, mode):
                 "mode": mode,
             }
         )
-    req = request.Request(
+    save_error = post_supabase_json(
+        cfg,
         f"{cfg['url']}/rest/v1/question_senryu",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        method="POST",
+        payload,
+        max_retries=max_retries,
+        retry_sleep_seconds=retry_sleep_seconds,
+        label="senryu_insert",
     )
-    req.add_header("apikey", cfg["key"])
-    req.add_header("Authorization", f"Bearer {cfg['key']}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Prefer", "return=minimal")
-    try:
-        with request.urlopen(req, timeout=30):
-            return now, ""
-    except HTTPError as err:
-        return "", f"HTTP {err.code}: {err.read().decode('utf-8', errors='replace')}"
-    except URLError as err:
-        return "", f"URL error: {err.reason}"
-    except Exception as err:
-        return "", f"Request error: {err.__class__.__name__}: {err}"
+    if save_error:
+        return "", save_error
+    return now, ""
 
 
 def generate_content_record(item, requested_counts, api_key, model, route_mode, args, cfg):
@@ -606,9 +682,26 @@ def generate_content_record(item, requested_counts, api_key, model, route_mode, 
         if not items:
             continue
         if feature in PRACTICE_FEATURES:
-            _, save_error = insert_practice_questions(cfg, item["serial"], feature, items, model=model, mode=route_mode)
+            _, save_error = insert_practice_questions(
+                cfg,
+                item["serial"],
+                feature,
+                items,
+                model=model,
+                mode=route_mode,
+                max_retries=args.supabase_retries,
+                retry_sleep_seconds=args.supabase_retry_sleep_seconds,
+            )
         else:
-            _, save_error = insert_question_senryu(cfg, item["serial"], items, model=model, mode=route_mode)
+            _, save_error = insert_question_senryu(
+                cfg,
+                item["serial"],
+                items,
+                model=model,
+                mode=route_mode,
+                max_retries=args.supabase_retries,
+                retry_sleep_seconds=args.supabase_retry_sleep_seconds,
+            )
         if save_error:
             return {
                 "ok": False,
@@ -677,6 +770,19 @@ def parse_args():
     parser.add_argument("--max-output-tokens", type=int, default=8192, help="Gemini maxOutputTokens.")
     parser.add_argument("--max-retries", type=int, default=3, help="Retries per target when API/format error occurs.")
     parser.add_argument("--retry-sleep-seconds", type=float, default=20.0, help="Base wait seconds before retry.")
+    parser.add_argument("--supabase-retries", type=int, default=4, help="Retries for transient Supabase 502/503/504 errors.")
+    parser.add_argument(
+        "--supabase-retry-sleep-seconds",
+        type=float,
+        default=3.0,
+        help="Base wait seconds before retrying transient Supabase errors.",
+    )
+    parser.add_argument(
+        "--prefetch-batch-size",
+        type=int,
+        default=20,
+        help="How many serials to query per Supabase prefetch chunk.",
+    )
     parser.add_argument("--sleep-seconds", type=float, default=0.0, help="Sleep between successful requests.")
     parser.add_argument("--max-workers", type=int, default=1, help="Concurrent Gemini/Supabase workers.")
     parser.add_argument("--output-dir", default="output/gemini_batches", help="Output directory for JSONL log.")
@@ -716,8 +822,20 @@ def main():
     practice_counts = {}
     senryu_counts = {}
     if not args.dry_run:
-        practice_counts = fetch_existing_practice_counts(cfg, serials)
-        senryu_counts = fetch_existing_senryu_counts(cfg, serials)
+        practice_counts = fetch_existing_practice_counts(
+            cfg,
+            serials,
+            batch_size=max(1, int(args.prefetch_batch_size or 20)),
+            max_retries=args.supabase_retries,
+            retry_sleep_seconds=args.supabase_retry_sleep_seconds,
+        )
+        senryu_counts = fetch_existing_senryu_counts(
+            cfg,
+            serials,
+            batch_size=max(1, int(args.prefetch_batch_size or 20)),
+            max_retries=args.supabase_retries,
+            retry_sleep_seconds=args.supabase_retry_sleep_seconds,
+        )
 
     targets = []
     for item in candidates:

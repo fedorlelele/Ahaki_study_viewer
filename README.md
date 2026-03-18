@@ -293,6 +293,8 @@ python scripts/run_gemini_practice_senryu.py --limit 20 --order serial_desc --ap
 - `--exam-type` / `--exam-session` / `--subject`: 生成対象フィルタ
 - `--force`: 既存件数が足りていても追加生成する（既存行は削除しない）
 - `--max-workers 4`: Gemini/Supabase を並列実行する
+- `--prefetch-batch-size 20`: Supabase の既存件数確認を小さめのチャンクで行う
+- `--supabase-retries 4`: Supabase の一時的な `502/503/504` を再試行する
 - `--dry-run`: 1件分のプロンプトを表示して終了
 
 補足:
@@ -300,6 +302,7 @@ python scripts/run_gemini_practice_senryu.py --limit 20 --order serial_desc --ap
 - `practice_questions` は公開済み (`is_public = true`) で保存します
 - `question_senryu` も通常表示対象として保存します
 - 進捗は標準出力に `[完了件数/総件数]` で出し、同時に `*.progress.json` も更新します
+- 全件実行で Supabase の `502` が出る場合は、`--prefetch-batch-size 10` に下げると安定しやすいです
 
 ```bash
 cat output/gemini_batches/practice_senryu_batch_filled_YYYYMMDD_HHMMSS.progress.json

@@ -2,6 +2,7 @@ import unittest
 
 from scripts.run_gemini_practice_senryu import (
     build_requested_counts,
+    is_retryable_supabase_status,
     parse_bundle_response,
     parse_features,
     parse_practice_items,
@@ -21,6 +22,11 @@ class RunGeminiPracticeSenryuTests(unittest.TestCase):
             force=False,
         )
         self.assertEqual(requested, {"tf": 3, "short": 5, "senryu": 2})
+
+    def test_is_retryable_supabase_status_detects_transient_codes(self):
+        self.assertTrue(is_retryable_supabase_status(502))
+        self.assertTrue(is_retryable_supabase_status(504))
+        self.assertFalse(is_retryable_supabase_status(400))
 
     def test_parse_bundle_response_extracts_all_sections(self):
         text = """
