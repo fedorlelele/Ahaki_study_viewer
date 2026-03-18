@@ -1581,9 +1581,18 @@
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
         <div id="authForm">
-          <input id="authEmail" type="email" placeholder="メールアドレス" />
-          <input id="authPassword" type="password" placeholder="パスワード" />
-          <button id="authLoginBtn" type="button">ログイン</button>
+          <input id="authEmail" type="email" placeholder="メールアドレス" autocomplete="username email" />
+          <input id="authPassword" type="password" placeholder="パスワード" autocomplete="current-password" />
+          <div class="progress-inline-controls">
+            <button id="authLoginBtn" type="button">ログイン</button>
+            <button id="authResetBtn" type="button">パスワード再設定</button>
+          </div>
+        </div>
+        <div id="authRecoveryPanel" class="edit-panel" hidden>
+          <div class="note">再設定メールから開いた場合のみ使えます。新しいパスワードを入力してください。</div>
+          <input id="recoveryPassword" type="password" placeholder="新しいパスワード" autocomplete="new-password" />
+          <input id="recoveryPasswordConfirm" type="password" placeholder="新しいパスワード（確認）" autocomplete="new-password" />
+          <button id="recoverySaveBtn" type="button">新しいパスワードを保存</button>
         </div>
         <details class="inline" id="teacherSignupPanel">
           <summary>サインアップ</summary>
@@ -5765,6 +5774,24 @@
           "rate_desc",
           "rate_asc"
         ].includes(sortSession);
+        const pendingStatSerials = isStatSort
+          ? list
+              .map((item) => item && item.serial ? item.serial : "")
+              .filter((serial) => serial && !state.answerStatsLoaded.has(serial))
+          : [];
+        if (isStatSort && pendingStatSerials.length) {
+          const loading = document.createElement("div");
+          loading.className = "note";
+          loading.textContent = `回答集計を読み込み中… (${pendingStatSerials.length}問)`;
+          container.appendChild(loading);
+          announceStatus(`回答集計を読み込み中 (${pendingStatSerials.length}問)`);
+          state.pendingStatSortRefresh = true;
+          (async () => {
+            await ensureAnswerStatsLoaded(list.map((item) => item.serial));
+            flushDeferredRenderIfSafe();
+          })();
+          return;
+        }
 
         function appendCard(q, target) {
           const card = document.createElement("div");
@@ -6667,9 +6694,7 @@
           expBody.className = "explanation-body";
           expBody.textContent = expText || "";
           explanation.appendChild(expBody);
-          const stats =
-            state.answerStatsBySerial[q.serial] ||
-            (state.answerStatsLoaded.has("*") ? { count: 0, correct: 0 } : null);
+          const stats = state.answerStatsBySerial[q.serial] || null;
           if (stats) {
             const statsEl = document.createElement("div");
             statsEl.className = "answer-stats";
@@ -8347,18 +8372,11 @@
         };
         const renderPage = async () => {
           more.disabled = true;
-          const statsLoaded = state.answerStatsLoaded.has("*");
           await ensureOverridesLoaded(pageItems.map((item) => item.serial));
           if (canTeacherEdit) {
             await ensureEditRequestsLoaded(pageItems.map((item) => item.serial));
           }
           await ensureAnswerStatsLoaded(pageItems.map((item) => item.serial));
-          if (isStatSort && !statsLoaded && state.answerStatsLoaded.has("*")) {
-            state.pendingStatSortRefresh = true;
-            flushDeferredRenderIfSafe();
-            more.disabled = false;
-            return false;
-          }
           const resolvedBatch = pageItems.map((item) => applyOverridesToQuestion(item));
           await ensureTagViewCountsForQuestions(resolvedBatch);
           renderBatch(resolvedBatch);
@@ -8906,9 +8924,14 @@
         const emailInput = document.getElementById("authEmail");
         const passwordInput = document.getElementById("authPassword");
         const loginBtn = document.getElementById("authLoginBtn");
+        const resetBtn = document.getElementById("authResetBtn");
         const logoutBtn = document.getElementById("authLogoutBtn");
         const toggleBtn = document.getElementById("authToggleBtn");
         const panel = document.getElementById("teacherAuth");
+        const recoveryPanel = document.getElementById("authRecoveryPanel");
+        const recoveryPassword = document.getElementById("recoveryPassword");
+        const recoveryPasswordConfirm = document.getElementById("recoveryPasswordConfirm");
+        const recoverySaveBtn = document.getElementById("recoverySaveBtn");
         const historyPanel = document.getElementById("historyPanel");
         const reportModeWrap = document.getElementById("reportModeWrap");
         const reportModeToggle = document.getElementById("reportModeToggle");
@@ -8917,6 +8940,38 @@
         const topPanels = document.getElementById("topPanels");
         const topMenuContent = document.getElementById("topMenuContent");
         const menuToggleBtn = document.getElementById("menuToggleBtn");
+        let recoveryMode = false;
+
+        const clearRecoveryInputs = () => {
+          if (recoveryPassword) recoveryPassword.value = "";
+          if (recoveryPasswordConfirm) recoveryPasswordConfirm.value = "";
+        };
+        const setRecoveryMode = (active) => {
+          recoveryMode = Boolean(active);
+          if (recoveryPanel) recoveryPanel.hidden = !recoveryMode;
+          if (!recoveryMode) {
+            clearRecoveryInputs();
+          }
+        };
+        const buildAuthRedirectUrl = () => {
+          const url = new URL(window.location.href);
+          url.search = "";
+          url.hash = "";
+          if (url.pathname.endsWith("/")) {
+            url.pathname = `${url.pathname}index.html`;
+          }
+          return url.toString();
+        };
+        const hasRecoveryHash = () => {
+          try {
+            const raw = String(window.location.hash || "").replace(/^#/, "");
+            if (!raw) return false;
+            const params = new URLSearchParams(raw);
+            return String(params.get("type") || "").toLowerCase() === "recovery";
+          } catch (_err) {
+            return false;
+          }
+        };
 
         if (!supabaseClient) {
           status.textContent = "Supabase未設定";
@@ -8951,9 +9006,17 @@
         });
 
         supabaseClient.auth.getSession().then(({ data }) => {
+          if (hasRecoveryHash()) {
+            setRecoveryMode(true);
+            message.textContent = "再設定メールから開きました。新しいパスワードを入力してください。";
+          }
           updateAuthUI(data.session, { reason: "INITIAL_SESSION" });
         });
         supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (event === "PASSWORD_RECOVERY") {
+            setRecoveryMode(true);
+            message.textContent = "新しいパスワードを入力してください。";
+          }
           if (event === "TOKEN_REFRESHED") {
             const nextUser = session && session.user ? session.user : null;
             const nextRole = nextUser ? (getUserRole(nextUser) || "unapproved") : "guest";
@@ -8980,11 +9043,58 @@
           }
           const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
           if (error || !data || !data.session) {
-            message.textContent = `ログインに失敗しました。${error ? " " + error.message : ""}`;
+            message.textContent = `ログインに失敗しました。${error ? " " + error.message : ""} パスワードが不明な場合は「パスワード再設定」を使ってください。`;
             return;
           }
           message.textContent = "ログインしました。";
         });
+
+        if (resetBtn) {
+          resetBtn.addEventListener("click", async () => {
+            const email = emailInput.value.trim();
+            message.textContent = "";
+            if (!email) {
+              message.textContent = "再設定メールを送るメールアドレスを入力してください。";
+              return;
+            }
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+              redirectTo: buildAuthRedirectUrl()
+            });
+            if (error) {
+              message.textContent = `再設定メールの送信に失敗しました。 ${error.message || ""}`.trim();
+              return;
+            }
+            message.textContent = "再設定メールを送信しました。メール内のリンクから新しいパスワードを設定してください。";
+          });
+        }
+
+        if (recoverySaveBtn) {
+          recoverySaveBtn.addEventListener("click", async () => {
+            const nextPassword = recoveryPassword ? recoveryPassword.value : "";
+            const confirmPassword = recoveryPasswordConfirm ? recoveryPasswordConfirm.value : "";
+            message.textContent = "";
+            if (!recoveryMode) {
+              message.textContent = "再設定メールから開いたあとに利用してください。";
+              return;
+            }
+            if (!nextPassword) {
+              message.textContent = "新しいパスワードを入力してください。";
+              return;
+            }
+            if (nextPassword !== confirmPassword) {
+              message.textContent = "新しいパスワードが一致しません。";
+              return;
+            }
+            const { error } = await supabaseClient.auth.updateUser({ password: nextPassword });
+            if (error) {
+              message.textContent = `パスワード更新に失敗しました。 ${error.message || ""}`.trim();
+              return;
+            }
+            setRecoveryMode(false);
+            history.replaceState(null, "", buildAuthRedirectUrl());
+            message.textContent = "パスワードを更新しました。新しいパスワードでログインできます。";
+          });
+        }
 
         const signupBtn = document.getElementById("signupBtn");
         const signupEmail = document.getElementById("signupEmail");
@@ -9052,6 +9162,7 @@
 	        const answerTrendPanel = document.getElementById("answerTrendPanel");
 	        const adminLink = document.getElementById("adminLink");
         if (!user) {
+          if (!recoveryMode) setRecoveryMode(false);
           state.currentRole = "guest";
           state.roleRank = 0;
 	          state.authSession = null;
@@ -9085,9 +9196,12 @@
 	          loadSenryuRatingState();
 	          loadDeepDiveRatingState();
 	          loadQaDraftState();
-	          renderResults(filterQuestions());
+          renderResults(filterQuestions());
 	          return;
 	        }
+        if (recoveryMode) {
+          setRecoveryMode(true);
+        }
         const role = getUserRole(user);
         state.currentRole = role || "unapproved";
         state.roleRank = roleRank(role);
@@ -9560,15 +9674,17 @@
 
       async function ensureAnswerStatsLoaded(serials) {
         if (!supabaseClient || !serials.length) return;
-        if (state.answerStatsLoaded.has("*")) return;
-        const pending = serials.filter(serial => !state.answerStatsLoaded.has(serial));
+        const pending = Array.from(
+          new Set(serials.filter((serial) => serial && !state.answerStatsLoaded.has(serial)))
+        );
         if (!pending.length) return;
         const chunkSize = 100;
         for (let i = 0; i < pending.length; i += chunkSize) {
           const chunk = pending.slice(i, i + chunkSize);
           const { data, error } = await supabaseClient
             .from("answers")
-            .select("serial, is_correct, anon_id, created_at");
+            .select("serial, is_correct, anon_id, created_at")
+            .in("serial", chunk);
           if (error) {
             console.warn("回答集計の取得に失敗しました。", error);
             chunk.forEach(serial => {
@@ -9576,11 +9692,6 @@
               state.answerStatsLoaded.add(serial);
             });
             continue;
-          }
-          state.answerRows = data || [];
-          if (!state.answerTimeline) {
-            state.answerTimeline = buildAnswerTimeline(state.answerRows);
-            renderAnswerTimeline();
           }
           const stats = {};
           const latestByKey = {};
@@ -9614,7 +9725,6 @@
             }
             state.answerStatsLoaded.add(serial);
           });
-          state.answerStatsLoaded.add("*");
         }
       }
 
