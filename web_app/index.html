@@ -3743,7 +3743,7 @@
 	        moreBtn.hidden = true;
 	        try {
 	          const resp = await fetch(
-	            `${window.AI_API_BASE}/ai/question_senryu_ranking?days=${encodeURIComponent(365)}&limit=200`
+	            `${window.AI_API_BASE}/ai/question_senryu_ranking?days=${encodeURIComponent(3650)}&limit=5000`
 	          );
 	          if (!resp.ok) throw new Error("API error");
 	          const payload = await resp.json();

@@ -3635,24 +3635,36 @@ async function incrementQuestionSenryuCounter(env, body, field) {
 }
 
 async function fetchQuestionSenryuRanking(env, params) {
-  const safeDays = Math.max(1, Math.min(365, Number(params && params.days ? params.days : 30)));
-  const safeLimit = Math.max(1, Math.min(100, Number(params && params.limit ? params.limit : 30)));
+  const safeDays = Math.max(1, Math.min(3650, Number(params && params.days ? params.days : 30)));
+  const safeLimit = Math.max(1, Math.min(5000, Number(params && params.limit ? params.limit : 30)));
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
-  const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/question_senryu?select=id,base_serial,senryu,commentary,good_count,bad_count,created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=1000`,
-    {
-      headers: {
-        apikey: env.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
-        "Content-Type": "application/json"
+  const pageSize = 1000;
+  const maxPages = 100;
+  const rows = [];
+  for (let page = 0; page < maxPages; page += 1) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    const resp = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/question_senryu?select=id,base_serial,senryu,commentary,good_count,bad_count,created_at&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc`,
+      {
+        headers: {
+          apikey: env.SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          Range: `${from}-${to}`,
+          "Range-Unit": "items"
+        }
       }
+    );
+    if (!resp.ok) {
+      const detail = await resp.text();
+      return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
     }
-  );
-  if (!resp.ok) {
-    const detail = await resp.text();
-    return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
+    const batch = await resp.json().catch(() => []);
+    const items = Array.isArray(batch) ? batch : [];
+    rows.push(...items);
+    if (items.length < pageSize) break;
   }
-  const rows = await resp.json().catch(() => []);
   const ranked = (Array.isArray(rows) ? rows : [])
     .map((row) => {
       const goodCount = Number(row && row.good_count ? row.good_count : 0);
