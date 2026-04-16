@@ -1970,12 +1970,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ミトコンドリアは「細胞の発電所」と呼ばれ、酸素を利用してクエン酸回路や電子伝達系を介し、効率よくATP（アデノシン三リン酸）を産生する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ミトコンドリアは「細胞の発電所」と呼ばれ、酸素を利用してクエン酸回路や電子伝達系を介し、効率よくATP（アデノシン三リン酸）を産生する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -1995,13 +1995,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 80.088,
+    "frequent_score": 87.441,
     "frequent_level": 2,
     "frequent_tags": [
-      "代謝",
-      "エネルギー代謝"
+      "細胞",
+      "ATP"
     ],
-    "frequent_scope": "代謝"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A01-040",
@@ -2092,7 +2092,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -2196,7 +2196,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 156.588,
+    "frequent_score": 157.912,
     "frequent_level": 3,
     "frequent_tags": [
       "血液",
@@ -9863,12 +9863,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "中心体は細胞質に存在する細胞小器官であり、細胞分裂時に紡錘体を形成する役割を持つ。核内には染色体（DNA）が含まれる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "中心体は細胞質に存在する細胞小器官であり、細胞分裂時に紡錘体を形成する役割を持つ。核内には染色体（DNA）が含まれる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -9885,11 +9885,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.265,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞小器官"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -9937,7 +9936,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 38.118,
+    "frequent_score": 39.441,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -17690,12 +17689,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞内液で最も濃度が高い陽イオンはカリウムイオン（K+）である。一方、細胞外液（血漿や間質液）で最も濃度が高い陽イオンはナトリウムイオン（Na+）である。この濃度差はナトリウムポンプによって維持されている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞内液で最も濃度が高い陽イオンはカリウムイオン（K+）である。一方、細胞外液（血漿や間質液）で最も濃度が高い陽イオンはナトリウムイオン（Na+）である。この濃度差はナトリウムポンプによって維持されている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -17719,7 +17718,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 57.559,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -17770,7 +17769,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -17824,7 +17823,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 84.971,
+    "frequent_score": 86.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -25640,7 +25639,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 71.471,
+    "frequent_score": 72.735,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -25786,11 +25785,11 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 77.441,
+    "frequent_score": 78.765,
     "frequent_level": 2,
     "frequent_tags": [
-      "血管",
-      "リン"
+      "リン",
+      "血管"
     ],
     "frequent_scope": "循環"
   },
@@ -33413,12 +33412,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞の構成成分で最も多いのは水（約70％）であり、次いで蛋白質（約15〜20％）が多い。蛋白質は細胞の構造維持や酵素として重要な役割を果たす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞の構成成分で最も多いのは水（約70％）であり、次いで蛋白質（約15〜20％）が多い。蛋白質は細胞の構造維持や酵素として重要な役割を果たす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -33435,7 +33434,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 104.853,
+    "frequent_score": 136.912,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -33461,13 +33460,18 @@
       3
     ],
     "answer_none": false,
-    "explanation_latest": "ヒトの動脈血のpHは、常に7.4±0.05の極めて狭い範囲（弱アルカリ性）に維持されている。これをホメオスタシスという。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "ヒトの動脈血の pH は約 7.4 で、通常は 7.35〜7.45 の狭い範囲に保たれている。これは体内の恒常性維持機構によって調節されている。",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ヒトの動脈血のpHは、常に7.4±0.05の極めて狭い範囲（弱アルカリ性）に維持されている。これをホメオスタシスという。",
         "version": 1,
         "source": "llm"
+      },
+      {
+        "body": "ヒトの動脈血の pH は約 7.4 で、通常は 7.35〜7.45 の狭い範囲に保たれている。これは体内の恒常性維持機構によって調節されている。",
+        "version": 2,
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -33478,7 +33482,8 @@
     ],
     "subtopics": [
       "ホメオスタシスと生体リズム",
-      "循環"
+      "循環",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 53.353,
@@ -33534,7 +33539,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -33898,13 +33903,18 @@
       4
     ],
     "answer_none": false,
-    "explanation_latest": "神経細胞は基本的に分裂せず、個体の寿命とほぼ同じ期間生存し続けるため、最も寿命が長い。赤血球は約120日、白血球は数日から数週間の寿命である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "神経細胞は分化後ほとんど分裂せず、長期間生存するため、寿命が最も長い細胞として扱われる。赤血球の寿命は約 120 日である。白血球の寿命は種類によって差が大きく、短いものから長期間生存するものまである。",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "神経細胞は基本的に分裂せず、個体の寿命とほぼ同じ期間生存し続けるため、最も寿命が長い。赤血球は約120日、白血球は数日から数週間の寿命である。",
         "version": 1,
         "source": "llm"
+      },
+      {
+        "body": "神経細胞は分化後ほとんど分裂せず、長期間生存するため、寿命が最も長い細胞として扱われる。赤血球の寿命は約 120 日である。白血球の寿命は種類によって差が大きく、短いものから長期間生存するものまである。",
+        "version": 2,
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -41101,12 +41111,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "染色体は細胞核内に存在し、細胞分裂の際にクロマチン（染色質）が凝集して形成される。遺伝情報の保持と伝達を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "染色体は細胞核内に存在し、細胞分裂の際にクロマチン（染色質）が凝集して形成される。遺伝情報の保持と伝達を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -41125,7 +41135,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 57.559,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -48909,12 +48919,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "成人の体重の約60％は水分（体液）で構成されている。そのうち細胞内液が約40％、細胞外液（血漿や間質液）が約20％を占める。乳児では約70〜80％と高く、高齢者では低下する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "成人の体重の約60％は水分（体液）で構成されている。そのうち細胞内液が約40％、細胞外液（血漿や間質液）が約20％を占める。乳児では約70〜80％と高く、高齢者では低下する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -48958,12 +48968,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球を蒸留水（低張液）に入れると、浸透圧の差により水分が細胞内に流入し、細胞膜が破裂してヘモグロビンが流出する（溶血）。血液凝固因子の除去は血清の作成に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球を蒸留水（低張液）に入れると、浸透圧の差により水分が細胞内に流入し、細胞膜が破裂してヘモグロビンが流出する（溶血）。血液凝固因子の除去は血清の作成に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -49857,7 +49867,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 93.088,
+    "frequent_score": 94.353,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -56671,12 +56681,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ミトコンドリアは「細胞の発電所」と呼ばれ、酸素を用いて有機物を分解し、生命活動のエネルギー源であるATP（アデノシン三リン酸）を合成する。ゴルジ装置は分泌、リソソームは分解を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ミトコンドリアは「細胞の発電所」と呼ばれ、酸素を用いて有機物を分解し、生命活動のエネルギー源であるATP（アデノシン三リン酸）を合成する。ゴルジ装置は分泌、リソソームは分解を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -56695,11 +56705,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.265,
+    "frequent_score": 87.441,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞小器官"
+      "ATP"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -56746,7 +56756,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 92.824,
+    "frequent_score": 94.088,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -56773,12 +56783,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血漿タンパク質の中で最も量が多いアルブミンは、血管内に水分を保持する膠質浸透圧の維持に最も寄与する。プラスミン、フィブリン、トロンビンは血液凝固・線維素溶解系に関与するタンパク質である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血漿タンパク質の中で最も量が多いアルブミンは、血管内に水分を保持する膠質浸透圧の維持に最も寄与する。プラスミン、フィブリン、トロンビンは血液凝固・線維素溶解系に関与するタンパク質である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -56798,7 +56808,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 38.118,
+    "frequent_score": 39.441,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -64512,12 +64522,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ATPを産生するのはミトコンドリアである。ゴルジ装置は蛋白質の修飾や仕分け、分泌に関与する。ライソソームは細胞内消化、中心体は細胞分裂を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ATPを産生するのはミトコンドリアである。ゴルジ装置は蛋白質の修飾や仕分け、分泌に関与する。ライソソームは細胞内消化、中心体は細胞分裂を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -64540,11 +64550,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.265,
+    "frequent_score": 87.441,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞小器官"
+      "ATP"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -64567,12 +64577,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞外液で最も多い陽イオンはナトリウムイオン（Na+）である。一方、細胞内液で最も多い陽イオンはカリウムイオン（K+）である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞外液で最も多い陽イオンはナトリウムイオン（Na+）である。一方、細胞内液で最も多い陽イオンはカリウムイオン（K+）である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -64591,16 +64601,17 @@
       "電解質"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム"
+      "ホメオスタシスと生体リズム",
+      "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.5,
+    "frequent_score": 89.559,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A09-041",
@@ -64694,7 +64705,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 54.676,
+    "frequent_score": 55.941,
     "frequent_level": 2,
     "frequent_tags": [
       "免疫",
@@ -72374,12 +72385,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "能動輸送は、ATPの加水分解によって得られる化学エネルギーを利用し、濃度勾配に逆らって物質を輸送する形式である。拡散、浸透、ろ過は物理的な勾配に従う受動的輸送である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "能動輸送は、ATPの加水分解によって得られる化学エネルギーを利用し、濃度勾配に逆らって物質を輸送する形式である。拡散、浸透、ろ過は物理的な勾配に従う受動的輸送である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -72395,10 +72406,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 17.353,
+    "frequent_score": 20.059,
     "frequent_level": 1,
     "frequent_tags": [
-      "細胞膜"
+      "ATP"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -72449,7 +72460,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 138.118,
+    "frequent_score": 139.382,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -72947,12 +72958,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "オーバーシュートは、活動電位の発生時に膜電位が0mVを超えて正（プラス）になる現象を指し、脱分極の過程で現れる。過分極は、静止膜電位よりもさらに電位が負になる状態を指す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "オーバーシュートは、活動電位の発生時に膜電位が0mVを超えて正（プラス）になる現象を指し、脱分極の過程で現れる。過分極は、静止膜電位よりもさらに電位が負になる状態を指す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -80236,12 +80247,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "粗面小胞体は表面にリボソームが付着しており、リボソームはrRNAとタンパク質で構成されているため、RNAが多く含まれる。タンパク質合成の場となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "粗面小胞体は表面にリボソームが付着しており、リボソームはrRNAとタンパク質で構成されているため、RNAが多く含まれる。タンパク質合成の場となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -80260,11 +80271,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.265,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞小器官"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -80342,12 +80352,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ろ過は、膜の両側の圧力差（静水圧差）を駆動動力として物質が移動する現象である。浸透や拡散は濃度勾配を、開口放出はエネルギー（ATP）を必要とする。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ろ過は、膜の両側の圧力差（静水圧差）を駆動動力として物質が移動する現象である。浸透や拡散は濃度勾配を、開口放出はエネルギー（ATP）を必要とする。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -88011,12 +88021,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ミトコンドリアは「細胞の発電所」と呼ばれ、酸素を利用して有機物を分解し、エネルギー（ATP）を産生する細胞内呼吸（好気的代謝）の場である。ゴルジ装置は物質の加工・分泌、リソソームは細胞内消化を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ミトコンドリアは「細胞の発電所」と呼ばれ、酸素を利用して有機物を分解し、エネルギー（ATP）を産生する細胞内呼吸（好気的代謝）の場である。ゴルジ装置は物質の加工・分泌、リソソームは細胞内消化を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -88036,11 +88046,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 94.618,
-    "frequent_level": 3,
+    "frequent_score": 87.441,
+    "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞小器官"
+      "ATP"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -88191,7 +88201,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 38.118,
+    "frequent_score": 39.441,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -95924,12 +95934,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "タンパク質の合成を行うのはリボソーム（または粗面小胞体）である。ゴルジ装置は合成されたタンパク質の修飾や濃縮、袋詰め（包装）を行う役割を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "タンパク質の合成を行うのはリボソーム（または粗面小胞体）である。ゴルジ装置は合成されたタンパク質の修飾や濃縮、袋詰め（包装）を行う役割を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -95951,7 +95961,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 124.559,
+    "frequent_score": 136.912,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -96892,7 +96902,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 116.765,
+    "frequent_score": 118.029,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -103716,12 +103726,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "成人の体液量は体重の約60%である。その内訳は細胞内液が40%、細胞外液が20%（間質液15%、血漿5%）である。体重60kgの場合、細胞内液は60×0.4=24kg(L)となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "成人の体液量は体重の約60%である。その内訳は細胞内液が40%、細胞外液が20%（間質液15%、血漿5%）である。体重60kgの場合、細胞内液は60×0.4=24kg(L)となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -103845,7 +103855,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 84.971,
+    "frequent_score": 86.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -111472,12 +111482,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "全体重の約60%が体液であり、そのうち細胞内液が40%、細胞外液が20%を占めるため、細胞内液の方が多く存在する。細胞外液の大部分は間質液であり、血漿はその一部である。カリウムは細胞内に多い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "全体重の約60%が体液であり、そのうち細胞内液が40%、細胞外液が20%を占めるため、細胞内液の方が多く存在する。細胞外液の大部分は間質液であり、血漿はその一部である。カリウムは細胞内に多い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -111499,13 +111509,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 89.559,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A15-035",
@@ -111729,12 +111739,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ミトコンドリアは細胞内呼吸の場であり、酸化的リン酸化によって効率よくATPを産生する。リボソームはタンパク質合成、ゴルジ装置はタンパク質の修飾・仕分け、リソソームは細胞内消化を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ミトコンドリアは細胞内呼吸の場であり、酸化的リン酸化によって効率よくATPを産生する。リボソームはタンパク質合成、ゴルジ装置はタンパク質の修飾・仕分け、リソソームは細胞内消化を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -112288,7 +112298,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 95.147,
+    "frequent_score": 96.412,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -119461,12 +119471,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リボソームはmRNAの情報を読み取り、アミノ酸を繋げて蛋白質を合成する場である。中心体は細胞分裂、ゴルジ装置は蛋白質の修飾・選別、ミトコンドリアはATP産生を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リボソームはmRNAの情報を読み取り、アミノ酸を繋げて蛋白質を合成する場である。中心体は細胞分裂、ゴルジ装置は蛋白質の修飾・選別、ミトコンドリアはATP産生を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -119486,7 +119496,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 124.559,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -120272,7 +120282,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 93.088,
+    "frequent_score": 94.353,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -127448,12 +127458,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "成人の体重の約60％は水分（体液）である。その内訳は、細胞内液が体重の約40％、細胞外液が約20％（間質液15％、血漿5％）である。したがって、細胞外液の割合は20％が正しい。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "成人の体重の約60％は水分（体液）である。その内訳は、細胞内液が体重の約40％、細胞外液が約20％（間質液15％、血漿5％）である。したがって、細胞外液の割合は20％が正しい。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -127466,7 +127476,8 @@
       "血漿"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム"
+      "ホメオスタシスと生体リズム",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 106.088,
@@ -127568,7 +127579,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -135396,12 +135407,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ナトリウムポンプ（Na+-K+ポンプ）は、ATPのエネルギーを利用して濃度勾配に逆らってイオンを輸送する能動輸送の代表例である。浸透やろ過は受動的輸送に分類される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ナトリウムポンプ（Na+-K+ポンプ）は、ATPのエネルギーを利用して濃度勾配に逆らってイオンを輸送する能動輸送の代表例である。浸透やろ過は受動的輸送に分類される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -135420,11 +135431,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 74.912,
+    "frequent_score": 87.441,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞膜"
+      "ATP"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -135521,7 +135532,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 79.794,
+    "frequent_score": 81.118,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -136140,7 +136151,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 92.824,
+    "frequent_score": 94.088,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -143554,7 +143565,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -143831,7 +143842,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 84.971,
+    "frequent_score": 86.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -151611,12 +151622,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞外液（血漿・間質液）で最も多い陽イオンはナトリウムイオン（Na+）である。一方、細胞内液で最も多い陽イオンはカリウムイオン（K+）である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞外液（血漿・間質液）で最も多い陽イオンはナトリウムイオン（Na+）である。一方、細胞内液で最も多い陽イオンはカリウムイオン（K+）である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -151635,16 +151646,17 @@
       "電解質"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム"
+      "ホメオスタシスと生体リズム",
+      "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 89.559,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A20-035",
@@ -151689,7 +151701,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -151746,7 +151758,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -151880,12 +151892,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ATP（アデノシン三リン酸）は、塩基であるアデニン、糖であるリボース、および3つのリン酸から構成される高エネルギーリン酸化合物である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ATP（アデノシン三リン酸）は、塩基であるアデニン、糖であるリボース、および3つのリン酸から構成される高エネルギーリン酸化合物である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -151898,7 +151910,8 @@
       "生化学"
     ],
     "subtopics": [
-      "代謝"
+      "代謝",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 29.0,
@@ -159687,12 +159700,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞膜はリン脂質の二重層からなる二層構造（脂質二重層）である。膜にはタンパク質が埋め込まれており、選択的透過性や物質輸送、電気的興奮などの重要な機能を担っている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞膜はリン脂質の二重層からなる二層構造（脂質二重層）である。膜にはタンパク質が埋め込まれており、選択的透過性や物質輸送、電気的興奮などの重要な機能を担っている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -159709,11 +159722,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 74.912,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞膜"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -159736,12 +159748,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "成人の体液は体重の約60%を占め、細胞内液(40%)と細胞外液(20%)に分けられる。血漿は細胞外液に含まれる。血漿pHは7.4±0.05の弱アルカリ性に保たれている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "成人の体液は体重の約60%を占め、細胞内液(40%)と細胞外液(20%)に分けられる。血漿は細胞外液に含まれる。血漿pHは7.4±0.05の弱アルカリ性に保たれている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -159758,7 +159770,8 @@
     ],
     "subtopics": [
       "ホメオスタシスと生体リズム",
-      "循環"
+      "循環",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 106.088,
@@ -167722,12 +167735,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞内液と細胞外液ではイオン組成（内液はK+、外液はNa+が主）や蛋白質濃度は大きく異なるが、水分の移動によって浸透圧は常に等しく（約290mOsm/L）保たれている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞内液と細胞外液ではイオン組成（内液はK+、外液はNa+が主）や蛋白質濃度は大きく異なるが、水分の移動によって浸透圧は常に等しく（約290mOsm/L）保たれている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -167751,7 +167764,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 104.853,
+    "frequent_score": 139.029,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -167848,7 +167861,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 38.118,
+    "frequent_score": 39.441,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -168194,12 +168207,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "神経細胞や心筋細胞は、分化した後はほとんど分裂を行わず、個体とほぼ同じ寿命を持つ。赤血球は約120日、上皮細胞は数日〜数週間、リンパ球は種類により数日〜数年である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "神経細胞や心筋細胞は、分化した後はほとんど分裂を行わず、個体とほぼ同じ寿命を持つ。赤血球は約120日、上皮細胞は数日〜数週間、リンパ球は種類により数日〜数年である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -175507,12 +175520,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "能動輸送はATPのエネルギーを用いて濃度勾配に逆らって物質を運ぶ。筋小胞体へのCa2+取り込みはカルシウムポンプによる能動輸送である。ガス交換や脂肪酸吸収は拡散（受動輸送）である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "能動輸送はATPのエネルギーを用いて濃度勾配に逆らって物質を運ぶ。筋小胞体へのCa2+取り込みはカルシウムポンプによる能動輸送である。ガス交換や脂肪酸吸収は拡散（受動輸送）である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -176018,7 +176031,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 116.5,
+    "frequent_score": 117.765,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -183704,12 +183717,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "解糖系は細胞質内で行われる内呼吸（細胞呼吸）の第一段階である。酸素を必要とせず（嫌気的）、ミトコンドリアではなく細胞質基質で進行する。二酸化炭素が発生するのはミトコンドリア内でのクエン酸回路である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "解糖系は細胞質内で行われる内呼吸（細胞呼吸）の第一段階である。酸素を必要とせず（嫌気的）、ミトコンドリアではなく細胞質基質で進行する。二酸化炭素が発生するのはミトコンドリア内でのクエン酸回路である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -183726,7 +183739,8 @@
       "酸素"
     ],
     "subtopics": [
-      "代謝"
+      "代謝",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 77.353,
@@ -184200,7 +184214,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 138.118,
+    "frequent_score": 139.382,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -191833,7 +191847,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -200010,12 +200024,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "DNAは二重らせん構造をとり、ヒストンなどのタンパク質と結合して凝集し、染色体を形成する。RNAは通常一重鎖であり、DNAよりも分子量は小さい。アミノ酸をリボソームへ運ぶのは転移RNA（tRNA）である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "DNAは二重らせん構造をとり、ヒストンなどのタンパク質と結合して凝集し、染色体を形成する。RNAは通常一重鎖であり、DNAよりも分子量は小さい。アミノ酸をリボソームへ運ぶのは転移RNA（tRNA）である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -200508,7 +200522,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 116.5,
+    "frequent_score": 117.765,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -208258,12 +208272,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞外液（血漿や組織液）にはナトリウムイオン(Na+)が最も多く含まれ、浸透圧の維持に重要である。細胞内液にはカリウムイオン(K+)が多い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞外液（血漿や組織液）にはナトリウムイオン(Na+)が最も多く含まれ、浸透圧の維持に重要である。細胞内液にはカリウムイオン(K+)が多い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -208285,10 +208299,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 57.559,
+    "frequent_score": 89.559,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞"
+      "細胞",
+      "細胞外液"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -208364,12 +208379,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "人体の構成成分は、水分を除くとタンパク質が最も多く、細胞の構造や機能の維持に不可欠な主成分である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "人体の構成成分は、水分を除くとタンパク質が最も多く、細胞の構造や機能の維持に不可欠な主成分である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -208390,7 +208405,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 104.853,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -208554,7 +208569,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 95.147,
+    "frequent_score": 96.412,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -216602,11 +216617,11 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 149.059,
+    "frequent_score": 150.382,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
-      "血管"
+      "リン"
     ],
     "frequent_scope": "循環"
   },
@@ -233491,7 +233506,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -233635,7 +233650,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 38.118,
+    "frequent_score": 39.441,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -242391,12 +242406,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "体液のpHは約7.4（弱アルカリ性）に保たれている。成人の体液量は体重の約60%（細胞内液40%、細胞外液20%）である。細胞内液にはカリウムイオンが多く、細胞外液にはナトリウムイオンが多い。細胞膜を介して水は自由に移動できるため、細胞内外の浸透圧は等しく保たれる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "体液のpHは約7.4（弱アルカリ性）に保たれている。成人の体液量は体重の約60%（細胞内液40%、細胞外液20%）である。細胞内液にはカリウムイオンが多く、細胞外液にはナトリウムイオンが多い。細胞膜を介して水は自由に移動できるため、細胞内外の浸透圧は等しく保たれる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -242416,13 +242431,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 89.559,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A31-024",
@@ -251269,12 +251284,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "中心体は細胞分裂の際に紡錘糸の形成に関与する。ミトコンドリアはATP合成、リソソームは細胞内消化、粗面小胞体は蛋白質合成を行う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "中心体は細胞分裂の際に紡錘糸の形成に関与する。ミトコンドリアはATP合成、リソソームは細胞内消化、粗面小胞体は蛋白質合成を行う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -251295,7 +251310,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 124.559,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -251348,7 +251363,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -251408,7 +251423,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 117.265,
+    "frequent_score": 118.588,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -260239,7 +260254,7 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞膜はリン脂質二重層に蛋白質がモザイク状に組み込まれた構造をしている。脂溶性物質は細胞膜を通過しやすい。",
-    "explanation_latest_source": "teacher",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞膜はリン脂質二重層に蛋白質がモザイク状に組み込まれた構造（流動モザイクモデル）をしている。脂溶性物質は細胞膜を通過しやすい。",
@@ -260254,7 +260269,7 @@
       {
         "body": "細胞膜はリン脂質二重層に蛋白質がモザイク状に組み込まれた構造をしている。脂溶性物質は細胞膜を通過しやすい。",
         "version": 3,
-        "source": "teacher"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -260275,7 +260290,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 122.206,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -260334,7 +260349,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 84.971,
+    "frequent_score": 86.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -269567,7 +269582,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 71.471,
+    "frequent_score": 72.735,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -278308,12 +278323,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "半透膜を介して溶媒（水）が濃度の低い方から高い方へ移動する現象を浸透という。拡散は溶質が移動する現象、濾過は圧力差による移動、能動輸送はエネルギーを消費する移動である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "半透膜を介して溶媒（水）が濃度の低い方から高い方へ移動する現象を浸透という。拡散は溶質が移動する現象、濾過は圧力差による移動、能動輸送はエネルギーを消費する移動である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -286874,12 +286889,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "DNA（デオキシリボ核酸）は主に細胞核内に存在し、二重らせん構造をとる。遺伝情報を保持しており、アデニン(A)、グアニン(G)、シトシン(C)、チミン(T)の4種類の塩基で構成される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "DNA（デオキシリボ核酸）は主に細胞核内に存在し、二重らせん構造をとる。遺伝情報を保持しており、アデニン(A)、グアニン(G)、シトシン(C)、チミン(T)の4種類の塩基で構成される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -286919,12 +286934,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "アルブミンは血漿蛋白質の約60%を占め、膠質浸透圧の維持や物質の運搬を担う。抗体（免疫グロブリン）として働くのはγ-グロブリンである。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アルブミンは血漿蛋白質の約60%を占め、膠質浸透圧の維持や物質の運搬を担う。抗体（免疫グロブリン）として働くのはγ-グロブリンである。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -286945,7 +286960,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 104.853,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -287053,7 +287068,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 143.882,
+    "frequent_score": 145.206,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -295370,12 +295385,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リソソームは加水分解酵素を含み、細胞内消化を行う細胞小器官である。ミトコンドリアはATP産生、小胞体はタンパク質や脂質の合成、中心体は細胞分裂に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リソソームは加水分解酵素を含み、細胞内消化を行う細胞小器官である。ミトコンドリアはATP産生、小胞体はタンパク質や脂質の合成、中心体は細胞分裂に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -295393,11 +295408,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.265,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞小器官"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -295419,13 +295433,18 @@
       4
     ],
     "answer_none": false,
-    "explanation_latest": "細胞外液はナトリウムイオン（Na+）や塩化物イオン（Cl-）を多く含み、太古の海水に似た組成を持つ。体重の約20％を占め、細胞内液（約40％）に比べてカリウム濃度は低い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "細胞外液はナトリウムイオン（Na+）や塩化物イオン（Cl-）を多く含む。成人では体重の約 20％を占め、細胞内液に比べてカリウムイオン濃度は低い。",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞外液はナトリウムイオン（Na+）や塩化物イオン（Cl-）を多く含み、太古の海水に似た組成を持つ。体重の約20％を占め、細胞内液（約40％）に比べてカリウム濃度は低い。",
         "version": 1,
         "source": "llm"
+      },
+      {
+        "body": "細胞外液はナトリウムイオン（Na+）や塩化物イオン（Cl-）を多く含む。成人では体重の約 20％を占め、細胞内液に比べてカリウムイオン濃度は低い。",
+        "version": 2,
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -295442,16 +295461,17 @@
       "蛋白質"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム"
+      "ホメオスタシスと生体リズム",
+      "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 106.088,
+    "frequent_score": 139.029,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "白質"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "B03-036",
@@ -295554,8 +295574,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 151.412,
-    "frequent_level": 3,
+    "frequent_score": 152.735,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液",
       "動脈"
@@ -296185,7 +296205,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 138.118,
+    "frequent_score": 139.382,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -303840,12 +303860,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "解糖系は細胞質内で行われる代謝経路であり、1分子のグルコースから2分子のピルビン酸と2分子のATP（アデノシン三リン酸）が生成される。ATPは生体内のエネルギー通貨と呼ばれる高エネルギー化合物である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "解糖系は細胞質内で行われる代謝経路であり、1分子のグルコースから2分子のピルビン酸と2分子のATP（アデノシン三リン酸）が生成される。ATPは生体内のエネルギー通貨と呼ばれる高エネルギー化合物である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -303860,7 +303880,8 @@
       "解糖系"
     ],
     "subtopics": [
-      "代謝"
+      "代謝",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 80.088,
@@ -303968,7 +303989,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 156.588,
+    "frequent_score": 157.912,
     "frequent_level": 3,
     "frequent_tags": [
       "血液",
@@ -312323,7 +312344,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 76.029,
+    "frequent_score": 77.294,
     "frequent_level": 2,
     "frequent_tags": [
       "免疫",
@@ -312816,12 +312837,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ナトリウムポンプ（Na+-K+ポンプ）は、ATPのエネルギーを利用して、濃度勾配に逆らってナトリウムイオンを細胞外へ、カリウムイオンを細胞内へ汲み出す能動的輸送の一種である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ナトリウムポンプ（Na+-K+ポンプ）は、ATPのエネルギーを利用して、濃度勾配に逆らってナトリウムイオンを細胞外へ、カリウムイオンを細胞内へ汲み出す能動的輸送の一種である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -312839,10 +312860,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 17.353,
+    "frequent_score": 20.059,
     "frequent_level": 1,
     "frequent_tags": [
-      "細胞膜"
+      "ATP"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -320753,12 +320774,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞膜は、リン脂質の二重層を基本構造とし、そこにタンパク質や糖鎖、コレステロールなどが組み込まれた流動モザイクモデルで構成されている。リボ核酸（RNA）は核内やリボソームに存在する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞膜は、リン脂質の二重層を基本構造とし、そこにタンパク質や糖鎖、コレステロールなどが組み込まれた流動モザイクモデルで構成されている。リボ核酸（RNA）は核内やリボソームに存在する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -320775,11 +320796,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 74.912,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞膜"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -320871,7 +320891,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 84.971,
+    "frequent_score": 86.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -321257,12 +321277,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "静止電位は、細胞膜内外のイオン分布の差（細胞内はK+が多く、細胞外はNa+が多い）と、膜のイオン透過性の違いによって生じる電位差である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "静止電位は、細胞膜内外のイオン分布の差（細胞内はK+が多く、細胞外はNa+が多い）と、膜のイオン透過性の違いによって生じる電位差である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -321282,11 +321302,10 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 74.912,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞膜"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -329270,13 +329289,18 @@
       2
     ],
     "answer_none": false,
-    "explanation_latest": "解糖系は細胞質内で行われる、酸素を必要としない（無酸素的）エネルギー代謝過程である。1分子のグルコースから2分子のピルビン酸（または乳酸）とATPが生成される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "解糖系は細胞質で行われる、酸素を必要としない代謝過程である。1 分子のグルコースから 2 分子のピルビン酸と正味 2 分子の ATP が生じる。嫌気的条件では、このピルビン酸がさらに乳酸へ変換される。",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "解糖系は細胞質内で行われる、酸素を必要としない（無酸素的）エネルギー代謝過程である。1分子のグルコースから2分子のピルビン酸（または乳酸）とATPが生成される。",
         "version": 1,
         "source": "llm"
+      },
+      {
+        "body": "解糖系は細胞質で行われる、酸素を必要としない代謝過程である。1 分子のグルコースから 2 分子のピルビン酸と正味 2 分子の ATP が生じる。嫌気的条件では、このピルビン酸がさらに乳酸へ変換される。",
+        "version": 2,
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -329293,7 +329317,8 @@
       "酸素"
     ],
     "subtopics": [
-      "代謝"
+      "代謝",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 77.353,
@@ -329323,12 +329348,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞内液は体重の約40%を占め、細胞外液（約20%）より多い。組成としてはK+やMg2+、蛋白質が豊富である。一方、細胞外液はNa+やCl-が多い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞内液は体重の約40%を占め、細胞外液（約20%）より多い。組成としてはK+やMg2+、蛋白質が豊富である。一方、細胞外液はNa+やCl-が多い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -329348,7 +329373,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 104.853,
+    "frequent_score": 139.029,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -329449,7 +329474,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 143.882,
+    "frequent_score": 145.206,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -337683,12 +337708,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "浸透とは、半透膜を介して溶媒（水）が濃度の低い方から高い方へ移動する現象である。溶質が濃度勾配に従って移動するのは拡散、エネルギー（ATP）を用いるのは能動輸送である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "浸透とは、半透膜を介して溶媒（水）が濃度の低い方から高い方へ移動する現象である。溶質が濃度勾配に従って移動するのは拡散、エネルギー（ATP）を用いるのは能動輸送である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -337706,11 +337731,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 74.912,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞膜"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -337757,7 +337781,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 38.118,
+    "frequent_score": 39.441,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -337861,7 +337885,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 72.265,
+    "frequent_score": 73.588,
     "frequent_level": 1,
     "frequent_tags": [
       "リン",
@@ -346174,12 +346198,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞膜はリン脂質の二重層に蛋白質が浮遊する流動モザイクモデル構造をとり、イオンチャネル等により特定のイオンを選択的に透過させる。脂溶性の高い物質ほど脂質二重層を通過しやすい。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞膜はリン脂質の二重層に蛋白質が浮遊する流動モザイクモデル構造をとり、イオンチャネル等により特定のイオンを選択的に透過させる。脂溶性の高い物質ほど脂質二重層を通過しやすい。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -346198,7 +346222,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 122.206,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -346247,13 +346271,15 @@
     ],
     "subtopics": [
       "循環",
-      "生理学の基礎"
+      "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 0.0,
-    "frequent_level": 0,
-    "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_score": 34.324,
+    "frequent_level": 1,
+    "frequent_tags": [
+      "免疫"
+    ],
+    "frequent_scope": "生体の防御機構"
   },
   {
     "serial": "B09-036",
@@ -354694,12 +354720,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞外液が間質液（約15%）と血漿（約5%）に区分される。細胞内液は体重の約40%を占める。細胞外液の主イオンはNa+、細胞内液はK+である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞外液が間質液（約15%）と血漿（約5%）に区分される。細胞内液は体重の約40%を占める。細胞外液の主イオンはNa+、細胞内液はK+である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -354718,16 +354744,17 @@
       "電解質"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム"
+      "ホメオスタシスと生体リズム",
+      "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 89.559,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "B10-035",
@@ -354773,7 +354800,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -354838,7 +354865,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 84.971,
+    "frequent_score": 86.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -355544,7 +355571,8 @@
       "重量感"
     ],
     "subtopics": [
-      "感覚"
+      "感覚",
+      "身体の運動"
     ],
     "deep_dive": null,
     "frequent_score": 67.088,
@@ -363180,7 +363208,8 @@
       "静脈血"
     ],
     "subtopics": [
-      "呼吸"
+      "呼吸",
+      "循環"
     ],
     "deep_dive": null,
     "frequent_score": 96.735,
@@ -371818,7 +371847,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 38.118,
+    "frequent_score": 39.441,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -380359,7 +380388,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 117.265,
+    "frequent_score": 118.588,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -388719,12 +388748,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "RNAの塩基はアデニン(A)、グアニン(G)、シトシン(C)、ウラシル(U)の4種類である。チミン(T)はDNAを構成する塩基であり、RNAではウラシルに置き換わっている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "RNAの塩基はアデニン(A)、グアニン(G)、シトシン(C)、ウラシル(U)の4種類である。チミン(T)はDNAを構成する塩基であり、RNAではウラシルに置き換わっている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -397864,7 +397893,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 95.147,
+    "frequent_score": 96.412,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -405657,12 +405686,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "正常な体液（血漿）の浸透圧は約290mOsm/l（280〜300）である。pHは7.4±0.05の弱アルカリ性に保たれている。成人男性の体液量は体重の約60％であり、そのうち細胞内液が約40％、細胞外液が約20％（間質液15％、血漿5％）を占める。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "正常な体液（血漿）の浸透圧は約290mOsm/l（280〜300）である。pHは7.4±0.05の弱アルカリ性に保たれている。成人男性の体液量は体重の約60％であり、そのうち細胞内液が約40％、細胞外液が約20％（間質液15％、血漿5％）を占める。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -405676,16 +405705,17 @@
       "細胞外液"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム"
+      "ホメオスタシスと生体リズム",
+      "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 89.559,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "B16-032",
@@ -406338,7 +406368,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 54.676,
+    "frequent_score": 55.941,
     "frequent_level": 2,
     "frequent_tags": [
       "免疫",
@@ -422878,7 +422908,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -422933,7 +422963,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -431566,12 +431596,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "蒸留水は低張液であるため、赤血球内に水が浸入して膨張・破裂する溶血を引き起こす。ナトリウムイオンやカルシウムイオンは電解質であり、等張であれば溶血は起きない。トロンビンは血液凝固に関与する酵素である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "蒸留水は低張液であるため、赤血球内に水が浸入して膨張・破裂する溶血を引き起こす。ナトリウムイオンやカルシウムイオンは電解質であり、等張であれば溶血は起きない。トロンビンは血液凝固に関与する酵素である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -431815,7 +431845,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -440423,7 +440453,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 117.265,
+    "frequent_score": 118.588,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -440479,7 +440509,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 117.265,
+    "frequent_score": 118.588,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -449056,12 +449086,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リボソームはタンパク質合成の場である。リソソームは細胞内消化、中心体は細胞分裂時の紡錘糸形成、ゴルジ装置は物質の修飾・選別・分泌に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リボソームはタンパク質合成の場である。リソソームは細胞内消化、中心体は細胞分裂時の紡錘糸形成、ゴルジ装置は物質の修飾・選別・分泌に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -449085,7 +449115,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 124.559,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -449112,12 +449142,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "Rhマイナスの母体がRhプラスの胎児（父がRhプラスの場合に可能性あり）を妊娠すると、分娩時などに胎児血が母体に入り、母体で抗Rh抗体が産生される（感作）。次回の妊娠で胎児がRhプラスだと、抗体が胎盤を通過し胎児赤芽球症を引き起こす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "Rhマイナスの母体がRhプラスの胎児（父がRhプラスの場合に可能性あり）を妊娠すると、分娩時などに胎児血が母体に入り、母体で抗Rh抗体が産生される（感作）。次回の妊娠で胎児がRhプラスだと、抗体が胎盤を通過し胎児赤芽球症を引き起こす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -449242,7 +449272,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 117.265,
+    "frequent_score": 118.588,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -449436,12 +449466,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "カテコールアミンやペプチドホルモンは細胞膜受容体に結合し、cAMPなどのセカンドメッセンジャーを介して作用する。ステロイドホルモン（アルドステロン、テストステロン）や甲状腺ホルモン（トリヨードサイロニン）は細胞内に入り核内受容体に結合する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "カテコールアミンやペプチドホルモンは細胞膜受容体に結合し、cAMPなどのセカンドメッセンジャーを介して作用する。ステロイドホルモン（アルドステロン、テストステロン）や甲状腺ホルモン（トリヨードサイロニン）は細胞内に入り核内受容体に結合する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -449461,7 +449491,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 57.559,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -449781,7 +449811,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 95.147,
+    "frequent_score": 96.412,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -457808,12 +457838,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "粗面小胞体は、表面にリボソームが付着しており、蛋白質合成が盛んな部位である。リボソームはrRNA（リボソームRNA）と蛋白質で構成されているため、RNAが多く含まれる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "粗面小胞体は、表面にリボソームが付着しており、蛋白質合成が盛んな部位である。リボソームはrRNA（リボソームRNA）と蛋白質で構成されているため、RNAが多く含まれる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -457832,11 +457862,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.265,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞小器官"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -457859,12 +457888,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ピルビン酸はクエン酸回路（TCAサイクル）と電子伝達系を経て、ATP、二酸化炭素、水に分解される。尿素はアミノ酸の代謝過程で生じるアンモニアが肝臓の尿素回路で処理されて生成されるもので、糖代謝のピルビン酸分解からは生じない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ピルビン酸はクエン酸回路（TCAサイクル）と電子伝達系を経て、ATP、二酸化炭素、水に分解される。尿素はアミノ酸の代謝過程で生じるアンモニアが肝臓の尿素回路で処理されて生成されるもので、糖代謝のピルビン酸分解からは生じない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -457879,7 +457908,8 @@
       "酸化"
     ],
     "subtopics": [
-      "代謝"
+      "代謝",
+      "生理学の基礎"
     ],
     "deep_dive": null,
     "frequent_score": 29.0,
@@ -458066,12 +458096,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "蛋白質は、多数のアミノ酸がペプチド結合（-CONH-）によって鎖状に連なった高分子化合物である。脂質はエステル結合、炭水化物（多糖類）はグリコシド結合が主である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "蛋白質は、多数のアミノ酸がペプチド結合（-CONH-）によって鎖状に連なった高分子化合物である。脂質はエステル結合、炭水化物（多糖類）はグリコシド結合が主である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -466345,7 +466375,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -466429,12 +466459,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ATP（アデノシン三リン酸）は、塩基のアデニン、糖のリボース、および3分子のリン酸から構成される。高エネルギーリン酸結合を持ち、生体内のエネルギー通貨として機能する。チミンやデオキシリボースはDNAの構成成分である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ATP（アデノシン三リン酸）は、塩基のアデニン、糖のリボース、および3分子のリン酸から構成される。高エネルギーリン酸結合を持ち、生体内のエネルギー通貨として機能する。チミンやデオキシリボースはDNAの構成成分である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -466870,7 +466900,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 116.5,
+    "frequent_score": 117.765,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -484042,12 +484072,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞外液の主要な陽イオンはナトリウムイオン（Na+）である。体重の約60%は全水分量であり、細胞外液はそのうちの約20%を占める。細胞内液と外液の浸透圧は等しく保たれている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞外液の主要な陽イオンはナトリウムイオン（Na+）である。体重の約60%は全水分量であり、細胞外液はそのうちの約20%を占める。細胞内液と外液の浸透圧は等しく保たれている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -484073,7 +484103,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 104.853,
+    "frequent_score": 139.029,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -493130,11 +493160,11 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 77.441,
+    "frequent_score": 78.765,
     "frequent_level": 2,
     "frequent_tags": [
-      "血管",
-      "リン"
+      "リン",
+      "血管"
     ],
     "frequent_scope": "循環"
   },
@@ -493254,12 +493284,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "コレステロールは誘導脂質であり、細胞膜の構成成分として重要である。また、ステロイドホルモンや胆汁酸の原料となる。主に肝臓で合成される。中性脂肪が皮下脂肪の主成分である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "コレステロールは誘導脂質であり、細胞膜の構成成分として重要である。また、ステロイドホルモンや胆汁酸の原料となる。主に肝臓で合成される。中性脂肪が皮下脂肪の主成分である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -493279,11 +493309,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 74.912,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞膜"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -502214,7 +502243,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 109.735,
+    "frequent_score": 111.059,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -511165,7 +511194,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 45.647,
+    "frequent_score": 46.971,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -511301,12 +511330,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "タンパク質は人体の固形成分で最も多く、筋肉、臓器、酵素、ホルモンなどを構成する主要成分である。細胞膜にも受容体やチャネル、ポンプとして埋め込まれている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "タンパク質は人体の固形成分で最も多く、筋肉、臓器、酵素、ホルモンなどを構成する主要成分である。細胞膜にも受容体やチャネル、ポンプとして埋め込まれている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -511325,7 +511354,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 122.206,
+    "frequent_score": 116.853,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -511646,7 +511675,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 95.147,
+    "frequent_score": 96.412,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -519943,12 +519972,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リソソーム（ライソゾーム）は内部に強力な加水分解酵素を含んでおり、細胞内の不要物や取り込んだ異物を分解・処理する細胞内消化を行う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リソソーム（ライソゾーム）は内部に強力な加水分解酵素を含んでおり、細胞内の不要物や取り込んだ異物を分解・処理する細胞内消化を行う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -519965,11 +519994,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.265,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "細胞小器官"
+      "細胞"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -530026,12 +530054,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "DNA（デオキシリボ核酸）は二重らせん構造をとり、遺伝情報を保持して染色体を構成する。構成する塩基はアデニン(A)、グアニン(G)、シトシン(C)、チミン(T)の4種類である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "DNA（デオキシリボ核酸）は二重らせん構造をとり、遺伝情報を保持して染色体を構成する。構成する塩基はアデニン(A)、グアニン(G)、シトシン(C)、チミン(T)の4種類である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -530093,7 +530121,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 156.588,
+    "frequent_score": 157.912,
     "frequent_level": 3,
     "frequent_tags": [
       "血液",
@@ -540209,12 +540237,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "コレステロールは細胞膜の構成成分であり、ステロイドホルモン（副腎皮質ホルモンや性ホルモン）や胆汁酸の前駆物質となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "コレステロールは細胞膜の構成成分であり、ステロイドホルモン（副腎皮質ホルモンや性ホルモン）や胆汁酸の前駆物質となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -540466,7 +540494,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 114.441,
+    "frequent_score": 115.706,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -550069,12 +550097,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "RNAはDNAの遺伝情報を転写・翻訳して蛋白質を合成する過程に不可欠である。DNAは4種類の塩基（A, T, G, C）で構成される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "RNAはDNAの遺伝情報を転写・翻訳して蛋白質を合成する過程に不可欠である。DNAは4種類の塩基（A, T, G, C）で構成される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -550095,8 +550123,8 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 47.294,
-    "frequent_level": 2,
+    "frequent_score": 49.471,
+    "frequent_level": 1,
     "frequent_tags": [
       "白質",
       "蛋白質"
@@ -550122,12 +550150,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球は浸透圧差により水分が流入するため、蒸留水（低張液）中では膨張して溶血を起こす。骨髄で産生される無核細胞で、寿命は約120日である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球は浸透圧差により水分が流入するため、蒸留水（低張液）中では膨張して溶血を起こす。骨髄で産生される無核細胞で、寿命は約120日である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -550147,7 +550175,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 57.559,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -560209,7 +560237,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 117.265,
+    "frequent_score": 118.588,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -560449,12 +560477,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "神経細胞は分裂能を持たず、個体と同じ寿命を持つものが多い。赤血球の寿命は約120日、血小板は約10日、上皮細胞は代謝回転が速く数日から数週間である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "神経細胞は分裂能を持たず、個体と同じ寿命を持つものが多い。赤血球の寿命は約120日、血小板は約10日、上皮細胞は代謝回転が速く数日から数週間である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -560471,7 +560499,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 57.559,
+    "frequent_score": 67.382,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -570226,7 +570254,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 79.794,
+    "frequent_score": 81.118,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
