@@ -2022,12 +2022,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球の寿命は約120日である。形状は中央が凹んだ円盤状で、成人男子の赤血球数は約500万個/mm3、ヘマトクリット値は約45%が標準的である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球の寿命は約120日である。形状は中央が凹んだ円盤状で、成人男子の赤血球数は約500万個/mm3、ヘマトクリット値は約45%が標準的である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -2042,8 +2042,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -2068,12 +2068,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "フィブリノーゲン（第I因子）は、トロンビンの作用によりフィブリンとなり、血液凝固の最終段階で網目構造を形成する。ヘパリンは抗凝固薬、プラスミンは線維素溶解に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "フィブリノーゲン（第I因子）は、トロンビンの作用によりフィブリンとなり、血液凝固の最終段階で網目構造を形成する。ヘパリンは抗凝固薬、プラスミンは線維素溶解に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -2092,7 +2092,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -2119,12 +2119,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心臓の刺激伝導系において、右心房にある洞房結節（キース・フラック結節）が最も高い頻度で自発的に興奮するため、正常な心拍のペースメーカーとして働く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心臓の刺激伝導系において、右心房にある洞房結節（キース・フラック結節）が最も高い頻度で自発的に興奮するため、正常な心拍のペースメーカーとして働く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -2144,7 +2144,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -2170,12 +2170,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "毛細血管は壁が非常に薄く、血液と周囲の間質液（組織液）との間で酸素や二酸化炭素、栄養素、老廃物の交換が行われる唯一の部位である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "毛細血管は壁が非常に薄く、血液と周囲の間質液（組織液）との間で酸素や二酸化炭素、栄養素、老廃物の交換が行われる唯一の部位である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -2196,7 +2196,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 157.912,
+    "frequent_score": 155.412,
     "frequent_level": 3,
     "frequent_tags": [
       "血液",
@@ -2348,7 +2348,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 131.059,
+    "frequent_score": 129.971,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -9911,12 +9911,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リンパ球のうち、B細胞（Bリンパ球）が形質細胞に分化して抗体（免疫グロブリン）を産生する。好中球や単球は主に貪食作用を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リンパ球のうち、B細胞（Bリンパ球）が形質細胞に分化して抗体（免疫グロブリン）を産生する。好中球や単球は主に貪食作用を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -9936,7 +9936,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.441,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -9962,12 +9962,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ヘモグロビンは鉄を含むヘムと蛋白質であるグロビンからなる「複合蛋白質」である。酸素や二酸化炭素の運搬、血液のpH緩衝作用を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ヘモグロビンは鉄を含むヘムと蛋白質であるグロビンからなる「複合蛋白質」である。酸素や二酸化炭素の運搬、血液のpH緩衝作用を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -9989,7 +9989,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 35.471,
+    "frequent_score": 32.118,
     "frequent_level": 1,
     "frequent_tags": [
       "酸素"
@@ -10015,12 +10015,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧は「心拍出量 × 末梢血管抵抗」で決まる。血管平滑筋が弛緩して血管径が拡大すると、末梢血管抵抗が減少するため血圧は低下する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧は「心拍出量 × 末梢血管抵抗」で決まる。血管平滑筋が弛緩して血管径が拡大すると、末梢血管抵抗が減少するため血圧は低下する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -10039,7 +10039,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 110.941,
+    "frequent_score": 109.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -17744,12 +17744,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血漿蛋白質の中で最も含有量が多いのはアルブミンであり、全体の約60%を占める。アルブミンは血漿膠質浸透圧の維持や物質の運搬に重要な役割を果たす。グロブリンやフィブリノーゲンはそれよりも少ない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血漿蛋白質の中で最も含有量が多いのはアルブミンであり、全体の約60%を占める。アルブミンは血漿膠質浸透圧の維持や物質の運搬に重要な役割を果たす。グロブリンやフィブリノーゲンはそれよりも少ない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -17769,7 +17769,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -17796,12 +17796,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細動脈は平滑筋に富み、交感神経（血管運動神経）の支配を強く受けて収縮・拡張することで、末梢血管抵抗を調節する「抵抗血管」として機能する。毛細血管には平滑筋がないため、神経支配を受けない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細動脈は平滑筋に富み、交感神経（血管運動神経）の支配を強く受けて収縮・拡張することで、末梢血管抵抗を調節する「抵抗血管」として機能する。毛細血管には平滑筋がないため、神経支配を受けない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -17823,7 +17823,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 86.294,
+    "frequent_score": 78.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -17850,12 +17850,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は横紋を持つ横紋筋であり、平滑筋ではない。特殊心筋による自動能を持ち、自律神経（交感・副交感神経）によってその活動が調節される不随意筋である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は横紋を持つ横紋筋であり、平滑筋ではない。特殊心筋による自動能を持ち、自律神経（交感・副交感神経）によってその活動が調節される不随意筋である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -17896,12 +17896,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "駆出期は心室の圧力が動脈圧を超え、血液が動脈へ送り出される時期である。この時期に動脈圧は最大（最高血圧）に達する。等容性収縮期は圧力が上昇するが弁は閉じており、充満期は血液が心室に流れ込む時期である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "駆出期は心室の圧力が動脈圧を超え、血液が動脈へ送り出される時期である。この時期に動脈圧は最大（最高血圧）に達する。等容性収縮期は圧力が上昇するが弁は閉じており、充満期は血液が心室に流れ込む時期である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -17920,7 +17920,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -18122,7 +18122,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 89.176,
+    "frequent_score": 88.088,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -18173,7 +18173,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 160.971,
+    "frequent_score": 159.882,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -25589,8 +25589,8 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -25639,7 +25639,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 72.735,
+    "frequent_score": 70.324,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -25666,12 +25666,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ビタミンB12や葉酸は、赤芽球のDNA合成に不可欠であり、赤血球の成熟に関与する。不足すると巨赤芽球性貧血（悪性貧血など）の原因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ビタミンB12や葉酸は、赤芽球のDNA合成に不可欠であり、赤血球の成熟に関与する。不足すると巨赤芽球性貧血（悪性貧血など）の原因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -25715,12 +25715,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心拍出量は「1回拍出量（約70ml）×心拍数（約70回/分）」で求められ、安静時では約5リットル/分となる。運動時には数倍に増加する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心拍出量は「1回拍出量（約70ml）×心拍数（約70回/分）」で求められ、安静時では約5リットル/分となる。運動時には数倍に増加する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -25760,12 +25760,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ノルアドレナリンは交感神経末端から放出され、血管のα受容体に作用して血管を収縮させる。ブラジキニン、ヒスタミン、アデノシンは血管拡張作用を持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ノルアドレナリンは交感神経末端から放出され、血管のα受容体に作用して血管を収縮させる。ブラジキニン、ヒスタミン、アデノシンは血管拡張作用を持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -25785,8 +25785,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 78.765,
-    "frequent_level": 2,
+    "frequent_score": 73.176,
+    "frequent_level": 1,
     "frequent_tags": [
       "リン",
       "血管"
@@ -25998,12 +25998,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "アシドーシスとは血液のpHが酸性側に傾いた状態を指し、血液中の水素イオン（H+）濃度が増加している状態である。逆にアルカローシスでは水素イオン濃度が減少する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アシドーシスとは血液のpHが酸性側に傾いた状態を指し、血液中の水素イオン（H+）濃度が増加している状態である。逆にアルカローシスでは水素イオン濃度が減少する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -26020,14 +26020,15 @@
       "酸塩基平衡"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム",
-      "排泄"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 0.0,
-    "frequent_level": 0,
-    "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_score": 77.118,
+    "frequent_level": 2,
+    "frequent_tags": [
+      "血液"
+    ],
+    "frequent_scope": "循環"
   },
   {
     "serial": "A04-049",
@@ -26071,7 +26072,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 160.971,
+    "frequent_score": 159.882,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -33486,11 +33487,10 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 53.353,
-    "frequent_level": 2,
+    "frequent_score": 25.059,
+    "frequent_level": 1,
     "frequent_tags": [
-      "恒常性維持",
-      "体液"
+      "恒常性維持"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -33513,12 +33513,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血小板は血管損傷部位に粘着・凝集して血小板血栓を形成し、一次止血を担う。赤血球は酸素輸送、リンパ球や単球は免疫に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血小板は血管損傷部位に粘着・凝集して血小板血栓を形成し、一次止血を担う。赤血球は酸素輸送、リンパ球や単球は免疫に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -33539,7 +33539,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -33566,12 +33566,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心電図のP波は心房の脱分極（興奮）を示す。QRS波は心室の脱分極、T波は心室の再分極（興奮からの回復）を示す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心電図のP波は心房の脱分極（興奮）を示す。QRS波は心室の脱分極、T波は心室の再分極（興奮からの回復）を示す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -33877,7 +33877,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 129.529,
+    "frequent_score": 128.441,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -41158,12 +41158,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "右心室から肺動脈を通って肺へ血液が送られる（肺循環）。左心室からは大動脈を通って全身へ血液が送られる（体循環）。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "右心室から肺動脈を通って肺へ血液が送られる（肺循環）。左心室からは大動脈を通って全身へ血液が送られる（体循環）。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -41183,7 +41183,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 105.765,
+    "frequent_score": 112.971,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -41484,7 +41484,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 89.176,
+    "frequent_score": 88.088,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -41610,12 +41610,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "延髄には循環中枢（血管運動中枢）や呼吸中枢といった、生命維持に直結する自律神経系の反射中枢が存在する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "延髄には循環中枢（血管運動中枢）や呼吸中枢といった、生命維持に直結する自律神経系の反射中枢が存在する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -42026,12 +42026,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は不応期が非常に長いため、骨格筋のように刺激を重ねても「強縮」を起こさず、常に単収縮を行う。横紋構造を持ち、ギャップ結合により機能的合胞体として働く不随意筋である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は不応期が非常に長いため、骨格筋のように刺激を重ねても「強縮」を起こさず、常に単収縮を行う。横紋構造を持ち、ギャップ結合により機能的合胞体として働く不随意筋である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -48938,11 +48938,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.088,
+    "frequent_score": 50.794,
     "frequent_level": 2,
     "frequent_tags": [
-      "恒常性維持",
-      "体液"
+      "細胞外液",
+      "恒常性維持"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -48990,8 +48990,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -49016,12 +49016,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "好中球は白血球の中で最も数が多く、強い食作用（貪食作用）を持ち、体内に侵入した細菌などを処理する。ヘモグロビン合成や酸素運搬は赤血球の役割である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "好中球は白血球の中で最も数が多く、強い食作用（貪食作用）を持ち、体内に侵入した細菌などを処理する。ヘモグロビン合成や酸素運搬は赤血球の役割である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -49063,12 +49063,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血小板は、骨髄の巨核球の細胞質がちぎれてできたものであり、核を持たない無核の細胞成分である。止血（一次止血）に重要な役割を果たし、基準値は約15万〜40万/mm³である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血小板は、骨髄の巨核球の細胞質がちぎれてできたものであり、核を持たない無核の細胞成分である。止血（一次止血）に重要な役割を果たし、基準値は約15万〜40万/mm³である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -49088,8 +49088,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -49114,12 +49114,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心周期の等容性収縮期（収縮期の初期）では、房室弁と半月弁が共に閉じており、心室容積は変わらずに内圧だけが急上昇する。その後、圧が動脈圧を超えると駆出期に移行する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心周期の等容性収縮期（収縮期の初期）では、房室弁と半月弁が共に閉じており、心室容積は変わらずに内圧だけが急上昇する。その後、圧が動脈圧を超えると駆出期に移行する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -49138,7 +49138,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -49623,12 +49623,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は、骨格筋と同様に明瞭な横紋構造を持つ横紋筋である。自律神経支配を受ける不随意筋であり、平滑筋とは構造が異なり、錘内筋は骨格筋内の筋紡錘を構成する筋線維である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は、骨格筋と同様に明瞭な横紋構造を持つ横紋筋である。自律神経支配を受ける不随意筋であり、平滑筋とは構造が異なり、錘内筋は骨格筋内の筋紡錘を構成する筋線維である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -49645,7 +49645,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -49863,7 +49863,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 94.353,
+    "frequent_score": 87.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -56752,7 +56752,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 94.088,
+    "frequent_score": 88.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -56803,7 +56803,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.441,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -56829,12 +56829,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧は「心拍出量×末梢血管抵抗」で決まる。血液粘度が減少すると末梢血管抵抗が下がるため、血圧は低下する。血液量の増大、血管の縮小、弾力性の低下はいずれも血圧を上昇させる要因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧は「心拍出量×末梢血管抵抗」で決まる。血液粘度が減少すると末梢血管抵抗が下がるため、血圧は低下する。血液量の増大、血管の縮小、弾力性の低下はいずれも血圧を上昇させる要因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -56853,7 +56853,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 110.941,
+    "frequent_score": 109.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -56910,7 +56910,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 154.294,
+    "frequent_score": 145.618,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -57064,8 +57064,8 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -57227,12 +57227,10 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 26.588,
-    "frequent_level": 1,
-    "frequent_tags": [
-      "体液"
-    ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "A08-050",
@@ -64600,11 +64598,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.5,
+    "frequent_score": 77.794,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "細胞外液"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -64627,12 +64625,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球は中央が凹んだ円盤状の構造を持つ。成人の赤血球は骨髄で産生され、ヘモグロビンを含有する。低張液に入れると吸水して溶血を起こすが、高張液では収縮する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球は中央が凹んだ円盤状の構造を持つ。成人の赤血球は骨髄で産生され、ヘモグロビンを含有する。低張液に入れると吸水して溶血を起こすが、高張液では収縮する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -64651,8 +64649,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -64677,12 +64675,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ガンマグロブリン（免疫グロブリン）は、生体防御において抗体として機能する血漿蛋白である。アルブミンは膠質浸透圧の維持、フィブリノーゲンは血液凝固に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ガンマグロブリン（免疫グロブリン）は、生体防御において抗体として機能する血漿蛋白である。アルブミンは膠質浸透圧の維持、フィブリノーゲンは血液凝固に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -64697,16 +64695,15 @@
       "血漿蛋白"
     ],
     "subtopics": [
-      "生体の防御機構"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 55.941,
-    "frequent_level": 2,
+    "frequent_score": 40.529,
+    "frequent_level": 1,
     "frequent_tags": [
-      "免疫",
       "リン"
     ],
-    "frequent_scope": "生体の防御機構"
+    "frequent_scope": "循環"
   },
   {
     "serial": "A09-043",
@@ -64727,12 +64724,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ABO式血液型において、O型は赤血球表面に凝集原（A抗原およびB抗原）を持たない。その代わり血清中に抗A抗体と抗B抗体の両方を持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ABO式血液型において、O型は赤血球表面に凝集原（A抗原およびB抗原）を持たない。その代わり血清中に抗A抗体と抗B抗体の両方を持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -64748,8 +64745,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -64774,12 +64771,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "T波は心室の再分極（興奮の消退）を表す。P波は心房の脱分極、QRS波は心室の脱分極（興奮）を表す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "T波は心室の再分極（興奮の消退）を表す。P波は心房の脱分極、QRS波は心室の脱分極（興奮）を表す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -64996,7 +64993,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 131.059,
+    "frequent_score": 129.971,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -72455,7 +72452,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 139.382,
+    "frequent_score": 129.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -72482,12 +72479,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "プラスミンは、形成されたフィブリン（血栓）を溶解する「線維素溶解（線溶）」に関与する酵素である。トロンボプラスチン、プロトロンビン、カルシウムイオン（第IV因子）は血液凝固プロセスに不可欠である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "プラスミンは、形成されたフィブリン（血栓）を溶解する「線維素溶解（線溶）」に関与する酵素である。トロンボプラスチン、プロトロンビン、カルシウムイオン（第IV因子）は血液凝固プロセスに不可欠である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -72506,8 +72503,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -72532,12 +72529,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧が上昇すると、頸動脈小体や大動脈弓の圧受容器が感知し、迷走神経活動を亢進させ、交感神経活動を抑制する。その結果、心拍数低下、心収縮力低下、血管拡張が起こり、血圧を下げようと働く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧が上昇すると、頸動脈小体や大動脈弓の圧受容器が感知し、迷走神経活動を亢進させ、交感神経活動を抑制する。その結果、心拍数低下、心収縮力低下、血管拡張が起こり、血圧を下げようと働く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -72563,7 +72560,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.324,
+    "frequent_score": 32.647,
     "frequent_level": 1,
     "frequent_tags": [
       "血管"
@@ -72589,12 +72586,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は不応期が非常に長いため、収縮が重なり合う「強縮」を起こさず、常に「単収縮」を行う。これにより心臓のポンプ機能が維持される。心筋細胞はギャップ結合により電気的に結合した機能的合胞体である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は不応期が非常に長いため、収縮が重なり合う「強縮」を起こさず、常に「単収縮」を行う。これにより心臓のポンプ機能が維持される。心筋細胞はギャップ結合により電気的に結合した機能的合胞体である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -72814,7 +72811,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 117.794,
+    "frequent_score": 116.706,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -80319,7 +80316,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 132.353,
+    "frequent_score": 131.265,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -80391,12 +80388,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球はヘモグロビンを含み、酸素や二酸化炭素の運搬、血液のpH緩衝を行う。抗体の産生を行うのは白血球の一種であるBリンパ球（形質細胞）である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球はヘモグロビンを含み、酸素や二酸化炭素の運搬、血液のpH緩衝を行う。抗体の産生を行うのは白血球の一種であるBリンパ球（形質細胞）である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -80439,12 +80436,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心電図のP波は心房の脱分極（興奮）を表し、これに続いて心房が収縮する。QRS波は心室の興奮、T波は心室の再分極（興奮消退）に対応する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心電図のP波は心房の脱分極（興奮）を表し、これに続いて心房が収縮する。QRS波は心室の興奮、T波は心室の再分極（興奮消退）に対応する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -80460,7 +80457,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -80718,7 +80715,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 160.971,
+    "frequent_score": 159.882,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -88067,12 +88064,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "アシドーシスとは血液のpHが酸性側に傾いた状態であり、血液中の水素イオン（H+）濃度が増加していることを指す。pHは水素イオン濃度の逆数の対数で表されるため、H+が増えるとpHは低下する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アシドーシスとは血液のpHが酸性側に傾いた状態であり、血液中の水素イオン（H+）濃度が増加していることを指す。pHは水素イオン濃度の逆数の対数で表されるため、H+が増えるとpHは低下する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -88093,8 +88090,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -88119,12 +88116,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "組織の酸素不足（低酸素状態）が生じると、腎臓からエリスロポエチンが分泌され、骨髄での赤血球産生が促進される。ビタミンB12の不足は悪性貧血の原因となり、産生を阻害する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "組織の酸素不足（低酸素状態）が生じると、腎臓からエリスロポエチンが分泌され、骨髄での赤血球産生が促進される。ビタミンB12の不足は悪性貧血の原因となり、産生を阻害する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -88170,12 +88167,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋には、収縮を担う「固有心筋」と、興奮の発生と伝導を担う「特殊心筋（刺激伝導系）」がある。したがって、固有心筋が刺激伝導系を構成するという記述は誤りである。心筋は横紋筋でありアクチン・ミオシンを持ち、自動能やスターリングの法則（心拍出量の調節）が認められる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋には、収縮を担う「固有心筋」と、興奮の発生と伝導を担う「特殊心筋（刺激伝導系）」がある。したがって、固有心筋が刺激伝導系を構成するという記述は誤りである。心筋は横紋筋でありアクチン・ミオシンを持ち、自動能やスターリングの法則（心拍出量の調節）が認められる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -88195,7 +88192,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 39.441,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -88410,7 +88407,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 131.059,
+    "frequent_score": 129.971,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -95982,12 +95979,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心電図は心筋の電気的活動を記録するものであり、虚血（ST変化）や伝導障害、不整脈（期外収縮）の診断に有用である。弁の開閉異常などの機械的・構造的異常は心エコー検査などで診断する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心電図は心筋の電気的活動を記録するものであり、虚血（ST変化）や伝導障害、不整脈（期外収縮）の診断に有用である。弁の開閉異常などの機械的・構造的異常は心エコー検査などで診断する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -96029,12 +96026,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "安静時において、全心拍出量のうち最も多く配分されるのは内臓（特に肝臓・消化管領域）であり、次いで腎臓、骨格筋、脳の順となる。肝臓（肝動脈＋門脈）は安静時の血流量が非常に多い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "安静時において、全心拍出量のうち最も多く配分されるのは内臓（特に肝臓・消化管領域）であり、次いで腎臓、骨格筋、脳の順となる。肝臓（肝動脈＋門脈）は安静時の血流量が非常に多い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -96054,7 +96051,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 105.765,
+    "frequent_score": 112.971,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -96114,7 +96111,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 126.765,
+    "frequent_score": 120.059,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -96373,7 +96370,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 117.794,
+    "frequent_score": 116.706,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -96896,7 +96893,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 118.029,
+    "frequent_score": 111.324,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -103742,11 +103739,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 106.088,
-    "frequent_level": 3,
+    "frequent_score": 77.794,
+    "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "細胞外液"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -103769,12 +103766,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "アルブミンは血漿タンパク質の中で最も量が多く、血管内に水を保持する「膠質浸透圧」の維持に極めて重要である。低下すると浮腫の原因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アルブミンは血漿タンパク質の中で最も量が多く、血管内に水を保持する「膠質浸透圧」の維持に極めて重要である。低下すると浮腫の原因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -103798,8 +103795,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -103824,12 +103821,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧は心臓（左心室）から送り出された直後の大動脈で最も高く、末梢へ向かうにつれて低下し、心臓へ戻る直前の大静脈（右心房付近）で最も低くなる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧は心臓（左心室）から送り出された直後の大動脈で最も高く、末梢へ向かうにつれて低下し、心臓へ戻る直前の大静脈（右心房付近）で最も低くなる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -103849,7 +103846,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 86.294,
+    "frequent_score": 78.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -104049,7 +104046,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 160.971,
+    "frequent_score": 159.882,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -104294,12 +104291,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血管収縮は主に交感神経のα1受容体刺激によって起こる。β1受容体刺激は心拍数増加や心収縮力増大を、β2受容体刺激は気管支拡張や血管拡張を引き起こす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血管収縮は主に交感神経のα1受容体刺激によって起こる。β1受容体刺激は心拍数増加や心収縮力増大を、β2受容体刺激は気管支拡張や血管拡張を引き起こす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -104319,7 +104316,6 @@
       "血管収縮"
     ],
     "subtopics": [
-      "循環",
       "神経"
     ],
     "deep_dive": null,
@@ -111503,13 +111499,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 75.412,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A15-035",
@@ -111530,12 +111526,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血小板は骨髄の巨核球の細胞質がちぎれたものであり、核を持たない（無核）。直径2〜5μmで、寿命は約10日、止血や血液凝固に重要な役割を果たす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血小板は骨髄の巨核球の細胞質がちぎれたものであり、核を持たない（無核）。直径2〜5μmで、寿命は約10日、止血や血液凝固に重要な役割を果たす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -111550,8 +111546,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -111576,12 +111572,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳血流量は血中二酸化炭素分圧の上昇（高炭酸ガス血症）によって増加する。脳血管はCO2に対して敏感に拡張し、血流を増やしてCO2を排出しようとする性質がある。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳血流量は血中二酸化炭素分圧の上昇（高炭酸ガス血症）によって増加する。脳血管はCO2に対して敏感に拡張し、血流を増やしてCO2を排出しようとする性質がある。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -111602,7 +111598,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 110.941,
+    "frequent_score": 109.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -111654,8 +111650,8 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 61.265,
-    "frequent_level": 2,
+    "frequent_score": 55.941,
+    "frequent_level": 1,
     "frequent_tags": [
       "動脈",
       "動脈血"
@@ -111864,7 +111860,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 132.353,
+    "frequent_score": 131.265,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -112292,7 +112288,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 96.412,
+    "frequent_score": 94.0,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -119517,12 +119513,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ヘマトクリットは血液全体に占める赤血球の割合（容積比）である。脱水状態では血漿成分が減少するため、相対的にヘマトクリット値は上昇する。貧血では赤血球が減少するため低下する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ヘマトクリットは血液全体に占める赤血球の割合（容積比）である。脱水状態では血漿成分が減少するため、相対的にヘマトクリット値は上昇する。貧血では赤血球が減少するため低下する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -119563,12 +119559,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋には「スターリングの心臓の法則」があり、拡張期に心筋が伸展されるほど収縮力が強くなる。心筋は不応期が非常に長いため強縮を起こさず（単収縮のみ）、細胞間にはギャップ結合が存在し機能的合胞体として働く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋には「スターリングの心臓の法則」があり、拡張期に心筋が伸展されるほど収縮力が強くなる。心筋は不応期が非常に長いため強縮を起こさず（単収縮のみ）、細胞間にはギャップ結合が存在し機能的合胞体として働く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -120276,7 +120272,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 94.353,
+    "frequent_score": 87.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -127474,11 +127470,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 106.088,
-    "frequent_level": 3,
+    "frequent_score": 77.794,
+    "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "細胞外液"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -127501,12 +127497,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球は骨髄で産生され、成熟の最終段階で脱核して無核細胞となる。産生には鉄、ビタミンB12、葉酸が必要であり、腎臓から分泌されるエリスロポエチンによって促進される。成人の脾臓は主に古くなった赤血球の破壊を行う場所である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球は骨髄で産生され、成熟の最終段階で脱核して無核細胞となる。産生には鉄、ビタミンB12、葉酸が必要であり、腎臓から分泌されるエリスロポエチンによって促進される。成人の脾臓は主に古くなった赤血球の破壊を行う場所である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -127549,12 +127545,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "肺動脈は右心室から肺へ血液を送る血管であり、低圧系（肺循環）に属する。収縮期血圧は約20〜30mmHg程度である。一方、内頚動脈、肝動脈、腎動脈は左心室から送られる高圧系（体循環）の動脈であり、血圧は遥かに高い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "肺動脈は右心室から肺へ血液を送る血管であり、低圧系（肺循環）に属する。収縮期血圧は約20〜30mmHg程度である。一方、内頚動脈、肝動脈、腎動脈は左心室から送られる高圧系（体循環）の動脈であり、血圧は遥かに高い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -127573,7 +127569,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -135452,12 +135448,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "白血球のうち、Bリンパ球（形質細胞）は抗体を産生し免疫に関与する。血液凝固は血小板、酸素運搬は赤血球の役割である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "白血球のうち、Bリンパ球（形質細胞）は抗体を産生し免疫に関与する。血液凝固は血小板、酸素運搬は赤血球の役割である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -135477,8 +135473,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -135503,12 +135499,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は横紋構造を持つ不随意筋（心筋）であり、平滑筋ではない。特殊心筋による自動能を持ち、ギャップ結合を介して興奮が伝播する機能的合胞体として働く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は横紋構造を持つ不随意筋（心筋）であり、平滑筋ではない。特殊心筋による自動能を持ち、ギャップ結合を介して興奮が伝播する機能的合胞体として働く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -135526,7 +135522,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 81.118,
+    "frequent_score": 81.5,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -135781,7 +135777,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 160.971,
+    "frequent_score": 159.882,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -136145,7 +136141,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 94.088,
+    "frequent_score": 88.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -136194,7 +136190,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 21.618,
+    "frequent_score": 17.324,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -143535,12 +143531,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "プロトロンビンは凝固因子の一つで、トロンビンに活性化されてフィブリノゲンをフィブリンに変え、血液を凝固させる。プラスミンは線溶系、ヘパリンは抗凝固に関わる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "プロトロンビンは凝固因子の一つで、トロンビンに活性化されてフィブリノゲンをフィブリンに変え、血液を凝固させる。プラスミンは線溶系、ヘパリンは抗凝固に関わる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -143559,7 +143555,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -143619,7 +143615,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 154.294,
+    "frequent_score": 145.618,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -143811,12 +143807,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細動脈は血管平滑筋が発達しており、その収縮・拡張によって血流抵抗を大きく変化させるため、抵抗血管と呼ばれる。血圧調節に重要な役割を果たす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細動脈は血管平滑筋が発達しており、その収縮・拡張によって血流抵抗を大きく変化させるため、抵抗血管と呼ばれる。血圧調節に重要な役割を果たす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -143836,7 +143832,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 86.294,
+    "frequent_score": 78.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -143932,7 +143928,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 188.059,
+    "frequent_score": 186.971,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -151644,13 +151640,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 75.412,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A20-035",
@@ -151671,12 +151667,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心室の圧力が大動脈の圧力を超えると大動脈弁が開き、血液が送り出される「駆出期」が始まる。等容性収縮期は全ての弁が閉じている時期である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心室の圧力が大動脈の圧力を超えると大動脈弁が開き、血液が送り出される「駆出期」が始まる。等容性収縮期は全ての弁が閉じている時期である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -151695,7 +151691,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -151721,12 +151717,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血小板は血管損傷部位に粘着・凝集し、一次止血を担う。赤血球は酸素運搬、リンパ球は免疫（抗体産生など）、好中球は貪食作用を主な機能とする。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血小板は血管損傷部位に粘着・凝集し、一次止血を担う。赤血球は酸素運搬、リンパ球は免疫（抗体産生など）、好中球は貪食作用を主な機能とする。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -151752,7 +151748,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -152218,12 +152214,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "迷走神経は副交感神経であり、興奮すると心拍数の減少、消化管運動の亢進、気管支の収縮などを引き起こす。発汗や血管収縮は交感神経、膀胱収縮は骨盤神経（副交感）の作用である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "迷走神経は副交感神経であり、興奮すると心拍数の減少、消化管運動の亢進、気管支の収縮などを引き起こす。発汗や血管収縮は交感神経、膀胱収縮は骨盤神経（副交感）の作用である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -159768,11 +159764,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 106.088,
-    "frequent_level": 3,
+    "frequent_score": 77.794,
+    "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "細胞外液"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -159795,12 +159791,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心臓の刺激伝導系は、洞房結節 → 房室結節 → ヒス束 → 右脚・左脚 → プルキンエ線維の順で興奮が伝わる。房室結節は興奮伝導を遅延させる役割も持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心臓の刺激伝導系は、洞房結節 → 房室結節 → ヒス束 → 右脚・左脚 → プルキンエ線維の順で興奮が伝わる。房室結節は興奮伝導を遅延させる役割も持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -159822,7 +159818,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -159848,12 +159844,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "第1心音は心室収縮期の始まり（等容性収縮期）に、房室弁（僧帽弁・三尖弁）が閉鎖する際の振動音である。第2心音は心室弛緩期の始まりに半月弁が閉鎖する音である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "第1心音は心室収縮期の始まり（等容性収縮期）に、房室弁（僧帽弁・三尖弁）が閉鎖する際の振動音である。第2心音は心室弛緩期の始まりに半月弁が閉鎖する音である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -160105,12 +160101,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧が変動しても血流量を一定に保つ自己調節機構は、腎臓、脳、心臓で特によく発達している。これにより、生命維持に重要な臓器への血流が安定して確保される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧が変動しても血流量を一定に保つ自己調節機構は、腎臓、脳、心臓で特によく発達している。これにより、生命維持に重要な臓器への血流が安定して確保される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -160127,12 +160123,11 @@
       "骨格筋"
     ],
     "subtopics": [
-      "循環",
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -160488,11 +160483,11 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 81.382,
+    "frequent_score": 74.059,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "リン"
+      "好中球"
     ],
     "frequent_scope": "生体の防御機構"
   },
@@ -167785,12 +167780,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ヒトの動脈血pHの正常値は7.40±0.05（7.35〜7.45）である。pHが7.35未満の状態をアシドーシス、7.45を超える状態をアルカローシスと呼ぶ。選択肢の中でアシドーシスに該当するのは7.25のみである。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ヒトの動脈血pHの正常値は7.40±0.05（7.35〜7.45）である。pHが7.35未満の状態をアシドーシス、7.45を超える状態をアルカローシスと呼ぶ。選択肢の中でアシドーシスに該当するのは7.25のみである。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -167803,16 +167798,16 @@
       "酸塩基平衡"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム",
-      "呼吸"
+      "呼吸",
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 57.559,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
-      "呼吸"
+      "血液"
     ],
-    "frequent_scope": "呼吸"
+    "frequent_scope": "循環"
   },
   {
     "serial": "A22-036",
@@ -167833,12 +167828,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血液凝固の最終段階において、トロンビンが血漿中のフィブリノーゲン（第I因子）に作用し、不溶性のフィブリン（線維素）へと変化させる。プラスミンは線維素溶解（線溶）に関与し、ヘパリンは抗凝固作用を持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血液凝固の最終段階において、トロンビンが血漿中のフィブリノーゲン（第I因子）に作用し、不溶性のフィブリン（線維素）へと変化させる。プラスミンは線維素溶解（線溶）に関与し、ヘパリンは抗凝固作用を持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -167855,7 +167850,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.441,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -167907,8 +167902,8 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 61.265,
-    "frequent_level": 2,
+    "frequent_score": 55.941,
+    "frequent_level": 1,
     "frequent_tags": [
       "動脈",
       "動脈血"
@@ -168355,12 +168350,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋には特殊心筋による自動能があり、外部からの刺激がなくても自律的に収縮する。また、不応期が非常に長いため、骨格筋のように収縮が重なる「強縮」は起こらず、疲労もしにくい性質を持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋には特殊心筋による自動能があり、外部からの刺激がなくても自律的に収縮する。また、不応期が非常に長いため、骨格筋のように収縮が重なる「強縮」は起こらず、疲労もしにくい性質を持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -175568,12 +175563,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血管壁の弾力性が低下（動脈硬化など）すると、末梢抵抗が増大し血圧が上昇する。迷走神経活動の亢進や圧受容器反射の亢進は、心拍数低下や血管拡張を招き血圧を下げる方向に働く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血管壁の弾力性が低下（動脈硬化など）すると、末梢抵抗が増大し血圧が上昇する。迷走神経活動の亢進や圧受容器反射の亢進は、心拍数低下や血管拡張を招き血圧を下げる方向に働く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -175599,7 +175594,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 110.941,
+    "frequent_score": 109.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -175788,12 +175783,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心房や大静脈にある低圧受容器（容量受容器）は、循環血液量（細胞外液量）の変化を感知し、バゾプレッシン分泌などを介して液量を調節する。化学受容器は血液ガスやpHを感知する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心房や大静脈にある低圧受容器（容量受容器）は、循環血液量（細胞外液量）の変化を感知し、バゾプレッシン分泌などを介して液量を調節する。化学受容器は血液ガスやpHを感知する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -176022,7 +176017,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 117.765,
+    "frequent_score": 112.324,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -176074,12 +176069,13 @@
       "体温"
     ],
     "deep_dive": null,
-    "frequent_score": 38.265,
-    "frequent_level": 1,
+    "frequent_score": 50.588,
+    "frequent_level": 2,
     "frequent_tags": [
-      "体温"
+      "体温",
+      "恒常性維持"
     ],
-    "frequent_scope": "体温"
+    "frequent_scope": "ホメオスタシスと生体リズム"
   },
   {
     "serial": "A23-038",
@@ -183943,7 +183939,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 132.353,
+    "frequent_score": 131.265,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -184205,7 +184201,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 139.382,
+    "frequent_score": 129.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -191812,12 +191808,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "カルシウムイオンは血液凝固因子の第IV因子であり、凝固プロセスの多くの段階で不可欠である。ヘパリンは抗凝固物質、ウロキナーゼは線維素溶解（線溶）に関与する。ビタミンB12は赤血球の生成に必要である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "カルシウムイオンは血液凝固因子の第IV因子であり、凝固プロセスの多くの段階で不可欠である。ヘパリンは抗凝固物質、ウロキナーゼは線維素溶解（線溶）に関与する。ビタミンB12は赤血球の生成に必要である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -191838,7 +191834,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -191865,12 +191861,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は不応期が非常に長いため、骨格筋のように刺激を重ねても収縮が重なる「強縮」を起こさず、常に「単収縮」を行う。これにより心臓のポンプ機能が維持される。心筋は横紋構造を持ち、ギャップ結合を介して興奮が伝播する不随意筋である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は不応期が非常に長いため、骨格筋のように刺激を重ねても収縮が重なる「強縮」を起こさず、常に「単収縮」を行う。これにより心臓のポンプ機能が維持される。心筋は横紋構造を持ち、ギャップ結合を介して興奮が伝播する不随意筋である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -191941,7 +191937,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 154.294,
+    "frequent_score": 145.618,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -192141,7 +192137,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 132.353,
+    "frequent_score": 131.265,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -200062,12 +200058,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "胸腔内圧が低下（より陰圧になる）すると、胸腔内の静脈や心房が拡張しやすくなり、静脈還流量が増加する。これにより前負荷が増え、スターリングの法則に従って心拍出量が増加する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "胸腔内圧が低下（より陰圧になる）すると、胸腔内の静脈や心房が拡張しやすくなり、静脈還流量が増加する。これにより前負荷が増え、スターリングの法則に従って心拍出量が増加する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -200094,7 +200090,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -200513,7 +200509,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 117.765,
+    "frequent_score": 112.324,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -208343,7 +208339,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 96.735,
+    "frequent_score": 88.059,
     "frequent_level": 2,
     "frequent_tags": [
       "酸素",
@@ -208560,7 +208556,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 96.412,
+    "frequent_score": 94.0,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -208716,7 +208712,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 89.176,
+    "frequent_score": 88.088,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -208794,12 +208790,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "加齢に伴い血管壁の弾性が低下（動脈硬化）し、末梢血管抵抗が増大するため、収縮期血圧は上昇する傾向がある。肺活量、骨密度、腎血流量などは低下する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "加齢に伴い血管壁の弾性が低下（動脈硬化）し、末梢血管抵抗が増大するため、収縮期血圧は上昇する傾向がある。肺活量、骨密度、腎血流量などは低下する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -208812,7 +208808,6 @@
       "骨密度"
     ],
     "subtopics": [
-      "循環",
       "生殖と成長"
     ],
     "deep_dive": null,
@@ -216529,12 +216524,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細胞への酸素供給は赤血球（ヘモグロビン）の働きである。血漿タンパク質は、膠質浸透圧の維持（アルブミン）、免疫（グロブリン）、血液凝固（フィブリノゲン）、物質運搬、緩衝作用、アミノ酸供給源としての役割を持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細胞への酸素供給は赤血球（ヘモグロビン）の働きである。血漿タンパク質は、膠質浸透圧の維持（アルブミン）、免疫（グロブリン）、血液凝固（フィブリノゲン）、物質運搬、緩衝作用、アミノ酸供給源としての役割を持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -216555,8 +216550,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -216581,12 +216576,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リンパ液は組織液由来であり、血漿タンパク質（アルブミンなど）や脂肪などが含まれる。毛細リンパ管は透過性が高く、細菌や異物も取り込む。歩行などの筋運動はリンパ還流を促進する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リンパ液は組織液由来であり、血漿タンパク質（アルブミンなど）や脂肪などが含まれる。毛細リンパ管は透過性が高く、細菌や異物も取り込む。歩行などの筋運動はリンパ還流を促進する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -216608,7 +216603,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 150.382,
+    "frequent_score": 150.294,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -216810,8 +216805,8 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -217099,8 +217094,8 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -224611,12 +224606,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心電図のQRS群は心室筋の脱分極（興奮の開始）を表す波形である。P波は心房の脱分極、T波は心室の再分極（興奮の消退）を表す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心電図のQRS群は心室筋の脱分極（興奮の開始）を表す波形である。P波は心房の脱分極、T波は心室の再分極（興奮の消退）を表す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -224802,12 +224797,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ノルアドレナリンは交感神経末端や副腎髄質から分泌され、血管平滑筋のα受容体に作用して血管を収縮させ、血圧を上昇させる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ノルアドレナリンは交感神経末端や副腎髄質から分泌され、血管平滑筋のα受容体に作用して血管を収縮させ、血圧を上昇させる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -233469,12 +233464,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心拍のリズムは呼吸に伴って変動し、吸気時に速くなり呼気時に遅くなる。これを呼吸性不整脈といい、迷走神経活動の周期的変動による生理的な現象である。成人の安静時心拍数は約60〜70回/分である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心拍のリズムは呼吸に伴って変動し、吸気時に速くなり呼気時に遅くなる。これを呼吸性不整脈といい、迷走神経活動の周期的変動による生理的な現象である。成人の安静時心拍数は約60〜70回/分である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -233497,7 +233492,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -233621,12 +233616,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ヘモグロビンは色素部分のヘムとタンパク質のグロビンからなる。ヘムの中心には鉄が存在し、酸素分子と結合して酸素を運搬する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ヘモグロビンは色素部分のヘムとタンパク質のグロビンからなる。ヘムの中心には鉄が存在し、酸素分子と結合して酸素を運搬する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -233641,7 +233636,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.441,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -233842,12 +233837,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "好中球は白血球の中で最も数が多く、細菌感染などの急性炎症時に遊走し、異物を貪食・殺菌する。抗体産生はB細胞（形質細胞）、抗原提示はマクロファージや樹状細胞、ヒスタミン分泌は肥満細胞などの役割である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "好中球は白血球の中で最も数が多く、細菌感染などの急性炎症時に遊走し、異物を貪食・殺菌する。抗体産生はB細胞（形質細胞）、抗原提示はマクロファージや樹状細胞、ヒスタミン分泌は肥満細胞などの役割である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -233865,17 +233860,15 @@
       "貪食作用"
     ],
     "subtopics": [
-      "循環",
-      "生体の防御機構"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 42.971,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
-      "リン",
-      "好中球"
+      "リン"
     ],
-    "frequent_scope": "生体の防御機構"
+    "frequent_scope": "循環"
   },
   {
     "serial": "A30-031",
@@ -242422,13 +242415,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 75.412,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "A31-024",
@@ -242449,12 +242442,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "プラスミンはフィブリン（線維素）を分解して血栓を溶解する（線維素溶解）。トロンビンは血液凝固に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "プラスミンはフィブリン（線維素）を分解して血栓を溶解する（線維素溶解）。トロンビンは血液凝固に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -251328,12 +251321,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心室の内圧が大動脈圧を上回ると、大動脈弁が開放し、血液が駆出される（駆出期）。等容性収縮期と等容性拡張期はすべての弁が閉じている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心室の内圧が大動脈圧を上回ると、大動脈弁が開放し、血液が駆出される（駆出期）。等容性収縮期と等容性拡張期はすべての弁が閉じている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -251354,7 +251347,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -251380,12 +251373,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ガス交換は肺でも組織でも、分圧差に従った拡散によって行われる。二酸化炭素の多くは重炭酸イオンとして運搬される。動脈血の酸素飽和度は約97％である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ガス交換は肺でも組織でも、分圧差に従った拡散によって行われる。二酸化炭素の多くは重炭酸イオンとして運搬される。動脈血の酸素飽和度は約97％である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -251414,7 +251407,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 118.588,
+    "frequent_score": 122.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -251521,7 +251514,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 160.971,
+    "frequent_score": 159.882,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -260308,7 +260301,7 @@
     ],
     "answer_none": false,
     "explanation_latest": "血管壁の弾性が低下すると動脈硬化となり、収縮期血圧が上昇する。塩分摂取の過多は血圧を上昇させる。出血や血管拡張は血圧を低下させる。",
-    "explanation_latest_source": "teacher",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血管壁の弾性が低下すると動脈硬化となり、収縮期血圧が上昇する。塩分摂取の過多は血圧を上昇させる。出血や血管拡張は血圧を低下させる。",
@@ -260318,7 +260311,7 @@
       {
         "body": "血管壁の弾性が低下すると動脈硬化となり、収縮期血圧が上昇する。塩分摂取の過多は血圧を上昇させる。出血や血管拡張は血圧を低下させる。",
         "version": 2,
-        "source": "teacher"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -260340,7 +260333,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 86.294,
+    "frequent_score": 78.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -269573,7 +269566,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 72.735,
+    "frequent_score": 70.324,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -278362,12 +278355,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "エリスロポイエチンは主に腎臓から分泌されるホルモンで、骨髄の造血幹細胞に働きかけて赤血球の産生を促進する。ビリルビンは赤血球の分解産物、トロンビンとフィブリンは血液凝固に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "エリスロポイエチンは主に腎臓から分泌されるホルモンで、骨髄の造血幹細胞に働きかけて赤血球の産生を促進する。ビリルビンは赤血球の分解産物、トロンビンとフィブリンは血液凝固に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -278413,12 +278406,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "正常成人の安静時における一回心拍出量は約70mlである。これに心拍数を掛けたものが心拍出量（約5L/分）となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "正常成人の安静時における一回心拍出量は約70mlである。これに心拍数を掛けたものが心拍出量（約5L/分）となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -278493,7 +278486,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 185.588,
+    "frequent_score": 176.912,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -286974,12 +286967,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧は「心拍出量 × 末梢血管抵抗」で決まる。心拍出量が増加すれば血圧は上昇する。迷走神経活動の亢進や圧受容器反射の亢進は、血圧を下げる方向に働く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧は「心拍出量 × 末梢血管抵抗」で決まる。心拍出量が増加すれば血圧は上昇する。迷走神経活動の亢進や圧受容器反射の亢進は、血圧を下げる方向に働く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -287001,7 +286994,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.324,
+    "frequent_score": 32.647,
     "frequent_level": 1,
     "frequent_tags": [
       "血管"
@@ -287027,12 +287020,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "スターリングの心臓の法則とは、心筋の収縮力が心室の拡張末期容量（流入血液量）に依存するという法則である。つまり、静脈還流量が増えて心筋が引き伸ばされるほど、収縮力が強まり心拍出量が増加する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "スターリングの心臓の法則とは、心筋の収縮力が心室の拡張末期容量（流入血液量）に依存するという法則である。つまり、静脈還流量が増えて心筋が引き伸ばされるほど、収縮力が強まり心拍出量が増加する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -287055,8 +287048,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 145.206,
-    "frequent_level": 2,
+    "frequent_score": 153.5,
+    "frequent_level": 3,
     "frequent_tags": [
       "血液",
       "リン"
@@ -295507,7 +295500,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 26.765,
+    "frequent_score": 25.059,
     "frequent_level": 1,
     "frequent_tags": [
       "恒常性維持"
@@ -295533,12 +295526,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "等容性収縮期は、房室弁と半月弁（大動脈弁・肺動脈弁）の両方が閉じている時期である。心室が収縮して内圧が急上昇するが、容積は変化せず、血液の流入・流出も起こらない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "等容性収縮期は、房室弁と半月弁（大動脈弁・肺動脈弁）の両方が閉じている時期である。心室が収縮して内圧が急上昇するが、容積は変化せず、血液の流入・流出も起こらない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -295561,8 +295554,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 152.735,
-    "frequent_level": 2,
+    "frequent_score": 158.618,
+    "frequent_level": 3,
     "frequent_tags": [
       "血液",
       "動脈"
@@ -295691,12 +295684,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "腎臓は体重の約0.5％程度の重さしかないが、安静時には心拍出量の約20〜25％（約1.2L/分）という多量の血液が供給される。これは尿生成による排泄機能を維持するためである。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "腎臓は体重の約0.5％程度の重さしかないが、安静時には心拍出量の約20〜25％（約1.2L/分）という多量の血液が供給される。これは尿生成による排泄機能を維持するためである。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -295711,16 +295704,13 @@
       "血流量"
     ],
     "subtopics": [
-      "循環",
-      "排泄"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
-    "frequent_tags": [
-      "腎臓"
-    ],
-    "frequent_scope": "排泄"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B03-041",
@@ -296192,7 +296182,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 139.382,
+    "frequent_score": 129.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -303898,12 +303888,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "第1心音は心室収縮期の始めに房室弁（僧帽弁・三尖弁）が閉鎖する際に発生する。第2心音は心室拡張期の始めに半月弁（大動脈弁・肺動脈弁）が閉鎖する際に発生する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "第1心音は心室収縮期の始めに房室弁（僧帽弁・三尖弁）が閉鎖する際に発生する。第2心音は心室拡張期の始めに半月弁（大動脈弁・肺動脈弁）が閉鎖する際に発生する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -303920,7 +303910,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -303946,12 +303936,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳の毛細血管内皮細胞は密着結合しており、血液-脳関門（BBB）を形成して物質の出入りを制限している。脳血流量は自動調節能により一定に保たれ、心拍出量の約15%を占める。二酸化炭素の増加は脳血管を拡張させる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳の毛細血管内皮細胞は密着結合しており、血液-脳関門（BBB）を形成して物質の出入りを制限している。脳血流量は自動調節能により一定に保たれ、心拍出量の約15%を占める。二酸化炭素の増加は脳血管を拡張させる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -303976,7 +303966,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 157.912,
+    "frequent_score": 155.412,
     "frequent_level": 3,
     "frequent_tags": [
       "血液",
@@ -304032,7 +304022,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 154.294,
+    "frequent_score": 145.618,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -304081,7 +304071,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 93.029,
+    "frequent_score": 89.676,
     "frequent_level": 2,
     "frequent_tags": [
       "呼吸",
@@ -304236,7 +304226,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 132.353,
+    "frequent_score": 131.265,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -304424,12 +304414,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "アドレナリン受容体のうち、α1受容体の興奮は血管平滑筋を収縮させる。心拍数増加や心収縮力増大は主にβ1受容体、気管支拡張はβ2受容体の作用である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アドレナリン受容体のうち、α1受容体の興奮は血管平滑筋を収縮させる。心拍数増加や心収縮力増大は主にβ1受容体、気管支拡張はβ2受容体の作用である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -304452,7 +304442,6 @@
       "血管収縮"
     ],
     "subtopics": [
-      "循環",
       "神経"
     ],
     "deep_dive": null,
@@ -304652,11 +304641,11 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 81.382,
+    "frequent_score": 74.059,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "リン"
+      "好中球"
     ],
     "frequent_scope": "生体の防御機構"
   },
@@ -312304,12 +312293,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リンパ系は、組織に漏れ出した間質液を回収し、リンパ節で細菌や異物を濾過・除去する免疫機能を担う。また、小腸で吸収された脂質（キロミクロン）の輸送路としても重要である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リンパ系は、組織に漏れ出した間質液を回収し、リンパ節で細菌や異物を濾過・除去する免疫機能を担う。また、小腸で吸収された脂質（キロミクロン）の輸送路としても重要である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -312328,16 +312317,16 @@
       "間質液"
     ],
     "subtopics": [
-      "生体の防御機構"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 77.294,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
-      "免疫",
+      "血液",
       "リン"
     ],
-    "frequent_scope": "生体の防御機構"
+    "frequent_scope": "循環"
   },
   {
     "serial": "B05-035",
@@ -312358,12 +312347,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ABO式血液型において、AB型は赤血球膜上に凝集原AとBの両方を持ち、血清中に凝集素（抗体）を持たない。逆にO型は凝集原を持たず、血清中に抗Aおよび抗B凝集素の両方を持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ABO式血液型において、AB型は赤血球膜上に凝集原AとBの両方を持ち、血清中に凝集素（抗体）を持たない。逆にO型は凝集原を持たず、血清中に抗Aおよび抗B凝集素の両方を持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -312380,8 +312369,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -312406,12 +312395,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心電図において、P波は心房の脱分極（興奮）、QRS波は心室の脱分極（興奮）、T波は心室の再分極（興奮消退）を表す。心房の興奮消退はQRS波に重なるため通常は見えない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心電図において、P波は心房の脱分極（興奮）、QRS波は心室の脱分極（興奮）、T波は心室の再分極（興奮消退）を表す。心房の興奮消退はQRS波に重なるため通常は見えない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -312452,12 +312441,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心臓迷走神経（副交感神経）は延髄の疑核などに起始し、洞房結節や房室結節に分布して心拍数を減少（徐脈）させる。房室弁の開閉は心房と心室の圧力差によって受動的に行われ、神経支配を受けない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心臓迷走神経（副交感神経）は延髄の疑核などに起始し、洞房結節や房室結節に分布して心拍数を減少（徐脈）させる。房室弁の開閉は心房と心室の圧力差によって受動的に行われ、神経支配を受けない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -312873,12 +312862,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は骨格筋に比べて不応期が非常に長く、収縮が終わるまで次の興奮が起こらないため、強縮（持続的な収縮）を起こさず、ポンプ機能を維持できる。また、機能的合胞体として興奮が波及する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は骨格筋に比べて不応期が非常に長く、収縮が終わるまで次の興奮が起こらないため、強縮（持続的な収縮）を起こさず、ポンプ機能を維持できる。また、機能的合胞体として興奮が波及する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -320809,12 +320798,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "プラスミンは、血液凝固によって生じたフィブリン（線維素）を分解する線維素溶解（フィブリノリン）の主役となる酵素である。トロンビンはフィブリノゲンをフィブリンに変える凝固促進因子、カルシウムは凝固の多くの段階で必要とされる因子である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "プラスミンは、血液凝固によって生じたフィブリン（線維素）を分解する線維素溶解（フィブリノリン）の主役となる酵素である。トロンビンはフィブリノゲンをフィブリンに変える凝固促進因子、カルシウムは凝固の多くの段階で必要とされる因子である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -320854,12 +320843,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "細動脈は血管壁の平滑筋が発達しており、その収縮・弛緩によって血流抵抗を大きく変化させるため「抵抗血管」と呼ばれる。大動脈は弾性血管、静脈は容量血管と呼ばれる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細動脈は血管壁の平滑筋が発達しており、その収縮・弛緩によって血流抵抗を大きく変化させるため「抵抗血管」と呼ばれる。大動脈は弾性血管、静脈は容量血管と呼ばれる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -320878,7 +320867,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 86.294,
+    "frequent_score": 78.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -320905,12 +320894,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "平均血圧は、1心周期の血圧の平均値であり、「拡張期血圧 ＋ 脈圧（収縮期血圧－拡張期血圧）÷ 3」の式で算出される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "平均血圧は、1心周期の血圧の平均値であり、「拡張期血圧 ＋ 脈圧（収縮期血圧－拡張期血圧）÷ 3」の式で算出される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -321184,7 +321173,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 131.059,
+    "frequent_score": 129.971,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -321418,12 +321407,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心臓には主にβ1受容体が存在し、交感神経刺激により心拍数増加や心筋収縮力増強が起こる。血管収縮や散瞳はα1受容体、腸管の収縮抑制はα・β受容体が関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心臓には主にβ1受容体が存在し、交感神経刺激により心拍数増加や心筋収縮力増強が起こる。血管収縮や散瞳はα1受容体、腸管の収縮抑制はα・β受容体が関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -321441,7 +321430,6 @@
       "血管"
     ],
     "subtopics": [
-      "循環",
       "神経"
     ],
     "deep_dive": null,
@@ -329384,12 +329372,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ビリルビンは赤血球のヘモグロビンが分解されて生じる色素であり、胆汁の主要成分である。血中ではアルブミン（血漿蛋白）と結合して運ばれるが、ビリルビン自体は蛋白ではない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ビリルビンは赤血球のヘモグロビンが分解されて生じる色素であり、胆汁の主要成分である。血中ではアルブミン（血漿蛋白）と結合して運ばれるが、ビリルビン自体は蛋白ではない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -329403,7 +329391,7 @@
       "血漿蛋白"
     ],
     "subtopics": [
-      "代謝",
+      "循環",
       "消化と吸収"
     ],
     "deep_dive": null,
@@ -329431,12 +329419,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "スターリングの心臓の法則とは、心筋の収縮力が収縮直前の心筋の伸び（前負荷）に依存するという法則である。静脈還流量が増え心筋が伸展されるほど、一回拍出量（収縮力）が増大する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "スターリングの心臓の法則とは、心筋の収縮力が収縮直前の心筋の伸び（前負荷）に依存するという法則である。静脈還流量が増え心筋が伸展されるほど、一回拍出量（収縮力）が増大する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -329458,8 +329446,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 145.206,
-    "frequent_level": 2,
+    "frequent_score": 153.5,
+    "frequent_level": 3,
     "frequent_tags": [
       "血液",
       "リン"
@@ -329485,12 +329473,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧が上昇して圧受容器が興奮すると、延髄の循環中枢を介して迷走神経（副交感神経）活動が増大し、交感神経活動が抑制される。その結果、心拍数低下や血管拡張が起こり血圧が下降する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧が上昇して圧受容器が興奮すると、延髄の循環中枢を介して迷走神経（副交感神経）活動が増大し、交感神経活動が抑制される。その結果、心拍数低下や血管拡張が起こり血圧が下降する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -329715,7 +329703,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 89.176,
+    "frequent_score": 88.088,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -329893,12 +329881,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は不応期が非常に長いため、収縮が重なり合う「強縮」を起こさず、常に単収縮のみを行う。これにより心臓のポンプ機能としての拍動が維持される。骨格筋や平滑筋は、刺激が頻回になると強縮を起こすことができる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は不応期が非常に長いため、収縮が重なり合う「強縮」を起こさず、常に単収縮のみを行う。これにより心臓のポンプ機能としての拍動が維持される。骨格筋や平滑筋は、刺激が頻回になると強縮を起こすことができる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -337741,12 +337729,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球が寿命（約120日）を迎えて破壊されると、ヘモグロビンが分解されてビリルビンとなる。ビリルビンは肝臓を経て腸管へ排出され、腸内細菌の作用でウロビリノーゲンとなる。グロブリンやフィブリノーゲンは血漿蛋白質である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球が寿命（約120日）を迎えて破壊されると、ヘモグロビンが分解されてビリルビンとなる。ビリルビンは肝臓を経て腸管へ排出され、腸内細菌の作用でウロビリノーゲンとなる。グロブリンやフィブリノーゲンは血漿蛋白質である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -337765,7 +337753,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.441,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -337791,12 +337779,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "換気障害などで体内に二酸化炭素（CO2）が蓄積すると、血液中の水素イオン濃度が上昇し、pHが酸側に傾く。これを呼吸性アシドーシスと呼ぶ。逆に過換気などでCO2が過剰に排出されると呼吸性アルカローシスとなる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "換気障害などで体内に二酸化炭素（CO2）が蓄積すると、血液中の水素イオン濃度が上昇し、pHが酸側に傾く。これを呼吸性アシドーシスと呼ぶ。逆に過換気などでCO2が過剰に排出されると呼吸性アルカローシスとなる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -337814,8 +337802,8 @@
       "酸塩基平衡"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム",
-      "呼吸"
+      "呼吸",
+      "循環"
     ],
     "deep_dive": null,
     "frequent_score": 57.559,
@@ -337844,12 +337832,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "スターリングの心臓の法則とは、心筋の収縮力が収縮直前の心筋線維の長さ（伸展度）に依存するという法則である。静脈還流量が増えて心室がより伸展されるほど、強い収縮力が発生し、1回心拍出量が増加する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "スターリングの心臓の法則とは、心筋の収縮力が収縮直前の心筋線維の長さ（伸展度）に依存するという法則である。静脈還流量が増えて心室がより伸展されるほど、強い収縮力が発生し、1回心拍出量が増加する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -337869,7 +337857,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 73.588,
+    "frequent_score": 76.382,
     "frequent_level": 1,
     "frequent_tags": [
       "リン",
@@ -337896,12 +337884,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "毎分心拍出量は「1回心拍出量 × 心拍数」で決まる。静脈還流量の増加はスターリングの法則により1回心拍出量を増加させる。血圧（後負荷）の上昇は、心臓が血液を送り出す際の抵抗となるため、むしろ心拍出量を減少させる要因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "毎分心拍出量は「1回心拍出量 × 心拍数」で決まる。静脈還流量の増加はスターリングの法則により1回心拍出量を増加させる。血圧（後負荷）の上昇は、心臓が血液を送り出す際の抵抗となるため、むしろ心拍出量を減少させる要因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -338072,7 +338060,7 @@
       "内分泌"
     ],
     "deep_dive": null,
-    "frequent_score": 26.765,
+    "frequent_score": 25.059,
     "frequent_level": 1,
     "frequent_tags": [
       "恒常性維持"
@@ -338256,12 +338244,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心筋は絶対不応期が非常に長く、収縮が終わるまで次の刺激に反応できないため、骨格筋のような「強縮」は起こらず、常に「単収縮」となる。これは心臓のポンプ機能を維持するために重要である。特殊心筋による自動性を持ち、自律神経で調節される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心筋は絶対不応期が非常に長く、収縮が終わるまで次の刺激に反応できないため、骨格筋のような「強縮」は起こらず、常に「単収縮」となる。これは心臓のポンプ機能を維持するために重要である。特殊心筋による自動性を持ち、自律神経で調節される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -346233,12 +346221,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "止血作用を主に担うのは血小板である。白血球は生体防御に関与し、好中球や単球による食作用、血管外への遊走、リンパ球（B細胞）による抗体産生などを行う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "止血作用を主に担うのは血小板である。白血球は生体防御に関与し、好中球や単球による食作用、血管外への遊走、リンパ球（B細胞）による抗体産生などを行う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -346258,7 +346246,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 34.324,
+    "frequent_score": 31.912,
     "frequent_level": 1,
     "frequent_tags": [
       "免疫"
@@ -346284,12 +346272,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心周期において、心房から心室へ血液が流れ込む「充満期（流入期）」に房室弁（僧帽弁・三尖弁）は開放する。等容性収縮期・駆出期・等容性弛緩期には房室弁は閉じている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心周期において、心房から心室へ血液が流れ込む「充満期（流入期）」に房室弁（僧帽弁・三尖弁）は開放する。等容性収縮期・駆出期・等容性弛緩期には房室弁は閉じている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -346307,7 +346295,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -346523,7 +346511,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 132.353,
+    "frequent_score": 131.265,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -354732,13 +354720,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 75.412,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "B10-035",
@@ -354759,12 +354747,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血漿蛋白の中でアルブミンが最も多く（約60%）、膠質浸透圧の維持や物質運搬を担う。抗体（免疫グロブリン）はγ-グロブリンであり、フィブリノーゲンは血液凝固に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血漿蛋白の中でアルブミンが最も多く（約60%）、膠質浸透圧の維持や物質運搬を担う。抗体（免疫グロブリン）はγ-グロブリンであり、フィブリノーゲンは血液凝固に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -354784,7 +354772,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -354811,12 +354799,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "圧受容器反射の中枢は延髄（孤束核、心臓抑制中枢、血管運動中枢）にある。脊髄ではない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "圧受容器反射の中枢は延髄（孤束核、心臓抑制中枢、血管運動中枢）にある。脊髄ではない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -354849,7 +354837,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 86.294,
+    "frequent_score": 78.294,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -354916,7 +354904,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 154.294,
+    "frequent_score": 145.618,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -355113,12 +355101,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ノルアドレナリンは交感神経末端から放出され、血管平滑筋のα受容器に作用して血管を収縮させ、血圧を上昇させる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ノルアドレナリンは交感神経末端から放出され、血管平滑筋のα受容器に作用して血管を収縮させ、血圧を上昇させる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -363168,12 +363156,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "酸素は分圧の高い方から低い方へ拡散する。吸入された空気（外気）が最も高く、次いで肺胞気（約100mmHg）、動脈血（約95mmHg）、静脈血・組織（約40mmHg）の順に低くなる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "酸素は分圧の高い方から低い方へ拡散する。吸入された空気（外気）が最も高く、次いで肺胞気（約100mmHg）、動脈血（約95mmHg）、静脈血・組織（約40mmHg）の順に低くなる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -363196,7 +363184,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 96.735,
+    "frequent_score": 88.059,
     "frequent_level": 2,
     "frequent_tags": [
       "酸素",
@@ -363223,12 +363211,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧は「心拍出量×末梢血管抵抗」で決まる。還流血流量（静脈還流量）が減少すると心拍出量が低下するため、血圧は下降する。交感神経緊張や末梢血管収縮、痛み（侵害刺激）は血圧を上昇させる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧は「心拍出量×末梢血管抵抗」で決まる。還流血流量（静脈還流量）が減少すると心拍出量が低下するため、血圧は下降する。交感神経緊張や末梢血管収縮、痛み（侵害刺激）は血圧を上昇させる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -363251,7 +363239,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.324,
+    "frequent_score": 32.647,
     "frequent_level": 1,
     "frequent_tags": [
       "血管"
@@ -363771,12 +363759,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "内臓－内臓反射は、受容器と効果器がともに内臓にある反射である。頸動脈洞圧受容器反射は、血圧変化を感知して心拍数や血管径を調節する代表的な内臓－内臓反射である。伸張反射は体性反射である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "内臓－内臓反射は、受容器と効果器がともに内臓にある反射である。頸動脈洞圧受容器反射は、血圧変化を感知して心拍数や血管径を調節する代表的な内臓－内臓反射である。伸張反射は体性反射である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -363797,7 +363785,6 @@
       "感覚受容器"
     ],
     "subtopics": [
-      "循環",
       "神経"
     ],
     "deep_dive": null,
@@ -371701,12 +371688,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "房室弁（僧帽弁・三尖弁）は、心房の圧力が心室より高くなる「充満期（流入期）」に開放する。等容性期はすべての弁が閉じており、駆出期は半月弁が開放している。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "房室弁（僧帽弁・三尖弁）は、心房の圧力が心室より高くなる「充満期（流入期）」に開放する。等容性期はすべての弁が閉じており、駆出期は半月弁が開放している。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -371723,7 +371710,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -371749,12 +371736,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "静脈還流は、筋ポンプ、呼吸ポンプ（胸腔内負圧）、静脈弁によって促進される。右心房内圧が上昇すると、末梢との圧力差が小さくなるため、静脈還流は阻害される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "静脈還流は、筋ポンプ、呼吸ポンプ（胸腔内負圧）、静脈弁によって促進される。右心房内圧が上昇すると、末梢との圧力差が小さくなるため、静脈還流は阻害される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -371780,7 +371767,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -371806,12 +371793,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "リンパ系は、毛細血管から漏れ出たタンパク質（膠質浸透圧に関与）や過剰な間質液の回収、免疫応答（異物除去）を担う。pHの調節は主に血液の緩衝系や肺、腎臓で行われる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "リンパ系は、毛細血管から漏れ出たタンパク質（膠質浸透圧に関与）や過剰な間質液の回収、免疫応答（異物除去）を担う。pHの調節は主に血液の緩衝系や肺、腎臓で行われる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -371831,7 +371818,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 39.441,
+    "frequent_score": 40.529,
     "frequent_level": 1,
     "frequent_tags": [
       "リン"
@@ -371889,7 +371876,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 185.588,
+    "frequent_score": 176.912,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -371916,12 +371903,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "二酸化炭素の約70%は重炭酸イオン（HCO3-）として血漿中に溶けて運ばれる。酸素はヘモグロビンと結合して運ばれ、ガス交換（肺・組織）はすべて分圧差による拡散で行われる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "二酸化炭素の約70%は重炭酸イオン（HCO3-）として血漿中に溶けて運ばれる。酸素はヘモグロビンと結合して運ばれ、ガス交換（肺・組織）はすべて分圧差による拡散で行われる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -371941,8 +371928,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -372050,7 +372037,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 89.176,
+    "frequent_score": 88.088,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -380287,12 +380274,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心臓は自動能を持っており、自律神経の支配がなくても特殊心筋（ペースメーカー細胞）の働きにより自律的に収縮・拍動する。自律神経は拍動数や収縮力の「調節」を行うが、収縮そのものに不可欠ではない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心臓は自動能を持っており、自律神経の支配がなくても特殊心筋（ペースメーカー細胞）の働きにより自律的に収縮・拍動する。自律神経は拍動数や収縮力の「調節」を行うが、収縮そのものに不可欠ではない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -380316,7 +380303,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -380342,12 +380329,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "酸素分圧が低下すると、ヘモグロビンと酸素の結合が減るため酸素化ヘモグロビンは減少する。生体はこれに対し、頸動脈小体などの化学受容器を介した呼吸促進や、腎臓からのエリスロポイエチン分泌による赤血球増多で対応する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "酸素分圧が低下すると、ヘモグロビンと酸素の結合が減るため酸素化ヘモグロビンは減少する。生体はこれに対し、頸動脈小体などの化学受容器を介した呼吸促進や、腎臓からのエリスロポイエチン分泌による赤血球増多で対応する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -380368,11 +380355,10 @@
       "頚動脈小体"
     ],
     "subtopics": [
-      "呼吸",
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 118.588,
+    "frequent_score": 122.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -380399,12 +380385,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "低蛋白血症では、血漿膠質浸透圧の低下による浮腫、免疫グロブリン減少による易感染性、凝固因子の減少による出血傾向（凝固遅延）が起こる。血液凝固が促進されることはない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "低蛋白血症では、血漿膠質浸透圧の低下による浮腫、免疫グロブリン減少による易感染性、凝固因子の減少による出血傾向（凝固遅延）が起こる。血液凝固が促進されることはない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -380425,8 +380411,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -380482,7 +380468,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 185.588,
+    "frequent_score": 176.912,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -380694,7 +380680,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 132.353,
+    "frequent_score": 131.265,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -380837,12 +380823,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "アドレナリンα1受容体は主に血管平滑筋に存在し、収縮を引き起こす。β1受容体は心機能亢進、β2受容体は気管支拡張や血管拡張に関与する。胃腸管平滑筋は交感神経刺激（α・β受容体）により一般に弛緩する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アドレナリンα1受容体は主に血管平滑筋に存在し、収縮を引き起こす。β1受容体は心機能亢進、β2受容体は気管支拡張や血管拡張に関与する。胃腸管平滑筋は交感神経刺激（α・β受容体）により一般に弛緩する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -380862,7 +380848,6 @@
       "血管収縮"
     ],
     "subtopics": [
-      "循環",
       "神経"
     ],
     "deep_dive": null,
@@ -388778,12 +388763,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "刺激伝導系は、特殊心筋（特殊分化した心筋細胞）から構成される。心臓の収縮を担うのは固有心筋である。刺激は洞房結節から始まり、房室結節、ヒス束、右脚・左脚、プルキンエ線維へと伝わる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "刺激伝導系は、特殊心筋（特殊分化した心筋細胞）から構成される。心臓の収縮を担うのは固有心筋である。刺激は洞房結節から始まり、房室結節、ヒス束、右脚・左脚、プルキンエ線維へと伝わる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -388810,7 +388795,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -388836,12 +388821,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "ビタミンKは、肝臓でプロトロンビンなどの血液凝固因子が合成される際に必要不可欠な脂溶性ビタミンである。不足すると出血傾向を招く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ビタミンKは、肝臓でプロトロンビンなどの血液凝固因子が合成される際に必要不可欠な脂溶性ビタミンである。不足すると出血傾向を招く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -388859,8 +388844,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -397141,12 +397126,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血液凝固では、フィブリノゲンがフィブリン（線維素）に変化し、それが血球を捕捉して血餅を作る。血餅は時間とともに退縮し、その際に滲出するのは血漿ではなく「血清」である（血漿から凝固因子を除いたもの）。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血液凝固では、フィブリノゲンがフィブリン（線維素）に変化し、それが血球を捕捉して血餅を作る。血餅は時間とともに退縮し、その際に滲出するのは血漿ではなく「血清」である（血漿から凝固因子を除いたもの）。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -397168,8 +397153,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -397194,12 +397179,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "静脈還流は、吸息時の胸腔内圧低下（呼吸ポンプ）、骨格筋の収縮（筋ポンプ）、静脈の弁による逆流防止、心房内圧の低下（心臓ポンプ）によって促進される。呼息時は胸腔内圧が上昇するため促進要因とはならない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "静脈還流は、吸息時の胸腔内圧低下（呼吸ポンプ）、骨格筋の収縮（筋ポンプ）、静脈の弁による逆流防止、心房内圧の低下（心臓ポンプ）によって促進される。呼息時は胸腔内圧が上昇するため促進要因とはならない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -397430,7 +397415,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 131.059,
+    "frequent_score": 129.971,
     "frequent_level": 3,
     "frequent_tags": [
       "腎臓",
@@ -397877,7 +397862,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 96.412,
+    "frequent_score": 94.0,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -405693,13 +405678,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 79.324,
+    "frequent_score": 75.412,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "体液"
+      "細胞外液"
     ],
-    "frequent_scope": "ホメオスタシスと生体リズム"
+    "frequent_scope": "生理学の基礎"
   },
   {
     "serial": "B16-032",
@@ -405720,12 +405705,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "赤血球沈降速度（赤沈）は、炎症や組織破壊がある場合に亢進（速くなる＝値が高くなる）する。したがって、化膿性疾患では高くなるのが正しい。赤血球増多症では赤血球同士の反発により低くなり、血漿中のフィブリノゲンやグロブリンが増えると高くなる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "赤血球沈降速度（赤沈）は、炎症や組織破壊がある場合に亢進（速くなる＝値が高くなる）する。したがって、化膿性疾患では高くなるのが正しい。赤血球増多症では赤血球同士の反発により低くなり、血漿中のフィブリノゲンやグロブリンが増えると高くなる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -405943,7 +405928,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 89.176,
+    "frequent_score": 88.088,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -406352,7 +406337,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 55.941,
+    "frequent_score": 49.235,
     "frequent_level": 2,
     "frequent_tags": [
       "免疫",
@@ -414230,12 +414215,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "二酸化炭素の約70〜80％は、赤血球内の炭酸脱水酵素の働きにより重炭酸イオン（HCO3-）となって血漿中に溶解して運搬される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "二酸化炭素の約70〜80％は、赤血球内の炭酸脱水酵素の働きにより重炭酸イオン（HCO3-）となって血漿中に溶解して運搬される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -414255,8 +414240,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -414281,12 +414266,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "充満期（流入期）は、心房内圧が心室内圧を上回り、房室弁が開放して血液が心室へ流れ込む時期である。他の時期は心室内圧の方が高いか、弁が閉じている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "充満期（流入期）は、心房内圧が心室内圧を上回り、房室弁が開放して血液が心室へ流れ込む時期である。他の時期は心室内圧の方が高いか、弁が閉じている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -414562,7 +414547,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 89.176,
+    "frequent_score": 88.088,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
@@ -422863,12 +422848,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血漿蛋白質の中で最も量が多いアルブミンは、血漿の膠質浸透圧を維持する重要な役割を担う。これが低下すると浮腫の原因となる。トロンビンやフィブリンは血液凝固に関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血漿蛋白質の中で最も量が多いアルブミンは、血漿の膠質浸透圧を維持する重要な役割を担う。これが低下すると浮腫の原因となる。トロンビンやフィブリンは血液凝固に関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -422892,7 +422877,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -422919,12 +422904,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "等容性収縮期は、房室弁と半月弁（大動脈弁・肺動脈弁）が共に閉じている時期である。心室内圧が急上昇するが、まだ大動脈圧を上回っていないため大動脈弁は開かない。大動脈圧を超えると駆出期に入る。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "等容性収縮期は、房室弁と半月弁（大動脈弁・肺動脈弁）が共に閉じている時期である。心室内圧が急上昇するが、まだ大動脈圧を上回っていないため大動脈弁は開かない。大動脈圧を超えると駆出期に入る。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -422947,7 +422932,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -423009,7 +422994,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 154.294,
+    "frequent_score": 145.618,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -423550,7 +423535,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 60.029,
+    "frequent_score": 55.735,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -431604,8 +431589,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -431658,7 +431643,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 93.029,
+    "frequent_score": 89.676,
     "frequent_level": 2,
     "frequent_tags": [
       "呼吸",
@@ -431795,12 +431780,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧が上昇して大動脈弓や頸動脈洞の圧受容器が刺激されると、延髄の循環中枢を介して副交感神経活動が高まり、心拍数の減少や血管拡張が起こり、結果として血圧が低下する（減圧反射）。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧が上昇して大動脈弓や頸動脈洞の圧受容器が刺激されると、延髄の循環中枢を介して副交感神経活動が高まり、心拍数の減少や血管拡張が起こり、結果として血圧が低下する（減圧反射）。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -431828,7 +431813,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -432101,11 +432086,11 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 79.5,
-    "frequent_level": 2,
+    "frequent_score": 103.324,
+    "frequent_level": 3,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "細胞外液"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -440409,12 +440394,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心房や大静脈、肺血管にある心肺部圧受容器（低圧受容器）は、静脈還流量や血液量をモニターしている。頚動脈洞や大動脈弓の圧受容器（高圧受容器）は主に動脈血圧をモニターする。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心房や大静脈、肺血管にある心肺部圧受容器（低圧受容器）は、静脈還流量や血液量をモニターしている。頚動脈洞や大動脈弓の圧受容器（高圧受容器）は主に動脈血圧をモニターする。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -440436,7 +440421,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 118.588,
+    "frequent_score": 122.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -440463,12 +440448,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "肺循環（小循環）の血圧は、体循環（大循環）に比べて著しく低い。肺動脈は静脈血を運び、肺静脈は動脈血を左心房へと運ぶ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "肺循環（小循環）の血圧は、体循環（大循環）に比べて著しく低い。肺動脈は静脈血を運び、肺静脈は動脈血を左心房へと運ぶ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -440492,7 +440477,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 118.588,
+    "frequent_score": 122.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -440519,12 +440504,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血液のpHを一定に保つ緩衝系の中で、重炭酸緩衝系（重炭酸イオンと二酸化炭素）が最も重要な役割を果たす。重炭酸イオンは腎臓や肺を通じて濃度が調節され、酸塩基平衡を維持する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血液のpHを一定に保つ緩衝系の中で、重炭酸緩衝系（重炭酸イオンと二酸化炭素）が最も重要な役割を果たす。重炭酸イオンは腎臓や肺を通じて濃度が調節され、酸塩基平衡を維持する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -440542,14 +440527,15 @@
       "重炭酸イオン"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム",
-      "排泄"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 0.0,
-    "frequent_level": 0,
-    "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_score": 77.118,
+    "frequent_level": 2,
+    "frequent_tags": [
+      "血液"
+    ],
+    "frequent_scope": "循環"
   },
   {
     "serial": "B20-035",
@@ -440770,12 +440756,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "α1受容体は主に血管平滑筋に存在し、興奮すると血管を収縮させる。心拍数の増加はβ1受容体、立毛筋の収縮はα1受容体、膀胱排尿筋の弛緩はβ2またはβ3受容体が関与する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "α1受容体は主に血管平滑筋に存在し、興奮すると血管を収縮させる。心拍数の増加はβ1受容体、立毛筋の収縮はα1受容体、膀胱排尿筋の弛緩はβ2またはβ3受容体が関与する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -440796,7 +440782,6 @@
       "血管収縮"
     ],
     "subtopics": [
-      "循環",
       "神経"
     ],
     "deep_dive": null,
@@ -449173,12 +449158,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "頚動脈洞圧迫は圧受容器反射（頚動脈洞反射）を引き起こし、迷走神経活動を亢進させて徐脈と血圧低下を招く。運動、興奮、発熱時は交感神経活動が亢進し、頻脈となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "頚動脈洞圧迫は圧受容器反射（頚動脈洞反射）を引き起こし、迷走神経活動を亢進させて徐脈と血圧低下を招く。運動、興奮、発熱時は交感神経活動が亢進し、頻脈となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -449226,12 +449211,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "頚動脈小体は化学受容器であり、動脈血酸素分圧の低下、二酸化炭素分圧の上昇、pHの低下を感知して呼吸中枢を刺激する。動脈圧の変化を感知するのは頚動脈洞などの圧受容器である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "頚動脈小体は化学受容器であり、動脈血酸素分圧の低下、二酸化炭素分圧の上昇、pHの低下を感知して呼吸中枢を刺激する。動脈圧の変化を感知するのは頚動脈洞などの圧受容器である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -449254,7 +449239,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 118.588,
+    "frequent_score": 122.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -449389,12 +449374,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "循環血液量が増加し心肺部圧受容器活動が亢進すると、バソプレシン分泌が抑制され、利尿が促進される（容量反射）。血液量減少、浸透圧上昇、バソプレシン増加はいずれも抗利尿（尿量減少）に働く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "循環血液量が増加し心肺部圧受容器活動が亢進すると、バソプレシン分泌が抑制され、利尿が促進される（容量反射）。血液量減少、浸透圧上昇、バソプレシン増加はいずれも抗利尿（尿量減少）に働く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -449422,8 +449407,8 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -449792,7 +449777,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 96.412,
+    "frequent_score": 94.0,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -457919,12 +457904,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "PQ時間（またはPR時間）は、心房の興奮開始から心室の興奮開始までの時間を指し、房室伝導時間を表す。QT時間は心室の興奮から消退まで、RR間隔は心拍周期を表す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "PQ時間（またはPR時間）は、心房の興奮開始から心室の興奮開始までの時間を指し、房室伝導時間を表す。QT時間は心室の興奮から消退まで、RR間隔は心拍周期を表す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -457942,7 +457927,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -458000,7 +457985,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 96.735,
+    "frequent_score": 88.059,
     "frequent_level": 2,
     "frequent_tags": [
       "酸素",
@@ -466325,12 +466310,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧は「心拍出量 × 末梢血管抵抗」で決まる。細動脈が拡張すると末梢血管抵抗が減少するため、血圧は低下する。ナトリウム上昇、レニン増加、心収縮力増大はいずれも血圧を上昇させる要因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧は「心拍出量 × 末梢血管抵抗」で決まる。細動脈が拡張すると末梢血管抵抗が減少するため、血圧は低下する。ナトリウム上昇、レニン増加、心収縮力増大はいずれも血圧を上昇させる要因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -466353,7 +466338,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -466510,8 +466495,8 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -466878,7 +466863,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 117.765,
+    "frequent_score": 112.324,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -475121,12 +475106,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "体液のpH調節（酸塩基平衡）は、主に肺による二酸化炭素の排出と、腎臓による水素イオンの排泄および重炭酸イオンの再吸収によって行われる。腎臓は数時間から数日かけて持続的な調節を担う。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "体液のpH調節（酸塩基平衡）は、主に肺による二酸化炭素の排出と、腎臓による水素イオンの排泄および重炭酸イオンの再吸収によって行われる。腎臓は数時間から数日かけて持続的な調節を担う。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -475141,12 +475126,12 @@
       "酸塩基平衡"
     ],
     "subtopics": [
-      "ホメオスタシスと生体リズム",
+      "循環",
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -475171,12 +475156,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血流の自己調節とは、血圧が変動しても臓器内の血流量を一定に保つ仕組みである。この機能は腎臓や脳、心臓（冠動脈）で特に顕著に発達している。腎臓では糸球体ろ過量を一定に保つために重要である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血流の自己調節とは、血圧が変動しても臓器内の血流量を一定に保つ仕組みである。この機能は腎臓や脳、心臓（冠動脈）で特に顕著に発達している。腎臓では糸球体ろ過量を一定に保つために重要である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -475190,12 +475175,11 @@
       "血流自己調節"
     ],
     "subtopics": [
-      "循環",
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 62.088,
-    "frequent_level": 2,
+    "frequent_score": 61.0,
+    "frequent_level": 1,
     "frequent_tags": [
       "腎臓"
     ],
@@ -475671,7 +475655,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 83.441,
+    "frequent_score": 80.412,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -484108,12 +484092,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血圧は「心拍出量×末梢血管抵抗」で決まる。血管断面積が減少（血管が収縮）すると、末梢血管抵抗が増大するため血圧は上昇する。他の選択肢はいずれも減少すると血圧低下の要因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血圧は「心拍出量×末梢血管抵抗」で決まる。血管断面積が減少（血管が収縮）すると、末梢血管抵抗が増大するため血圧は上昇する。他の選択肢はいずれも減少すると血圧低下の要因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -484132,7 +484116,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 110.941,
+    "frequent_score": 109.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -484445,12 +484429,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "高地では酸素分圧が低いため、代償的にエリスロポエチン分泌が増加し、赤血球数が増える（多血症の要因）。胃切除はビタミンB12吸収障害、脾機能亢進は赤血球破壊促進により貧血を招く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "高地では酸素分圧が低いため、代償的にエリスロポエチン分泌が増加し、赤血球数が増える（多血症の要因）。胃切除はビタミンB12吸収障害、脾機能亢進は赤血球破壊促進により貧血を招く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -493111,12 +493095,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "組織の代謝亢進により産生された二酸化炭素や乳酸、アデノシンなどは、局所の血管を拡張させて血流を増加させる（代謝性調節）。他は血管収縮物質である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "組織の代謝亢進により産生された二酸化炭素や乳酸、アデノシンなどは、局所の血管を拡張させて血流を増加させる（代謝性調節）。他は血管収縮物質である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -493138,8 +493122,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 78.765,
-    "frequent_level": 2,
+    "frequent_score": 73.176,
+    "frequent_level": 1,
     "frequent_tags": [
       "リン",
       "血管"
@@ -502195,12 +502179,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "フィブリノゲン（第I因子）は血液凝固の最終段階でトロンビンの作用によりフィブリンとなり、血栓を形成する。ヘパリンは抗凝固物質である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "フィブリノゲン（第I因子）は血液凝固の最終段階でトロンビンの作用によりフィブリンとなり、血栓を形成する。ヘパリンは抗凝固物質である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -502218,7 +502202,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 111.059,
+    "frequent_score": 117.647,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -502245,12 +502229,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血管平滑筋が弛緩すると血管径が広がり、末梢血管抵抗が減少するため血圧は低下する。血液量の増加、血液粘性の上昇、血管壁弾性の低下（動脈硬化）は血圧上昇の要因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血管平滑筋が弛緩すると血管径が広がり、末梢血管抵抗が減少するため血圧は低下する。血液量の増加、血液粘性の上昇、血管壁弾性の低下（動脈硬化）は血圧上昇の要因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -502269,7 +502253,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 110.941,
+    "frequent_score": 109.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -511093,12 +511077,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "組織で産生された二酸化炭素の多くは、赤血球内で炭酸脱水酵素により重炭酸イオン（HCO3-）に変換され、血漿中に溶け込んで肺まで運搬される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "組織で産生された二酸化炭素の多くは、赤血球内で炭酸脱水酵素により重炭酸イオン（HCO3-）に変換され、血漿中に溶け込んで肺まで運搬される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -511117,8 +511101,8 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 71.618,
-    "frequent_level": 1,
+    "frequent_score": 77.118,
+    "frequent_level": 2,
     "frequent_tags": [
       "血液"
     ],
@@ -511143,12 +511127,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心室の収縮により内圧が上昇し、動脈圧（大動脈圧や肺動脈圧）を超えると動脈弁が開放されて血液が送り出される。この時期を駆出期という。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心室の収縮により内圧が上昇し、動脈圧（大動脈圧や肺動脈圧）を超えると動脈弁が開放されて血液が送り出される。この時期を駆出期という。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -511169,7 +511153,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 46.971,
+    "frequent_score": 45.647,
     "frequent_level": 1,
     "frequent_tags": [
       "動脈"
@@ -511225,7 +511209,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 126.765,
+    "frequent_score": 120.059,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -511566,12 +511550,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "心房や大静脈にある低圧受容器（心肺部圧受容器）は循環血液量を感知している。血液量が減少すると、この情報が視床下部に伝わり、口渇中枢を刺激して「渇き」を生じさせ飲水を促す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心房や大静脈にある低圧受容器（心肺部圧受容器）は循環血液量を感知している。血液量が減少すると、この情報が視床下部に伝わり、口渇中枢を刺激して「渇き」を生じさせ飲水を促す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -511648,7 +511632,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 96.412,
+    "frequent_score": 94.0,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -520358,12 +520342,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "IgAは分泌型抗体として唾液、涙、腸液、母乳などの粘膜表面に分泌され、局所免疫（粘膜免疫）を担う。IgGは血液中に最も多く、二次応答で大量に産生される。IgEはアレルギーに関与する。抗体はB細胞（形質細胞）が産生する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "IgAは分泌型抗体として唾液、涙、腸液、母乳などの粘膜表面に分泌され、局所免疫（粘膜免疫）を担う。IgGは血液中に最も多く、二次応答で大量に産生される。IgEはアレルギーに関与する。抗体はB細胞（形質細胞）が産生する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -520383,7 +520367,6 @@
       "ＩｇＭ"
     ],
     "subtopics": [
-      "循環",
       "生体の防御機構"
     ],
     "deep_dive": null,
@@ -530072,12 +530055,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "静脈には血液の逆流を防ぐための静脈弁が四肢を中心に発達している。静脈は伸展性が高く血液を多く貯留できる容量血管である。動脈（特に細動脈）は血管抵抗が高い抵抗血管である。歩行時の筋収縮は静脈還流を助ける（筋ポンプ作用）。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "静脈には血液の逆流を防ぐための静脈弁が四肢を中心に発達している。静脈は伸展性が高く血液を多く貯留できる容量血管である。動脈（特に細動脈）は血管抵抗が高い抵抗血管である。歩行時の筋収縮は静脈還流を助ける（筋ポンプ作用）。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -530094,7 +530077,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 157.912,
+    "frequent_score": 155.412,
     "frequent_level": 3,
     "frequent_tags": [
       "血液",
@@ -540044,12 +540027,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "興奮は洞房結節、房室結節、ヒス束、右脚・左脚、プルキンエ線維の順に伝わる。刺激伝導系は特殊心筋からなり、自動能を持つ。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "興奮は洞房結節、房室結節、ヒス束、右脚・左脚、プルキンエ線維の順に伝わる。刺激伝導系は特殊心筋からなり、自動能を持つ。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -540072,7 +540055,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 34.147,
+    "frequent_score": 35.853,
     "frequent_level": 1,
     "frequent_tags": [
       "心臓"
@@ -540466,7 +540449,7 @@
       "生体の防御機構"
     ],
     "deep_dive": null,
-    "frequent_score": 115.706,
+    "frequent_score": 105.971,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -550202,7 +550185,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 154.294,
+    "frequent_score": 145.618,
     "frequent_level": 3,
     "frequent_tags": [
       "呼吸",
@@ -560128,12 +560111,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "アルブミンは血漿蛋白の中で最も多く、膠質浸透圧の維持に働く。血漿は淡黄色である。血漿蛋白の多くは肝臓で合成される。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アルブミンは血漿蛋白の中で最も多く、膠質浸透圧の維持に働く。血漿は淡黄色である。血漿蛋白の多くは肝臓で合成される。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -560178,12 +560161,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "肺動脈は右心室から肺へ静脈血を運ぶ血管である。肺静脈は酸素を多く含んだ動脈血を左心房へ運ぶ。肺循環系は体循環系に比べて血圧が低い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "肺動脈は右心室から肺へ静脈血を運ぶ血管である。肺静脈は酸素を多く含んだ動脈血を左心房へ運ぶ。肺循環系は体循環系に比べて血圧が低い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -560206,7 +560189,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 118.588,
+    "frequent_score": 122.765,
     "frequent_level": 2,
     "frequent_tags": [
       "血液",
@@ -560233,12 +560216,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "動脈血の酸素飽和度は約97％、酸素分圧は約100mmHgである。静脈血の酸素飽和度は約75％、酸素分圧は約40mmHgである。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "動脈血の酸素飽和度は約97％、酸素分圧は約100mmHgである。静脈血の酸素飽和度は約75％、酸素分圧は約40mmHgである。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -560251,17 +560234,15 @@
       "酸素飽和度"
     ],
     "subtopics": [
-      "呼吸",
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 96.735,
-    "frequent_level": 2,
+    "frequent_score": 45.647,
+    "frequent_level": 1,
     "frequent_tags": [
-      "酸素",
       "動脈"
     ],
-    "frequent_scope": "呼吸"
+    "frequent_scope": "循環"
   },
   {
     "serial": "B33-027",
@@ -560367,11 +560348,11 @@
       "ホメオスタシスと生体リズム"
     ],
     "deep_dive": null,
-    "frequent_score": 106.088,
-    "frequent_level": 3,
+    "frequent_score": 77.794,
+    "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "恒常性維持"
+      "細胞外液"
     ],
     "frequent_scope": "ホメオスタシスと生体リズム"
   },
@@ -570191,12 +570172,12 @@
     ],
     "answer_none": false,
     "explanation_latest": "血液は圧力の高い方から低い方へ流れる。心臓の収縮期において、左心室や大動脈、末梢動脈（顔面動脈）は高い圧力を示すが、静脈系（上大静脈）は常に低圧に保たれている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血液は圧力の高い方から低い方へ流れる。心臓の収縮期において、左心室や大動脈、末梢動脈（顔面動脈）は高い圧力を示すが、静脈系（上大静脈）は常に低圧に保たれている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked"
       }
     ],
     "tags": [
@@ -570221,7 +570202,7 @@
       "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 81.118,
+    "frequent_score": 81.5,
     "frequent_level": 2,
     "frequent_tags": [
       "動脈",
@@ -570368,7 +570349,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 102.441,
+    "frequent_score": 101.353,
     "frequent_level": 2,
     "frequent_tags": [
       "腎臓",
