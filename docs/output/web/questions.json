@@ -1995,13 +1995,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 87.441,
+    "frequent_score": 78.441,
     "frequent_level": 2,
     "frequent_tags": [
-      "細胞",
-      "ATP"
+      "代謝",
+      "エネルギー代謝"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "代謝"
   },
   {
     "serial": "A01-040",
@@ -2617,7 +2617,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 395.353,
+    "frequent_score": 392.559,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -2670,7 +2670,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -2933,7 +2933,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -9885,7 +9885,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -10541,7 +10541,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -17718,7 +17718,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -18329,7 +18329,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -18382,7 +18382,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -18436,7 +18436,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -25925,7 +25925,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 79.029,
+    "frequent_score": 77.382,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -25972,7 +25972,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -26177,7 +26177,7 @@
       "内分泌"
     ],
     "deep_dive": null,
-    "frequent_score": 105.294,
+    "frequent_score": 103.647,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -26226,7 +26226,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -26277,7 +26277,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -26390,7 +26390,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 334.882,
+    "frequent_score": 332.088,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -33434,7 +33434,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 136.912,
+    "frequent_score": 113.706,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -33830,7 +33830,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 80.088,
+    "frequent_score": 78.441,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -33928,16 +33928,13 @@
       "赤血球"
     ],
     "subtopics": [
-      "生理学の基礎",
-      "神経"
+      "生殖と成長"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
-    "frequent_level": 2,
-    "frequent_tags": [
-      "神経"
-    ],
-    "frequent_scope": "神経"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "A05-050",
@@ -34086,7 +34083,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -34141,7 +34138,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -34194,7 +34191,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 326.794,
+    "frequent_score": 324.0,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -34250,7 +34247,7 @@
       "身体の運動"
     ],
     "deep_dive": null,
-    "frequent_score": 260.029,
+    "frequent_score": 257.235,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -41135,7 +41132,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -41438,7 +41435,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -41587,7 +41584,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -41855,7 +41852,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -42003,7 +42000,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -48990,8 +48987,7 @@
       "赤血球"
     ],
     "subtopics": [
-      "循環",
-      "生理学の基礎"
+      "循環"
     ],
     "deep_dive": null,
     "frequent_score": 71.618,
@@ -49399,7 +49395,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -49453,7 +49449,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -49551,7 +49547,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 328.588,
+    "frequent_score": 325.794,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -49761,7 +49757,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -56705,7 +56701,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 87.441,
+    "frequent_score": 73.294,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -56804,8 +56800,7 @@
       "血漿蛋白"
     ],
     "subtopics": [
-      "循環",
-      "生理学の基礎"
+      "循環"
     ],
     "deep_dive": null,
     "frequent_score": 39.441,
@@ -57286,7 +57281,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 306.706,
+    "frequent_score": 303.912,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -57490,7 +57485,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -64550,7 +64545,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 87.441,
+    "frequent_score": 73.294,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -64605,13 +64600,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 89.559,
+    "frequent_score": 79.5,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞外液"
+      "恒常性維持"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "ホメオスタシスと生体リズム"
   },
   {
     "serial": "A09-041",
@@ -65104,7 +65099,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -65156,7 +65151,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -65310,7 +65305,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -72978,7 +72973,6 @@
       "過分極"
     ],
     "subtopics": [
-      "生理学の基礎",
       "神経"
     ],
     "deep_dive": null,
@@ -73034,7 +73028,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -73090,7 +73084,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -80271,7 +80265,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -80831,7 +80825,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 306.706,
+    "frequent_score": 303.912,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -80942,7 +80936,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -81153,7 +81147,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -88046,7 +88040,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 87.441,
+    "frequent_score": 73.294,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -88254,7 +88248,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 306.706,
+    "frequent_score": 303.912,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -88637,7 +88631,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -88689,7 +88683,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -88743,7 +88737,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -95961,7 +95955,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 136.912,
+    "frequent_score": 113.706,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -96171,7 +96165,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 76.647,
+    "frequent_score": 75.0,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -96533,7 +96527,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -96585,7 +96579,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -103954,7 +103948,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -104216,7 +104210,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -104329,7 +104323,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -111509,13 +111503,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 89.559,
+    "frequent_score": 79.324,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞外液"
+      "体液"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "ホメオスタシスと生体リズム"
   },
   {
     "serial": "A15-035",
@@ -112039,7 +112033,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -112196,7 +112190,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -119496,7 +119490,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
+    "frequent_score": 93.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -119652,7 +119646,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -119809,7 +119803,7 @@
       "排泄"
     ],
     "deep_dive": null,
-    "frequent_score": 77.353,
+    "frequent_score": 75.706,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -119964,7 +119958,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -127730,7 +127724,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -127931,7 +127925,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -127985,7 +127979,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -128043,7 +128037,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -135431,7 +135425,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 87.441,
+    "frequent_score": 73.294,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -136047,7 +136041,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -144040,7 +144034,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -144090,7 +144084,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -151650,13 +151644,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 89.559,
+    "frequent_score": 79.324,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞外液"
+      "体液"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "ホメオスタシスと生体リズム"
   },
   {
     "serial": "A20-035",
@@ -151865,7 +151859,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 77.353,
+    "frequent_score": 75.706,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -152142,7 +152136,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 395.353,
+    "frequent_score": 392.559,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -152198,7 +152192,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -152251,7 +152245,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -152421,7 +152415,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -159722,7 +159716,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -160286,7 +160280,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -167764,11 +167758,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 139.029,
+    "frequent_score": 115.824,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
-      "白質"
+      "細胞外液"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -168012,7 +168006,7 @@
       "呼吸"
     ],
     "deep_dive": null,
-    "frequent_score": 80.088,
+    "frequent_score": 78.441,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -168229,16 +168223,13 @@
       "赤血球"
     ],
     "subtopics": [
-      "生理学の基礎",
-      "神経"
+      "生殖と成長"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
-    "frequent_level": 2,
-    "frequent_tags": [
-      "神経"
-    ],
-    "frequent_scope": "神経"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "A22-044",
@@ -168337,7 +168328,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -168449,7 +168440,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -175665,7 +175656,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 231.853,
+    "frequent_score": 229.059,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -175719,7 +175710,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 260.029,
+    "frequent_score": 257.235,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -175877,7 +175868,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -175931,7 +175922,7 @@
       "身体の運動"
     ],
     "deep_dive": null,
-    "frequent_score": 260.029,
+    "frequent_score": 257.235,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -183743,7 +183734,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.353,
+    "frequent_score": 75.706,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -183897,7 +183888,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 80.088,
+    "frequent_score": 78.441,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -200418,7 +200409,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -208299,7 +208290,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 89.559,
+    "frequent_score": 75.412,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
@@ -208405,7 +208396,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
+    "frequent_score": 93.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -208516,7 +208507,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -224735,7 +224726,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 80.088,
+    "frequent_score": 78.441,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -224896,7 +224887,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -233767,7 +233758,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 231.853,
+    "frequent_score": 229.059,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -242431,13 +242422,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 89.559,
+    "frequent_score": 79.324,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞外液"
+      "体液"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "ホメオスタシスと生体リズム"
   },
   {
     "serial": "A31-024",
@@ -242693,7 +242684,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 306.706,
+    "frequent_score": 303.912,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -242750,7 +242741,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -251310,7 +251301,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
+    "frequent_score": 93.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -251479,7 +251470,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -251645,7 +251636,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -260290,7 +260281,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
+    "frequent_score": 93.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -260463,7 +260454,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 231.853,
+    "frequent_score": 229.059,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -269379,7 +269370,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -269431,7 +269422,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -269532,7 +269523,7 @@
       "身体の運動"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -278877,7 +278868,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 326.794,
+    "frequent_score": 324.0,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -278936,7 +278927,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -279043,7 +279034,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -286956,17 +286947,13 @@
       "血漿蛋白"
     ],
     "subtopics": [
-      "循環",
-      "生理学の基礎"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
-    "frequent_level": 3,
-    "frequent_tags": [
-      "細胞",
-      "白質"
-    ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B02-036",
@@ -287389,7 +287376,7 @@
       "内分泌"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -295408,7 +295395,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -295465,11 +295452,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 139.029,
+    "frequent_score": 115.824,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
-      "白質"
+      "細胞外液"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -295835,7 +295822,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -295998,7 +295985,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -303884,7 +303871,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 80.088,
+    "frequent_score": 78.441,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -304363,7 +304350,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -312492,7 +312479,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -312552,7 +312539,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 326.794,
+    "frequent_score": 324.0,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -312600,7 +312587,7 @@
       "体温"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -312969,7 +312956,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 328.588,
+    "frequent_score": 325.794,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -313120,7 +313107,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -320796,7 +320783,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -320995,7 +320982,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 328.588,
+    "frequent_score": 325.794,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -321298,16 +321285,13 @@
       "静止電位"
     ],
     "subtopics": [
-      "生理学の基礎",
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
-    "frequent_level": 2,
-    "frequent_tags": [
-      "細胞"
-    ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B06-045",
@@ -321358,7 +321342,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 231.853,
+    "frequent_score": 229.059,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -321461,7 +321445,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -321518,7 +321502,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 415.441,
+    "frequent_score": 412.647,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -329321,7 +329305,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 77.353,
+    "frequent_score": 75.706,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -329373,11 +329357,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 139.029,
+    "frequent_score": 115.824,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
-      "白質"
+      "細胞外液"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -329531,7 +329515,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -337731,7 +337715,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -338195,7 +338179,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -338245,7 +338229,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -338416,7 +338400,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -346222,7 +346206,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
+    "frequent_score": 93.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -346647,7 +346631,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -346758,7 +346742,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -346807,7 +346791,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -354748,13 +354732,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 89.559,
+    "frequent_score": 79.324,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞外液"
+      "体液"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "ホメオスタシスと生体リズム"
   },
   {
     "serial": "B10-035",
@@ -355265,7 +355249,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -355321,7 +355305,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -355523,7 +355507,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -363323,7 +363307,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 326.794,
+    "frequent_score": 324.0,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -363376,7 +363360,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 79.029,
+    "frequent_score": 77.382,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -363760,7 +363744,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 231.853,
+    "frequent_score": 229.059,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -372332,7 +372316,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -372382,7 +372366,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -372498,7 +372482,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 260.029,
+    "frequent_score": 257.235,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -380933,7 +380917,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -380988,7 +380972,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 253.735,
+    "frequent_score": 250.941,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -389030,7 +389014,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 80.088,
+    "frequent_score": 78.441,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -389138,7 +389122,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 326.794,
+    "frequent_score": 324.0,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -389289,7 +389273,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -389348,7 +389332,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -397728,7 +397712,7 @@
       "身体の運動"
     ],
     "deep_dive": null,
-    "frequent_score": 348.676,
+    "frequent_score": 345.882,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -397835,7 +397819,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -405709,13 +405693,13 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 89.559,
+    "frequent_score": 79.324,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞",
-      "細胞外液"
+      "体液"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "ホメオスタシスと生体リズム"
   },
   {
     "serial": "B16-032",
@@ -405855,7 +405839,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -406269,7 +406253,7 @@
       "身体の運動"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -414475,7 +414459,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -414745,7 +414729,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -422852,7 +422836,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 77.353,
+    "frequent_score": 75.706,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -423251,7 +423235,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -431617,8 +431601,7 @@
       "赤血球"
     ],
     "subtopics": [
-      "循環",
-      "生理学の基礎"
+      "循環"
     ],
     "deep_dive": null,
     "frequent_score": 71.618,
@@ -432063,7 +432046,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -432278,7 +432261,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -440400,7 +440383,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -440660,7 +440643,7 @@
       "体温"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -440919,7 +440902,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 415.441,
+    "frequent_score": 412.647,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -441026,7 +441009,7 @@
       "筋肉"
     ],
     "deep_dive": null,
-    "frequent_score": 328.588,
+    "frequent_score": 325.794,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -441080,7 +441063,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -449115,7 +449098,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
+    "frequent_score": 93.647,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
@@ -449163,8 +449146,7 @@
       "血液型不適合妊娠"
     ],
     "subtopics": [
-      "生殖と成長",
-      "生理学の基礎"
+      "循環"
     ],
     "deep_dive": null,
     "frequent_score": 0.0,
@@ -449487,16 +449469,15 @@
       "細胞内シグナル"
     ],
     "subtopics": [
-      "内分泌",
-      "生理学の基礎"
+      "内分泌"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
-    "frequent_level": 2,
+    "frequent_score": 37.706,
+    "frequent_level": 1,
     "frequent_tags": [
-      "細胞"
+      "ホルモン分泌"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "内分泌"
   },
   {
     "serial": "B21-039",
@@ -449650,7 +449631,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -457862,7 +457843,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -458118,16 +458099,13 @@
       "蛋白質"
     ],
     "subtopics": [
-      "代謝",
-      "生理学の基礎"
+      "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
-    "frequent_level": 1,
-    "frequent_tags": [
-      "代謝"
-    ],
-    "frequent_scope": "代謝"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B22-037",
@@ -466698,7 +466676,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -484103,11 +484081,11 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 139.029,
+    "frequent_score": 115.824,
     "frequent_level": 3,
     "frequent_tags": [
       "細胞",
-      "白質"
+      "細胞外液"
     ],
     "frequent_scope": "生理学の基礎"
   },
@@ -484330,7 +484308,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 77.353,
+    "frequent_score": 75.706,
     "frequent_level": 2,
     "frequent_tags": [
       "代謝",
@@ -484552,7 +484530,7 @@
       "身体の運動"
     ],
     "deep_dive": null,
-    "frequent_score": 326.794,
+    "frequent_score": 324.0,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -493305,16 +493283,13 @@
       "膵臓"
     ],
     "subtopics": [
-      "代謝",
-      "生理学の基礎"
+      "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
-    "frequent_level": 2,
-    "frequent_tags": [
-      "細胞"
-    ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B26-032",
@@ -502399,7 +502374,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -502452,7 +502427,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -502549,7 +502524,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -502708,7 +502683,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 165.088,
+    "frequent_score": 162.294,
     "frequent_level": 2,
     "frequent_tags": [
       "神経"
@@ -511350,17 +511325,15 @@
       "酸化"
     ],
     "subtopics": [
-      "代謝",
-      "生理学の基礎"
+      "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 116.853,
-    "frequent_level": 3,
+    "frequent_score": 49.441,
+    "frequent_level": 1,
     "frequent_tags": [
-      "細胞",
-      "白質"
+      "代謝"
     ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_scope": "代謝"
   },
   {
     "serial": "B28-032",
@@ -511512,7 +511485,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 334.882,
+    "frequent_score": 332.088,
     "frequent_level": 3,
     "frequent_tags": [
       "神経",
@@ -519994,7 +519967,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
+    "frequent_score": 53.235,
     "frequent_level": 2,
     "frequent_tags": [
       "細胞"
@@ -540260,8 +540233,7 @@
       "脂質"
     ],
     "subtopics": [
-      "代謝",
-      "生理学の基礎"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 27.941,
@@ -550123,7 +550095,7 @@
       "生理学の基礎"
     ],
     "deep_dive": null,
-    "frequent_score": 49.471,
+    "frequent_score": 40.412,
     "frequent_level": 1,
     "frequent_tags": [
       "白質",
@@ -550171,16 +550143,13 @@
       "造血"
     ],
     "subtopics": [
-      "循環",
-      "生理学の基礎"
+      "循環"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
-    "frequent_level": 2,
-    "frequent_tags": [
-      "細胞"
-    ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B32-026",
@@ -550400,7 +550369,7 @@
       "神経"
     ],
     "deep_dive": null,
-    "frequent_score": 239.941,
+    "frequent_score": 237.147,
     "frequent_level": 2,
     "frequent_tags": [
       "神経",
@@ -550520,7 +550489,7 @@
     ],
     "deep_dive": null,
     "frequent_score": 161.706,
-    "frequent_level": 1,
+    "frequent_level": 2,
     "frequent_tags": [
       "反射",
       "中枢"
@@ -560496,15 +560465,13 @@
       "赤血球"
     ],
     "subtopics": [
-      "生理学の基礎"
+      "生殖と成長"
     ],
     "deep_dive": null,
-    "frequent_score": 67.382,
-    "frequent_level": 2,
-    "frequent_tags": [
-      "細胞"
-    ],
-    "frequent_scope": "生理学の基礎"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B33-031",
@@ -570198,7 +570165,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
@@ -570353,7 +570320,7 @@
       "代謝"
     ],
     "deep_dive": null,
-    "frequent_score": 51.088,
+    "frequent_score": 49.441,
     "frequent_level": 1,
     "frequent_tags": [
       "代謝"
