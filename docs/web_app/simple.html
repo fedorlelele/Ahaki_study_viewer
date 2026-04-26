@@ -286,10 +286,10 @@
           <button class="topBtn">トップへ戻る</button>
         </div>
         <div class="actions">
+          <button id="prevQuestionBtn" type="button">前の問題へ</button>
+          <button id="nextQuestionBtn" type="button">次の問題へ</button>
           <label for="jumpSerial" class="sr-only">シリアルでジャンプ</label>
-          <select id="jumpSerial" aria-label="シリアルでジャンプ">
-            <option value="">ジャンプ先を選択</option>
-          </select>
+          <input id="jumpSerial" type="text" inputmode="latin" autocomplete="off" placeholder="例: A01-001" aria-label="シリアルでジャンプ" />
           <button id="jumpBtn" type="button">ジャンプ</button>
         </div>
       </section>
@@ -393,6 +393,8 @@
       const confirmBtn = document.getElementById("confirmBtn");
       const jumpSerial = document.getElementById("jumpSerial");
       const jumpBtn = document.getElementById("jumpBtn");
+      const prevQuestionBtn = document.getElementById("prevQuestionBtn");
+      const nextQuestionBtn = document.getElementById("nextQuestionBtn");
       const confirmOverlay = document.getElementById("confirmOverlay");
       const confirmChoice = document.getElementById("confirmChoice");
       const confirmYes = document.getElementById("confirmYes");
@@ -437,9 +439,13 @@
         items.forEach(item => {
           const o = document.createElement("option");
           o.value = item;
-          o.textContent = item;
+          o.textContent = formatExamTypeLabel(item);
           select.appendChild(o);
         });
+      }
+
+      function formatExamTypeLabel(value) {
+        return String(value || "").replace(/きゆう師/g, "きゅう師");
       }
 
       function showStep(step) {
@@ -477,33 +483,34 @@
 
       function updateJumpOptions() {
         if (!jumpSerial) return;
-        const current = jumpSerial.value;
-        jumpSerial.innerHTML = "";
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = "ジャンプ先を選択";
-        jumpSerial.appendChild(placeholder);
-        state.filtered.forEach(q => {
-          const opt = document.createElement("option");
-          opt.value = q.serial;
-          opt.textContent = q.serial;
-          jumpSerial.appendChild(opt);
-        });
-        if (current) {
-          jumpSerial.value = current;
-        }
+        jumpSerial.placeholder = state.filtered.length
+          ? `例: ${state.filtered[0].serial}`
+          : "例: A01-001";
       }
 
       function jumpToSerial() {
         if (questionSection.hidden) return;
         const serial = jumpSerial.value;
         if (!serial) return;
-        const index = state.filtered.findIndex(q => q.serial === serial);
+        const normalized = normalizeSerialInput(serial);
+        const index = state.filtered.findIndex(q => normalizeSerialInput(q.serial) === normalized);
         if (index === -1) {
           status.textContent = `該当シリアルが見つかりませんでした: ${serial}`;
           return;
         }
         state.currentIndex = index;
+        renderQuestion();
+      }
+
+      function normalizeSerialInput(value) {
+        return String(value || "").trim().toUpperCase().replace(/^([AB])(\d{2})(\d{3})$/, "$1$2-$3");
+      }
+
+      function moveQuestion(delta) {
+        if (questionSection.hidden || !state.filtered.length) return;
+        const nextIndex = state.currentIndex + delta;
+        if (nextIndex < 0 || nextIndex >= state.filtered.length) return;
+        state.currentIndex = nextIndex;
         renderQuestion();
       }
 
@@ -640,7 +647,7 @@
         state.answered = false;
         confirmBtn.disabled = true;
         choices.innerHTML = "";
-        meta.textContent = `${q.serial} / ${q.subject} / ${q.exam_type} / 第${q.exam_session}回`;
+        meta.textContent = `${q.serial} / ${q.subject} / ${formatExamTypeLabel(q.exam_type)} / 第${q.exam_session}回`;
         if (q.case_text) {
           caseText.textContent = q.case_text;
           caseText.hidden = false;
@@ -679,6 +686,9 @@
         state.focusIndex = 0;
         questionSection.hidden = false;
         status.textContent = `問題 ${state.currentIndex + 1} / ${state.filtered.length}`;
+        if (jumpSerial) jumpSerial.value = q.serial || "";
+        if (prevQuestionBtn) prevQuestionBtn.disabled = state.currentIndex <= 0;
+        if (nextQuestionBtn) nextQuestionBtn.disabled = state.currentIndex >= state.filtered.length - 1;
         highlightSelection(1);
         if (state.focusItems.length) {
           state.focusItems[0].focus();
@@ -811,6 +821,20 @@
       confirmBtn.addEventListener("click", openConfirm);
       if (jumpBtn) {
         jumpBtn.addEventListener("click", jumpToSerial);
+      }
+      if (jumpSerial) {
+        jumpSerial.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            jumpToSerial();
+          }
+        });
+      }
+      if (prevQuestionBtn) {
+        prevQuestionBtn.addEventListener("click", () => moveQuestion(-1));
+      }
+      if (nextQuestionBtn) {
+        nextQuestionBtn.addEventListener("click", () => moveQuestion(1));
       }
       confirmNo.addEventListener("click", closeConfirm);
       confirmYes.addEventListener("click", () => {

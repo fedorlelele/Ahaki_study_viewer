@@ -755,7 +755,8 @@
         margin-top: 0;
       }
       .card-actions > button,
-      .card-actions details.inline > summary.inline-summary {
+      .card-actions details.inline > summary.inline-summary,
+      .card-actions .inline > button.inline-summary {
         min-height: 40px;
       }
       .card-menu-panel {
@@ -771,7 +772,8 @@
         gap: 6px;
       }
       .action-btn.icon-only,
-      details.inline > summary.inline-summary.action-summary.icon-only {
+      details.inline > summary.inline-summary.action-summary.icon-only,
+      .inline > button.inline-summary.action-summary.icon-only {
         width: 40px;
         height: 40px;
         min-width: 40px;
@@ -785,7 +787,8 @@
         line-height: 1;
       }
       .action-btn.icon-only .action-icon,
-      details.inline > summary.inline-summary.action-summary.icon-only .action-icon {
+      details.inline > summary.inline-summary.action-summary.icon-only .action-icon,
+      .inline > button.inline-summary.action-summary.icon-only .action-icon {
         font-size: 17px;
       }
       .back-to-top {
@@ -826,7 +829,8 @@
           bottom: max(10px, env(safe-area-inset-bottom));
         }
       }
-      details.inline > summary.inline-summary.action-summary {
+      details.inline > summary.inline-summary.action-summary,
+      .inline > button.inline-summary.action-summary {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -918,7 +922,8 @@
         font-size: 12px;
         color: var(--muted);
       }
-      details.inline > summary.inline-summary {
+      details.inline > summary.inline-summary,
+      .inline > button.inline-summary {
         list-style: none;
         display: inline-block;
         padding: 6px 10px;
@@ -1293,7 +1298,7 @@
           <span class="site-title-short">ASV</span>
         </h1>
         <div class="top-nav-actions">
-          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="true" aria-label="メニュー">☰</button>
+          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="false" aria-label="メニュー">☰</button>
         </div>
       </div>
       <div id="topPanels" class="top-panels" hidden>
@@ -1353,6 +1358,7 @@
           <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
           <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
           <label id="editModeWrap" hidden><input type="checkbox" id="editModeToggle" /> 編集モード</label>
+          <button type="button" class="top-panel-close" data-close-target="settingsPanel">閉じる</button>
         </div>
         </details>
         <details class="inline" id="progressPanel" hidden>
@@ -1385,6 +1391,7 @@
         <summary>利用ガイド</summary>
         <div class="card-actions">
           <article class="user-readme" id="userReadmeText">読み込み中...</article>
+          <button type="button" class="top-panel-close" data-close-target="userReadme">閉じる</button>
         </div>
         </details>
         <details class="inline" id="answerTrendPanel" hidden>
@@ -1575,15 +1582,18 @@
       <details class="inline">
         <summary>詳細フィルタ</summary>
         <div class="row">
-          <select id="subjectSelect" aria-label="科目の選択"><option value="">科目</option></select>
-          <select id="subtopicSelect" aria-label="小項目の選択"><option value="">小項目</option></select>
-          <select id="examTypeSelect" aria-label="試験種別の選択">
+          <label for="subjectSelect" class="sr-only">科目</label>
+          <select id="subjectSelect" aria-label="科目"><option value="">科目</option></select>
+          <label for="subtopicSelect" class="sr-only">小項目</label>
+          <select id="subtopicSelect" aria-label="小項目"><option value="">小項目</option></select>
+          <label for="examTypeSelect" class="sr-only">種別</label>
+          <select id="examTypeSelect" aria-label="種別">
             <option value="">種別</option>
             <option value="A">あん摩マッサージ指圧師</option>
             <option value="B">はり師・きゅう師</option>
           </select>
-          <input id="sessionFrom" type="number" min="1" placeholder="回数From" aria-label="試験回数の開始" />
-          <input id="sessionTo" type="number" min="1" placeholder="回数To" aria-label="試験回数の終了" />
+          <input id="sessionFrom" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="回数From" aria-label="試験回数の開始" />
+          <input id="sessionTo" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="回数To" aria-label="試験回数の終了" />
           <select id="progressStateFilter" aria-label="進捗ステータスで絞り込み" hidden>
             <option value="">進捗</option>
             <option value="unstarted">未着手</option>
@@ -1615,7 +1625,7 @@
         <option value="rate_desc">正答率が高い順</option>
         <option value="rate_asc">正答率が低い順</option>
       </select>
-      <span id="countInfo" aria-live="polite"></span>
+      <span id="countInfo" aria-live="polite">読み込み中...</span>
       <div id="filterSummary" class="note filter-summary"></div>
       <div id="resultPageNav" class="result-page-nav" hidden>
         <span id="resultPageInfo" aria-live="polite">ページ 1/1</span>
@@ -1730,10 +1740,11 @@
         ,authRenderSnapshot: ""
         ,randomOrderSeed: ""
         ,currentResultPage: 1
-	        ,pendingResultPage: null
+        ,pendingResultPage: null
 	        ,lastResultViewKey: ""
 	        ,resultTotalPages: 1
         ,lastAnalyticsResultsKey: ""
+        ,dataReady: false
 	      };
 
       function normalizeRole(role) {
@@ -2553,6 +2564,7 @@
           questions.forEach((q, idx) => {
             if (q && q.serial) state.orderIndexBySerial[q.serial] = idx;
           });
+          state.dataReady = true;
         });
       }
 
@@ -5458,6 +5470,19 @@
         const moreContainer = document.getElementById("resultsMore");
         container.innerHTML = "";
         moreContainer.innerHTML = "";
+        if (!state.dataReady) {
+          const countInfo = document.getElementById("countInfo");
+          const summaryEl = document.getElementById("filterSummary");
+          if (countInfo) countInfo.textContent = "読み込み中...";
+          if (summaryEl) summaryEl.textContent = "データを読み込んでいます。";
+          const loading = document.createElement("div");
+          loading.className = "note";
+          loading.textContent = "問題データを読み込み中...";
+          container.appendChild(loading);
+          announceStatus("問題データを読み込み中");
+          updateResultPageNavigator(1);
+          return;
+        }
         const isTeacher = state.roleRank >= 2;
         const canTeacherEdit = isTeacher && state.editMode;
         const showAnswer = document.getElementById("toggleAnswer").checked;
@@ -6978,12 +7003,17 @@
           meta.appendChild(ttsBtn);
           refreshTtsButtons();
 
-          const extraDetails = document.createElement("details");
+          const extraDetails = document.createElement("div");
           extraDetails.className = "inline";
-          const extraSummary = document.createElement("summary");
+          const extraPanelId = `card-menu-${q.serial}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+          const extraSummary = document.createElement("button");
+          extraSummary.type = "button";
           extraSummary.className = "inline-summary action-summary icon-only";
           extraSummary.setAttribute("aria-label", "問題メニュー");
           extraSummary.setAttribute("title", "問題メニュー");
+          extraSummary.setAttribute("aria-haspopup", "menu");
+          extraSummary.setAttribute("aria-expanded", "false");
+          extraSummary.setAttribute("aria-controls", extraPanelId);
           extraSummary.textContent = "";
           const extraIcon = document.createElement("span");
           extraIcon.className = "action-icon";
@@ -6993,9 +7023,19 @@
           extraDetails.appendChild(extraSummary);
           const extraPanel = document.createElement("div");
           extraPanel.className = "edit-panel card-menu-panel";
+          extraPanel.id = extraPanelId;
+          extraPanel.hidden = true;
+          extraPanel.setAttribute("role", "menu");
           closeCardMenu = () => {
-            extraDetails.open = false;
+            extraPanel.hidden = true;
+            extraSummary.setAttribute("aria-expanded", "false");
           };
+          extraSummary.addEventListener("click", () => {
+            const shouldOpen = extraPanel.hidden;
+            hideMenuPanels();
+            extraPanel.hidden = !shouldOpen;
+            extraSummary.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+          });
 
           const practicePanel = document.createElement("div");
           practicePanel.className = "deep-dive-panel";
@@ -8091,7 +8131,7 @@
           moreContainer.innerHTML = "";
           if (state.currentResultPage >= totalPages) return;
           const nextPage = state.currentResultPage + 1;
-          more.textContent = `さらに表示 (${nextPage}/${totalPages})`;
+          more.textContent = `次ページへ (${nextPage}/${totalPages})`;
           moreContainer.appendChild(more);
         };
         const renderPage = async () => {
@@ -8128,10 +8168,11 @@
 	        loadQaLikedState();
 	        loadPracticeRatingState();
 	        loadSenryuRatingState();
-	        loadDeepDiveRatingState();
+        loadDeepDiveRatingState();
 	        loadQaDraftState();
 	        loadTagViewedSessionState();
 	        updateAiPublicNotice();
+        renderResults([]);
         const searchStateFromUrl = getSearchStateFromUrl();
         const keywordFromUrl = String(searchStateFromUrl.keyword || "").trim();
         if (keywordFromUrl) {
@@ -8208,8 +8249,18 @@
               el.hidden = true;
             }
           });
+          if (topMenuContent) {
+            topMenuContent.querySelectorAll("[data-menu-target]").forEach((btn) => {
+              btn.setAttribute("aria-expanded", "false");
+            });
+          }
         };
         if (menuToggleBtn && topMenuContent) {
+          topMenuContent.querySelectorAll("[data-menu-target]").forEach((btn) => {
+            const targetId = btn.getAttribute("data-menu-target");
+            if (targetId) btn.setAttribute("aria-controls", targetId);
+            btn.setAttribute("aria-expanded", "false");
+          });
           menuToggleBtn.addEventListener("click", () => {
             const nextHidden = !topMenuContent.hidden;
             topMenuContent.hidden = nextHidden;
@@ -8225,6 +8276,7 @@
               if (target && target.tagName === "DETAILS") {
                 target.hidden = false;
                 target.open = true;
+                btn.setAttribute("aria-expanded", "true");
               }
               closeAuthPanel();
               if (target) {
@@ -8239,6 +8291,24 @@
             closeMenuTargets();
             closeAuthPanel();
           };
+          document.querySelectorAll(".top-panel-close[data-close-target]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const targetId = btn.getAttribute("data-close-target");
+              const target = targetId ? document.getElementById(targetId) : null;
+              if (target && target.tagName === "DETAILS") {
+                target.open = false;
+                target.hidden = true;
+              }
+              topMenuContent.querySelectorAll(`[data-menu-target="${targetId}"]`).forEach((toggle) => {
+                toggle.setAttribute("aria-expanded", "false");
+                toggle.focus();
+              });
+              if (topMenuContent && !topMenuContent.hidden) {
+                if (topPanels) topPanels.hidden = false;
+                if (menuToggleBtn) menuToggleBtn.setAttribute("aria-expanded", "true");
+              }
+            });
+          });
           document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") closeTopPanels();
           });
