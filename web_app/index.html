@@ -1346,11 +1346,13 @@
             <option value="large">大</option>
             <option value="xlarge">特大</option>
           </select>
-          <label for="ttsQualitySelect">読み上げ音質</label>
-          <select id="ttsQualitySelect" aria-label="読み上げ音質">
-            <option value="standard">通常音質（Neural2）</option>
-            <option value="high">高音質（Chirp3）</option>
-          </select>
+          <div id="ttsQualitySettingWrap" hidden>
+            <label for="ttsQualitySelect">読み上げ音質</label>
+            <select id="ttsQualitySelect" aria-label="読み上げ音質">
+              <option value="standard">通常音質（Neural2）</option>
+              <option value="high">高音質（Chirp3）</option>
+            </select>
+          </div>
           <label><input type="checkbox" id="highContrastToggle" /> 高コントラスト表示</label>
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
           <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
@@ -1457,6 +1459,7 @@
           <label><input type="checkbox" id="aiPublicGenerationToggle" /> AI生成機能を全ユーザーへ一時公開</label>
           <label><input type="checkbox" id="aiAdminPaidGenerationToggle" /> 管理者ログイン時に従量課金キーを使用</label>
           <label><input type="checkbox" id="aiPublicPaidGenerationToggle" /> 全ユーザー向けに従量課金キーを件数限定で公開</label>
+          <label><input type="checkbox" id="ttsEnabledToggle" /> TTS読み上げボタンを表示</label>
           <label>公開件数（上限）<input id="aiPublicPaidLimitInput" type="number" min="1" step="1" placeholder="1000" /></label>
           <button id="aiPublicGenerationSaveBtn" type="button">保存</button>
           <button id="aiPublicPaidStopBtn" type="button">件数公開を停止</button>
@@ -1725,6 +1728,7 @@
         ,uiMode: "standard"
         ,fontScale: "normal"
         ,highContrast: false
+        ,ttsEnabled: false
         ,ttsQuality: "standard"
         ,ttsAudio: null
         ,ttsAudioUrl: ""
@@ -1772,6 +1776,22 @@
 
       function canUseAiGeneration() {
         return isRoleAtLeast("admin") || state.aiPublicGeneration || state.aiPublicPaidActive;
+      }
+
+      function canUseTts() {
+        return Boolean(state.ttsEnabled);
+      }
+
+      function applyTtsVisibility() {
+        const show = canUseTts();
+        const qualityWrap = document.getElementById("ttsQualitySettingWrap");
+        if (qualityWrap) qualityWrap.hidden = !show;
+        document.querySelectorAll(".tts-btn, .tts-inline-btn").forEach((btn) => {
+          btn.hidden = !show;
+        });
+        if (!show) {
+          stopTtsPlayback();
+        }
       }
 
       async function submitSenryuVoteById(id, voteType) {
@@ -2599,7 +2619,9 @@
           state.aiPublicPaidLimit = 0;
           state.aiPublicPaidUsed = 0;
           state.aiPublicPaidRemaining = 0;
+          state.ttsEnabled = false;
           updateAiPublicNotice();
+          applyTtsVisibility();
           return Promise.resolve();
         }
         return fetch(`${window.AI_API_BASE}/ai/config`)
@@ -2613,7 +2635,8 @@
                   public_paid_active: false,
                   public_paid_limit: 0,
                   public_paid_used: 0,
-                  public_paid_remaining: 0
+                  public_paid_remaining: 0,
+                  tts_enabled: false
                 }
           )
           .then(data => {
@@ -2624,7 +2647,9 @@
             state.aiPublicPaidLimit = Number((data && data.public_paid_limit) || 0);
             state.aiPublicPaidUsed = Number((data && data.public_paid_used) || 0);
             state.aiPublicPaidRemaining = Number((data && data.public_paid_remaining) || 0);
+            state.ttsEnabled = Boolean(data && data.tts_enabled);
             updateAiPublicNotice();
+            applyTtsVisibility();
           })
           .catch(() => {
             state.aiPublicGeneration = false;
@@ -2634,7 +2659,9 @@
             state.aiPublicPaidLimit = 0;
             state.aiPublicPaidUsed = 0;
             state.aiPublicPaidRemaining = 0;
+            state.ttsEnabled = false;
             updateAiPublicNotice();
+            applyTtsVisibility();
           });
       }
 
@@ -2646,6 +2673,8 @@
         state.aiPublicPaidLimit = Number((payload && payload.public_paid_limit) || 0);
         state.aiPublicPaidUsed = Number((payload && payload.public_paid_used) || 0);
         state.aiPublicPaidRemaining = Number((payload && payload.public_paid_remaining) || 0);
+        state.ttsEnabled = Boolean(payload && payload.tts_enabled);
+        applyTtsVisibility();
       }
 
       function buildAiGenerationStatusText() {
@@ -2656,7 +2685,8 @@
         const used = Number(state.aiPublicPaidUsed || 0);
         const limit = Number(state.aiPublicPaidLimit || 0);
         const remaining = Number(state.aiPublicPaidRemaining || 0);
-        return `現在: ${publicText} / 管理者従量課金: ${adminPaidText} / 件数限定paid公開: ${paidConfigured} (${paidActive}, ${used}/${limit}, 残り ${remaining})`;
+        const ttsText = state.ttsEnabled ? "表示" : "非表示";
+        return `現在: ${publicText} / 管理者従量課金: ${adminPaidText} / 件数限定paid公開: ${paidConfigured} (${paidActive}, ${used}/${limit}, 残り ${remaining}) / TTS: ${ttsText}`;
       }
 
       async function loadAdminAiGenerationSetting() {
@@ -2664,6 +2694,7 @@
         const toggleEl = document.getElementById("aiPublicGenerationToggle");
         const paidToggleEl = document.getElementById("aiAdminPaidGenerationToggle");
         const publicPaidToggleEl = document.getElementById("aiPublicPaidGenerationToggle");
+        const ttsToggleEl = document.getElementById("ttsEnabledToggle");
         const publicPaidLimitEl = document.getElementById("aiPublicPaidLimitInput");
         const saveBtn = document.getElementById("aiPublicGenerationSaveBtn");
         const stopBtn = document.getElementById("aiPublicPaidStopBtn");
@@ -2672,6 +2703,7 @@
           !toggleEl ||
           !paidToggleEl ||
           !publicPaidToggleEl ||
+          !ttsToggleEl ||
           !publicPaidLimitEl ||
           !saveBtn ||
           !stopBtn
@@ -2716,6 +2748,7 @@
           toggleEl.checked = state.aiPublicGeneration;
           paidToggleEl.checked = state.aiAdminPaidGeneration;
           publicPaidToggleEl.checked = state.aiPublicPaidGeneration;
+          ttsToggleEl.checked = state.ttsEnabled;
           publicPaidLimitEl.value = state.aiPublicPaidLimit > 0 ? String(state.aiPublicPaidLimit) : "";
           updateAiPublicNotice();
           statusEl.textContent = buildAiGenerationStatusText();
@@ -2732,6 +2765,7 @@
         const toggleEl = document.getElementById("aiPublicGenerationToggle");
         const paidToggleEl = document.getElementById("aiAdminPaidGenerationToggle");
         const publicPaidToggleEl = document.getElementById("aiPublicPaidGenerationToggle");
+        const ttsToggleEl = document.getElementById("ttsEnabledToggle");
         const publicPaidLimitEl = document.getElementById("aiPublicPaidLimitInput");
         const saveBtn = document.getElementById("aiPublicGenerationSaveBtn");
         const stopBtn = document.getElementById("aiPublicPaidStopBtn");
@@ -2741,6 +2775,7 @@
           !toggleEl ||
           !paidToggleEl ||
           !publicPaidToggleEl ||
+          !ttsToggleEl ||
           !publicPaidLimitEl ||
           !saveBtn ||
           !stopBtn ||
@@ -2777,7 +2812,8 @@
             const body = {
               public_generation: Boolean(toggleEl.checked),
               admin_paid_generation: Boolean(paidToggleEl.checked),
-              public_paid_generation: Boolean(publicPaidToggleEl.checked)
+              public_paid_generation: Boolean(publicPaidToggleEl.checked),
+              tts_enabled: Boolean(ttsToggleEl.checked)
             };
             if (Number.isFinite(limitValue) && limitValue > 0) {
               body.public_paid_limit = Math.floor(limitValue);
@@ -2799,6 +2835,7 @@
             toggleEl.checked = state.aiPublicGeneration;
             paidToggleEl.checked = state.aiAdminPaidGeneration;
             publicPaidToggleEl.checked = state.aiPublicPaidGeneration;
+            ttsToggleEl.checked = state.ttsEnabled;
             publicPaidLimitEl.value = state.aiPublicPaidLimit > 0 ? String(state.aiPublicPaidLimit) : "";
             updateAiPublicNotice();
             statusEl.textContent = buildAiGenerationStatusText();
@@ -2845,6 +2882,7 @@
             toggleEl.checked = state.aiPublicGeneration;
             paidToggleEl.checked = state.aiAdminPaidGeneration;
             publicPaidToggleEl.checked = state.aiPublicPaidGeneration;
+            ttsToggleEl.checked = state.ttsEnabled;
             publicPaidLimitEl.value = state.aiPublicPaidLimit > 0 ? String(state.aiPublicPaidLimit) : "";
             updateAiPublicNotice();
             statusEl.textContent = buildAiGenerationStatusText();
@@ -4011,6 +4049,8 @@
         const loadingSerial = state.ttsLoadingSerial || "";
         const playingSerial = state.ttsSerial || "";
         document.querySelectorAll(".tts-btn").forEach((btn) => {
+          btn.hidden = !canUseTts();
+          if (!canUseTts()) return;
           const serial = String(btn.getAttribute("data-serial") || "");
           if (loadingSerial && serial === loadingSerial) {
             setIconOnlyActionButton(
@@ -4040,6 +4080,9 @@
         const text = String(payloadText || "").trim();
         if (!text) {
           throw new Error("読み上げ対象のテキストがありません。");
+        }
+        if (!canUseTts()) {
+          throw new Error("TTS機能は現在非表示です。");
         }
         if (!window.AI_API_BASE) {
           throw new Error("AI_API_BASE が設定されていません。");
@@ -6573,7 +6616,8 @@
                 copyToClipboard(`質問\n${qText}\n\n回答\n${aText}`);
               });
               const readBtn = document.createElement("button");
-              readBtn.className = "icon-mini-btn";
+              readBtn.className = "icon-mini-btn tts-inline-btn";
+              readBtn.hidden = !canUseTts();
               readBtn.textContent = "🔊";
               readBtn.setAttribute("aria-label", "このQ&Aを読み上げ");
               readBtn.setAttribute("title", "このQ&Aを読み上げ");
@@ -6649,7 +6693,7 @@
               const viewSpan = document.createElement("span");
               viewSpan.textContent = `閲覧 ${viewCount}`;
               meta.appendChild(copyBtn);
-              meta.appendChild(readBtn);
+              if (canUseTts()) meta.appendChild(readBtn);
               meta.appendChild(likeBtn);
               meta.appendChild(viewSpan);
               const aBox = document.createElement("div");
@@ -6834,6 +6878,7 @@
           const ttsBtn = document.createElement("button");
           ttsBtn.className = "action-btn icon-only tts-btn";
           ttsBtn.setAttribute("data-serial", q.serial);
+          ttsBtn.hidden = !canUseTts();
           const ttsPanel = document.createElement("div");
           ttsPanel.className = "deep-dive-panel";
           ttsPanel.hidden = true;
@@ -7000,8 +7045,10 @@
               ttsStatus.textContent = `読み上げ項目を選択してください（${getTtsQualityLabel(state.ttsQuality)}）。`;
             }
           });
-          meta.appendChild(ttsBtn);
-          refreshTtsButtons();
+          if (canUseTts()) {
+            meta.appendChild(ttsBtn);
+            refreshTtsButtons();
+          }
 
           const extraDetails = document.createElement("div");
           extraDetails.className = "inline";
@@ -7721,8 +7768,9 @@
           deepDiveReadBtn.textContent = "🔊";
           deepDiveReadBtn.setAttribute("aria-label", "深掘り解説を読み上げ");
           deepDiveReadBtn.setAttribute("title", "深掘り解説を読み上げ");
+          deepDiveReadBtn.hidden = !canUseTts();
           deepDiveReadBtn.disabled = true;
-          deepDiveMeta.appendChild(deepDiveReadBtn);
+          if (canUseTts()) deepDiveMeta.appendChild(deepDiveReadBtn);
 	          const deepDiveCopyBtn = document.createElement("button");
 	          deepDiveCopyBtn.className = "icon-mini-btn";
 	          deepDiveCopyBtn.textContent = "⧉";

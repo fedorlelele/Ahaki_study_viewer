@@ -115,6 +115,9 @@ async function handleAdmin(request, env) {
       if (Object.prototype.hasOwnProperty.call(body, "public_paid_limit")) {
         updates.public_paid_limit = Number(body.public_paid_limit);
       }
+      if (Object.prototype.hasOwnProperty.call(body, "tts_enabled")) {
+        updates.tts_enabled = Boolean(body.tts_enabled);
+      }
       return setAiGenerationSettings(env, updates, user);
     }
     return jsonResponse({ message: "Method not allowed" }, 405);
@@ -169,6 +172,9 @@ async function handleAi(request, env) {
     return fetchDeepDiveIndex(env);
   }
   if (path === "/ai/tts" && request.method === "POST") {
+    if (!(await getTtsEnabled(env))) {
+      return jsonResponse({ message: "TTS is disabled" }, 403);
+    }
     return handleTtsSynthesis(request, env);
   }
   if (path === "/ai/question_beginner_qa" && request.method === "GET") {
@@ -4294,6 +4300,11 @@ function isAdminPaidGenerationEnabled(env) {
   return value === "1" || value === "true" || value === "on" || value === "yes";
 }
 
+function isTtsEnabledByEnv(env) {
+  const value = String(env.TTS_ENABLED || "").toLowerCase().trim();
+  return value === "1" || value === "true" || value === "on" || value === "yes";
+}
+
 async function getAppSettingValue(env, key) {
   const resp = await fetch(
     `${env.SUPABASE_URL}/rest/v1/app_settings?select=setting_key,setting_value&setting_key=eq.${encodeURIComponent(key)}&limit=1`,
@@ -4460,6 +4471,7 @@ async function getAiGenerationSettings(env) {
   const enabled = await getAiGenerationEnabled(env);
   const adminPaid = await getAiAdminPaidEnabled(env);
   const publicPaid = await getAiPublicPaidState(env);
+  const ttsEnabled = await getTtsEnabled(env);
   return {
     public_generation: enabled,
     admin_paid_generation: adminPaid,
@@ -4469,7 +4481,8 @@ async function getAiGenerationSettings(env) {
     public_paid_used: publicPaid.used,
     public_paid_remaining: publicPaid.remaining,
     public_paid_started_at: publicPaid.started_at,
-    public_paid_has_key: publicPaid.has_paid_key
+    public_paid_has_key: publicPaid.has_paid_key,
+    tts_enabled: ttsEnabled
   };
 }
 
@@ -4498,12 +4511,18 @@ async function getAiAdminPaidEnabled(env) {
   return getAppSettingBool(env, "ai_admin_paid_generation", fallback);
 }
 
+async function getTtsEnabled(env) {
+  const fallback = isTtsEnabledByEnv(env);
+  return getAppSettingBool(env, "tts_enabled", fallback);
+}
+
 async function setAiGenerationSettings(env, updates, actor) {
   try {
     let publicGeneration = await getAiGenerationEnabled(env);
     let adminPaidGeneration = await getAiAdminPaidEnabled(env);
     let publicPaidGeneration = await getAiPublicPaidEnabled(env);
     let publicPaidLimit = await getAiPublicPaidLimit(env);
+    let ttsEnabled = await getTtsEnabled(env);
     const wasPublicPaidGeneration = publicPaidGeneration;
     if (Object.prototype.hasOwnProperty.call(updates, "public_paid_limit")) {
       const limit = normalizePositiveInt(updates.public_paid_limit);
@@ -4514,6 +4533,9 @@ async function setAiGenerationSettings(env, updates, actor) {
     }
     if (Object.prototype.hasOwnProperty.call(updates, "public_paid_generation")) {
       publicPaidGeneration = Boolean(updates.public_paid_generation);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "tts_enabled")) {
+      ttsEnabled = Boolean(updates.tts_enabled);
     }
     if (publicPaidGeneration && publicPaidLimit <= 0) {
       return jsonResponse({ message: "public_paid_limit must be set before enabling public paid generation" }, 400);
@@ -4532,6 +4554,9 @@ async function setAiGenerationSettings(env, updates, actor) {
     }
     if (Object.prototype.hasOwnProperty.call(updates, "public_paid_generation")) {
       await setAppSettingBool(env, "ai_public_paid_generation", publicPaidGeneration, actor);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, "tts_enabled")) {
+      await setAppSettingBool(env, "tts_enabled", ttsEnabled, actor);
     }
     if (publicPaidGeneration && !wasPublicPaidGeneration) {
       await setPublicPaidStartedAtNow(env, actor);
