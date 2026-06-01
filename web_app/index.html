@@ -2837,6 +2837,21 @@
         input.focus();
       }
 
+      function updateSearchHistoryActiveOption() {
+        const { input, panel } = getSearchHistoryElements();
+        if (!input || !panel) return;
+        panel.querySelectorAll(".search-history-row").forEach((row, idx) => {
+          const active = idx === state.searchHistoryActiveIndex;
+          row.classList.toggle("is-active", active);
+          row.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        if (!panel.hidden && state.searchHistoryActiveIndex >= 0) {
+          input.setAttribute("aria-activedescendant", `search-history-option-${state.searchHistoryActiveIndex}`);
+        } else {
+          input.removeAttribute("aria-activedescendant");
+        }
+      }
+
       function renderSearchHistoryPanel(forceOpen = false) {
         const { input, panel } = getSearchHistoryElements();
         if (!input || !panel) return;
@@ -2891,7 +2906,7 @@
             itemBtn.title = term;
             itemBtn.addEventListener("mouseenter", () => {
               state.searchHistoryActiveIndex = idx;
-              renderSearchHistoryPanel(true);
+              updateSearchHistoryActiveOption();
             });
             itemBtn.addEventListener("click", () => {
               applySearchHistoryTerm(term);
@@ -2917,11 +2932,7 @@
         panel.appendChild(list);
         panel.hidden = !forceOpen;
         input.setAttribute("aria-expanded", forceOpen ? "true" : "false");
-        if (forceOpen && state.searchHistoryActiveIndex >= 0) {
-          input.setAttribute("aria-activedescendant", `search-history-option-${state.searchHistoryActiveIndex}`);
-        } else {
-          input.removeAttribute("aria-activedescendant");
-        }
+        updateSearchHistoryActiveOption();
       }
 
       function moveSearchHistorySelection(delta) {
