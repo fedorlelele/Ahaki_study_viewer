@@ -124,7 +124,7 @@ def add_subject_to_questions_and_rearrange_columns(df):
 def store_case_details_next_to_questions(df):
     serial_re = re.compile(r'[AB]\d{2}-\d{3}')
     grouped_re = re.compile(r'([AB]\d{2})-(\d{3})(?:[、,](\d{1,3}))+')
-    case_intro_re = re.compile(r'(次の.*症例|症例について)')
+    shared_context_re = re.compile(r'(答えよ|問いに答え|問に答え)')
     df['Case Details'] = None
 
     def extract_serials(text):
@@ -140,7 +140,7 @@ def store_case_details_next_to_questions(df):
         text = r['Question']
         if re.match(r'^[AB]\d{2}-\d{3}', text):
             continue
-        if '症例' not in text or not case_intro_re.search(text):
+        if not shared_context_re.search(text) or not ('次の' in text or '下記' in text):
             continue
         sns = extract_serials(text)
         if sns:

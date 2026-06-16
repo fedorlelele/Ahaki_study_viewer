@@ -214,12 +214,12 @@ def parse_exam_file(file_path):
             }
         )
 
-    case_intro_re = re.compile(r"(次の.*症例|症例について)")
+    shared_context_re = re.compile(r"(答えよ|問いに答え|問に答え)")
     for index, entry in enumerate(entries):
         block = entry["block"]
         if entry["serial"]:
             continue
-        if "症例" not in block or not case_intro_re.search(block):
+        if not shared_context_re.search(block) or not ("次の" in block or "下記" in block):
             continue
 
         serials = extract_serials_from_case_text(block)
