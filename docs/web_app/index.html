@@ -6801,18 +6801,18 @@
             const source = q.explanation_latest_source || "";
             const teacherLabel = formatExplanationLabel(source);
             expTitle.textContent = expText ? `解説${teacherLabel}:` : "解説: (未登録)";
-            if (source === "llm_checked") {
+            if (isExplanationApprovedSource(source)) {
               const expRevoke = document.createElement("button");
               expRevoke.textContent = "承認取消";
               expRevoke.addEventListener("click", () => {
-                applyExplanationConfirm(q, "llm");
+                applyExplanationConfirm(q, getExplanationBaseSource(source) || "llm");
               });
               expHeader.appendChild(expRevoke);
-            } else if (source !== "teacher" && source !== "human") {
+            } else if (!isExplanationTeacherEditedSource(source)) {
               const expConfirm = document.createElement("button");
               expConfirm.textContent = "解説承認";
               expConfirm.addEventListener("click", () => {
-                applyExplanationConfirm(q, "llm_checked");
+                applyExplanationConfirm(q);
               });
               expHeader.appendChild(expConfirm);
             }
@@ -9624,7 +9624,8 @@
 
       function applyExplanationConfirm(question, nextSource) {
         const current = question.explanation_latest_source || "";
-        const normalized = nextSource || (current === "llm" || current === "ai" ? "llm_checked" : "llm_checked");
+        const baseSource = getExplanationBaseSource(current) || "llm";
+        const normalized = nextSource || buildExplanationStatusSource(baseSource, "checked");
         const before = { explanation_source: current };
         const after = { explanation_source: normalized };
         return applyOverrideChange(
@@ -9637,20 +9638,22 @@
       }
 
       function applyExplanationEdit(question, body, note) {
+        const baseSource = getExplanationBaseSource(question.explanation_latest_source || "") || "llm";
+        const editedSource = buildExplanationStatusSource(baseSource, "teacher");
         const before = {
           explanation: question.explanation_latest || "",
           explanation_source: question.explanation_latest_source || ""
         };
         const after = {
           explanation: body,
-          explanation_source: "teacher"
+          explanation_source: editedSource
         };
         return applyOverrideChange(
           question.serial,
           "explanation",
           before,
           after,
-          { explanation: body, explanation_source: "teacher" },
+          { explanation: body, explanation_source: editedSource },
           note
         );
       }
@@ -10478,11 +10481,72 @@
 
       function formatExplanationLabel(source) {
         if (!source) return "";
-        if (source === "llm_checked") return "（教師承認済み）";
-        if (source === "human" || source === "teacher") return "（教師編集済み）";
-        if (source === "codex_case_text_rewrite_20260616") return "（GPT5.5）";
-        if (source === "llm" || source === "ai") return "（Gemini3Flash）";
+        if (isExplanationApprovedSource(source)) {
+          return `（${formatExplanationModelName(source)}・教師承認済み）`;
+        }
+        if (isExplanationTeacherEditedSource(source)) {
+          return `（${formatExplanationModelName(source)}・教師編集済み）`;
+        }
+        const modelName = formatExplanationModelName(source);
+        if (modelName) return `（${modelName}）`;
         return "（" + source + "）";
+      }
+
+      function getExplanationBaseSource(source) {
+        if (!source) return "";
+        if (
+          source === "llm" ||
+          source === "ai" ||
+          source === "llm_checked" ||
+          source === "teacher" ||
+          source === "human" ||
+          source === "llm_teacher" ||
+          source === "ai_teacher"
+        ) {
+          return "llm";
+        }
+        if (
+          source === "codex_case_text_rewrite_20260616" ||
+          source === "codex_case_text_rewrite_20260616_checked" ||
+          source === "codex_case_text_rewrite_20260616_teacher"
+        ) {
+          return "codex_case_text_rewrite_20260616";
+        }
+        return source;
+      }
+
+      function buildExplanationStatusSource(baseSource, status) {
+        const base = getExplanationBaseSource(baseSource);
+        if (status === "checked") {
+          if (base === "codex_case_text_rewrite_20260616") return "codex_case_text_rewrite_20260616_checked";
+          return "llm_checked";
+        }
+        if (status === "teacher") {
+          if (base === "codex_case_text_rewrite_20260616") return "codex_case_text_rewrite_20260616_teacher";
+          return "teacher";
+        }
+        return base || "";
+      }
+
+      function isExplanationApprovedSource(source) {
+        return source === "llm_checked" || source === "codex_case_text_rewrite_20260616_checked";
+      }
+
+      function isExplanationTeacherEditedSource(source) {
+        return (
+          source === "human" ||
+          source === "teacher" ||
+          source === "llm_teacher" ||
+          source === "ai_teacher" ||
+          source === "codex_case_text_rewrite_20260616_teacher"
+        );
+      }
+
+      function formatExplanationModelName(source) {
+        const base = getExplanationBaseSource(source);
+        if (base === "codex_case_text_rewrite_20260616") return "GPT5.5";
+        if (base === "llm" || base === "ai") return "Gemini3Flash";
+        return "";
       }
 
       function getAnswerIndices(question) {
