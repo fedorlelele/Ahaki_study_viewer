@@ -10478,9 +10478,10 @@
 
       function formatExplanationLabel(source) {
         if (!source) return "";
-        if (source === "llm_checked") return "（AI承認済み）";
-        if (source === "human" || source === "teacher") return "（教師編集）";
-        if (source === "llm" || source === "ai") return "（AI）";
+        if (source === "llm_checked") return "（教師承認済み）";
+        if (source === "human" || source === "teacher") return "（教師編集済み）";
+        if (source === "codex_case_text_rewrite_20260616") return "（GPT5.5）";
+        if (source === "llm" || source === "ai") return "（Gemini3Flash）";
         return "（" + source + "）";
       }
 
