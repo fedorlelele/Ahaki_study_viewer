@@ -73,3 +73,42 @@ def test_parse_shared_context_without_patient_or_shourei_keyword(tmp_path):
         "末梢性顔面神経麻痺について、次のA14-136、A14-137の問に答えよ。"
     )
     assert questions["A14-137"]["case_text"] == questions["A14-136"]["case_text"]
+
+
+def test_parse_combo_choices_inserts_missing_separator(tmp_path):
+    path = write_exam_file(
+        tmp_path,
+        "B34.txt",
+        """第34回はり師・きゆう師試験
+《臨床医学各論》
+問題63　スポーツ外傷・障害と罹患部位の組合せで正しいのはどれか。
+ 1. オスグッド病 大腿骨外側顆
+ 2. ジャンパー膝 脛骨遠位端
+ 3. マレット指 中節骨近位端
+ 4. 野球肘（外側型） 上腕骨小頭
+解答　４．
+
+問題64　疾患と分類の組合せで正しいのはどれか。
+ 1. COVID-19 … 感染症
+ 2. A - B
+ 3. C－D
+ 4. E F G
+解答　１．
+""",
+    )
+
+    questions = {question["serial"]: question for question in parse_exam_file(path)}
+
+    assert questions["B34-063"]["choices"] == [
+        "オスグッド病 … 大腿骨外側顆",
+        "ジャンパー膝 … 脛骨遠位端",
+        "マレット指 … 中節骨近位端",
+        "野球肘（外側型） … 上腕骨小頭",
+    ]
+    assert "1. オスグッド病 … 大腿骨外側顆" in questions["B34-063"]["raw_text"]
+    assert questions["B34-064"]["choices"] == [
+        "COVID-19 … 感染症",
+        "A - B",
+        "C－D",
+        "E F G",
+    ]

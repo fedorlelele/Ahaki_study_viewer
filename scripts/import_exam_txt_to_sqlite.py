@@ -7,6 +7,9 @@ from pathlib import Path
 
 
 FULLWIDTH_TO_ASCII = str.maketrans("０１２３４５６７８９", "0123456789")
+COMBO_STEM_RE = re.compile(r"(組合せ|組み合わせ|組合わせ)")
+COMBO_CHOICE_SEPARATOR_RE = re.compile(r"…|[ \t　]+[-―－–—][ \t　]+")
+CHOICE_SINGLE_SPACE_RE = re.compile(r"^[^ \t　\n]+[ \t　]+[^ \t　\n]+$")
 
 
 def normalize_digits(value):
@@ -117,6 +120,35 @@ def extract_serials_from_case_text(text):
         for num in re.findall(r"[、,](\d{1,3})", match.group(0)):
             serials.add(f"{prefix}-{int(num):03}")
     return sorted(serials)
+
+
+def normalize_combo_choice_separator(choice):
+    if COMBO_CHOICE_SEPARATOR_RE.search(choice):
+        return choice
+    if not CHOICE_SINGLE_SPACE_RE.match(choice):
+        return choice
+    left, right = re.split(r"[ \t　]+", choice, maxsplit=1)
+    return f"{left} … {right}"
+
+
+def normalize_combo_choices(stem, choices):
+    if not COMBO_STEM_RE.search(stem):
+        return choices
+    return [normalize_combo_choice_separator(choice) for choice in choices]
+
+
+def normalize_combo_raw_text(raw_text, original_choices, normalized_choices):
+    if not raw_text:
+        return raw_text
+    for original, normalized in zip(original_choices, normalized_choices):
+        if original == normalized:
+            continue
+        pattern = re.compile(
+            rf"(^\s*[0-9０-９]+[\.．]\s*){re.escape(original)}(?=\s*$)",
+            re.MULTILINE,
+        )
+        raw_text = pattern.sub(lambda match: f"{match.group(1)}{normalized}", raw_text)
+    return raw_text
 
 
 def parse_question_content(question_text):
@@ -247,6 +279,8 @@ def parse_exam_file(file_path):
         stem, choices, answer_index, answer_indices, answer_none, answer_text = parse_question_content(
             entry["question_text"]
         )
+        original_choices = choices
+        choices = normalize_combo_choices(stem, choices)
         questions.append(
             {
                 "serial": entry["serial"],
@@ -261,7 +295,11 @@ def parse_exam_file(file_path):
                 "answer_indices": answer_indices,
                 "answer_none": answer_none,
                 "answer_text": answer_text,
-                "raw_text": entry["raw_text"],
+                "raw_text": normalize_combo_raw_text(
+                    entry["raw_text"],
+                    original_choices,
+                    choices,
+                ),
             }
         )
 
