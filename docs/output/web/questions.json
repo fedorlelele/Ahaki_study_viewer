@@ -4616,12 +4616,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "運動神経（錐体路）は延髄の錐体交叉で反対側に交叉するため、右側の脳損傷では反対側である「左側」の片麻痺が生じる。脳内出血では内包付近が侵されることが多く、典型的な片麻痺を呈する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "運動神経（錐体路）は延髄の錐体交叉で反対側に交叉するため、右側の脳損傷では反対側である「左側」の片麻痺が生じる。脳内出血では内包付近が侵されることが多く、典型的な片麻痺を呈する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -4648,7 +4650,9 @@
     "frequent_tags": [
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A01-091",
@@ -12167,12 +12171,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "重症筋無力症は神経筋接合部の受容体が自己抗体により破壊される疾患で、骨格筋の易疲労性が主症状である。眼瞼下垂、嚥下困難、重症時の呼吸筋麻痺などがみられるが、意識障害は通常伴わない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "重症筋無力症は神経筋接合部の受容体が自己抗体により破壊される疾患で、骨格筋の易疲労性が主症状である。眼瞼下垂、嚥下困難、重症時の呼吸筋麻痺などがみられるが、意識障害は通常伴わない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -12201,7 +12207,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A02-085",
@@ -12222,12 +12230,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "坐骨神経は下肢の後面を走行するため、坐骨神経痛では殿部から大腿後面、下腿外側・後面に痛みが生じる。大腿前面の痛みは主に大腿神経の領域である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "坐骨神経は下肢の後面を走行するため、坐骨神経痛では殿部から大腿後面、下腿外側・後面に痛みが生じる。大腿前面の痛みは主に大腿神経の領域である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -12261,7 +12271,9 @@
     "frequent_tags": [
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A02-086",
@@ -12677,7 +12689,9 @@
       {
         "body": "総腓骨神経は足関節の背屈（伸展）や足指の背屈を支配する筋を司るため、麻痺すると足関節の伸展ができなくなり「下垂足」を呈する。また、足背部の知覚異常も伴う。鈎足は脛骨神経麻痺でみられる。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -12711,7 +12725,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A02-094",
@@ -12732,12 +12748,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "糖尿病の三大合併症の一つに糖尿病性神経障害があり、末梢神経炎（多発神経炎）の代表的な原因となる。高血糖による代謝異常や微小血管障害が神経変性を引き起こす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "糖尿病の三大合併症の一つに糖尿病性神経障害があり、末梢神経炎（多発神経炎）の代表的な原因となる。高血糖による代謝異常や微小血管障害が神経変性を引き起こす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -12767,7 +12785,9 @@
       "神経",
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A02-095",
@@ -20223,7 +20243,9 @@
       {
         "body": "坐骨神経痛は腰椎椎間板ヘルニアや脊柱管狭窄症、骨転移、帯状疱疹など神経への刺激・圧迫で生じる。閉塞性動脈硬化症（ASO）は血管の閉塞による血流障害であり、間欠性跛行を来すが、神経痛そのものを主症状とする疾患ではない。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -20258,7 +20280,9 @@
       "動脈",
       "疾患"
     ],
-    "frequent_scope": "循環器疾患"
+    "frequent_scope": "循環器疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A03-088",
@@ -20388,12 +20412,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "髄膜刺激症状には、項部硬直、ケルニッヒ徴候、ブルジンスキー徴候がある。足クローヌスやバビンスキー徴候は錐体路障害、ロンベルグ徴候は深部感覚障害や前庭機能障害による平衡失調を示す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "髄膜刺激症状には、項部硬直、ケルニッヒ徴候、ブルジンスキー徴候がある。足クローヌスやバビンスキー徴候は錐体路障害、ロンベルグ徴候は深部感覚障害や前庭機能障害による平衡失調を示す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -20420,7 +20446,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A03-091",
@@ -36044,7 +36072,9 @@
       {
         "body": "下垂足は、足の背屈が不能になる状態で、総腓骨神経麻痺により生じる。脛骨神経麻痺では足の底屈が不能になり、踵足（鉤足）を呈する。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -36078,7 +36108,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A05-091",
@@ -36151,12 +36183,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の四大徴候は安静時振戦、筋強剛（筋固縮）、無動（動作緩慢）、姿勢反射障害である。仮面様顔貌は無動の一部として現れる。原則として明らかな感覚障害は認められない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の四大徴候は安静時振戦、筋強剛（筋固縮）、無動（動作緩慢）、姿勢反射障害である。仮面様顔貌は無動の一部として現れる。原則として明らかな感覚障害は認められない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -36180,7 +36214,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A05-093",
@@ -42997,12 +43033,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "神経痛は感覚神経の走行に沿って起こる痛みである。副神経は純運動性の脳神経（第XI脳神経）であり、胸鎖乳突筋や僧帽筋を支配するため、神経痛は生じない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "神経痛は感覚神経の走行に沿って起こる痛みである。副神経は純運動性の脳神経（第XI脳神経）であり、胸鎖乳突筋や僧帽筋を支配するため、神経痛は生じない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -43025,7 +43063,9 @@
     "frequent_tags": [
       "神経"
     ],
-    "frequent_scope": "保留：神経・筋の解剖/支配"
+    "frequent_scope": "保留：神経・筋の解剖/支配",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A06-076",
@@ -43299,12 +43339,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の四大徴候は、安静時振戦、筋固縮（筋強剛）、無動・寡動、姿勢反射障害である。錐体外路疾患であるため、痙性麻痺や感覚障害は認められない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の四大徴候は、安静時振戦、筋固縮（筋強剛）、無動・寡動、姿勢反射障害である。錐体外路疾患であるため、痙性麻痺や感覚障害は認められない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -43331,7 +43373,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A06-082",
@@ -50805,12 +50849,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳腫瘍の症状には、腫瘍自体による局所症状（けいれん、麻痺など）と、頭蓋内圧亢進症状（頭痛、嘔吐、うっ血乳頭）がある。発熱や頻脈は全身性疾患や自律神経異常でみられることが多い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳腫瘍の症状には、腫瘍自体による局所症状（けいれん、麻痺など）と、頭蓋内圧亢進症状（頭痛、嘔吐、うっ血乳頭）がある。発熱や頻脈は全身性疾患や自律神経異常でみられることが多い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -50833,7 +50879,9 @@
       "症状",
       "発熱"
     ],
-    "frequent_scope": "保留：全身症候・病態"
+    "frequent_scope": "保留：全身症候・病態",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A07-076",
@@ -51171,12 +51219,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ベル麻痺は末梢性顔面神経麻痺であり、表情筋の麻痺（閉口不全、兎眼）や、鼓索神経の障害による味覚障害を伴うことがある。難聴は内耳神経（第VIII脳神経）の障害であり、顔面神経（第VII脳神経）麻痺であるベル麻痺の主症状ではない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ベル麻痺は末梢性顔面神経麻痺であり、表情筋の麻痺（閉口不全、兎眼）や、鼓索神経の障害による味覚障害を伴うことがある。難聴は内耳神経（第VIII脳神経）の障害であり、顔面神経（第VII脳神経）麻痺であるベル麻痺の主症状ではない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -51202,7 +51252,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A07-083",
@@ -58628,12 +58680,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の四大症状は、安静時振戦、筋固縮（筋強剛）、無動、姿勢反射障害である。特に安静時に指先が震える「丸薬丸め様振戦」が有名である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の四大症状は、安静時振戦、筋固縮（筋強剛）、無動、姿勢反射障害である。特に安静時に指先が震える「丸薬丸め様振戦」が有名である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -58658,7 +58712,9 @@
     "frequent_tags": [
       "運動麻痺"
     ],
-    "frequent_scope": "保留：神経症候・高次機能"
+    "frequent_scope": "保留：神経症候・高次機能",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A08-077",
@@ -59157,7 +59213,9 @@
       {
         "body": "総腓骨神経麻痺により足関節の背屈ができなくなる（下垂足）。歩行時に足先が地面に引っかからないよう、膝を高く上げて歩く様子を「鶏歩」と呼ぶ。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -59185,7 +59243,9 @@
     "frequent_tags": [
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A08-087",
@@ -59585,12 +59645,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病は、中脳黒質の変性によりドパミンが減少し、錐体外路症状（安静時振戦、筋固縮、無動、姿勢反射障害）を呈する「錐体外路疾患」である。錐体路疾患ではない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病は、中脳黒質の変性によりドパミンが減少し、錐体外路症状（安静時振戦、筋固縮、無動、姿勢反射障害）を呈する「錐体外路疾患」である。錐体路疾患ではない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -59611,7 +59673,9 @@
     "frequent_tags": [
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A08-095",
@@ -59689,12 +59753,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳梗塞は、脳の血管が詰まることで血流が途絶える疾患であり、その主な原因には脳血栓症（動脈硬化による閉塞）や脳塞栓症（心臓などからの塞栓転移）がある。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳梗塞は、脳の血管が詰まることで血流が途絶える疾患であり、その主な原因には脳血栓症（動脈硬化による閉塞）や脳塞栓症（心臓などからの塞栓転移）がある。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -59723,7 +59789,9 @@
     "frequent_tags": [
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A08-097",
@@ -74599,12 +74667,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "閃輝暗点は、視野の中にキラキラした光が現れ、その部分が見えにくくなる現象で、片頭痛（特に前兆のある片頭痛）の典型的な前兆症状である。緊張型頭痛は「締め付けられるような痛み」が特徴で前兆はない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "閃輝暗点は、視野の中にキラキラした光が現れ、その部分が見えにくくなる現象で、片頭痛（特に前兆のある片頭痛）の典型的な前兆症状である。緊張型頭痛は「締め付けられるような痛み」が特徴で前兆はない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -74625,7 +74695,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A10-082",
@@ -82177,12 +82249,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "静止時振戦はパーキンソン病の四大徴候の一つで、安静時に出現し動作時に消失・軽減する。甲状腺機能亢進症やアルコール中毒では微細な手指の振戦（姿勢時振戦）、多発性硬化症（小脳症状）では意図振戦がみられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "静止時振戦はパーキンソン病の四大徴候の一つで、安静時に出現し動作時に消失・軽減する。甲状腺機能亢進症やアルコール中毒では微細な手指の振戦（姿勢時振戦）、多発性硬化症（小脳症状）では意図振戦がみられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -82208,7 +82282,9 @@
     "frequent_tags": [
       "不随意運動"
     ],
-    "frequent_scope": "保留：神経症候・高次機能"
+    "frequent_scope": "保留：神経症候・高次機能",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A11-077",
@@ -82972,7 +83048,9 @@
       {
         "body": "母指対立筋は正中神経に支配されており、正中神経麻痺（手根管症候群など）では母指球筋の萎縮により猿手と呼ばれる変形を呈する。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -83005,7 +83083,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A11-092",
@@ -83128,12 +83208,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "症候性パーキンソニズムは、脳血管障害、薬物、中毒、脳炎などにより二次的に生じる。ギラン・バレー症候群は末梢神経の脱髄疾患であり、運動麻痺や感覚障害を呈するがパーキンソニズムは起こさない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "症候性パーキンソニズムは、脳血管障害、薬物、中毒、脳炎などにより二次的に生じる。ギラン・バレー症候群は末梢神経の脱髄疾患であり、運動麻痺や感覚障害を呈するがパーキンソニズムは起こさない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -83161,7 +83243,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A11-095",
@@ -106587,12 +106671,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋萎縮性側索硬化症（ALS）は上位・下位運動ニューロンが侵される疾患である。構音障害、舌萎縮、筋線維束攣縮は典型症状だが、膀胱直腸障害、感覚障害、眼球運動障害、褥瘡の4つは「陰性徴候」と呼ばれ、認めにくい。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋萎縮性側索硬化症（ALS）は上位・下位運動ニューロンが侵される疾患である。構音障害、舌萎縮、筋線維束攣縮は典型症状だが、膀胱直腸障害、感覚障害、眼球運動障害、褥瘡の4つは「陰性徴候」と呼ばれ、認めにくい。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -106618,7 +106704,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A14-090",
@@ -106639,12 +106727,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ギラン・バレー症候群は先行感染後に生じる末梢神経の急性脱髄性疾患で、上行性の運動麻痺や腱反射消失を呈する。通常は単相性の経過をたどり、寛解と再燃を繰り返すのは慢性炎症性脱髄性多発ニューロパチー（CIDP）や多発性硬化症の特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ギラン・バレー症候群は先行感染後に生じる末梢神経の急性脱髄性疾患で、上行性の運動麻痺や腱反射消失を呈する。通常は単相性の経過をたどり、寛解と再燃を繰り返すのは慢性炎症性脱髄性多発ニューロパチー（CIDP）や多発性硬化症の特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -106673,7 +106763,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A14-091",
@@ -113994,12 +114086,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋萎縮性側索硬化症（ALS）は上位・下位運動ニューロンが選択的に変性する疾患である。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「4大陰性徴候」と呼ばれ、通常はみられない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋萎縮性側索硬化症（ALS）は上位・下位運動ニューロンが選択的に変性する疾患である。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「4大陰性徴候」と呼ばれ、通常はみられない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -114028,7 +114122,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A15-079",
@@ -129406,12 +129502,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "デュシェンヌ型筋ジストロフィーは近位筋優位の筋萎縮を特徴とする。登はん性起立（ガワーズ徴候）、動揺性歩行（アヒル歩行）、腓腹筋の仮性肥大が典型的である。遠位筋である母指球の萎縮は初期には生じにくい。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "デュシェンヌ型筋ジストロフィーは近位筋優位の筋萎縮を特徴とする。登はん性起立（ガワーズ徴候）、動揺性歩行（アヒル歩行）、腓腹筋の仮性肥大が典型的である。遠位筋である母指球の萎縮は初期には生じにくい。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -129436,7 +129534,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A17-070",
@@ -129457,12 +129557,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ベル麻痺は末梢性顔面神経麻痺であり、患側の表情筋が麻痺する。額のしわ寄せ不能、鼻唇溝の消失、口角下垂、閉眼不能（兎眼）がみられる。開眼困難は動眼神経麻痺による眼瞼下垂などで生じる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ベル麻痺は末梢性顔面神経麻痺であり、患側の表情筋が麻痺する。額のしわ寄せ不能、鼻唇溝の消失、口角下垂、閉眼不能（兎眼）がみられる。開眼困難は動眼神経麻痺による眼瞼下垂などで生じる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -129482,7 +129584,9 @@
     "frequent_tags": [
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A17-071",
@@ -137894,12 +137998,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "デュシェンヌ型は伴性劣性（X連鎖劣性）遺伝形式をとり、男児に発症する。近位筋から萎縮が始まり、登攀性起立（ガワーズ徴候）や腓腹筋の仮性肥大、血清CK値の著明な上昇が特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "デュシェンヌ型は伴性劣性（X連鎖劣性）遺伝形式をとり、男児に発症する。近位筋から萎縮が始まり、登攀性起立（ガワーズ徴候）や腓腹筋の仮性肥大、血清CK値の著明な上昇が特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -137929,7 +138035,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A18-077",
@@ -162420,7 +162528,9 @@
       {
         "body": "総腓骨神経は足関節の背屈や足趾の伸展を支配するため、麻痺すると下垂足（背屈不能）を呈する。腓骨頭付近での圧迫で生じやすく、感覚障害は足背に見られる。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -162460,7 +162570,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A21-081",
@@ -162920,12 +163032,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "緊張型頭痛は、頭の両側が締め付けられるような非拍動性の痛みが特徴である。片頭痛と異なり、日常動作での悪化や嘔吐を伴うことは少ない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "緊張型頭痛は、頭の両側が締め付けられるような非拍動性の痛みが特徴である。片頭痛と異なり、日常動作での悪化や嘔吐を伴うことは少ない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -162944,7 +163058,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A21-090",
@@ -170011,12 +170127,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "四肢が伸展・内旋し、手首が回内・屈曲する姿勢は除脳硬直と呼ばれる。これは中脳から橋レベルの重篤な脳損傷を示唆する。除皮質硬直では上肢は屈曲、下肢は伸展する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "四肢が伸展・内旋し、手首が回内・屈曲する姿勢は除脳硬直と呼ばれる。これは中脳から橋レベルの重篤な脳損傷を示唆する。除皮質硬直では上肢は屈曲、下肢は伸展する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -170054,7 +170172,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A22-073",
@@ -170763,12 +170883,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳梗塞の発症直後（超急性期）において、CTでは異常を捉えにくいが、MRIの拡散強調画像（DWI）を用いることで、発症数十分から数時間以内の梗塞部位を鮮明に描出することが可能である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳梗塞の発症直後（超急性期）において、CTでは異常を捉えにくいが、MRIの拡散強調画像（DWI）を用いることで、発症数十分から数時間以内の梗塞部位を鮮明に描出することが可能である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -170793,7 +170915,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A22-085",
@@ -170814,12 +170938,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "神経膠芽腫（グリオブラストーマ）は最も悪性度の高い脳腫瘍であり、浸潤性が強く予後は極めて不良である。髄膜腫、下垂体腺腫、神経鞘腫は一般に良性腫瘍であり、予後は比較的良好である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "神経膠芽腫（グリオブラストーマ）は最も悪性度の高い脳腫瘍であり、浸潤性が強く予後は極めて不良である。髄膜腫、下垂体腺腫、神経鞘腫は一般に良性腫瘍であり、予後は比較的良好である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -170849,7 +170975,9 @@
     "frequent_tags": [
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A22-086",
@@ -171066,12 +171194,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "顔面神経は運動神経であり、麻痺により兎眼や口角下垂が生じる。また、随伴する感覚枝により味覚障害や聴覚過敏を伴うが、顔面の知覚（触覚・痛覚）は三叉神経の支配であるため、顔面神経麻痺では鈍麻しない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "顔面神経は運動神経であり、麻痺により兎眼や口角下垂が生じる。また、随伴する感覚枝により味覚障害や聴覚過敏を伴うが、顔面の知覚（触覚・痛覚）は三叉神経の支配であるため、顔面神経麻痺では鈍麻しない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -171103,7 +171233,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A22-090",
@@ -171124,12 +171256,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "緊張型頭痛は、頭頚部周囲の筋肉の持続的な収縮（筋緊張）により生じる。両側性の締め付けられるような痛みが特徴で、精神的ストレスも関与する。トリプタン類は片頭痛の特効薬である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "緊張型頭痛は、頭頚部周囲の筋肉の持続的な収縮（筋緊張）により生じる。両側性の締め付けられるような痛みが特徴で、精神的ストレスも関与する。トリプタン類は片頭痛の特効薬である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -171152,7 +171286,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A22-091",
@@ -177427,12 +177563,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の四大症状は、安静時振戦、筋固縮（歯車様強剛）、無動、姿勢反射障害である。歩行障害として、前傾姿勢で歩幅が狭く、加速すると止まれなくなる突進現象がみられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の四大症状は、安静時振戦、筋固縮（歯車様強剛）、無動、姿勢反射障害である。歩行障害として、前傾姿勢で歩幅が狭く、加速すると止まれなくなる突進現象がみられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -177456,7 +177594,9 @@
     "frequent_tags": [
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A23-058",
@@ -178036,12 +178176,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "副鼻腔は脳に近接しているため、重症の副鼻腔炎から炎症が直接または血行性に波及し、髄膜炎や脳膿瘍などの頭蓋内合併症を引き起こすことがある。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "副鼻腔は脳に近接しているため、重症の副鼻腔炎から炎症が直接または血行性に波及し、髄膜炎や脳膿瘍などの頭蓋内合併症を引き起こすことがある。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -178069,7 +178211,9 @@
     "frequent_tags": [
       "伝染病"
     ],
-    "frequent_scope": "感染症"
+    "frequent_scope": "感染症",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A23-069",
@@ -178090,12 +178234,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "重症筋無力症は神経筋接合部の受容体が自己抗体で破壊される疾患である。初発症状としては眼瞼下垂や複視などの眼症状が多く、夕方に症状が増悪する日内変動が特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "重症筋無力症は神経筋接合部の受容体が自己抗体で破壊される疾患である。初発症状としては眼瞼下垂や複視などの眼症状が多く、夕方に症状が増悪する日内変動が特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -178121,7 +178267,9 @@
       "自己免疫疾患",
       "症状"
     ],
-    "frequent_scope": "自己免疫疾患"
+    "frequent_scope": "自己免疫疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A23-070",
@@ -186624,12 +186772,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病は、中脳の「黒質」にあるドパミン作動性ニューロンが変性・脱落することで発症する。これにより大脳基底核の機能が調節できなくなり、運動症状が出現する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病は、中脳の「黒質」にあるドパミン作動性ニューロンが変性・脱落することで発症する。これにより大脳基底核の機能が調節できなくなり、運動症状が出現する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -186658,7 +186808,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A24-075",
@@ -186679,12 +186831,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "症例はパーキンソン病の典型像（振戦、無動、仮面様顔貌、前屈姿勢）を示している。パーキンソン病の筋緊張異常は「固縮（鉛管様・歯車様強剛）」であり、錐体外路症状の特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "症例はパーキンソン病の典型像（振戦、無動、仮面様顔貌、前屈姿勢）を示している。パーキンソン病の筋緊張異常は「固縮（鉛管様・歯車様強剛）」であり、錐体外路症状の特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -186712,7 +186866,9 @@
       "症例",
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A24-076",
@@ -194038,12 +194194,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "橋出血では、脳幹を通る錐体路が左右とも障害されやすいため、四肢麻痺（四肢の運動麻痺）をきたす。また、縮瞳（ピンポイント・ピューピル）や高熱、意識障害も特徴的である。視床や被殻の出血では通常、対側の片麻痺が生じる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "橋出血では、脳幹を通る錐体路が左右とも障害されやすいため、四肢麻痺（四肢の運動麻痺）をきたす。また、縮瞳（ピンポイント・ピューピル）や高熱、意識障害も特徴的である。視床や被殻の出血では通常、対側の片麻痺が生じる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -194068,7 +194226,9 @@
     "frequent_tags": [
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A25-064",
@@ -194647,12 +194807,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "バレー徴候は、軽微な運動麻痺を検出するための検査である。上肢では手掌を上にして挙上させた際に麻痺側が内側に回転しながら下降する。ロンベルグ徴候は脊髄後索障害、ラセーグ徴候は坐骨神経痛、ケンプ徴候は腰部脊柱管狭窄症などで陽性となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "バレー徴候は、軽微な運動麻痺を検出するための検査である。上肢では手掌を上にして挙上させた際に麻痺側が内側に回転しながら下降する。ロンベルグ徴候は脊髄後索障害、ラセーグ徴候は坐骨神経痛、ケンプ徴候は腰部脊柱管狭窄症などで陽性となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -194682,7 +194844,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A25-075",
@@ -194703,12 +194867,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳梗塞による片麻痺は上位運動ニューロン障害である。この場合、深部腱反射（アキレス腱反射や膝蓋腱反射）は亢進し、腹壁反射や挙睾筋反射などの表在反射は消失または減弱する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳梗塞による片麻痺は上位運動ニューロン障害である。この場合、深部腱反射（アキレス腱反射や膝蓋腱反射）は亢進し、腹壁反射や挙睾筋反射などの表在反射は消失または減弱する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -194742,7 +194908,9 @@
       "運動麻痺",
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A25-076",
@@ -203162,12 +203330,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の歩行障害には、小刻み歩行、前傾姿勢、突進現象、すくみ足などが含まれる。分回し歩行は片麻痺、反張膝は脳性麻痺や筋力低下などで見られる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の歩行障害には、小刻み歩行、前傾姿勢、突進現象、すくみ足などが含まれる。分回し歩行は片麻痺、反張膝は脳性麻痺や筋力低下などで見られる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -203188,7 +203358,9 @@
     "frequent_tags": [
       "パーキンソン病"
     ],
-    "frequent_scope": "神経疾患のリハビリ"
+    "frequent_scope": "神経疾患のリハビリ",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A26-080",
@@ -210043,12 +210215,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳塞栓症は、心臓などで形成された血栓が脳動脈を閉塞させる疾患で、心房細動が最大の原因となる。日中の活動時に突発的に発症し、症状は完成されるのが早い。激しい頭痛はくも膜下出血の特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳塞栓症は、心臓などで形成された血栓が脳動脈を閉塞させる疾患で、心房細動が最大の原因となる。日中の活動時に突発的に発症し、症状は完成されるのが早い。激しい頭痛はくも膜下出血の特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -210076,7 +210250,9 @@
     "frequent_tags": [
       "血圧"
     ],
-    "frequent_scope": "循環器疾患"
+    "frequent_scope": "循環器疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A27-056",
@@ -210150,12 +210326,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "多発ニューロパチーは、四肢末梢から対称性に感覚・運動障害が生じる疾患で、糖尿病やアルコール多飲による栄養不足（ビタミンB1欠乏）が主な原因となる。手袋靴下型の感覚障害を呈し、末梢神経障害であるため深部腱反射は低下・消失する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "多発ニューロパチーは、四肢末梢から対称性に感覚・運動障害が生じる疾患で、糖尿病やアルコール多飲による栄養不足（ビタミンB1欠乏）が主な原因となる。手袋靴下型の感覚障害を呈し、末梢神経障害であるため深部腱反射は低下・消失する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -210180,7 +210358,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A27-058",
@@ -211085,12 +211265,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "拍動性の頭痛、日常生活に支障をきたす程度の痛みから片頭痛が疑われる。片頭痛は家族内発症が多く認められるため、家族歴の確認は診断において非常に重要である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "拍動性の頭痛、日常生活に支障をきたす程度の痛みから片頭痛が疑われる。片頭痛は家族内発症が多く認められるため、家族歴の確認は診断において非常に重要である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -211118,7 +211300,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "A27-074",
@@ -281183,12 +281367,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "クモ膜下出血の主な原因は脳動脈瘤の破裂であり、高血圧は破裂のリスク因子である。脳塞栓症は心房細動などの心疾患による血栓が原因となる。左脳（優位半球）の損傷では失語症を合併しやすい。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "クモ膜下出血の主な原因は脳動脈瘤の破裂であり、高血圧は破裂のリスク因子である。脳塞栓症は心房細動などの心疾患による血栓が原因となる。左脳（優位半球）の損傷では失語症を合併しやすい。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -281226,7 +281412,9 @@
     "frequent_tags": [
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B01-082",
@@ -289301,12 +289489,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "デュシェンヌ型筋ジストロフィーは、3〜5歳頃の幼児期に発症する。伴性劣性遺伝を示し、偽性肥大や登はん性起立（ガワーズ徴候）が特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "デュシェンヌ型筋ジストロフィーは、3〜5歳頃の幼児期に発症する。伴性劣性遺伝を示し、偽性肥大や登はん性起立（ガワーズ徴候）が特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -289331,7 +289521,9 @@
     "frequent_tags": [
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B02-074",
@@ -289471,12 +289663,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ギラン・バレー症候群は先行感染後に起こる末梢神経障害で、四肢遠位からの上行性弛緩性麻痺が特徴である。顔面神経麻痺を伴うこともあるが、通常は両側性である。重症例では呼吸筋麻痺や嚥下障害を来す。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ギラン・バレー症候群は先行感染後に起こる末梢神経障害で、四肢遠位からの上行性弛緩性麻痺が特徴である。顔面神経麻痺を伴うこともあるが、通常は両側性である。重症例では呼吸筋麻痺や嚥下障害を来す。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -289507,7 +289701,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B02-077",
@@ -298158,12 +298354,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ギラン・バレー症候群は、先行感染の後に急性発症する末梢神経障害である。四肢の遠位から始まる対称性の弛緩性麻痺（脱力）が特徴であり、髄液検査では蛋白細胞解離（蛋白上昇、細胞数正常）を認める。振戦は中枢神経疾患などで見られる症状である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ギラン・バレー症候群は、先行感染の後に急性発症する末梢神経障害である。四肢の遠位から始まる対称性の弛緩性麻痺（脱力）が特徴であり、髄液検査では蛋白細胞解離（蛋白上昇、細胞数正常）を認める。振戦は中枢神経疾患などで見られる症状である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -298190,7 +298388,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B03-081",
@@ -298526,12 +298726,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の四大症状は、静止時振戦、筋強剛（固縮）、無動（動作緩慢）、姿勢反射障害である。難聴はパーキンソン病の典型的な症状には含まれない。非運動症状としては、便秘や嗅覚障害、抑うつなどが知られている。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の四大症状は、静止時振戦、筋強剛（固縮）、無動（動作緩慢）、姿勢反射障害である。難聴はパーキンソン病の典型的な症状には含まれない。非運動症状としては、便秘や嗅覚障害、抑うつなどが知られている。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -298552,7 +298754,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B03-087",
@@ -306683,12 +306887,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "心房細動では心房内で血流が鬱滞し、血栓が形成されやすい。この血栓が血流に乗って脳血管を閉塞させることで脳塞栓症（心原性脳塞栓症）を引き起こす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心房細動では心房内で血流が鬱滞し、血栓が形成されやすい。この血栓が血流に乗って脳血管を閉塞させることで脳塞栓症（心原性脳塞栓症）を引き起こす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -306712,7 +306918,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B04-082",
@@ -306733,12 +306941,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の四大症状は、安静時振戦、筋強剛（固縮）、無動、姿勢反射障害であり、視力障害は含まれない。脊髄空洞症では温痛覚が消失し触圧覚が保たれる感覚解離が特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の四大症状は、安静時振戦、筋強剛（固縮）、無動、姿勢反射障害であり、視力障害は含まれない。脊髄空洞症では温痛覚が消失し触圧覚が保たれる感覚解離が特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -306770,7 +306980,9 @@
       "症状",
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B04-083",
@@ -306801,7 +307013,9 @@
       {
         "body": "腰部脊柱管狭窄症の典型的な症状は間歇性跛行である。変形性関節症は運動時痛が主で、胸髄損傷では対麻痺（四肢麻痺は頚髄損傷）となる。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -306847,7 +307061,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B04-084",
@@ -306868,12 +307084,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "錐体路障害（上位運動ニューロン障害）では、腱反射は「亢進」する。腱反射の消失は、末梢神経や脊髄前角細胞などの下位運動ニューロン障害でみられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "錐体路障害（上位運動ニューロン障害）では、腱反射は「亢進」する。腱反射の消失は、末梢神経や脊髄前角細胞などの下位運動ニューロン障害でみられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -306910,7 +307128,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B04-085",
@@ -314512,12 +314732,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "肺癌（特に肺尖部癌）は、交感神経を圧迫してホルネル症候群を、反回神経を圧迫して嗄声を、上大静脈を圧迫して上大静脈症候群をきたす。ギラン・バレー症候群は感染後に起こる末梢神経疾患であり、肺癌との直接の関連はない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "肺癌（特に肺尖部癌）は、交感神経を圧迫してホルネル症候群を、反回神経を圧迫して嗄声を、上大静脈を圧迫して上大静脈症候群をきたす。ギラン・バレー症候群は感染後に起こる末梢神経疾患であり、肺癌との直接の関連はない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -314537,7 +314759,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B05-070",
@@ -315321,12 +315545,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "片側の大脳半球障害では、反対側の「片麻痺」が生じる。対麻痺（両下肢の麻痺）は主に脊髄損傷や脳の正中部の障害で起こる。左大脳半球（優位半球）の障害では失語症や右半身の感覚障害、病側への共同偏視が見られる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "片側の大脳半球障害では、反対側の「片麻痺」が生じる。対麻痺（両下肢の麻痺）は主に脊髄損傷や脳の正中部の障害で起こる。左大脳半球（優位半球）の障害では失語症や右半身の感覚障害、病側への共同偏視が見られる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -315353,7 +315579,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B05-085",
@@ -315496,12 +315724,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "神経症（不安症など）は心理的要因による精神症状を主とするもので、認知機能の低下（認知症）は伴わない。アルツハイマー病、脳血管障害、正常圧水頭症はいずれも認知症をきたす代表的な疾患である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "神経症（不安症など）は心理的要因による精神症状を主とするもので、認知機能の低下（認知症）は伴わない。アルツハイマー病、脳血管障害、正常圧水頭症はいずれも認知症をきたす代表的な疾患である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -315528,7 +315758,9 @@
       "神経",
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B05-088",
@@ -315549,12 +315781,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋萎縮性側索硬化症（ALS）は上位および下位運動ニューロンが変性する疾患である。上位運動ニューロン障害により深部反射は亢進し、バビンスキー反射などの病的反射が陽性となる。下位運動ニューロン障害により筋萎縮や線維束性攣縮が生じる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋萎縮性側索硬化症（ALS）は上位および下位運動ニューロンが変性する疾患である。上位運動ニューロン障害により深部反射は亢進し、バビンスキー反射などの病的反射が陽性となる。下位運動ニューロン障害により筋萎縮や線維束性攣縮が生じる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -315581,7 +315815,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B05-089",
@@ -323809,12 +324045,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "項部硬直は髄膜刺激症状の一つであり、主にくも膜下出血や髄膜炎でみられる。脳梗塞では病変部位に応じた片麻痺、感覚障害、失語症、視野欠損などが主症状となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "項部硬直は髄膜刺激症状の一つであり、主にくも膜下出血や髄膜炎でみられる。脳梗塞では病変部位に応じた片麻痺、感覚障害、失語症、視野欠損などが主症状となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -323841,7 +324079,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B06-086",
@@ -323911,12 +324151,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ギラン・バレー症候群は、先行感染（感冒や下痢）の後に生じる末梢神経の脱髄疾患である。上行性の四肢麻痺や腱反射消失が特徴であり、顔面神経麻痺などの脳神経症状を伴うこともあるが、意識障害は通常みられない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ギラン・バレー症候群は、先行感染（感冒や下痢）の後に生じる末梢神経の脱髄疾患である。上行性の四肢麻痺や腱反射消失が特徴であり、顔面神経麻痺などの脳神経症状を伴うこともあるが、意識障害は通常みられない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -323947,7 +324189,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B06-088",
@@ -323968,12 +324212,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ベル麻痺は顔面神経（第VII脳神経）の単独麻痺であり、運動麻痺（兎眼、口角下垂）、味覚障害（舌前2/3）、聴覚過敏、涙液・唾液分泌低下を呈する。顔面の痛覚を司るのは三叉神経（第V脳神経）であるため、ベル麻痺で痛覚鈍麻はみられない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ベル麻痺は顔面神経（第VII脳神経）の単独麻痺であり、運動麻痺（兎眼、口角下垂）、味覚障害（舌前2/3）、聴覚過敏、涙液・唾液分泌低下を呈する。顔面の痛覚を司るのは三叉神経（第V脳神経）であるため、ベル麻痺で痛覚鈍麻はみられない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -324001,7 +324247,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B06-089",
@@ -331620,12 +331868,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "手根管症候群は、手根管内で正中神経が圧迫されることで起こる。ギラン・バレー症候群は末梢神経の脱髄疾患、ベル麻痺は顔面神経の麻痺、梨状筋症候群は坐骨神経の圧迫によるものである。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "手根管症候群は、手根管内で正中神経が圧迫されることで起こる。ギラン・バレー症候群は末梢神経の脱髄疾患、ベル麻痺は顔面神経の麻痺、梨状筋症候群は坐骨神経の圧迫によるものである。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -331657,7 +331907,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B07-073",
@@ -331678,12 +331930,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ラムゼイハント症候群は、水痘・帯状疱疹ウイルスの再活性化により、膝神経節が侵される疾患である。耳介の帯状疱疹、末梢性顔面神経麻痺、内耳神経症状（難聴・めまい）を三徴とする。舌前2/3の味覚障害も伴うことが多い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ラムゼイハント症候群は、水痘・帯状疱疹ウイルスの再活性化により、膝神経節が侵される疾患である。耳介の帯状疱疹、末梢性顔面神経麻痺、内耳神経症状（難聴・めまい）を三徴とする。舌前2/3の味覚障害も伴うことが多い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -331716,7 +331970,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B07-074",
@@ -332393,12 +332649,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "進行性筋ジストロフィーは筋原性の疾患であり、主な症状は筋萎縮と筋力低下である。筋強剛（固縮）はパーキンソン病などの錐体外路疾患にみられる症状である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "進行性筋ジストロフィーは筋原性の疾患であり、主な症状は筋萎縮と筋力低下である。筋強剛（固縮）はパーキンソン病などの錐体外路疾患にみられる症状である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -332431,7 +332689,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B07-087",
@@ -339989,12 +340249,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ギラン・バレー症候群では、髄液検査において蛋白が上昇する一方で細胞数は増加しない「蛋白細胞解離」が特徴的である。四肢の遠位から始まる対称性の弛緩性麻痺、深部反射の消失・減弱、脳神経麻痺（顔面神経など）を認める。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ギラン・バレー症候群では、髄液検査において蛋白が上昇する一方で細胞数は増加しない「蛋白細胞解離」が特徴的である。四肢の遠位から始まる対称性の弛緩性麻痺、深部反射の消失・減弱、脳神経麻痺（顔面神経など）を認める。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -340026,7 +340288,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B08-072",
@@ -340856,12 +341120,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋萎縮性側索硬化症（ALS）は上位および下位運動ニューロンが変性する疾患である。下位運動ニューロン障害による筋萎縮・線維束攣縮と、上位運動ニューロン障害による深部反射亢進が混在する。不随意運動（振戦や舞踏運動など）は通常みられない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋萎縮性側索硬化症（ALS）は上位および下位運動ニューロンが変性する疾患である。下位運動ニューロン障害による筋萎縮・線維束攣縮と、上位運動ニューロン障害による深部反射亢進が混在する。不随意運動（振戦や舞踏運動など）は通常みられない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -340891,7 +341157,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B08-087",
@@ -348561,12 +348829,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋緊張性ジストロフィーでは、筋の収縮後に弛緩が遅れるミオトニア（筋強直現象）を認めるが、筋疾患であるため筋トーヌス（筋緊張）自体は低下する。白内障や性腺萎縮を合併する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋緊張性ジストロフィーでは、筋の収縮後に弛緩が遅れるミオトニア（筋強直現象）を認めるが、筋疾患であるため筋トーヌス（筋緊張）自体は低下する。白内障や性腺萎縮を合併する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -348591,7 +348861,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B09-073",
@@ -348677,12 +348949,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "心房細動では心房内で血液がうっ滞し、血栓が形成されやすい。この血栓が血流に乗って脳血管を閉塞させることで、心原性脳塞栓症を引き起こす。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心房細動では心房内で血液がうっ滞し、血栓が形成されやすい。この血栓が血流に乗って脳血管を閉塞させることで、心原性脳塞栓症を引き起こす。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -348714,7 +348988,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B09-075",
@@ -366281,12 +366557,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "細菌性髄膜炎では、細菌が糖を消費するため髄液中の糖が低下する。また、多核白血球主体の細胞数増加、蛋白増加、髄液圧上昇がみられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "細菌性髄膜炎では、細菌が糖を消費するため髄液中の糖が低下する。また、多核白血球主体の細胞数増加、蛋白増加、髄液圧上昇がみられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -366314,7 +366592,9 @@
     "frequent_tags": [
       "伝染病"
     ],
-    "frequent_scope": "感染症"
+    "frequent_scope": "感染症",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B11-086",
@@ -366335,12 +366615,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "視床出血では、眼球が内下方（鼻先）を向く共同偏視が特徴的である。被殻出血では病巣側を向き、橋出血では病巣の反対側（正中固定も多い）を向く。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "視床出血では、眼球が内下方（鼻先）を向く共同偏視が特徴的である。被殻出血では病巣側を向き、橋出血では病巣の反対側（正中固定も多い）を向く。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -366364,7 +366646,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B11-087",
@@ -366385,12 +366669,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ギラン・バレー症候群では、髄液検査で蛋白が増加し細胞数が正常に保たれる「蛋白細胞解離」が特徴的である。ALSの診断には筋電図、脊髄空洞症にはMRIが有用である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ギラン・バレー症候群では、髄液検査で蛋白が増加し細胞数が正常に保たれる「蛋白細胞解離」が特徴的である。ALSの診断には筋電図、脊髄空洞症にはMRIが有用である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -366428,7 +366714,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B11-088",
@@ -374872,12 +375160,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ポリオ（急性灰白髄炎）の病変部位は脊髄前角細胞であり、運動麻痺をきたす。脳幹網様体ではない。筋萎縮性側索硬化症（ALS）は脊髄前角と錐体路、重症筋無力症は神経筋接合部、パーキンソン病は中脳黒質が主病変である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ポリオ（急性灰白髄炎）の病変部位は脊髄前角細胞であり、運動麻痺をきたす。脳幹網様体ではない。筋萎縮性側索硬化症（ALS）は脊髄前角と錐体路、重症筋無力症は神経筋接合部、パーキンソン病は中脳黒質が主病変である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -374913,7 +375203,9 @@
       "神経",
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B12-087",
@@ -382661,12 +382953,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋萎縮性側索硬化症（ALS）では、延髄の運動核が侵され球麻痺を呈する。特に舌下神経核が侵されやすく、舌の萎縮や線維束性収縮がみられる。眼球運動（動眼神経など）は保たれるのが特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋萎縮性側索硬化症（ALS）では、延髄の運動核が侵され球麻痺を呈する。特に舌下神経核が侵されやすく、舌の萎縮や線維束性収縮がみられる。眼球運動（動眼神経など）は保たれるのが特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -382698,7 +382992,9 @@
     "frequent_tags": [
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B13-073",
@@ -391488,12 +391784,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "聴神経鞘腫は内耳道から小脳橋角部に発生する腫瘍で、第Ⅷ脳神経（聴神経）を圧迫し耳鳴りや難聴を来す。進行すると隣接する第Ⅶ脳神経（顔面神経）や小脳を圧迫するが、第Ⅰ脳神経（嗅神経）とは解剖学的に離れているため嗅覚異常はみられない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "聴神経鞘腫は内耳道から小脳橋角部に発生する腫瘍で、第Ⅷ脳神経（聴神経）を圧迫し耳鳴りや難聴を来す。進行すると隣接する第Ⅶ脳神経（顔面神経）や小脳を圧迫するが、第Ⅰ脳神経（嗅神経）とは解剖学的に離れているため嗅覚異常はみられない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -391524,7 +391822,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B14-078",
@@ -399633,12 +399933,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "重症筋無力症は神経筋接合部のアセチルコリン受容体が自己抗体により破壊される疾患で、夕方に増悪する筋の易疲労性が特徴である。女性に多く、CK値は通常正常範囲内である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "重症筋無力症は神経筋接合部のアセチルコリン受容体が自己抗体により破壊される疾患で、夕方に増悪する筋の易疲労性が特徴である。女性に多く、CK値は通常正常範囲内である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -399663,7 +399965,9 @@
     "frequent_tags": [
       "自己免疫疾患"
     ],
-    "frequent_scope": "自己免疫疾患"
+    "frequent_scope": "自己免疫疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B15-070",
@@ -408410,12 +408714,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳圧亢進の三徴は頭痛、嘔吐、うっ血乳頭である。また、クッシング現象により血圧上昇と徐脈（頻脈ではない）がみられるのが特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳圧亢進の三徴は頭痛、嘔吐、うっ血乳頭である。また、クッシング現象により血圧上昇と徐脈（頻脈ではない）がみられるのが特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -408438,7 +408744,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B16-075",
@@ -408459,12 +408767,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の振戦は、通常は片側の上肢から始まり、経過とともに反対側へ広がる一側性初発が特徴である。安静時振戦、筋固縮、無動、姿勢反射障害が四大症状である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の振戦は、通常は片側の上肢から始まり、経過とともに反対側へ広がる一側性初発が特徴である。安静時振戦、筋固縮、無動、姿勢反射障害が四大症状である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -408495,7 +408805,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B16-076",
@@ -408698,12 +409010,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "心房細動の既往があり、突発的に完成された神経症状（右片麻痺）が出現していることから、心原性脳塞栓症が最も疑われる。脳血栓症に比べ発症が急激であるのが特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "心房細動の既往があり、突発的に完成された神経症状（右片麻痺）が出現していることから、心原性脳塞栓症が最も疑われる。脳血栓症に比べ発症が急激であるのが特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -408738,7 +409052,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B16-080",
@@ -408759,12 +409075,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳塞栓症の経過中に、壊死した脳組織内の血管から二次的に出血を起こす「出血性梗塞」が発生することがある。これにより脳浮腫が増悪し、発症数日後に意識障害が進行する原因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳塞栓症の経過中に、壊死した脳組織内の血管から二次的に出血を起こす「出血性梗塞」が発生することがある。これにより脳浮腫が増悪し、発症数日後に意識障害が進行する原因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -408800,7 +409118,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B16-081",
@@ -416414,12 +416734,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "群発頭痛は、一側の眼窩周囲から側頭部にかけての激しいドリルで抉られるような痛みが特徴である。後頸部がひきつるような痛みは緊張型頭痛などでみられる。片頭痛は拍動性、クモ膜下出血はバットで殴られたような激痛を呈する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "群発頭痛は、一側の眼窩周囲から側頭部にかけての激しいドリルで抉られるような痛みが特徴である。後頸部がひきつるような痛みは緊張型頭痛などでみられる。片頭痛は拍動性、クモ膜下出血はバットで殴られたような激痛を呈する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -416447,7 +416769,9 @@
     "frequent_tags": [
       "頭痛"
     ],
-    "frequent_scope": "保留：頭痛・睡眠・疲労"
+    "frequent_scope": "保留：頭痛・睡眠・疲労",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B17-063",
@@ -416468,12 +416792,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の振戦は、安静時に出現し、随意運動によって消失・軽減する「安静時振戦」が特徴である。何かをしようとする時に強まるのは「企図振戦」と呼ばれ、小脳疾患などで見られる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の振戦は、安静時に出現し、随意運動によって消失・軽減する「安静時振戦」が特徴である。何かをしようとする時に強まるのは「企図振戦」と呼ばれ、小脳疾患などで見られる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -416492,7 +416818,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B17-064",
@@ -417372,12 +417700,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "高血圧の既往、一過性脳虚血発作を疑わせるしびれ、感情失禁（わけもなく泣く）、まだら認知症（判断力が保たれる）といった特徴から、脳血管性認知症が最も考えられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "高血圧の既往、一過性脳虚血発作を疑わせるしびれ、感情失禁（わけもなく泣く）、まだら認知症（判断力が保たれる）といった特徴から、脳血管性認知症が最も考えられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -417410,7 +417740,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B17-080",
@@ -417431,12 +417763,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "認知症患者への対応として、失敗を叱ることは自尊心を傷つけ、不安や抑うつ、周辺症状（BPSD）の悪化を招くため不適切である。受容的・共感的な態度で接し、できることを評価する姿勢が重要である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "認知症患者への対応として、失敗を叱ることは自尊心を傷つけ、不安や抑うつ、周辺症状（BPSD）の悪化を招くため不適切である。受容的・共感的な態度で接し、できることを評価する姿勢が重要である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -417463,7 +417797,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B17-081",
@@ -417591,12 +417927,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "特発性三叉神経痛は中年以降に多く、洗顔や咀嚼などで激痛が走る「トリガーポイント（誘発帯）」があるのが特徴である。痛みは突発的で、カルバマゼピンなどの内服が有効である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "特発性三叉神経痛は中年以降に多く、洗顔や咀嚼などで激痛が走る「トリガーポイント（誘発帯）」があるのが特徴である。痛みは突発的で、カルバマゼピンなどの内服が有効である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -417622,7 +417960,9 @@
     "frequent_tags": [
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B17-084",
@@ -425044,12 +425384,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ピック病（前頭側頭型認知症）は、初期から脱抑制や人格変化、社会的行動の障害が目立つのが特徴である。アルツハイマー病は記憶障害、レビー小体型は幻視が特徴的である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ピック病（前頭側頭型認知症）は、初期から脱抑制や人格変化、社会的行動の障害が目立つのが特徴である。アルツハイマー病は記憶障害、レビー小体型は幻視が特徴的である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -425077,7 +425419,9 @@
       "認知症",
       "血管"
     ],
-    "frequent_scope": "保留：精神・心理・発達"
+    "frequent_scope": "保留：精神・心理・発達",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B18-063",
@@ -425098,12 +425442,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の非運動症状には、便秘や起立性低血圧などの自律神経症状、睡眠障害、抑うつ、嗅覚障害などがある。運動症状は安静時振戦、筋固縮、無動、姿勢反射障害である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の非運動症状には、便秘や起立性低血圧などの自律神経症状、睡眠障害、抑うつ、嗅覚障害などがある。運動症状は安静時振戦、筋固縮、無動、姿勢反射障害である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -425130,7 +425476,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B18-064",
@@ -425273,7 +425621,9 @@
       {
         "body": "上腕骨外顆骨折は偽関節になりやすく、成長に伴い肘外反変形をきたす。これにより尺骨神経が引き伸ばされ、遅発性尺骨神経麻痺を生じることがある。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -425314,7 +425664,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B18-067",
@@ -434966,12 +435318,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "群発頭痛は、一側眼窩周囲の激痛を特徴とする。男性に多く、流涙や鼻閉などの自律神経症状を伴う。急性期治療には純酸素吸入やトリプタン製剤（片頭痛治療薬）が用いられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "群発頭痛は、一側眼窩周囲の激痛を特徴とする。男性に多く、流涙や鼻閉などの自律神経症状を伴う。急性期治療には純酸素吸入やトリプタン製剤（片頭痛治療薬）が用いられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -434994,7 +435348,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B19-082",
@@ -443427,12 +443783,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "アルツハイマー型認知症では、アミロイドβの沈着による老人斑やタウ蛋白による神経原線維変化、脳萎縮が特徴である。まだら認知症は血管性認知症の特徴であり、片麻痺も通常は認められない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "アルツハイマー型認知症では、アミロイドβの沈着による老人斑やタウ蛋白による神経原線維変化、脳萎縮が特徴である。まだら認知症は血管性認知症の特徴であり、片麻痺も通常は認められない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -443462,7 +443820,9 @@
       "症状",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B20-077",
@@ -443493,7 +443853,9 @@
       {
         "body": "高齢者が転倒などで頸部を過伸展させた際に、頸椎症を基礎として頸髄の中心部が損傷されるものを頸髄中心性損傷と呼ぶ。下肢に比べ上肢の運動・感覚障害が著明なのが特徴である。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -443531,7 +443893,9 @@
       "神経",
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B20-078",
@@ -443886,12 +444250,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "聴神経鞘腫（前庭神経鞘腫）は、第VIII脳神経から発生する良性腫瘍で、片側性の進行性難聴や耳鳴りを初発症状とすることが多い。下垂体腺腫は視力障害（両耳側半盲）が有名である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "聴神経鞘腫（前庭神経鞘腫）は、第VIII脳神経から発生する良性腫瘍で、片側性の進行性難聴や耳鳴りを初発症状とすることが多い。下垂体腺腫は視力障害（両耳側半盲）が有名である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -443921,7 +444287,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B20-084",
@@ -452191,7 +452559,9 @@
       {
         "body": "フローマン徴候は尺骨神経麻痺でみられる。内転筋の麻痺により親指で紙を挟む際、長母指屈筋（正中神経支配）で代償するため、親指の第一関節（IP関節）が屈曲する現象を指す。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -452227,7 +452597,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B21-077",
@@ -452520,12 +452892,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "顔面神経は表情筋の運動のほか、舌前2/3の味覚（鼓室索神経）や涙腺・唾液腺の分泌を司る。そのため、末梢性麻痺では味覚障害や聴覚過敏、涙液分泌低下などがみられる。顔面の知覚は三叉神経の担当である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "顔面神経は表情筋の運動のほか、舌前2/3の味覚（鼓室索神経）や涙腺・唾液腺の分泌を司る。そのため、末梢性麻痺では味覚障害や聴覚過敏、涙液分泌低下などがみられる。顔面の知覚は三叉神経の担当である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -452560,7 +452934,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B21-082",
@@ -452581,12 +452957,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ギラン・バレー症候群は末梢神経の脱髄疾患であり、先行感染後に急性の対称性弛緩性麻痺を呈する。髄液検査では蛋白細胞解離（蛋白上昇、細胞数正常）が特徴である。多くは数ヶ月で自然軽快する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ギラン・バレー症候群は末梢神経の脱髄疾患であり、先行感染後に急性の対称性弛緩性麻痺を呈する。髄液検査では蛋白細胞解離（蛋白上昇、細胞数正常）が特徴である。多くは数ヶ月で自然軽快する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -452618,7 +452996,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B21-083",
@@ -459980,12 +460360,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ティネル徴候は末梢神経再生部位や絞扼部位の叩打で放散痛が生じる現象で、総腓骨神経麻痺等で陽性となる。ペインフルアークは肩関節、トレンデレンブルグは股関節外転筋不全でみられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ティネル徴候は末梢神経再生部位や絞扼部位の叩打で放散痛が生じる現象で、総腓骨神経麻痺等で陽性となる。ペインフルアークは肩関節、トレンデレンブルグは股関節外転筋不全でみられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -460027,7 +460409,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "保留：神経・筋の解剖/支配"
+    "frequent_scope": "保留：神経・筋の解剖/支配",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B22-061",
@@ -460159,12 +460543,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "デュシェンヌ型はX連鎖潜性遺伝で男児に好発する。登攀性起立（ガワーズ徴候）が特徴的で、筋細胞の破壊により血清CK値は著明に高値を示す。尖足（尖歩）を呈しやすい。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "デュシェンヌ型はX連鎖潜性遺伝で男児に好発する。登攀性起立（ガワーズ徴候）が特徴的で、筋細胞の破壊により血清CK値は著明に高値を示す。尖足（尖歩）を呈しやすい。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -460190,7 +460576,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B22-064",
@@ -461235,12 +461623,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "特発性三叉神経痛は中年以降の女性に多く、三叉神経の第2枝（上顎神経）や第3枝（下顎神経）の領域に、突発的で鋭い電撃痛が数秒〜数十秒持続するのが特徴である。持続的な痛みではなく、間欠的に発生する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "特発性三叉神経痛は中年以降の女性に多く、三叉神経の第2枝（上顎神経）や第3枝（下顎神経）の領域に、突発的で鋭い電撃痛が数秒〜数十秒持続するのが特徴である。持続的な痛みではなく、間欠的に発生する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -461269,7 +461659,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B22-082",
@@ -461290,12 +461682,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "片頭痛は若年〜中年女性に多く、拍動性の痛みが特徴である。前兆を伴うタイプでは、視覚症状である閃輝暗点（光がチカチカする等）が有名である。入浴や運動は血管を拡張させ、痛みを悪化させる要因となる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "片頭痛は若年〜中年女性に多く、拍動性の痛みが特徴である。前兆を伴うタイプでは、視覚症状である閃輝暗点（光がチカチカする等）が有名である。入浴や運動は血管を拡張させ、痛みを悪化させる要因となる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -461315,7 +461709,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B22-083",
@@ -468660,12 +469056,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋萎縮性側索硬化症（ALS）は上位・下位運動ニューロンが変性する疾患である。球麻痺症状として嚥下障害や構音障害が出現する。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「4大陰性徴候」として知られ、通常認められない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋萎縮性側索硬化症（ALS）は上位・下位運動ニューロンが変性する疾患である。球麻痺症状として嚥下障害や構音障害が出現する。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「4大陰性徴候」として知られ、通常認められない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -468695,7 +469093,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B23-059",
@@ -477326,12 +477726,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳血管性認知症は、脳梗塞や脳出血により損傷した部位に応じて症状が出るため、能力の低下が不均一な「まだら認知症」を呈するのが特徴である。アルツハイマー型は全般的な認知機能低下が徐々に進行する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳血管性認知症は、脳梗塞や脳出血により損傷した部位に応じて症状が出るため、能力の低下が不均一な「まだら認知症」を呈するのが特徴である。アルツハイマー型は全般的な認知機能低下が徐々に進行する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -477355,7 +477757,9 @@
       "認知症",
       "血管"
     ],
-    "frequent_scope": "保留：精神・心理・発達"
+    "frequent_scope": "保留：精神・心理・発達",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B24-056",
@@ -487502,12 +487906,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の筋のこわばりは「固縮（筋強剛）」と呼ばれる。振戦は静止時に強まる「静止時振戦」が特徴。表情がないのは「仮面様顔貌」、前かがみの姿勢は「前屈姿勢」と呼ばれる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の筋のこわばりは「固縮（筋強剛）」と呼ばれる。振戦は静止時に強まる「静止時振戦」が特徴。表情がないのは「仮面様顔貌」、前かがみの姿勢は「前屈姿勢」と呼ばれる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -487535,7 +487941,9 @@
       "症状",
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B25-078",
@@ -487556,12 +487964,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "症例はパーキンソン病の四大徴候（振戦、無動、姿勢反射障害、筋固縮）を呈している。パーキンソン病は中脳黒質の変性により、神経伝達物質であるドパミンが欠乏することで発症する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "症例はパーキンソン病の四大徴候（振戦、無動、姿勢反射障害、筋固縮）を呈している。パーキンソン病は中脳黒質の変性により、神経伝達物質であるドパミンが欠乏することで発症する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -487592,7 +488002,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B25-079",
@@ -504399,12 +504811,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "脳血管性パーキンソニズムは、多発性脳梗塞などにより生じ、下肢の症状が強い「下半身パーキンソニズム」が特徴である。安静時振戦は少なく、小刻み歩行や、すくみ足などの歩行障害が顕著に現れる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "脳血管性パーキンソニズムは、多発性脳梗塞などにより生じ、下肢の症状が強い「下半身パーキンソニズム」が特徴である。安静時振戦は少なく、小刻み歩行や、すくみ足などの歩行障害が顕著に現れる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -504433,7 +504847,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B27-056",
@@ -504454,12 +504870,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ラムゼイ・ハント症候群は、水痘・帯状疱疹ウイルスの再活性化により耳介の水疱、顔面神経麻痺、内耳障害を来す疾患である。治療には抗ウイルス薬や副腎皮質ステロイドが用いられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ラムゼイ・ハント症候群は、水痘・帯状疱疹ウイルスの再活性化により耳介の水疱、顔面神経麻痺、内耳障害を来す疾患である。治療には抗ウイルス薬や副腎皮質ステロイドが用いられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -504488,7 +504906,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B27-057",
@@ -505343,12 +505763,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "「財布がない」と騒ぐのは、直前の出来事を忘れる記銘力障害（短期記憶障害）が原因で起こる。リモコンが使えないのは「失行」、料理ができないのは「実行機能障害」が主な原因である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "「財布がない」と騒ぐのは、直前の出来事を忘れる記銘力障害（短期記憶障害）が原因で起こる。リモコンが使えないのは「失行」、料理ができないのは「実行機能障害」が主な原因である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -505373,7 +505795,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B27-073",
@@ -505631,12 +506055,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "レビー小体型認知症では、アルツハイマー型と異なり、比較的早期から筋固縮や無動などのパーキンソニズムが出現し、動作が緩慢になる。これが「動作が鈍くなってきた」原因と考えられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "レビー小体型認知症では、アルツハイマー型と異なり、比較的早期から筋固縮や無動などのパーキンソニズムが出現し、動作が緩慢になる。これが「動作が鈍くなってきた」原因と考えられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -505668,7 +506094,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B27-078",
@@ -505689,12 +506117,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "幻視、パーキンソニズム、認知機能の変動はレビー小体型認知症の3大特徴である。本症例はこれらに合致するため、認知機能の日内変動の有無を確認することが診断の助けとなる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "幻視、パーキンソニズム、認知機能の変動はレビー小体型認知症の3大特徴である。本症例はこれらに合致するため、認知機能の日内変動の有無を確認することが診断の助けとなる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -505722,7 +506152,9 @@
       "症状",
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B27-079",
@@ -514721,12 +515153,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "38℃の発熱を伴う急性発症の頭痛と嘔吐は、髄膜炎の典型的な症状である。高血圧性脳症や脳出血でも頭痛・嘔吐は生じるが、発熱が先行する点から髄膜炎が最も強く疑われる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "38℃の発熱を伴う急性発症の頭痛と嘔吐は、髄膜炎の典型的な症状である。高血圧性脳症や脳出血でも頭痛・嘔吐は生じるが、発熱が先行する点から髄膜炎が最も強く疑われる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -514764,7 +515198,9 @@
       "症例",
       "疾患"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B28-080",
@@ -514785,12 +515221,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "発熱、頭痛、嘔吐の三徴候から髄膜炎が疑われる。髄膜刺激症状を確認するため、ケルニッヒ徴候や項部硬直の有無を確認することが不可欠である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "発熱、頭痛、嘔吐の三徴候から髄膜炎が疑われる。髄膜刺激症状を確認するため、ケルニッヒ徴候や項部硬直の有無を確認することが不可欠である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -514825,7 +515263,9 @@
       "症状",
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B28-081",
@@ -522196,12 +522636,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "デュシェンヌ型筋ジストロフィーは伴性劣性遺伝で男児に発症する。腓腹筋の仮性肥大、血清CK値の著明な上昇、登攀性起立（ガワーズ徴候）、尖足などが特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "デュシェンヌ型筋ジストロフィーは伴性劣性遺伝で男児に発症する。腓腹筋の仮性肥大、血清CK値の著明な上昇、登攀性起立（ガワーズ徴候）、尖足などが特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -522230,7 +522672,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B29-053",
@@ -522251,12 +522695,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "ALS（筋萎縮性側索硬化症）は上位・下位運動ニューロンが変性する疾患で、球麻痺による嚥下障害や構音障害が出現する。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「陰性四徴」と呼ばれ、出現しにくい。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "ALS（筋萎縮性側索硬化症）は上位・下位運動ニューロンが変性する疾患で、球麻痺による嚥下障害や構音障害が出現する。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「陰性四徴」と呼ばれ、出現しにくい。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -522285,7 +522731,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B29-054",
@@ -522306,12 +522754,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "血管性認知症は、脳梗塞や脳出血が起こるたびに症状が段階的に進行するため「階段状悪化」を呈するのが特徴である。また、まだら認知症も特徴の一つである。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "血管性認知症は、脳梗塞や脳出血が起こるたびに症状が段階的に進行するため「階段状悪化」を呈するのが特徴である。また、まだら認知症も特徴の一つである。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -522336,7 +522786,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B29-055",
@@ -532332,12 +532784,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "筋萎縮性側索硬化症（ALS）は、上位・下位運動ニューロンが変性する疾患である。下位運動ニューロン障害により筋線維束性れん縮がみられる。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「4大陰性徴候」として知られ、通常認められない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "筋萎縮性側索硬化症（ALS）は、上位・下位運動ニューロンが変性する疾患である。下位運動ニューロン障害により筋線維束性れん縮がみられる。感覚障害、眼球運動障害、膀胱直腸障害、褥瘡は「4大陰性徴候」として知られ、通常認められない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -532366,7 +532820,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B30-054",
@@ -532387,12 +532843,14 @@
     ],
     "answer_none": false,
     "explanation_latest": "パーキンソン病の振戦は、静止時に出現し動作時に消失・軽減する「静止時振戦」が特徴である。物を取ろうとする時に強まるのは小脳疾患などでみられる「意図振戦」である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest_source": "llm_checked",
     "explanations": [
       {
         "body": "パーキンソン病の振戦は、静止時に出現し動作時に消失・軽減する「静止時振戦」が特徴である。物を取ろうとする時に強まるのは小脳疾患などでみられる「意図振戦」である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
       }
     ],
     "tags": [
@@ -532410,7 +532868,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "Gemini3Flash",
+    "explanation_latest_review_status": "teacher_approved"
   },
   {
     "serial": "B30-055",
