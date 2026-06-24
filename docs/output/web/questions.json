@@ -20496,18 +20496,36 @@
       1
     ],
     "answer_none": false,
-    "explanation_latest": "尺骨神経麻痺では鷲手、橈骨神経麻痺では下垂手、正中神経麻痺では猿手が見られる。尖足は総腓骨神経麻痺、兎眼は顔面神経麻痺による症状である。",
-    "explanation_latest_source": "llm_checked",
+    "explanation_latest": "尺骨神経麻痺では鷲手、橈骨神経麻痺では下垂手、正中神経麻痺では猿手がみられる。尖足（垂れ足）は大腿神経麻痺ではなく腓骨神経麻痺などでみられ、総腓骨神経麻痺では足関節背屈障害による下垂足・鶏歩が典型的である。兎眼は顔面神経麻痺による症状である。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "尺骨神経麻痺では鷲手、橈骨神経麻痺では下垂手、正中神経麻痺では猿手が見られる。尖足は総腓骨神経麻痺、兎眼は顔面神経麻痺による症状である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
       },
       {
         "body": "尺骨神経麻痺では鷲手、橈骨神経麻痺では下垂手、正中神経麻痺では猿手が見られる。尖足は総腓骨神経麻痺、兎眼は顔面神経麻痺による症状である。",
         "version": 2,
-        "source": "llm_checked"
+        "source": "llm_checked",
+        "model_name": "Gemini3Flash",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "尺骨神経麻痺では鷲手、橈骨神経麻痺では下垂手、正中神経麻痺では猿手がみられる。尖足（垂れ足）は大腿神経麻痺ではなく腓骨神経麻痺などでみられ、総腓骨神経麻痺では足関節背屈障害による下垂足・鶏歩が典型的である。兎眼は顔面神経麻痺による症状である。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "尺骨神経麻痺では鷲手、橈骨神経麻痺では下垂手、正中神経麻痺では猿手がみられる。尖足（垂れ足）は大腿神経麻痺ではなく腓骨神経麻痺などでみられ、総腓骨神経麻痺では足関節背屈障害による下垂足・鶏歩が典型的である。兎眼は顔面神経麻痺による症状である。",
+        "version": 4,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -20538,7 +20556,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "A03-093",
@@ -28125,13 +28145,29 @@
       4
     ],
     "answer_none": false,
-    "explanation_latest": "一過性脳虚血発作（TIA）は、脳への血流が一時的に途絶えるが、24時間以内（多くは数分〜数十分）に症状が完全に消失する。脳梗塞は高齢者に多く、くも膜下出血は突発的に発症する。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "一過性脳虚血発作（TIA）は、一過性の脳血流低下により神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失する。脳梗塞は高齢者に多く、くも膜下出血は突発的に発症する。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "一過性脳虚血発作（TIA）は、脳への血流が一時的に途絶えるが、24時間以内（多くは数分〜数十分）に症状が完全に消失する。脳梗塞は高齢者に多く、くも膜下出血は突発的に発症する。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "一過性脳虚血発作（TIA）は、一過性の脳血流低下により神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失する。脳梗塞は高齢者に多く、くも膜下出血は突発的に発症する。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "一過性脳虚血発作（TIA）は、一過性の脳血流低下により神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失する。脳梗塞は高齢者に多く、くも膜下出血は突発的に発症する。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -28164,7 +28200,9 @@
     "frequent_tags": [
       "症状"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "A04-090",
@@ -98843,13 +98881,29 @@
       4
     ],
     "answer_none": false,
-    "explanation_latest": "一過性脳虚血発作（TIA）は、脳血管の閉塞により神経症状が出現するが、通常24時間以内（多くは数分〜数十分）に症状が完全に消失し、後遺症を残さない。脳梗塞の前兆として重要である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "一過性脳虚血発作（TIA）は、一過性の脳虚血により脳卒中様の神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失して後遺症を残さない。脳梗塞の前兆として重要である。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "一過性脳虚血発作（TIA）は、脳血管の閉塞により神経症状が出現するが、通常24時間以内（多くは数分〜数十分）に症状が完全に消失し、後遺症を残さない。脳梗塞の前兆として重要である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "一過性脳虚血発作（TIA）は、一過性の脳虚血により脳卒中様の神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失して後遺症を残さない。脳梗塞の前兆として重要である。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "一過性脳虚血発作（TIA）は、一過性の脳虚血により脳卒中様の神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失して後遺症を残さない。脳梗塞の前兆として重要である。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -98877,7 +98931,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "A13-095",
@@ -170018,13 +170074,29 @@
       3
     ],
     "answer_none": false,
-    "explanation_latest": "突然の昏睡、著明な縮瞳（ピンポイント・パピル）、眼球の正中固定、除脳硬直（四肢の伸展・内旋）は橋出血の典型的な徴候である。被殻出血では病側への共同偏視がみられることが多い。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "突然の昏睡、著明な縮瞳（ピンポイント・ピューピル）、眼球の正中固定、除脳硬直（四肢の伸展・内旋）は橋出血の典型的な徴候である。被殻出血では病側への共同偏視がみられることが多い。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "突然の昏睡、著明な縮瞳（ピンポイント・パピル）、眼球の正中固定、除脳硬直（四肢の伸展・内旋）は橋出血の典型的な徴候である。被殻出血では病側への共同偏視がみられることが多い。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "突然の昏睡、著明な縮瞳（ピンポイント・ピューピル）、眼球の正中固定、除脳硬直（四肢の伸展・内旋）は橋出血の典型的な徴候である。被殻出血では病側への共同偏視がみられることが多い。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "突然の昏睡、著明な縮瞳（ピンポイント・ピューピル）、眼球の正中固定、除脳硬直（四肢の伸展・内旋）は橋出血の典型的な徴候である。被殻出血では病側への共同偏視がみられることが多い。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -170061,7 +170133,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "A22-074",
@@ -210939,13 +211013,29 @@
       4
     ],
     "answer_none": false,
-    "explanation_latest": "片頭痛の急性期には、血管を収縮させるために患部を冷やし、静かな暗い場所で安静にすることが推奨される。運動や入浴は血管を拡張させ、痛みを悪化させる可能性がある。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "片頭痛発作時には、静かな暗い場所で安静にし、患部を冷やして疼痛の軽減を図る指導が適切である。運動や入浴は片頭痛を悪化させることがあるため、発作時の指導としては適切でない。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "片頭痛の急性期には、血管を収縮させるために患部を冷やし、静かな暗い場所で安静にすることが推奨される。運動や入浴は血管を拡張させ、痛みを悪化させる可能性がある。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "片頭痛発作時には、静かな暗い場所で安静にし、患部を冷やして疼痛の軽減を図る指導が適切である。運動や入浴は片頭痛を悪化させることがあるため、発作時の指導としては適切でない。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "片頭痛発作時には、静かな暗い場所で安静にし、患部を冷やして疼痛の軽減を図る指導が適切である。運動や入浴は片頭痛を悪化させることがあるため、発作時の指導としては適切でない。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -210972,7 +211062,9 @@
     "frequent_tags": [
       "症例"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "A27-073",
@@ -298355,13 +298447,29 @@
       1
     ],
     "answer_none": false,
-    "explanation_latest": "一過性脳虚血発作（TIA）は、脳血流の一時的な遮断により症状が出るが、通常24時間以内に消失し後遺症を残さない。クモ膜下出血は突発的に発症する。脳梗塞は高齢者に多く、脳血栓は安静時に発症しやすいのが特徴である。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "一過性脳虚血発作（TIA）は、一過性の脳虚血により神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失して後遺症を残さない。クモ膜下出血は突発的に発症する。脳梗塞は高齢者に多く、脳血栓は安静時に発症しやすいのが特徴である。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "一過性脳虚血発作（TIA）は、脳血流の一時的な遮断により症状が出るが、通常24時間以内に消失し後遺症を残さない。クモ膜下出血は突発的に発症する。脳梗塞は高齢者に多く、脳血栓は安静時に発症しやすいのが特徴である。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "一過性脳虚血発作（TIA）は、一過性の脳虚血により神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失して後遺症を残さない。クモ膜下出血は突発的に発症する。脳梗塞は高齢者に多く、脳血栓は安静時に発症しやすいのが特徴である。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "一過性脳虚血発作（TIA）は、一過性の脳虚血により神経症状が出現するが、多くは1時間以内に改善し、従来の国家試験上の定義では24時間以内に消失して後遺症を残さない。クモ膜下出血は突発的に発症する。脳梗塞は高齢者に多く、脳血栓は安静時に発症しやすいのが特徴である。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -298395,7 +298503,9 @@
     "frequent_tags": [
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "B03-086",
@@ -383347,13 +383457,29 @@
       2
     ],
     "answer_none": false,
-    "explanation_latest": "片頭痛には、頭痛発現の前に閃輝暗点（視野にギザギザした光が現れる）などの前兆（前駆症状）を伴うタイプがある。緊張型頭痛や神経痛には通常このような前兆はみられない。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "片頭痛には、頭痛の直前に閃輝暗点（視野にギザギザした光が現れる）などの前兆を伴うタイプがある。設問では「前駆症状」と表現されているが、厳密には閃輝暗点は片頭痛の前兆である。緊張型頭痛や神経痛には通常このような前兆はみられない。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "片頭痛には、頭痛発現の前に閃輝暗点（視野にギザギザした光が現れる）などの前兆（前駆症状）を伴うタイプがある。緊張型頭痛や神経痛には通常このような前兆はみられない。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "片頭痛には、頭痛の直前に閃輝暗点（視野にギザギザした光が現れる）などの前兆を伴うタイプがある。設問では「前駆症状」と表現されているが、厳密には閃輝暗点は片頭痛の前兆である。緊張型頭痛や神経痛には通常このような前兆はみられない。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "片頭痛には、頭痛の直前に閃輝暗点（視野にギザギザした光が現れる）などの前兆を伴うタイプがある。設問では「前駆症状」と表現されているが、厳密には閃輝暗点は片頭痛の前兆である。緊張型頭痛や神経痛には通常このような前兆はみられない。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -383382,7 +383508,9 @@
       "症状",
       "神経"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "B13-087",
@@ -434940,13 +435068,29 @@
       4
     ],
     "answer_none": false,
-    "explanation_latest": "星状神経節ブロックは、頚部の交感神経節をブロックすることで頭頸部の血流を改善させる。ベル麻痺などの末梢性顔面神経麻痺に対し、神経の浮腫改善や血流促進を目的として行われる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "星状神経節ブロックは、頚部交感神経節をブロックして頭頸部の血流改善を図る手技で、ペインクリニック領域ではベル麻痺などの末梢性顔面神経麻痺に対して用いられることがある。本設問の選択肢では星状神経節ブロックが適切である。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "星状神経節ブロックは、頚部の交感神経節をブロックすることで頭頸部の血流を改善させる。ベル麻痺などの末梢性顔面神経麻痺に対し、神経の浮腫改善や血流促進を目的として行われる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "星状神経節ブロックは、頚部交感神経節をブロックして頭頸部の血流改善を図る手技で、ペインクリニック領域ではベル麻痺などの末梢性顔面神経麻痺に対して用いられることがある。本設問の選択肢では星状神経節ブロックが適切である。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "星状神経節ブロックは、頚部交感神経節をブロックして頭頸部の血流改善を図る手技で、ペインクリニック領域ではベル麻痺などの末梢性顔面神経麻痺に対して用いられることがある。本設問の選択肢では星状神経節ブロックが適切である。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -434976,7 +435120,9 @@
       "神経",
       "運動麻痺"
     ],
-    "frequent_scope": "神経・筋疾患"
+    "frequent_scope": "神経・筋疾患",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "B19-084",
@@ -532284,13 +532430,29 @@
       1
     ],
     "answer_none": false,
-    "explanation_latest": "高血圧性脳出血の好発部位は、被殻（約40%）が最も多く、次いで視床、脳幹（橋）、小脳、皮質下の順となる。被殻出血では対麻痺や共同偏視がみられる。",
-    "explanation_latest_source": "llm",
+    "explanation_latest": "高血圧性脳出血の好発部位は、被殻が最も多く、次いで視床、皮質下（脳葉）、脳幹（橋）、小脳の順に多い。被殻出血では内包の圧迫により病巣と反対側の片麻痺・感覚障害などがみられ、共同偏視は病巣側を向くことが多い。",
+    "explanation_latest_source": "codex_case_text_rewrite_20260616_teacher",
     "explanations": [
       {
         "body": "高血圧性脳出血の好発部位は、被殻（約40%）が最も多く、次いで視床、脳幹（橋）、小脳、皮質下の順となる。被殻出血では対麻痺や共同偏視がみられる。",
         "version": 1,
-        "source": "llm"
+        "source": "llm",
+        "model_name": "Gemini3Flash",
+        "review_status": "ai"
+      },
+      {
+        "body": "高血圧性脳出血の好発部位は、被殻が最も多く、次いで視床、皮質下（脳葉）、脳幹（橋）、小脳の順に多い。被殻出血では内包の圧迫により病巣と反対側の片麻痺・感覚障害などがみられ、共同偏視は病巣側を向くことが多い。",
+        "version": 2,
+        "source": "codex_case_text_rewrite_20260616_checked",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_approved"
+      },
+      {
+        "body": "高血圧性脳出血の好発部位は、被殻が最も多く、次いで視床、皮質下（脳葉）、脳幹（橋）、小脳の順に多い。被殻出血では内包の圧迫により病巣と反対側の片麻痺・感覚障害などがみられ、共同偏視は病巣側を向くことが多い。",
+        "version": 3,
+        "source": "codex_case_text_rewrite_20260616_teacher",
+        "model_name": "GPT5.5",
+        "review_status": "teacher_edited"
       }
     ],
     "tags": [
@@ -532312,7 +532474,9 @@
     "frequent_score": 0.0,
     "frequent_level": 0,
     "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_scope": "",
+    "explanation_latest_model_name": "GPT5.5",
+    "explanation_latest_review_status": "teacher_edited"
   },
   {
     "serial": "B30-056",
