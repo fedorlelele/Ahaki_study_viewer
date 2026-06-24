@@ -6724,7 +6724,11 @@
           const explanation = document.createElement("div");
           explanation.className = "explanation";
           const expText = q.explanation_latest || "";
-          const expLabel = formatExplanationLabel(q.explanation_latest_source);
+          const expLabel = formatExplanationLabel(
+            q.explanation_latest_source,
+            q.explanation_latest_model_name,
+            q.explanation_latest_review_status
+          );
           const expHeader = document.createElement("div");
           expHeader.className = "explanation-header";
           const expTitle = document.createElement("span");
@@ -6740,7 +6744,12 @@
               select.appendChild(label);
               q.explanations.forEach(item => {
                 const opt = document.createElement("option");
-                opt.value = JSON.stringify({ body: item.body, source: item.source || "" });
+                opt.value = JSON.stringify({
+                  body: item.body,
+                  source: item.source || "",
+                  model_name: item.model_name || "",
+                  review_status: item.review_status || ""
+                });
                 opt.textContent = `v${item.version}`;
                 select.appendChild(opt);
               });
@@ -6748,7 +6757,11 @@
                 if (select.value) {
                   try {
                     const data = JSON.parse(select.value);
-                    const label = formatExplanationLabel(data.source);
+                    const label = formatExplanationLabel(
+                      data.source,
+                      data.model_name,
+                      data.review_status
+                    );
                     expTitle.textContent = `解説${label}:`;
                     expBody.textContent = data.body || "";
                   } catch (err) {
@@ -6799,16 +6812,20 @@
           }
           if (canTeacherEdit) {
             const source = q.explanation_latest_source || "";
-            const teacherLabel = formatExplanationLabel(source);
+            const teacherLabel = formatExplanationLabel(
+              source,
+              q.explanation_latest_model_name,
+              q.explanation_latest_review_status
+            );
             expTitle.textContent = expText ? `解説${teacherLabel}:` : "解説: (未登録)";
-            if (isExplanationApprovedSource(source)) {
+            if (isExplanationApprovedSource(source, q.explanation_latest_review_status)) {
               const expRevoke = document.createElement("button");
               expRevoke.textContent = "承認取消";
               expRevoke.addEventListener("click", () => {
-                applyExplanationConfirm(q, getExplanationBaseSource(source) || "llm");
+                applyExplanationConfirm(q, getExplanationBaseSource(source, q.explanation_latest_model_name) || "llm");
               });
               expHeader.appendChild(expRevoke);
-            } else if (!isExplanationTeacherEditedSource(source)) {
+            } else if (!isExplanationTeacherEditedSource(source, q.explanation_latest_review_status)) {
               const expConfirm = document.createElement("button");
               expConfirm.textContent = "解説承認";
               expConfirm.addEventListener("click", () => {
@@ -9624,8 +9641,13 @@
 
       function applyExplanationConfirm(question, nextSource) {
         const current = question.explanation_latest_source || "";
-        const baseSource = getExplanationBaseSource(current) || "llm";
-        const normalized = nextSource || buildExplanationStatusSource(baseSource, "checked");
+        const meta = getExplanationMetadata(
+          current,
+          question.explanation_latest_model_name,
+          question.explanation_latest_review_status
+        );
+        const baseSource = getExplanationBaseSource(current, meta.model_name) || "llm";
+        const normalized = nextSource || buildExplanationStatusSource(baseSource, "teacher_approved");
         const before = { explanation_source: current };
         const after = { explanation_source: normalized };
         return applyOverrideChange(
@@ -9638,8 +9660,13 @@
       }
 
       function applyExplanationEdit(question, body, note) {
-        const baseSource = getExplanationBaseSource(question.explanation_latest_source || "") || "llm";
-        const editedSource = buildExplanationStatusSource(baseSource, "teacher");
+        const meta = getExplanationMetadata(
+          question.explanation_latest_source || "",
+          question.explanation_latest_model_name,
+          question.explanation_latest_review_status
+        );
+        const baseSource = getExplanationBaseSource(question.explanation_latest_source || "", meta.model_name) || "llm";
+        const editedSource = buildExplanationStatusSource(baseSource, "teacher_edited");
         const before = {
           explanation: question.explanation_latest || "",
           explanation_source: question.explanation_latest_source || ""
@@ -9775,6 +9802,9 @@
                   }
                   if (Object.prototype.hasOwnProperty.call(patch, "explanation_source")) {
                     base.explanation_latest_source = patch.explanation_source;
+                    const meta = getExplanationMetadata(patch.explanation_source);
+                    base.explanation_latest_model_name = meta.model_name;
+                    base.explanation_latest_review_status = meta.review_status;
                   }
                 if (Object.prototype.hasOwnProperty.call(patch, "tags")) {
                   base.tags = patch.tags;
@@ -9845,6 +9875,9 @@
             }
             if (row.explanation_source !== null && row.explanation_source !== undefined) {
               base.explanation_latest_source = row.explanation_source;
+              const meta = getExplanationMetadata(row.explanation_source);
+              base.explanation_latest_model_name = meta.model_name;
+              base.explanation_latest_review_status = meta.review_status;
             }
             if (row.tags !== null && row.tags !== undefined) {
               base.tags = row.tags;
@@ -9975,6 +10008,13 @@
           merged.explanation_latest = override.explanation;
           merged.explanation_latest_source =
             override.explanation_source || merged.explanation_latest_source;
+          const meta = getExplanationMetadata(
+            merged.explanation_latest_source,
+            merged.explanation_latest_model_name,
+            merged.explanation_latest_review_status
+          );
+          merged.explanation_latest_model_name = meta.model_name;
+          merged.explanation_latest_review_status = meta.review_status;
         }
         if (override.tags !== undefined && override.tags !== null) {
           merged.tags = override.tags;
@@ -10479,74 +10519,148 @@
         }
       }
 
-      function formatExplanationLabel(source) {
-        if (!source) return "";
-        if (isExplanationApprovedSource(source)) {
-          return `（${formatExplanationModelName(source)}・教師承認済み）`;
-        }
-        if (isExplanationTeacherEditedSource(source)) {
-          return `（${formatExplanationModelName(source)}・教師編集済み）`;
-        }
-        const modelName = formatExplanationModelName(source);
-        if (modelName) return `（${modelName}）`;
-        return "（" + source + "）";
+      function normalizeExplanationStatus(status) {
+        const value = String(status || "").trim();
+        if (!value) return "";
+        const aliases = {
+          ai: "ai",
+          llm: "ai",
+          raw: "ai",
+          checked: "teacher_approved",
+          approved: "teacher_approved",
+          teacher_checked: "teacher_approved",
+          teacher_approved: "teacher_approved",
+          teacher: "teacher_edited",
+          edited: "teacher_edited",
+          human: "teacher_edited",
+          teacher_edited: "teacher_edited"
+        };
+        return aliases[value] || "";
       }
 
-      function getExplanationBaseSource(source) {
-        if (!source) return "";
-        if (
-          source === "llm" ||
-          source === "ai" ||
-          source === "llm_checked" ||
-          source === "teacher" ||
-          source === "human" ||
-          source === "llm_teacher" ||
-          source === "ai_teacher"
-        ) {
-          return "llm";
+      function parseModelExplanationSource(source) {
+        const text = String(source || "").trim();
+        if (!text.startsWith("model:")) return null;
+        let payload = text.slice("model:".length);
+        const suffixes = [
+          [":teacher_approved", "teacher_approved"],
+          [":teacher_edited", "teacher_edited"],
+          [":checked", "teacher_approved"],
+          [":approved", "teacher_approved"],
+          [":teacher", "teacher_edited"],
+          [":edited", "teacher_edited"]
+        ];
+        for (const [suffix, status] of suffixes) {
+          if (payload.endsWith(suffix)) {
+            return {
+              model_name: payload.slice(0, -suffix.length).trim(),
+              review_status: status
+            };
+          }
         }
-        if (
-          source === "codex_case_text_rewrite_20260616" ||
-          source === "codex_case_text_rewrite_20260616_checked" ||
-          source === "codex_case_text_rewrite_20260616_teacher"
-        ) {
+        return { model_name: payload.trim(), review_status: "ai" };
+      }
+
+      function getExplanationMetadata(source, modelName = "", reviewStatus = "") {
+        const src = String(source || "").trim();
+        let model = String(modelName || "").trim();
+        let status = normalizeExplanationStatus(reviewStatus);
+        const legacy = {
+          llm: ["Gemini3Flash", "ai"],
+          ai: ["Gemini3Flash", "ai"],
+          llm_checked: ["Gemini3Flash", "teacher_approved"],
+          teacher: ["Gemini3Flash", "teacher_edited"],
+          human: ["Gemini3Flash", "teacher_edited"],
+          llm_teacher: ["Gemini3Flash", "teacher_edited"],
+          ai_teacher: ["Gemini3Flash", "teacher_edited"],
+          codex_case_text_rewrite_20260616: ["GPT5.5", "ai"],
+          codex_case_text_rewrite_20260616_checked: ["GPT5.5", "teacher_approved"],
+          codex_case_text_rewrite_20260616_teacher: ["GPT5.5", "teacher_edited"]
+        };
+        if (legacy[src]) {
+          model = model || legacy[src][0];
+          status = status || legacy[src][1];
+        }
+        const parsed = parseModelExplanationSource(src);
+        if (parsed) {
+          model = model || parsed.model_name;
+          status = status || parsed.review_status;
+        }
+        if (!model && src) {
+          const suffixes = [
+            ["_checked", "teacher_approved"],
+            ["_approved", "teacher_approved"],
+            ["_teacher", "teacher_edited"],
+            ["_edited", "teacher_edited"]
+          ];
+          for (const [suffix, nextStatus] of suffixes) {
+            if (src.endsWith(suffix)) {
+              model = src.slice(0, -suffix.length);
+              status = status || nextStatus;
+              break;
+            }
+          }
+        }
+        if (!model && src) model = src;
+        if (!status) status = "ai";
+        return { source: src, model_name: model, review_status: status };
+      }
+
+      function buildExplanationSource(modelName, reviewStatus = "ai", fallbackSource = "") {
+        const model = String(modelName || "").trim();
+        const status = normalizeExplanationStatus(reviewStatus) || "ai";
+        const fallback = String(fallbackSource || "").trim();
+        if (fallback) {
+          const meta = getExplanationMetadata(fallback);
+          if (meta.model_name === model && meta.review_status === status) return fallback;
+        }
+        if (model === "GPT5.5") {
+          if (status === "teacher_approved") return "codex_case_text_rewrite_20260616_checked";
+          if (status === "teacher_edited") return "codex_case_text_rewrite_20260616_teacher";
           return "codex_case_text_rewrite_20260616";
         }
-        return source;
+        if (!model || model === "Gemini3Flash") {
+          if (status === "teacher_approved") return "llm_checked";
+          if (status === "teacher_edited") return "teacher";
+          return "llm";
+        }
+        if (status === "teacher_approved") return `model:${model}:checked`;
+        if (status === "teacher_edited") return `model:${model}:teacher`;
+        return `model:${model}`;
+      }
+
+      function formatExplanationLabel(source, modelName = "", reviewStatus = "") {
+        const meta = getExplanationMetadata(source, modelName, reviewStatus);
+        if (!meta.model_name) return "";
+        if (meta.review_status === "teacher_approved") {
+          return `（${meta.model_name}・教師承認済み）`;
+        }
+        if (meta.review_status === "teacher_edited") {
+          return `（${meta.model_name}・教師編集済み）`;
+        }
+        return `（${meta.model_name}）`;
+      }
+
+      function getExplanationBaseSource(source, modelName = "") {
+        const meta = getExplanationMetadata(source, modelName);
+        return buildExplanationSource(meta.model_name, "ai");
       }
 
       function buildExplanationStatusSource(baseSource, status) {
-        const base = getExplanationBaseSource(baseSource);
-        if (status === "checked") {
-          if (base === "codex_case_text_rewrite_20260616") return "codex_case_text_rewrite_20260616_checked";
-          return "llm_checked";
-        }
-        if (status === "teacher") {
-          if (base === "codex_case_text_rewrite_20260616") return "codex_case_text_rewrite_20260616_teacher";
-          return "teacher";
-        }
-        return base || "";
+        const meta = getExplanationMetadata(baseSource);
+        return buildExplanationSource(meta.model_name, status, baseSource);
       }
 
-      function isExplanationApprovedSource(source) {
-        return source === "llm_checked" || source === "codex_case_text_rewrite_20260616_checked";
+      function isExplanationApprovedSource(source, reviewStatus = "") {
+        return getExplanationMetadata(source, "", reviewStatus).review_status === "teacher_approved";
       }
 
-      function isExplanationTeacherEditedSource(source) {
-        return (
-          source === "human" ||
-          source === "teacher" ||
-          source === "llm_teacher" ||
-          source === "ai_teacher" ||
-          source === "codex_case_text_rewrite_20260616_teacher"
-        );
+      function isExplanationTeacherEditedSource(source, reviewStatus = "") {
+        return getExplanationMetadata(source, "", reviewStatus).review_status === "teacher_edited";
       }
 
-      function formatExplanationModelName(source) {
-        const base = getExplanationBaseSource(source);
-        if (base === "codex_case_text_rewrite_20260616") return "GPT5.5";
-        if (base === "llm" || base === "ai") return "Gemini3Flash";
-        return "";
+      function formatExplanationModelName(source, modelName = "") {
+        return getExplanationMetadata(source, modelName).model_name || "";
       }
 
       function getAnswerIndices(question) {

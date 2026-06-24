@@ -5,6 +5,17 @@ import re
 import sqlite3
 from pathlib import Path
 
+try:
+    from scripts.explanation_metadata import (
+        derive_explanation_metadata,
+        explanation_columns,
+    )
+except ModuleNotFoundError:
+    from explanation_metadata import (
+        derive_explanation_metadata,
+        explanation_columns,
+    )
+
 FULLWIDTH_TO_ASCII = str.maketrans("０１２３４５６７８９", "0123456789")
 
 
@@ -119,17 +130,29 @@ def load_questions(conn):
 
 
 def load_explanations(conn):
+    columns = explanation_columns(conn)
+    model_expr = "model_name" if "model_name" in columns else "NULL AS model_name"
+    status_expr = (
+        "review_status" if "review_status" in columns else "NULL AS review_status"
+    )
     rows = conn.execute(
-        """
-        SELECT question_id, body, version, source
+        f"""
+        SELECT question_id, body, version, source, {model_expr}, {status_expr}
         FROM explanations
         ORDER BY id
         """
     ).fetchall()
     data = {}
-    for question_id, body, version, source in rows:
+    for question_id, body, version, source, model_name, review_status in rows:
+        meta = derive_explanation_metadata(source, model_name, review_status)
         data.setdefault(question_id, []).append(
-            {"body": body, "version": version, "source": source}
+            {
+                "body": body,
+                "version": version,
+                "source": source,
+                "model_name": meta["model_name"],
+                "review_status": meta["review_status"],
+            }
         )
     return data
 
@@ -494,6 +517,12 @@ def main():
         exp_list_sorted = sorted(exp_list, key=lambda x: x.get("version", 0))
         latest_exp = exp_list_sorted[-1]["body"] if exp_list_sorted else None
         latest_source = exp_list_sorted[-1].get("source") if exp_list_sorted else None
+        latest_model_name = (
+            exp_list_sorted[-1].get("model_name") if exp_list_sorted else None
+        )
+        latest_review_status = (
+            exp_list_sorted[-1].get("review_status") if exp_list_sorted else None
+        )
         record = {
             "serial": q["serial"],
             "exam_type": q["exam_type"],
@@ -507,6 +536,8 @@ def main():
             "answer_none": answer_none,
             "explanation_latest": latest_exp,
             "explanation_latest_source": latest_source,
+            "explanation_latest_model_name": latest_model_name,
+            "explanation_latest_review_status": latest_review_status,
             "explanations": exp_list_sorted,
             "tags": list(dict.fromkeys(tags.get(qid, []))),
             "subtopics": subtopics.get(qid, []),

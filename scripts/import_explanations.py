@@ -3,6 +3,21 @@ import json
 import sqlite3
 from pathlib import Path
 
+try:
+    from scripts.explanation_metadata import (
+        build_explanation_source,
+        derive_explanation_metadata,
+        ensure_explanation_metadata_schema,
+        insert_explanation,
+    )
+except ModuleNotFoundError:
+    from explanation_metadata import (
+        build_explanation_source,
+        derive_explanation_metadata,
+        ensure_explanation_metadata_schema,
+        insert_explanation,
+    )
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -24,6 +39,17 @@ def parse_args():
         default=1,
         help="Explanation version number.",
     )
+    parser.add_argument(
+        "--model-name",
+        default="",
+        help="Default LLM model name for imported explanations.",
+    )
+    parser.add_argument(
+        "--review-status",
+        default="ai",
+        choices=["ai", "teacher_approved", "teacher_edited"],
+        help="Default review status for imported explanations.",
+    )
     return parser.parse_args()
 
 
@@ -33,6 +59,7 @@ def main():
     in_path = Path(args.infile)
 
     conn = sqlite3.connect(db_path)
+    ensure_explanation_metadata_schema(conn)
     cursor = conn.cursor()
 
     inserted = 0
@@ -44,7 +71,15 @@ def main():
             record = json.loads(line)
             serial = record.get("serial")
             explanation = record.get("explanation", "").strip()
-            source = record.get("source") or "llm"
+            meta = derive_explanation_metadata(
+                record.get("source"),
+                record.get("model_name") or args.model_name,
+                record.get("review_status") or args.review_status,
+            )
+            source = record.get("source") or build_explanation_source(
+                meta["model_name"],
+                meta["review_status"],
+            )
 
             if not serial or not explanation:
                 continue
@@ -57,12 +92,14 @@ def main():
                 continue
             question_id = row[0]
 
-            cursor.execute(
-                """
-                INSERT INTO explanations(question_id, body, version, source)
-                VALUES (?, ?, ?, ?)
-                """,
-                (question_id, explanation, args.version, source),
+            insert_explanation(
+                cursor,
+                question_id,
+                explanation,
+                args.version,
+                source,
+                meta["model_name"],
+                meta["review_status"],
             )
             inserted += 1
 

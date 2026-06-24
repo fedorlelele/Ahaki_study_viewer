@@ -1,13 +1,20 @@
 import json
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.generate_web_json import (
     build_question_chunks,
+    load_explanations,
     normalize_date_key,
     parse_answer_text,
     write_question_chunks,
+)
+from scripts.explanation_metadata import (
+    build_explanation_source,
+    derive_explanation_metadata,
+    ensure_explanation_metadata_schema,
 )
 
 
@@ -56,6 +63,47 @@ class GenerateWebJsonTests(unittest.TestCase):
     def test_normalize_date_key(self):
         self.assertEqual(normalize_date_key("2026/2/5"), "20260205")
         self.assertEqual(normalize_date_key("2026-02-14"), "20260214")
+
+    def test_explanation_metadata_from_legacy_source(self):
+        meta = derive_explanation_metadata("llm_checked")
+        self.assertEqual(meta["model_name"], "Gemini3Flash")
+        self.assertEqual(meta["review_status"], "teacher_approved")
+
+        meta = derive_explanation_metadata("codex_case_text_rewrite_20260616")
+        self.assertEqual(meta["model_name"], "GPT5.5")
+        self.assertEqual(meta["review_status"], "ai")
+
+    def test_explanation_metadata_for_arbitrary_model_source(self):
+        source = build_explanation_source("Claude 3.5 Sonnet", "teacher_edited")
+        self.assertEqual(source, "model:Claude 3.5 Sonnet:teacher")
+        meta = derive_explanation_metadata(source)
+        self.assertEqual(meta["model_name"], "Claude 3.5 Sonnet")
+        self.assertEqual(meta["review_status"], "teacher_edited")
+
+    def test_load_explanations_exports_model_and_review_status(self):
+        conn = sqlite3.connect(":memory:")
+        conn.execute(
+            """
+            CREATE TABLE explanations(
+                id INTEGER PRIMARY KEY,
+                question_id INTEGER NOT NULL,
+                body TEXT NOT NULL,
+                version INTEGER NOT NULL DEFAULT 1,
+                source TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO explanations(question_id, body, version, source)
+            VALUES (1, 'body', 1, 'llm_checked')
+            """
+        )
+        ensure_explanation_metadata_schema(conn)
+
+        explanations = load_explanations(conn)
+        self.assertEqual(explanations[1][0]["model_name"], "Gemini3Flash")
+        self.assertEqual(explanations[1][0]["review_status"], "teacher_approved")
 
 
 if __name__ == "__main__":

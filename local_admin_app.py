@@ -10,6 +10,15 @@ from urllib.parse import parse_qs, urlparse, quote
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
+from scripts.explanation_metadata import (
+    STATUS_TEACHER_APPROVED,
+    STATUS_TEACHER_EDITED,
+    build_explanation_source,
+    derive_explanation_metadata,
+    ensure_explanation_metadata_schema,
+    insert_explanation,
+)
+
 
 HTML_PAGE = """<!doctype html>
 <html lang="ja">
@@ -2288,6 +2297,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def import_explanations(db_path, jsonl_text, mode, version):
     conn = sqlite3.connect(db_path)
+    ensure_explanation_metadata_schema(conn)
     cursor = conn.cursor()
     inserted = 0
     for line in jsonl_text.splitlines():
@@ -2297,7 +2307,15 @@ def import_explanations(db_path, jsonl_text, mode, version):
         record = json.loads(line)
         serial = record.get("serial")
         explanation = record.get("explanation", "").strip()
-        source = record.get("source") or "llm"
+        meta = derive_explanation_metadata(
+            record.get("source"),
+            record.get("model_name"),
+            record.get("review_status"),
+        )
+        source = record.get("source") or build_explanation_source(
+            meta["model_name"],
+            meta["review_status"],
+        )
         if not serial or not explanation:
             continue
         row = cursor.execute(
@@ -2334,12 +2352,14 @@ def import_explanations(db_path, jsonl_text, mode, version):
             next_version = (row[0] or 0) + 1
         else:
             next_version = version
-        cursor.execute(
-            """
-            INSERT INTO explanations(question_id, body, version, source)
-            VALUES (?, ?, ?, ?)
-            """,
-            (question_id, explanation, next_version, source),
+        insert_explanation(
+            cursor,
+            question_id,
+            explanation,
+            next_version,
+            source,
+            meta["model_name"],
+            meta["review_status"],
         )
         clear_feedback_flag(conn, serial, "explanation")
         clear_supabase_feedback(serial, "explanation")
@@ -2471,6 +2491,7 @@ def import_subtopics(db_path, jsonl_text, mode):
 
 def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
     conn = sqlite3.connect(db_path)
+    ensure_explanation_metadata_schema(conn)
     cursor = conn.cursor()
     counts = {"explanations": 0, "tags": 0, "subtopics": 0}
     for line in jsonl_text.splitlines():
@@ -2491,6 +2512,15 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
 
         explanation = str(record.get("explanation", "")).strip()
         if explanation:
+            meta = derive_explanation_metadata(
+                record.get("source"),
+                record.get("model_name"),
+                record.get("review_status"),
+            )
+            source = record.get("source") or build_explanation_source(
+                meta["model_name"],
+                meta["review_status"],
+            )
             latest = cursor.execute(
                 """
                 SELECT body FROM explanations
@@ -2513,12 +2543,14 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                             (question_id,),
                         ).fetchone()
                         next_version = (row[0] or 0) + 1
-                    cursor.execute(
-                        """
-                        INSERT INTO explanations(question_id, body, version, source)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (question_id, explanation, next_version, "llm"),
+                    insert_explanation(
+                        cursor,
+                        question_id,
+                        explanation,
+                        next_version,
+                        source,
+                        meta["model_name"],
+                        meta["review_status"],
                     )
                     counts["explanations"] += 1
                     clear_feedback_flag(conn, serial, "explanation")
@@ -2537,12 +2569,14 @@ def import_combined(db_path, jsonl_text, mode_exp, version, mode_tag, mode_sub):
                             (question_id,),
                         ).fetchone()
                         next_version = (row[0] or 0) + 1
-                    cursor.execute(
-                        """
-                        INSERT INTO explanations(question_id, body, version, source)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (question_id, explanation, next_version, "llm"),
+                    insert_explanation(
+                        cursor,
+                        question_id,
+                        explanation,
+                        next_version,
+                        source,
+                        meta["model_name"],
+                        meta["review_status"],
                     )
                     counts["explanations"] += 1
                     clear_feedback_flag(conn, serial, "explanation")
@@ -4007,6 +4041,7 @@ def sync_supabase_overrides(db_path, since):
     if not rows:
         return {"message": "Supabase差分はありません。", "counts": {}}
     conn = sqlite3.connect(db_path)
+    ensure_explanation_metadata_schema(conn)
     cursor = conn.cursor()
     counts = {
         "explanations": 0,
@@ -4399,7 +4434,7 @@ def sync_supabase_tag_views(db_path, since):
 def apply_override_explanation(cursor, question_id, body, source):
     latest = cursor.execute(
         """
-        SELECT body, source, version
+        SELECT body, source, version, model_name, review_status
         FROM explanations
         WHERE question_id = ?
         ORDER BY version DESC, id DESC
@@ -4407,23 +4442,34 @@ def apply_override_explanation(cursor, question_id, body, source):
         """,
         (question_id,),
     ).fetchone()
-    latest_body, latest_source, latest_version = (
-        latest if latest else ("", "", 0)
+    latest_body, latest_source, latest_version, latest_model, latest_status = (
+        latest if latest else ("", "", 0, "", "")
     )
     if body is None:
         body = latest_body
     if not body:
         return False
-    src = source or latest_source or "llm"
-    if latest_body == body and (latest_source or "") == (src or ""):
+    meta = derive_explanation_metadata(source or latest_source, latest_model, latest_status)
+    src = source or latest_source or build_explanation_source(
+        meta["model_name"],
+        meta["review_status"],
+    )
+    if (
+        latest_body == body
+        and (latest_source or "") == (src or "")
+        and (latest_model or "") == meta["model_name"]
+        and (latest_status or "") == meta["review_status"]
+    ):
         return False
     next_version = (latest_version or 0) + 1
-    cursor.execute(
-        """
-        INSERT INTO explanations(question_id, body, version, source)
-        VALUES (?, ?, ?, ?)
-        """,
-        (question_id, body, next_version, src),
+    insert_explanation(
+        cursor,
+        question_id,
+        body,
+        next_version,
+        src,
+        meta["model_name"],
+        meta["review_status"],
     )
     return True
 
@@ -4778,6 +4824,7 @@ def apply_edit_requests(db_path, items):
         return {"message": "対象の提案が見つかりません。"}
 
     conn = sqlite3.connect(db_path)
+    ensure_explanation_metadata_schema(conn)
     cursor = conn.cursor()
     applied = 0
     explanation_added = 0
@@ -4813,12 +4860,13 @@ def apply_edit_requests(db_path, items):
                 (question_id,),
             ).fetchone()
             next_version = (row[0] or 0) + 1
-            cursor.execute(
-                """
-                INSERT INTO explanations(question_id, body, version, source)
-                VALUES (?, ?, ?, ?)
-                """,
-                (question_id, body, next_version, "human"),
+            insert_explanation(
+                cursor,
+                question_id,
+                body,
+                next_version,
+                "human",
+                review_status=STATUS_TEACHER_EDITED,
             )
             applied += 1
             explanation_added += 1
@@ -4839,12 +4887,13 @@ def apply_edit_requests(db_path, items):
                 (question_id,),
             ).fetchone()
             next_version = (row[0] or 0) + 1
-            cursor.execute(
-                """
-                INSERT INTO explanations(question_id, body, version, source)
-                VALUES (?, ?, ?, ?)
-                """,
-                (question_id, body, next_version, "llm_checked"),
+            insert_explanation(
+                cursor,
+                question_id,
+                body,
+                next_version,
+                "llm_checked",
+                review_status=STATUS_TEACHER_APPROVED,
             )
             applied += 1
             explanation_added += 1
