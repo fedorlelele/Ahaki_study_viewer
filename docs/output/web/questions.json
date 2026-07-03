@@ -2888,7 +2888,6 @@
       "運動"
     ],
     "subtopics": [
-      "消化と吸収",
       "神経"
     ],
     "deep_dive": null,
@@ -19518,7 +19517,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 117.853,
+    "frequent_score": 115.412,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
@@ -36515,8 +36514,7 @@
       "発育"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 0.0,
@@ -45240,7 +45238,6 @@
       "自律神経"
     ],
     "subtopics": [
-      "消化と吸収",
       "神経"
     ],
     "deep_dive": null,
@@ -78536,10 +78533,11 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 40.559,
-    "frequent_level": 1,
+    "frequent_score": 62.0,
+    "frequent_level": 2,
     "frequent_tags": [
-      "分泌"
+      "分泌",
+      "ガストリン"
     ],
     "frequent_scope": "消化と吸収"
   },
@@ -78594,8 +78592,7 @@
       "蛋白質"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 29.0,
@@ -95374,7 +95371,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 117.853,
+    "frequent_score": 115.412,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
@@ -103925,7 +103922,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 89.735,
+    "frequent_score": 87.294,
     "frequent_level": 2,
     "frequent_tags": [
       "消化",
@@ -112285,7 +112282,6 @@
       "骨盤神経"
     ],
     "subtopics": [
-      "消化と吸収",
       "神経"
     ],
     "deep_dive": null,
@@ -120704,10 +120700,11 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 40.559,
-    "frequent_level": 1,
+    "frequent_score": 62.0,
+    "frequent_level": 2,
     "frequent_tags": [
-      "分泌"
+      "分泌",
+      "ガストリン"
     ],
     "frequent_scope": "消化と吸収"
   },
@@ -129341,8 +129338,7 @@
       "蛋白質"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 29.0,
@@ -172883,7 +172879,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 117.853,
+    "frequent_score": 139.294,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
@@ -172940,8 +172936,7 @@
       "水溶性ビタミン"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 0.0,
@@ -225307,12 +225302,10 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 25.912,
-    "frequent_level": 1,
-    "frequent_tags": [
-      "神経"
-    ],
-    "frequent_scope": "消化と吸収"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "A27-034",
@@ -233966,7 +233959,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 72.382,
+    "frequent_score": 93.824,
     "frequent_level": 2,
     "frequent_tags": [
       "分泌",
@@ -234021,8 +234014,7 @@
       "栄養素"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 26.265,
@@ -242608,10 +242600,12 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 0.0,
-    "frequent_level": 0,
-    "frequent_tags": [],
-    "frequent_scope": ""
+    "frequent_score": 23.882,
+    "frequent_level": 1,
+    "frequent_tags": [
+      "ガストリン"
+    ],
+    "frequent_scope": "消化と吸収"
   },
   {
     "serial": "A29-025",
@@ -252193,12 +252187,10 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 25.912,
-    "frequent_level": 1,
-    "frequent_tags": [
-      "神経"
-    ],
-    "frequent_scope": "消化と吸収"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "A30-026",
@@ -261837,7 +261829,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 121.559,
+    "frequent_score": 119.118,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
@@ -280980,7 +280972,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 98.294,
+    "frequent_score": 69.941,
     "frequent_level": 2,
     "frequent_tags": [
       "分泌",
@@ -300549,10 +300541,11 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 40.559,
-    "frequent_level": 1,
+    "frequent_score": 62.0,
+    "frequent_level": 2,
     "frequent_tags": [
-      "分泌"
+      "分泌",
+      "ガストリン"
     ],
     "frequent_scope": "消化と吸収"
   },
@@ -318864,7 +318857,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 117.853,
+    "frequent_score": 115.412,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
@@ -382820,7 +382813,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 106.912,
+    "frequent_score": 81.0,
     "frequent_level": 2,
     "frequent_tags": [
       "消化",
@@ -401168,7 +401161,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 143.765,
+    "frequent_score": 139.294,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
@@ -410395,7 +410388,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 94.588,
+    "frequent_score": 90.118,
     "frequent_level": 2,
     "frequent_tags": [
       "分泌",
@@ -419501,7 +419494,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 147.471,
+    "frequent_score": 119.118,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
@@ -428608,8 +428601,7 @@
       "脂肪"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 55.265,
@@ -437725,10 +437717,11 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 40.559,
-    "frequent_level": 1,
+    "frequent_score": 62.0,
+    "frequent_level": 2,
     "frequent_tags": [
-      "分泌"
+      "分泌",
+      "ガストリン"
     ],
     "frequent_scope": "消化と吸収"
   },
@@ -447057,12 +447050,10 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 25.912,
-    "frequent_level": 1,
-    "frequent_tags": [
-      "神経"
-    ],
-    "frequent_scope": "消化と吸収"
+    "frequent_score": 0.0,
+    "frequent_level": 0,
+    "frequent_tags": [],
+    "frequent_scope": ""
   },
   {
     "serial": "B17-035",
@@ -465765,7 +465756,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 106.912,
+    "frequent_score": 81.0,
     "frequent_level": 2,
     "frequent_tags": [
       "消化",
@@ -465827,8 +465818,7 @@
       "酸化"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 27.941,
@@ -522514,8 +522504,7 @@
       "肝臓"
     ],
     "subtopics": [
-      "代謝",
-      "消化と吸収"
+      "代謝"
     ],
     "deep_dive": null,
     "frequent_score": 75.706,
@@ -542217,7 +542206,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 89.735,
+    "frequent_score": 87.294,
     "frequent_level": 2,
     "frequent_tags": [
       "消化",
@@ -560910,7 +560899,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 94.588,
+    "frequent_score": 90.118,
     "frequent_level": 2,
     "frequent_tags": [
       "分泌",
@@ -604188,7 +604177,7 @@
       "消化と吸収"
     ],
     "deep_dive": null,
-    "frequent_score": 121.559,
+    "frequent_score": 119.118,
     "frequent_level": 3,
     "frequent_tags": [
       "消化",
