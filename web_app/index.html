@@ -30,7 +30,22 @@
         min-height: 100vh;
         padding-top: 56px;
       }
-      .sr-only {
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        z-index: 1000;
+        background: var(--accent);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 0 0 8px 0;
+      }
+      .skip-link:focus {
+        left: 8px;
+        top: 8px;
+      }
+      .sr-only,
+      .visually-hidden {
         position: absolute !important;
         width: 1px !important;
         height: 1px !important;
@@ -38,7 +53,12 @@
         margin: -1px !important;
         overflow: hidden !important;
         clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
         border: 0 !important;
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
       }
       body.high-contrast {
         --bg-1: #ffffff;
@@ -500,8 +520,9 @@
         text-align: left;
         border: none;
         background: transparent;
-        padding: 4px 0;
+        padding: 8px 6px;
         font-size: 14px;
+        min-height: 32px;
         color: var(--ink);
         cursor: pointer;
       }
@@ -578,7 +599,7 @@
       }
       .tag-chip.has-description::after {
         content: "●";
-        font-size: 8px;
+        font-size: 12px;
         color: #617a93;
         margin-left: 5px;
         vertical-align: middle;
@@ -1139,7 +1160,7 @@
         padding: 8px 10px;
         font-size: 12px;
       }
-      .ai-usage-card h4 {
+      .ai-usage-card h3 {
         margin: 0 0 6px;
         font-size: 13px;
       }
@@ -1195,7 +1216,7 @@
       }
       .proposal-meta {
         color: var(--muted);
-        font-size: 11px;
+        font-size: 12px;
         margin-bottom: 4px;
       }
       .trend-table {
@@ -1219,7 +1240,7 @@
       }
       .trend-bar-label {
         color: var(--muted);
-        font-size: 11px;
+        font-size: 12px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1264,7 +1285,7 @@
         margin-left: 8px;
         padding: 2px 6px;
         border-radius: 999px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
       }
       .frequent-badge.level-1 {
@@ -1281,13 +1302,13 @@
       }
       .frequent-tags {
         margin-left: 6px;
-        font-size: 11px;
+        font-size: 12px;
         color: var(--muted);
       }
       .auth-panel .note {
         margin-top: 6px;
         color: var(--muted);
-        font-size: 11px;
+        font-size: 12px;
       }
       .auth-toggle {
         padding: 6px 10px;
@@ -1353,6 +1374,14 @@
         from { opacity: 0; transform: translateY(6px); }
         to { opacity: 1; transform: translateY(0); }
       }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
       @media (max-width: 900px) {
         .search-row {
           flex-wrap: wrap;
@@ -1374,7 +1403,8 @@
     </style>
   </head>
   <body>
-    <div id="srStatus" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <a href="#main" class="skip-link">本文へスキップ</a>
+    <div id="sr-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <header>
       <div class="top-nav">
         <h1 class="site-title" aria-label="Ahaki Study Viewer">
@@ -1382,13 +1412,13 @@
           <span class="site-title-short">ASV</span>
         </h1>
         <div class="top-nav-actions">
-          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="false" aria-label="メニュー">☰</button>
+          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="false" aria-controls="topPanels" aria-label="メニュー">☰</button>
         </div>
       </div>
       <div id="topPanels" class="top-panels" hidden>
         <div id="topMenuContent" hidden>
           <nav class="top-menu" aria-label="メニュー">
-            <button id="authToggleBtn" class="auth-toggle" aria-expanded="false">ログイン</button>
+            <button id="authToggleBtn" class="auth-toggle" aria-expanded="false" aria-controls="teacherAuth">ログイン</button>
             <button type="button" data-menu-target="updateInfo">更新情報</button>
             <button type="button" data-menu-target="settingsPanel">設定</button>
             <button type="button" data-menu-target="progressPanel">学習進捗</button>
@@ -1438,6 +1468,11 @@
             </select>
           </div>
           <label><input type="checkbox" id="highContrastToggle" /> 高コントラスト表示</label>
+          <label><input type="checkbox" id="shortcutToggle" /> キーボードショートカットを有効にする</label>
+          <details class="inline">
+            <summary>キーボードショートカット一覧</summary>
+            <div class="note">/: 検索欄へ移動 / s: 科目 / u: 小項目 / f: 絞り込み / r: リセット / a: 正答表示 / e: 解説表示</div>
+          </details>
           <label><input type="checkbox" id="toggleAnswer" aria-label="正答を表示" /> 正答を表示</label>
           <label><input type="checkbox" id="toggleExplanation" aria-label="正答と解説を表示" /> 正答・解説を表示</label>
           <label><input type="checkbox" id="showTagsToggle" /> タグを表示</label>
@@ -1460,8 +1495,11 @@
           <div class="note" id="progressTeamTitle" hidden>学習者サマリー</div>
           <div class="proposal-list-wide" id="progressTeamList" hidden></div>
           <div class="history-controls">
+            <label for="progressGoalAnswered" class="sr-only">週の回答目標</label>
             <input id="progressGoalAnswered" type="number" min="0" placeholder="週の回答目標" />
+            <label for="progressGoalReview" class="sr-only">週の復習目標</label>
             <input id="progressGoalReview" type="number" min="0" placeholder="週の復習目標" />
+            <label for="progressGoalMastery" class="sr-only">理解済み目標パーセント</label>
             <input id="progressGoalMastery" type="number" min="0" max="100" placeholder="理解済み目標(%)" />
             <button id="progressGoalSaveBtn" type="button">目標を保存</button>
           </div>
@@ -1495,7 +1533,9 @@
         <summary>編集履歴</summary>
         <div class="history-panel">
           <div class="history-controls">
+            <label for="historySerial" class="sr-only">履歴のシリアル</label>
             <input id="historySerial" type="text" placeholder="シリアル (例: A01-001)" />
+            <label for="historyKind" class="sr-only">履歴の種類</label>
             <select id="historyKind">
               <option value="">すべて</option>
               <option value="explanation">解説</option>
@@ -1516,7 +1556,9 @@
         <summary>修正提案一覧</summary>
         <div class="proposal-panel">
           <div class="proposal-controls">
+            <label for="proposalSerial" class="sr-only">修正提案のシリアル</label>
             <input id="proposalSerial" type="text" placeholder="シリアル (任意)" />
+            <label for="proposalStatus" class="sr-only">修正提案の状態</label>
             <select id="proposalStatus">
               <option value="open">未処理</option>
               <option value="applied">反映済み</option>
@@ -1532,6 +1574,7 @@
         <details class="inline" id="tagDisablePanel" hidden>
         <summary>タグ無効化</summary>
         <div class="edit-panel">
+          <label for="disableTagInput" class="sr-only">無効化するタグ</label>
           <input id="disableTagInput" type="text" placeholder="無効化するタグ（カンマ区切り）" />
           <button id="disableTagAddBtn" type="button">無効化する</button>
           <div id="disabledTagList"></div>
@@ -1544,7 +1587,8 @@
           <label><input type="checkbox" id="aiAdminPaidGenerationToggle" /> 管理者ログイン時に従量課金キーを使用</label>
           <label><input type="checkbox" id="aiPublicPaidGenerationToggle" /> 全ユーザー向けに従量課金キーを件数限定で公開</label>
           <label><input type="checkbox" id="ttsEnabledToggle" /> TTS読み上げボタンを表示</label>
-          <label>公開件数（上限）<input id="aiPublicPaidLimitInput" type="number" min="1" step="1" placeholder="1000" /></label>
+          <label for="aiPublicPaidLimitInput">公開件数（上限）</label>
+          <input id="aiPublicPaidLimitInput" type="number" min="1" step="1" placeholder="1000" />
           <button id="aiPublicGenerationSaveBtn" type="button">保存</button>
           <button id="aiPublicPaidStopBtn" type="button">件数公開を停止</button>
           <div class="note" id="aiPublicGenerationStatus">状態を確認中...</div>
@@ -1578,6 +1622,7 @@
 	        <summary>練習問題公開管理</summary>
 	        <div class="history-panel">
 	          <div class="history-controls">
+	            <label for="practiceRatingSerial" class="sr-only">練習問題公開管理のシリアル</label>
 	            <input id="practiceRatingSerial" type="text" placeholder="シリアル (任意)" />
 	            <label for="practiceRatingDays">集計期間</label>
 	            <select id="practiceRatingDays">
@@ -1617,7 +1662,9 @@
         <div class="auth-panel" id="teacherAuth" hidden>
           <div id="authStatus" class="note">未ログイン</div>
         <div id="authForm">
+          <label for="authEmail" class="sr-only">ログイン用メールアドレス</label>
           <input id="authEmail" type="email" placeholder="メールアドレス" autocomplete="username email" />
+          <label for="authPassword" class="sr-only">ログイン用パスワード</label>
           <input id="authPassword" type="password" placeholder="パスワード" autocomplete="current-password" />
           <div class="progress-inline-controls">
             <button id="authLoginBtn" type="button">ログイン</button>
@@ -1626,16 +1673,21 @@
         </div>
         <div id="authRecoveryPanel" class="edit-panel" hidden>
           <div class="note">再設定メールから開いた場合のみ使えます。新しいパスワードを入力してください。</div>
+          <label for="recoveryPassword" class="sr-only">新しいパスワード</label>
           <input id="recoveryPassword" type="password" placeholder="新しいパスワード" autocomplete="new-password" />
+          <label for="recoveryPasswordConfirm" class="sr-only">新しいパスワード確認</label>
           <input id="recoveryPasswordConfirm" type="password" placeholder="新しいパスワード（確認）" autocomplete="new-password" />
           <button id="recoverySaveBtn" type="button">新しいパスワードを保存</button>
         </div>
         <details class="inline" id="teacherSignupPanel">
           <summary>サインアップ</summary>
           <div class="edit-panel">
-            <input id="signupEmail" type="email" placeholder="メールアドレス" />
-            <input id="signupPassword" type="password" placeholder="パスワード" />
-            <input id="signupPasswordConfirm" type="password" placeholder="パスワード（確認）" />
+            <label for="signupEmail" class="sr-only">サインアップ用メールアドレス</label>
+            <input id="signupEmail" type="email" placeholder="メールアドレス" autocomplete="email" />
+            <label for="signupPassword" class="sr-only">サインアップ用パスワード</label>
+            <input id="signupPassword" type="password" placeholder="パスワード" autocomplete="new-password" />
+            <label for="signupPasswordConfirm" class="sr-only">サインアップ用パスワード確認</label>
+            <input id="signupPasswordConfirm" type="password" placeholder="パスワード（確認）" autocomplete="new-password" />
             <button id="signupBtn" type="button">登録する</button>
             <div class="note">登録後は未承認です。管理者または教師が権限を付与します。</div>
           </div>
@@ -1644,13 +1696,13 @@
           <button id="authLogoutBtn" type="button">ログアウト</button>
         </div>
         <div id="adminLink" class="note" hidden><a href="./admin.html">管理画面を開く</a></div>
-        <div id="authMessage" class="note"></div>
+        <div id="authMessage" class="note" role="alert" aria-live="assertive" aria-atomic="true"></div>
         </div>
       </div>
       </div>
     </header>
 
-    <main id="mainContent" role="main" aria-label="学習ビュー">
+    <main id="main" tabindex="-1" aria-label="学習ビュー">
     <div class="intro">
       <h2 class="section-title">学習支援ポータル（検索・復習・解説）</h2>
       <div class="note">問題検索・絞り込み・復習管理に加え、AIによるQ&A生成、深掘り解説、音声読み上げで学習を支援します。</div>
@@ -1815,6 +1867,7 @@
         ,uiMode: "standard"
         ,fontScale: "normal"
         ,highContrast: false
+        ,keyboardShortcutsEnabled: true
         ,ttsEnabled: false
         ,ttsQuality: "standard"
         ,ttsAudio: null
@@ -1940,18 +1993,56 @@
       }
 
       function announceStatus(message) {
-        const el = document.getElementById("srStatus");
+        const el = document.getElementById("sr-status") || document.getElementById("srStatus");
         if (!el) return;
         el.textContent = message || "";
       }
 
       function announceStatusNow(message) {
-        const el = document.getElementById("srStatus");
+        const el = document.getElementById("sr-status") || document.getElementById("srStatus");
         if (!el) return;
         el.textContent = "";
         setTimeout(() => {
           el.textContent = message || "";
         }, 20);
+      }
+
+      function hasExplicitLabel(control) {
+        if (!control) return false;
+        if (control.getAttribute("aria-label") || control.getAttribute("aria-labelledby")) return true;
+        if (control.id) {
+          const labels = Array.from(document.querySelectorAll("label"));
+          return labels.some((label) => label.getAttribute("for") === control.id || label.contains(control));
+        }
+        return Boolean(control.closest("label"));
+      }
+
+      function ensureAccessibleNames(root = document) {
+        root.querySelectorAll("input, textarea, select").forEach((control) => {
+          if (hasExplicitLabel(control)) return;
+          const fallback =
+            control.getAttribute("placeholder") ||
+            control.getAttribute("title") ||
+            control.name ||
+            control.id;
+          if (fallback) control.setAttribute("aria-label", fallback);
+        });
+        root.querySelectorAll("button").forEach((button) => {
+          if (button.getAttribute("aria-label") || button.getAttribute("aria-labelledby")) return;
+          const text = String(button.textContent || "").trim();
+          if (text && !/^[×▲△▼▶◀↑↓⧉☰✕✓○〇]+$/.test(text)) return;
+          const fallback = button.getAttribute("title") || {
+            "×": "閉じる",
+            "✕": "閉じる",
+            "▲": "上へ",
+            "▼": "下へ",
+            "↑": "上へ",
+            "↓": "下へ",
+            "⧉": "コピー",
+            "☰": "メニュー"
+          }[text];
+          if (fallback) button.setAttribute("aria-label", fallback);
+        });
       }
 
       function applyUiPreferences() {
@@ -3300,11 +3391,11 @@
         const totals = payload.totals || {};
         summaryEl.innerHTML = `
           <div class="ai-usage-card">
-            <h4>free</h4>
+            <h3>free</h3>
             ${buildAiUsageStatsTable(totals.free)}
           </div>
           <div class="ai-usage-card">
-            <h4>paid</h4>
+            <h3>paid</h3>
             ${buildAiUsageStatsTable(totals.paid)}
           </div>
         `;
@@ -3362,11 +3453,11 @@
         if (hasTtsData) {
           ttsEl.innerHTML = `
             <div class="ai-usage-card">
-              <h4>通常音質（Neural2）</h4>
+              <h3>通常音質（Neural2）</h3>
               ${buildTtsUsageStatsTable(ttsStandard)}
             </div>
             <div class="ai-usage-card">
-              <h4>高音質（Chirp3）</h4>
+              <h3>高音質（Chirp3）</h3>
               ${buildTtsUsageStatsTable(ttsHigh)}
             </div>
           `;
@@ -3804,7 +3895,7 @@
 	              applyFilters({ keyword: serial });
 	              const panel = document.getElementById("senryuRankingPanel");
 	              if (panel) panel.open = false;
-	              const main = document.getElementById("mainContent");
+              const main = document.getElementById("main");
 	              if (main) {
 	                main.scrollIntoView({ behavior: "smooth", block: "start" });
 	              }
@@ -5914,7 +6005,7 @@
 	          });
 	        }
 	        renderTagDisambiguationHints();
-	        announceStatus(countText);
+	        announceStatusNow(list.length ? `${list.length}件の検索結果` : "該当する問題がありません");
         const sortSession = document.getElementById("sortSession").value;
         const activeKeywordTagTerms = getKeywordTagTerms();
         const isStatSort = [
@@ -6174,20 +6265,27 @@
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "choice-btn";
-            btn.textContent = choice;
-            btn.setAttribute("aria-label", `選択肢${idx + 1} ${choice}`);
+            const choiceText = String(choice || "");
+            let feedbackLabel = "";
+            btn.dataset.choiceText = choiceText;
             if (answered) {
               btn.disabled = true;
               if (!q.answer_none && correctIndices.includes(idx + 1)) {
                 btn.classList.add("correct");
+                feedbackLabel = "〇 正解";
               }
               if (q.answer_none && answered.selectedIndex === idx + 1) {
                 btn.classList.add("correct");
+                feedbackLabel = "〇 正解";
               }
               if (answered.selectedIndex === idx + 1 && !answered.isCorrect) {
                 btn.classList.add("incorrect");
+                feedbackLabel = "✕ 不正解";
               }
+              btn.setAttribute("aria-pressed", answered.selectedIndex === idx + 1 ? "true" : "false");
             }
+            btn.textContent = feedbackLabel ? `${feedbackLabel} ${choiceText}` : choiceText;
+            btn.setAttribute("aria-label", `選択肢${idx + 1} ${feedbackLabel ? feedbackLabel + " " : ""}${choiceText}`);
             btn.addEventListener("click", () => {
               handleAnswerSelection(q, idx + 1, btn);
             });
@@ -6252,7 +6350,10 @@
           const feedback = document.createElement("div");
           feedback.className = "choice-feedback";
           if (answered) {
-            feedback.textContent = answered.isCorrect ? "正解" : "不正解";
+            const answerLabel = formatAnswerLabel(q);
+            feedback.textContent = answered.isCorrect
+              ? "〇 正解です。"
+              : `✕ 不正解です。${answerLabel ? `正解は${answerLabel}です。` : ""}`;
           }
           card.appendChild(feedback);
 
@@ -8576,6 +8677,7 @@
           await ensureTagViewCountsForQuestions(resolvedBatch);
           if (!isCurrentRender()) return false;
           renderBatch(resolvedBatch);
+          ensureAccessibleNames(container);
           more.disabled = false;
           return true;
         };
@@ -8601,10 +8703,11 @@
 	        loadQaLikedState();
 	        loadPracticeRatingState();
 	        loadSenryuRatingState();
-        loadDeepDiveRatingState();
+	        loadDeepDiveRatingState();
 	        loadQaDraftState();
 	        loadTagViewedSessionState();
 	        updateAiPublicNotice();
+        ensureAccessibleNames();
         renderResults([]);
         const searchStateFromUrl = getSearchStateFromUrl();
         const keywordFromUrl = String(searchStateFromUrl.keyword || "").trim();
@@ -9017,6 +9120,18 @@
             applyUiPreferences();
           });
         }
+        const shortcutToggle = document.getElementById("shortcutToggle");
+        if (shortcutToggle) {
+          shortcutToggle.addEventListener("change", (e) => {
+            state.keyboardShortcutsEnabled = !!e.target.checked;
+            saveTagVisibility();
+            announceStatusNow(
+              state.keyboardShortcutsEnabled
+                ? "キーボードショートカットを有効にしました"
+                : "キーボードショートカットを無効にしました"
+            );
+          });
+        }
         const ttsQualitySelect = document.getElementById("ttsQualitySelect");
         if (ttsQualitySelect) {
           ttsQualitySelect.addEventListener("change", (e) => {
@@ -9094,6 +9209,9 @@
 	          closeSearchHistoryPanel();
 	        });
 	        document.addEventListener("keydown", (e) => {
+          if (!state.keyboardShortcutsEnabled) {
+            return;
+          }
           if (e.metaKey || e.ctrlKey || e.altKey) {
             return;
           }
@@ -10839,20 +10957,35 @@
         buttons.forEach((btn, idx) => {
           btn.disabled = true;
           btn.classList.remove("selected", "correct", "incorrect");
+          let feedbackLabel = "";
           if (!question.answer_none && correctIndices.includes(idx + 1)) {
             btn.classList.add("correct");
+            feedbackLabel = "〇 正解";
           }
+          if (Number(selectedIndex) === idx + 1 && !isCorrect) {
+            feedbackLabel = "✕ 不正解";
+          }
+          const choiceText = btn.dataset.choiceText || btn.textContent || "";
+          btn.textContent = feedbackLabel ? `${feedbackLabel} ${choiceText}` : choiceText;
+          btn.setAttribute("aria-label", `選択肢${idx + 1} ${feedbackLabel ? feedbackLabel + " " : ""}${choiceText}`);
+          btn.setAttribute("aria-pressed", Number(selectedIndex) === idx + 1 ? "true" : "false");
         });
         if (question.answer_none && isCorrect) {
           button.classList.add("correct");
+          const choiceText = button.dataset.choiceText || button.textContent || "";
+          button.textContent = `〇 正解 ${choiceText}`;
+          button.setAttribute("aria-label", `選択肢${selectedIndex} 〇 正解 ${choiceText}`);
         } else if (!isCorrect) {
           button.classList.add("incorrect");
         }
         const feedback = button.closest(".card")?.querySelector(".choice-feedback");
+        const answerLabel = formatAnswerLabel(question);
         if (feedback) {
-          feedback.textContent = isCorrect ? "正解" : "不正解";
+          feedback.textContent = isCorrect
+            ? "〇 正解です。"
+            : `✕ 不正解です。${answerLabel ? `正解は${answerLabel}です。` : ""}`;
         }
-        announceStatusNow(isCorrect ? "正解です" : "不正解です");
+        announceStatusNow(isCorrect ? "正解です" : `不正解です。${answerLabel ? `正解は${answerLabel}です` : ""}`);
         const card = button.closest(".card");
         if (card) {
           card.classList.add("show-explanation");
@@ -11315,6 +11448,7 @@
         const modeRaw = localStorage.getItem("uiMode");
         const fontRaw = localStorage.getItem("fontScale");
         const contrastRaw = localStorage.getItem("highContrast");
+        const shortcutRaw = localStorage.getItem("keyboardShortcutsEnabled");
         const ttsQualityRaw = localStorage.getItem("ttsQuality");
         const answerToggle = document.getElementById("toggleAnswer");
         const explanationToggle = document.getElementById("toggleExplanation");
@@ -11356,6 +11490,9 @@
         if (contrastRaw !== null) {
           state.highContrast = contrastRaw === "true";
         }
+        if (shortcutRaw !== null) {
+          state.keyboardShortcutsEnabled = shortcutRaw !== "false";
+        }
         if (ttsQualityRaw !== null) {
           state.ttsQuality = normalizeTtsQuality(ttsQualityRaw);
         }
@@ -11366,6 +11503,7 @@
         const modeSelect = document.getElementById("uiModeSelect");
         const fontSelect = document.getElementById("fontScaleSelect");
         const contrastToggle = document.getElementById("highContrastToggle");
+        const shortcutToggle = document.getElementById("shortcutToggle");
         const ttsQualitySelect = document.getElementById("ttsQualitySelect");
         if (tagsToggle) tagsToggle.checked = state.showTags;
         if (subsToggle) subsToggle.checked = state.showSubtopics;
@@ -11374,6 +11512,7 @@
         if (modeSelect) modeSelect.value = state.uiMode;
         if (fontSelect) fontSelect.value = state.fontScale;
         if (contrastToggle) contrastToggle.checked = state.highContrast;
+        if (shortcutToggle) shortcutToggle.checked = state.keyboardShortcutsEnabled;
         if (ttsQualitySelect) ttsQualitySelect.value = normalizeTtsQuality(state.ttsQuality);
         document.body.classList.toggle("report-mode", state.reportMode);
         applyUiPreferences();
@@ -11393,6 +11532,7 @@
         localStorage.setItem("uiMode", state.uiMode);
         localStorage.setItem("fontScale", state.fontScale);
         localStorage.setItem("highContrast", String(state.highContrast));
+        localStorage.setItem("keyboardShortcutsEnabled", String(state.keyboardShortcutsEnabled));
         localStorage.setItem("ttsQuality", normalizeTtsQuality(state.ttsQuality));
         applyUiPreferences();
       }

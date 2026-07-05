@@ -19,6 +19,10 @@
         background: var(--bg);
         color: var(--ink);
       }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
       main {
         max-width: 720px;
         margin: 0 auto;
@@ -46,6 +50,14 @@
       a {
         color: var(--accent);
         font-weight: 600;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
       }
     </style>
   </head>

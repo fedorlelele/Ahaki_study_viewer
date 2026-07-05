@@ -26,7 +26,21 @@
         background: var(--bg);
         color: var(--ink);
       }
-      .sr-only {
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        z-index: 1000;
+        background: var(--accent);
+        color: #fff;
+        padding: 8px 16px;
+      }
+      .skip-link:focus {
+        left: 8px;
+        top: 8px;
+      }
+      .sr-only,
+      .visually-hidden {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -34,7 +48,12 @@
         margin: -1px;
         overflow: hidden;
         clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
         border: 0;
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
       }
       header {
         padding: 16px 20px 8px;
@@ -200,9 +219,19 @@
         font-size: 16px;
         color: var(--muted);
       }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
     </style>
   </head>
   <body>
+    <a href="#main" class="skip-link">本文へスキップ</a>
+    <div id="sr-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <header>
       <h1>Ahaki かんたんビュー</h1>
       <div class="subtitle">視覚障害者・音声操作向けの簡易インターフェース</div>
@@ -212,7 +241,7 @@
         <a id="analyticsMenuLink" href="./analytics.html" hidden>データ分析へ</a>
       </div>
     </header>
-    <main class="container" role="main">
+    <main id="main" class="container" tabindex="-1">
       <section class="guide" id="stepGuide" aria-label="操作説明">
         <strong>操作手順</strong>
         <ol>
@@ -406,6 +435,16 @@
       const resultNext = document.getElementById("resultNext");
       const resultTop = document.getElementById("resultTop");
       let noResultsMode = false;
+      let focusBeforeDialog = null;
+
+      function announce(message) {
+        const el = document.getElementById("sr-status") || status;
+        if (!el) return;
+        el.textContent = "";
+        setTimeout(() => {
+          el.textContent = message || "";
+        }, 20);
+      }
 
       function loadData() {
         return fetch("../output/web/questions.json")
@@ -496,6 +535,7 @@
         const index = state.filtered.findIndex(q => normalizeSerialInput(q.serial) === normalized);
         if (index === -1) {
           status.textContent = `該当シリアルが見つかりませんでした: ${serial}`;
+          announce("該当シリアルが見つかりませんでした");
           return;
         }
         state.currentIndex = index;
@@ -636,8 +676,10 @@
           resultBack.textContent = "トップへ戻る";
           resultNext.hidden = true;
           noResultsMode = true;
+          focusBeforeDialog = document.activeElement;
           resultBack.focus();
           questionSection.hidden = true;
+          announce("条件に合う問題が見つかりませんでした");
           return;
         }
         resultBack.textContent = "問題に戻る";
@@ -686,6 +728,7 @@
         state.focusIndex = 0;
         questionSection.hidden = false;
         status.textContent = `問題 ${state.currentIndex + 1} / ${state.filtered.length}`;
+        announce(`問題 ${state.currentIndex + 1} / ${state.filtered.length}`);
         if (jumpSerial) jumpSerial.value = q.serial || "";
         if (prevQuestionBtn) prevQuestionBtn.disabled = state.currentIndex <= 0;
         if (nextQuestionBtn) nextQuestionBtn.disabled = state.currentIndex >= state.filtered.length - 1;
@@ -725,15 +768,18 @@
 
       function openConfirm() {
         if (!state.selectedIndex) return;
+        focusBeforeDialog = document.activeElement;
         const item = choices.querySelector(`li[data-index='${state.selectedIndex}']`);
         confirmChoice.textContent = item ? (item.dataset.choiceLabel || item.textContent) : "";
         confirmOverlay.classList.add("show");
-        const dialog = confirmOverlay.querySelector(".dialog");
-        if (dialog) dialog.focus();
+        confirmYes.focus();
       }
 
-      function closeConfirm() {
+      function closeConfirm(restore = true) {
         confirmOverlay.classList.remove("show");
+        if (restore && focusBeforeDialog && typeof focusBeforeDialog.focus === "function") {
+          focusBeforeDialog.focus();
+        }
       }
 
       function showResult() {
@@ -745,20 +791,28 @@
         items.forEach(li => {
           const idx = Number(li.dataset.index);
           li.classList.remove("selected");
+          let feedbackLabel = "";
           if (!q.answer_none && correctIndices.includes(idx)) {
             li.classList.add("correct");
+            feedbackLabel = "〇 正解";
           }
           if (q.answer_none && idx === state.selectedIndex) {
             li.classList.add("correct");
+            feedbackLabel = "〇 正解";
           }
           if (idx === state.selectedIndex && !isCorrect) {
             li.classList.add("incorrect");
+            feedbackLabel = "✕ 不正解";
           }
+          const choiceLabel = li.dataset.choiceLabel || li.textContent || "";
+          li.textContent = feedbackLabel ? `${feedbackLabel} ${choiceLabel}` : choiceLabel;
+          li.setAttribute("aria-label", `${feedbackLabel ? feedbackLabel + " " : ""}${choiceLabel}`);
         });
         const exp = q.explanation_latest || "";
         state.answered = true;
         setResultButtonsEnabled(false);
         resultStatus.textContent = isCorrect ? "正解です。" : "不正解です。";
+        status.textContent = resultStatus.textContent;
         resultText.textContent = "";
         const answerLabel = formatAnswerLabel(q);
         const singleAnswerText =
@@ -772,8 +826,8 @@
           ? `${answerLine}\n解説:\n${exp}`
           : `${answerLine}\n解説: (未登録)`;
         resultOverlay.classList.add("show");
-        const dialog = resultOverlay.querySelector(".dialog");
-        if (dialog) dialog.focus();
+        resultBack.focus();
+        announce(isCorrect ? "正解です" : `不正解です。${answerLabel ? `正解は${answerLabel}です` : ""}`);
         markAnswered(q, state.selectedIndex, isCorrect);
         const anonId = getAnonId();
         if (supabaseClient) {
@@ -802,6 +856,9 @@
       document.addEventListener("keydown", (e) => {
         if (questionSection.hidden || state.answered) return;
         if (!state.focusItems.length) return;
+        const active = document.activeElement;
+        const tag = active && active.tagName ? active.tagName.toUpperCase() : "";
+        if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(tag) && e.key !== "Escape") return;
         if (e.key === "ArrowDown") {
           e.preventDefault();
           setFocusIndex(state.focusIndex + 1);
@@ -836,9 +893,9 @@
       if (nextQuestionBtn) {
         nextQuestionBtn.addEventListener("click", () => moveQuestion(1));
       }
-      confirmNo.addEventListener("click", closeConfirm);
+      confirmNo.addEventListener("click", () => closeConfirm(true));
       confirmYes.addEventListener("click", () => {
-        closeConfirm();
+        closeConfirm(false);
         showResult();
       });
       confirmOverlay.addEventListener("keydown", (e) => {
@@ -851,7 +908,9 @@
             confirmYes.focus();
             return;
           }
-          const next = document.activeElement === confirmNo ? confirmYes : confirmNo;
+          const next = e.shiftKey
+            ? (document.activeElement === confirmYes ? confirmNo : confirmYes)
+            : (document.activeElement === confirmNo ? confirmYes : confirmNo);
           next.focus();
         } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
           e.preventDefault();
@@ -861,13 +920,13 @@
           confirmNo.focus();
         } else if (e.key === "Escape") {
           e.preventDefault();
-          closeConfirm();
+          closeConfirm(true);
         } else if (e.key === "Enter") {
           e.preventDefault();
           if (document.activeElement === confirmNo) {
-            closeConfirm();
+            closeConfirm(true);
           } else {
-            closeConfirm();
+            closeConfirm(false);
             showResult();
           }
         }
@@ -899,19 +958,29 @@
         const topBtn = resultTop || resultOverlay.querySelector(".topBtn");
         if (e.key === "Tab") {
           e.preventDefault();
-          const order = [resultBack, resultNext, topBtn].filter(Boolean);
+          const order = [resultBack, resultNext, topBtn].filter((btn) => btn && !btn.hidden && !btn.disabled);
           const idx = order.indexOf(document.activeElement);
-          const next = order[(idx + 1) % order.length] || order[0];
+          const delta = e.shiftKey ? -1 : 1;
+          const next = order[(idx + delta + order.length) % order.length] || order[0];
           next.focus();
         } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
           e.preventDefault();
           resultBack.focus();
         } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
           e.preventDefault();
-          resultNext.focus();
+          if (resultNext && !resultNext.hidden && !resultNext.disabled) {
+            resultNext.focus();
+          } else if (topBtn) {
+            topBtn.focus();
+          }
         } else if (e.key === "Escape") {
           e.preventDefault();
           resultOverlay.classList.remove("show");
+          if (noResultsMode) {
+            resetToTop();
+          } else {
+            restoreQuestionFocus();
+          }
         } else if (e.key === "Enter") {
           e.preventDefault();
           if (document.activeElement === resultBack) {
@@ -954,6 +1023,9 @@
         items.forEach(li => {
           li.classList.remove("correct");
           li.classList.remove("incorrect");
+          const choiceLabel = li.dataset.choiceLabel || li.textContent || "";
+          li.textContent = choiceLabel;
+          li.setAttribute("aria-label", choiceLabel);
         });
         const targetIndex = state.selectedIndex || 1;
         highlightSelection(targetIndex);
