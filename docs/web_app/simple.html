@@ -13,17 +13,17 @@
     <!-- End Cloudflare Web Analytics -->
     <style>
       :root {
-        --bg: #ffffff;
+        --bg-page: #ffffff;
         --ink: #000000;
-        --muted: #2b2b2b;
+        --text-muted: #2b2b2b;
         --accent: #0b5cab;
-        --line: #000000;
+        --border-strong: #000000;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
-        background: var(--bg);
+        background: var(--bg-page);
         color: var(--ink);
       }
       .skip-link {
@@ -57,7 +57,7 @@
       }
       header {
         padding: 16px 20px 8px;
-        border-bottom: 2px solid var(--line);
+        border-bottom: 2px solid var(--border-strong);
       }
       h1 {
         margin: 0 0 8px;
@@ -65,7 +65,7 @@
       }
       .subtitle {
         font-size: 16px;
-        color: var(--muted);
+        color: var(--text-muted);
       }
       .container {
         padding: 16px 20px 40px;
@@ -73,7 +73,7 @@
         margin: 0 auto;
       }
       .guide {
-        border: 2px solid var(--line);
+        border: 2px solid var(--border-strong);
         padding: 12px 14px;
         border-radius: 8px;
         font-size: 16px;
@@ -91,14 +91,14 @@
       select, button {
         font-size: 18px;
         padding: 10px 12px;
-        border: 2px solid var(--line);
+        border: 2px solid var(--border-strong);
         border-radius: 8px;
         background: #fff;
       }
       input {
         font-size: 18px;
         padding: 10px 12px;
-        border: 2px solid var(--line);
+        border: 2px solid var(--border-strong);
         border-radius: 8px;
         background: #fff;
       }
@@ -123,18 +123,25 @@
       }
       .question {
         margin-top: 18px;
-        border: 2px solid var(--line);
+        border: 2px solid var(--border-strong);
         border-radius: 12px;
         padding: 16px 18px;
       }
       .meta {
         font-size: 14px;
-        color: var(--muted);
+        color: var(--text-muted);
+      }
+      .progress-indicator {
+        display: inline-block;
+        margin-right: 8px;
+        font-size: 16px;
+        color: var(--text-muted);
+        font-weight: 600;
       }
       .case-text {
         margin-top: 10px;
         padding: 10px 12px;
-        border: 2px solid var(--line);
+        border: 2px solid var(--border-strong);
         border-radius: 8px;
         background: #fff7e6;
         font-size: 18px;
@@ -151,7 +158,7 @@
         margin: 8px 0;
       }
       .choices li {
-        border: 2px solid var(--line);
+        border: 2px solid var(--border-strong);
         border-radius: 8px;
         padding: 10px 12px;
         margin-bottom: 10px;
@@ -164,15 +171,15 @@
         font-weight: 700;
       }
       .choices li.correct {
-        background: #e6f7ed;
+        background: #e1f5ee;
       }
       .choices li.incorrect {
-        background: #ffe7ea;
+        background: #fcebeb;
       }
       .result {
         margin-top: 12px;
         padding: 10px 12px;
-        border: 2px solid var(--line);
+        border: 2px solid var(--border-strong);
         border-radius: 8px;
         font-size: 18px;
         background: #f5f5f5;
@@ -201,8 +208,8 @@
       }
       .dialog {
         background: #fff;
-        border: 2px solid var(--line);
-        border-radius: 10px;
+        border: 2px solid var(--border-strong);
+        border-radius: 12px;
         padding: 16px;
         max-width: 520px;
         width: 100%;
@@ -214,10 +221,34 @@
       .dialog .actions {
         justify-content: flex-end;
       }
+      .resume-info,
+      .summary-stats,
+      .summary-empty {
+        margin-top: 10px;
+        font-size: 18px;
+      }
+      .summary {
+        margin-top: 18px;
+        border: 2px solid var(--border-strong);
+        border-radius: 12px;
+        padding: 16px 18px;
+      }
+      .summary h2 {
+        margin: 0 0 10px;
+        font-size: 24px;
+      }
+      .missed-list {
+        margin: 12px 0 0 0;
+        padding-left: 22px;
+        font-size: 18px;
+      }
+      .missed-list li {
+        margin-bottom: 10px;
+      }
       .help {
         margin-top: 10px;
         font-size: 16px;
-        color: var(--muted);
+        color: var(--text-muted);
       }
       @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
@@ -248,13 +279,15 @@
           <li>科目を選択してください。</li>
           <li>小項目を選択してください（すべてでも可）。</li>
           <li>試験種別を選択してください。</li>
-          <li>問題が1問ずつ表示されます。矢印キーで選択肢を動かし、Enterで回答します。</li>
+          <li>問題が1問ずつ表示されます。矢印キーまたは数字キーで選択肢を動かし、Enterで回答します。</li>
           <li>Tabキーで次の項目に移動できます。</li>
         </ol>
         <div class="row">
           <button id="guideNext">開始</button>
+          <button id="resumeBtn" type="button" hidden>前回の続きから再開する</button>
           <button class="topBtn">トップへ戻る</button>
         </div>
+        <div id="resumeInfo" class="resume-info" hidden></div>
       </section>
 
       <section id="stepSubject" aria-label="科目選択" hidden>
@@ -263,7 +296,7 @@
           <option value="">すべて</option>
         </select>
         <div class="row">
-          <button id="subjectNext" disabled>次へ</button>
+          <button id="subjectNext">次へ</button>
           <button class="backBtn">戻る</button>
           <button class="topBtn">トップへ戻る</button>
         </div>
@@ -295,7 +328,7 @@
         <input id="keywordInput" type="text" placeholder="例: 神経 筋" aria-label="キーワード検索" />
         <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
         <div class="row">
-          <button id="startBtn" disabled>問題を表示</button>
+          <button id="startBtn">問題を表示</button>
           <button id="copyAllBtn" type="button">検索結果をコピー</button>
           <button class="backBtn">戻る</button>
           <button class="topBtn">トップへ戻る</button>
@@ -303,23 +336,35 @@
       </section>
 
       <div class="status" id="status" role="status" aria-live="polite"></div>
-      <div class="help">キーボード: ↑↓で選択 / Enterで回答 / Tabで項目移動</div>
+      <div class="help">キーボード: ↑↓で選択 / 数字キーで直接選択 / Enterで回答 / Tabで項目移動</div>
 
       <section class="question" id="questionSection" hidden>
-        <div class="meta" id="meta"></div>
-        <div class="case-text" id="caseText" hidden></div>
-        <div class="stem" id="stem"></div>
+        <div class="meta" id="meta"><span id="progressIndicator" class="progress-indicator"></span><span id="metaText"></span></div>
+        <div class="case-text" id="caseText" tabindex="-1" hidden></div>
+        <div class="stem" id="stem" tabindex="-1"></div>
         <ul class="choices" id="choices" role="listbox" aria-label="選択肢"></ul>
         <div class="actions">
-          <button id="confirmBtn" disabled>回答を確定</button>
+          <button id="confirmBtn">回答を確定</button>
           <button class="topBtn">トップへ戻る</button>
         </div>
         <div class="actions">
           <button id="prevQuestionBtn" type="button">前の問題へ</button>
           <button id="nextQuestionBtn" type="button">次の問題へ</button>
           <label for="jumpSerial" class="sr-only">シリアルでジャンプ</label>
-          <input id="jumpSerial" type="text" inputmode="latin" autocomplete="off" placeholder="例: A01-001" aria-label="シリアルでジャンプ" />
+          <input id="jumpSerial" type="text" autocomplete="off" placeholder="例: A01-001" aria-label="シリアルでジャンプ" />
           <button id="jumpBtn" type="button">ジャンプ</button>
+        </div>
+      </section>
+
+      <section class="summary" id="summarySection" aria-label="学習のまとめ" hidden>
+        <h2 id="summaryTitle" tabindex="-1">学習のまとめ</h2>
+        <div id="summaryStats" class="summary-stats"></div>
+        <ol id="missedList" class="missed-list"></ol>
+        <div id="summaryEmpty" class="summary-empty" hidden>間違えた問題はありません。</div>
+        <div class="actions">
+          <button id="retryMissedBtn" type="button">間違えた問題だけもう一度</button>
+          <button id="retryAllBtn" type="button">最初からもう一度</button>
+          <button id="summaryTopBtn" type="button">トップへ戻る</button>
         </div>
       </section>
     </main>
@@ -338,12 +383,23 @@
     <div class="overlay" id="resultOverlay" role="dialog" aria-modal="true" aria-label="結果" aria-describedby="resultStatus resultText">
       <div class="dialog" tabindex="-1">
         <p id="resultTitle" aria-hidden="true">正答・解説</p>
-        <div id="resultStatus" class="result" aria-live="assertive" aria-atomic="true"></div>
-        <div id="resultText" class="result" aria-live="assertive" aria-atomic="true"></div>
+        <div id="resultStatus" class="result"></div>
+        <div id="resultText" class="result"></div>
         <div class="actions">
           <button id="resultBack">問題に戻る</button>
           <button id="resultNext">次の問題へ</button>
           <button class="topBtn" id="resultTop" type="button">トップへ戻る</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="topConfirmOverlay" role="dialog" aria-modal="true" aria-labelledby="topConfirmTitle" aria-describedby="topConfirmText">
+      <div class="dialog" tabindex="-1">
+        <p id="topConfirmTitle">トップに戻りますか？</p>
+        <div id="topConfirmText">学習の続きは再開できます。</div>
+        <div class="actions">
+          <button id="topConfirmYes" type="button">はい</button>
+          <button id="topConfirmNo" type="button">いいえ</button>
         </div>
       </div>
     </div>
@@ -357,6 +413,8 @@
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
+      const SIMPLE_SESSION_KEY = "simple_session_v1";
+
 	      const state = {
 	        questions: [],
         subtopicsBySubject: {},
@@ -365,6 +423,9 @@
         currentIndex: 0,
         selectedIndex: null,
         answered: false,
+        sessionResults: [],
+        activeSessionSerials: [],
+        resumeSession: null,
         lastSubject: "",
         focusItems: [],
         focusIndex: 0,
@@ -410,12 +471,16 @@
       const startBtn = document.getElementById("startBtn");
       const copyAllBtn = document.getElementById("copyAllBtn");
       const guideNext = document.getElementById("guideNext");
+      const resumeBtn = document.getElementById("resumeBtn");
+      const resumeInfo = document.getElementById("resumeInfo");
       const subjectNext = document.getElementById("subjectNext");
       const subtopicNext = document.getElementById("subtopicNext");
       const topBtn = document.getElementById("topBtn");
       const status = document.getElementById("status");
       const questionSection = document.getElementById("questionSection");
       const meta = document.getElementById("meta");
+      const progressIndicator = document.getElementById("progressIndicator");
+      const metaText = document.getElementById("metaText");
       const caseText = document.getElementById("caseText");
       const stem = document.getElementById("stem");
       const choices = document.getElementById("choices");
@@ -434,8 +499,20 @@
       const resultBack = document.getElementById("resultBack");
       const resultNext = document.getElementById("resultNext");
       const resultTop = document.getElementById("resultTop");
+      const topConfirmOverlay = document.getElementById("topConfirmOverlay");
+      const topConfirmYes = document.getElementById("topConfirmYes");
+      const topConfirmNo = document.getElementById("topConfirmNo");
+      const summarySection = document.getElementById("summarySection");
+      const summaryTitle = document.getElementById("summaryTitle");
+      const summaryStats = document.getElementById("summaryStats");
+      const missedList = document.getElementById("missedList");
+      const summaryEmpty = document.getElementById("summaryEmpty");
+      const retryMissedBtn = document.getElementById("retryMissedBtn");
+      const retryAllBtn = document.getElementById("retryAllBtn");
+      const summaryTopBtn = document.getElementById("summaryTopBtn");
       let noResultsMode = false;
       let focusBeforeDialog = null;
+      let focusBeforeTopConfirm = null;
 
       function announce(message) {
         const el = document.getElementById("sr-status") || status;
@@ -444,6 +521,107 @@
         setTimeout(() => {
           el.textContent = message || "";
         }, 20);
+      }
+
+      function setStatus(message) {
+        status.textContent = message || "";
+        announce(message || "");
+      }
+
+      function getCurrentFilters() {
+        return {
+          subject: subjectSelect.value || "",
+          subtopic: subtopicSelect.value || "",
+          examType: examTypeSelect.value || "",
+          order: orderSelect.value || "new",
+          keyword: keywordInput ? keywordInput.value || "" : "",
+          showAnswered: showAnsweredToggle ? !!showAnsweredToggle.checked : true
+        };
+      }
+
+      function applyFilters(filters = {}) {
+        subjectSelect.value = filters.subject || "";
+        updateState();
+        subtopicSelect.value = filters.subtopic || "";
+        examTypeSelect.value = filters.examType || "";
+        orderSelect.value = filters.order === "old" ? "old" : "new";
+        if (keywordInput) keywordInput.value = filters.keyword || "";
+        if (showAnsweredToggle) showAnsweredToggle.checked = filters.showAnswered !== false;
+        updateState();
+      }
+
+      function loadSavedSession() {
+        try {
+          const raw = localStorage.getItem(SIMPLE_SESSION_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== "object") return null;
+          return parsed;
+        } catch (err) {
+          return null;
+        }
+      }
+
+      function clearSavedSession() {
+        localStorage.removeItem(SIMPLE_SESSION_KEY);
+        state.resumeSession = null;
+        updateResumeControls();
+      }
+
+      function formatResumeDate(value) {
+        const date = value ? new Date(value) : null;
+        if (!date || Number.isNaN(date.getTime())) return "";
+        return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+      }
+
+      function updateResumeControls() {
+        const saved = loadSavedSession();
+        state.resumeSession = saved;
+        if (!resumeBtn || !resumeInfo) return;
+        if (!saved || !saved.filters || !Number.isFinite(Number(saved.currentIndex))) {
+          resumeBtn.hidden = true;
+          resumeInfo.hidden = true;
+          resumeInfo.textContent = "";
+          return;
+        }
+        const total = Number(saved.total || 0);
+        const index = Number(saved.currentIndex || 0);
+        const dateText = formatResumeDate(saved.savedAt);
+        const progressText = total > 0 ? `問題 ${Math.min(index + 1, total)} / ${total}` : "前回の問題";
+        resumeBtn.hidden = false;
+        resumeBtn.textContent = `前回の続きから再開する（${[dateText, progressText].filter(Boolean).join("・")}）`;
+        resumeInfo.hidden = false;
+        resumeInfo.textContent = "前回の学習条件と位置を保存しています。";
+      }
+
+      function saveSimpleSession() {
+        if (!state.filtered.length || questionSection.hidden) return;
+        const current = state.filtered[state.currentIndex];
+        const payload = {
+          filters: getCurrentFilters(),
+          currentIndex: state.currentIndex,
+          currentSerial: current && current.serial ? String(current.serial) : "",
+          total: state.filtered.length,
+          savedAt: new Date().toISOString(),
+          sessionResults: state.sessionResults,
+          activeSessionSerials: state.activeSessionSerials.length
+            ? state.activeSessionSerials
+            : state.filtered.map(q => q.serial).filter(Boolean)
+        };
+        localStorage.setItem(SIMPLE_SESSION_KEY, JSON.stringify(payload));
+        state.resumeSession = payload;
+      }
+
+      function trackSimpleSearchSubmitted() {
+        trackAnalyticsEvent("search_submitted", {
+          surface: "simple_search",
+          props: {
+            keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
+            subject: subjectSelect.value || "",
+            subtopic: subtopicSelect.value || "",
+            exam_type: examTypeSelect.value || ""
+          }
+        });
       }
 
       function loadData() {
@@ -492,6 +670,7 @@
         stepSubject.hidden = step !== "subject";
         stepSubtopic.hidden = step !== "subtopic";
         stepExamType.hidden = step !== "exam";
+        if (summarySection) summarySection.hidden = true;
         setTimeout(() => {
           if (step === "guide") {
             guideNext.focus();
@@ -516,8 +695,6 @@
           populateSelect(subtopicSelect, [], "すべて");
           state.lastSubject = "";
         }
-        subjectNext.disabled = false;
-        startBtn.disabled = false;
       }
 
       function updateJumpOptions() {
@@ -549,12 +726,20 @@
       function moveQuestion(delta) {
         if (questionSection.hidden || !state.filtered.length) return;
         const nextIndex = state.currentIndex + delta;
-        if (nextIndex < 0 || nextIndex >= state.filtered.length) return;
+        if (nextIndex < 0) {
+          setStatus("これが最初の問題です。");
+          return;
+        }
+        if (nextIndex >= state.filtered.length) {
+          setStatus("これが最後の問題です。");
+          return;
+        }
         state.currentIndex = nextIndex;
         renderQuestion();
       }
 
-      function filterQuestions() {
+      function filterQuestions(options = {}) {
+        const resetIndex = options.resetIndex !== false;
         const subject = subjectSelect.value;
         const examType = examTypeSelect.value;
         const subtopic = subtopicSelect.value;
@@ -602,9 +787,65 @@
 	            }
 	          });
 	        }
-	        state.currentIndex = 0;
+	        if (resetIndex) state.currentIndex = 0;
 	        updateJumpOptions();
 	      }
+
+      function beginCurrentSearch(options = {}) {
+        if (options.clearSaved !== false) clearSavedSession();
+        if (options.resetSessionResults !== false) {
+          state.sessionResults = [];
+          state.activeSessionSerials = [];
+        }
+        trackSimpleSearchSubmitted();
+        filterQuestions({ resetIndex: true });
+        state.activeSessionSerials = state.filtered.map(q => q.serial).filter(Boolean);
+        showStep("");
+        renderQuestion();
+      }
+
+      function resumeSavedSession() {
+        const saved = loadSavedSession();
+        if (!saved || !saved.filters) {
+          setStatus("前回のデータを復元できませんでした。");
+          updateResumeControls();
+          return;
+        }
+        applyFilters(saved.filters);
+        state.sessionResults = Array.isArray(saved.sessionResults) ? saved.sessionResults : [];
+        state.activeSessionSerials = Array.isArray(saved.activeSessionSerials) ? saved.activeSessionSerials : [];
+        filterQuestions({ resetIndex: false });
+        if (state.activeSessionSerials.length) {
+          const restoredList = state.activeSessionSerials
+            .map(serial => getQuestionBySerial(serial))
+            .filter(Boolean);
+          if (restoredList.length) state.filtered = restoredList;
+        }
+        if (!state.filtered.length) {
+          clearSavedSession();
+          setStatus("前回のデータを復元できませんでした。");
+          showStep("guide");
+          return;
+        }
+        let restoredIndex = -1;
+        if (saved.currentSerial) {
+          restoredIndex = state.filtered.findIndex(q => q.serial === saved.currentSerial);
+        }
+        if (restoredIndex < 0) restoredIndex = Number(saved.currentIndex);
+        if (!Number.isFinite(restoredIndex) || restoredIndex < 0 || restoredIndex >= state.filtered.length) {
+          clearSavedSession();
+          setStatus("前回のデータを復元できませんでした。");
+          showStep("guide");
+          return;
+        }
+        state.currentIndex = restoredIndex;
+        if (!state.activeSessionSerials.length) {
+          state.activeSessionSerials = state.filtered.map(q => q.serial).filter(Boolean);
+        }
+        showStep("");
+        renderQuestion();
+        setStatus("前回の続きから再開しました。");
+      }
 
       function buildFilterHeader() {
         const parts = [];
@@ -687,19 +928,26 @@
         noResultsMode = false;
         state.selectedIndex = null;
         state.answered = false;
-        confirmBtn.disabled = true;
         choices.innerHTML = "";
-        meta.textContent = `${q.serial} / ${q.subject} / ${formatExamTypeLabel(q.exam_type)} / 第${q.exam_session}回`;
+        if (progressIndicator) {
+          const answeredCount = state.sessionResults.length;
+          progressIndicator.textContent = `問題 ${state.currentIndex + 1} / ${state.filtered.length}${answeredCount ? `・回答済み ${answeredCount}` : ""}`;
+        }
+        if (metaText) {
+          metaText.textContent = `${q.serial} / ${q.subject} / ${formatExamTypeLabel(q.exam_type)} / 第${q.exam_session}回`;
+        } else {
+          meta.textContent = `${q.serial} / ${q.subject} / ${formatExamTypeLabel(q.exam_type)} / 第${q.exam_session}回`;
+        }
         if (q.case_text) {
           caseText.textContent = q.case_text;
           caseText.hidden = false;
-          caseText.setAttribute("tabindex", "0");
+          caseText.setAttribute("tabindex", "-1");
         } else {
           caseText.textContent = "";
           caseText.hidden = true;
         }
         stem.textContent = q.stem || "";
-        stem.setAttribute("tabindex", "0");
+        stem.setAttribute("tabindex", "-1");
         (q.choices || []).forEach((choice, idx) => {
           const li = document.createElement("li");
           const labelText = `${idx + 1}　${choice}`;
@@ -707,7 +955,7 @@
           li.setAttribute("role", "option");
           li.dataset.index = String(idx + 1);
           li.dataset.choiceLabel = `${idx + 1} ${choice}`;
-          li.setAttribute("tabindex", "0");
+          li.setAttribute("tabindex", idx === 0 ? "0" : "-1");
           li.setAttribute("aria-selected", "false");
           li.setAttribute("aria-label", `${idx + 1} ${choice}`);
           li.addEventListener("click", () => {
@@ -717,33 +965,38 @@
             if (e.key === "Enter") {
               e.preventDefault();
               highlightSelection(idx + 1);
+            } else if (/^[1-9]$/.test(e.key)) {
+              const directIndex = Number(e.key);
+              if (directIndex <= choices.children.length) {
+                e.preventDefault();
+                setFocusIndex(directIndex - 1);
+                highlightSelection(directIndex);
+              }
             }
           });
           choices.appendChild(li);
         });
-        state.focusItems = [];
-        if (!caseText.hidden) state.focusItems.push(caseText);
-        state.focusItems.push(stem);
-        Array.from(choices.querySelectorAll("li")).forEach(li => state.focusItems.push(li));
+        state.focusItems = Array.from(choices.querySelectorAll("li"));
         state.focusIndex = 0;
         questionSection.hidden = false;
         status.textContent = `問題 ${state.currentIndex + 1} / ${state.filtered.length}`;
         announce(`問題 ${state.currentIndex + 1} / ${state.filtered.length}`);
         if (jumpSerial) jumpSerial.value = q.serial || "";
-        if (prevQuestionBtn) prevQuestionBtn.disabled = state.currentIndex <= 0;
-        if (nextQuestionBtn) nextQuestionBtn.disabled = state.currentIndex >= state.filtered.length - 1;
-        highlightSelection(1);
-        if (state.focusItems.length) {
-          state.focusItems[0].focus();
-        }
+        if (resultNext) resultNext.textContent = state.currentIndex >= state.filtered.length - 1 ? "結果のまとめへ" : "次の問題へ";
+        const initialFocus = !caseText.hidden ? caseText : stem;
+        if (initialFocus && typeof initialFocus.focus === "function") initialFocus.focus();
+        saveSimpleSession();
       }
 
       function setFocusIndex(index) {
         if (!state.focusItems.length) return;
         const bounded = (index + state.focusItems.length) % state.focusItems.length;
+        const previous = state.focusItems[state.focusIndex];
+        if (previous) previous.setAttribute("tabindex", "-1");
         state.focusIndex = bounded;
         const target = state.focusItems[bounded];
         if (target) {
+          target.setAttribute("tabindex", "0");
           target.focus();
           if (target.dataset && target.dataset.index) {
             highlightSelection(Number(target.dataset.index));
@@ -756,18 +1009,23 @@
         items.forEach(li => {
           li.classList.remove("selected");
           li.setAttribute("aria-selected", "false");
+          li.setAttribute("tabindex", "-1");
         });
         const target = items[index - 1];
         if (target) {
           target.classList.add("selected");
           target.setAttribute("aria-selected", "true");
+          target.setAttribute("tabindex", "0");
           state.selectedIndex = index;
-          confirmBtn.disabled = false;
+          state.focusIndex = index - 1;
         }
       }
 
       function openConfirm() {
-        if (!state.selectedIndex) return;
+        if (!state.selectedIndex) {
+          setStatus("選択肢を選んでから回答を確定してください。");
+          return;
+        }
         focusBeforeDialog = document.activeElement;
         const item = choices.querySelector(`li[data-index='${state.selectedIndex}']`);
         confirmChoice.textContent = item ? (item.dataset.choiceLabel || item.textContent) : "";
@@ -853,12 +1111,109 @@
         }, 150);
       }
 
+      function isFinalQuestion() {
+        return state.currentIndex >= state.filtered.length - 1;
+      }
+
+      function advanceAfterResult() {
+        resultOverlay.classList.remove("show");
+        if (isFinalQuestion()) {
+          showSessionSummary();
+          return;
+        }
+        state.currentIndex += 1;
+        renderQuestion();
+      }
+
+      function getQuestionBySerial(serial) {
+        return state.questions.find(q => q.serial === serial) || null;
+      }
+
+      function startSessionFromSerials(serials, fallbackMessage) {
+        const list = (serials || [])
+          .map(serial => getQuestionBySerial(serial))
+          .filter(Boolean);
+        if (!list.length) {
+          setStatus(fallbackMessage || "対象の問題がありません。");
+          return;
+        }
+        state.filtered = list;
+        state.currentIndex = 0;
+        state.selectedIndex = null;
+        state.answered = false;
+        state.sessionResults = [];
+        state.activeSessionSerials = list.map(q => q.serial).filter(Boolean);
+        if (summarySection) summarySection.hidden = true;
+        showStep("");
+        renderQuestion();
+      }
+
+      function getMissedSessionResults() {
+        return state.sessionResults.filter(item => item && item.isCorrect === false);
+      }
+
+      function showSessionSummary() {
+        resultOverlay.classList.remove("show");
+        confirmOverlay.classList.remove("show");
+        questionSection.hidden = true;
+        showStep("");
+        if (!summarySection) return;
+        const total = state.sessionResults.length;
+        const correct = state.sessionResults.filter(item => item && item.isCorrect).length;
+        const rate = total ? Math.round((correct / total) * 100) : 0;
+        summaryStats.textContent = `今回の学習: ${total}問中 ${correct}問正解（正答率 ${rate}%）`;
+        missedList.innerHTML = "";
+        const missed = getMissedSessionResults();
+        summaryEmpty.hidden = missed.length > 0;
+        missed.forEach(item => {
+          const li = document.createElement("li");
+          const text = document.createElement("span");
+          const stemShort = String(item.stem || "").slice(0, 20);
+          text.textContent = `${item.serial} ${stemShort}${String(item.stem || "").length > 20 ? "…" : ""} `;
+          const retry = document.createElement("button");
+          retry.type = "button";
+          retry.textContent = "この問題をやり直す";
+          retry.addEventListener("click", () => {
+            startSessionFromSerials([item.serial], "この問題を復元できませんでした。");
+          });
+          li.appendChild(text);
+          li.appendChild(retry);
+          missedList.appendChild(li);
+        });
+        if (retryMissedBtn) retryMissedBtn.hidden = missed.length === 0;
+        summarySection.hidden = false;
+        setTimeout(() => {
+          summaryTitle.focus();
+        }, 0);
+        announce(`今回の学習は${total}問中${correct}問正解です。`);
+        saveSimpleSession();
+      }
+
+      function shouldConfirmTopReset() {
+        return !questionSection.hidden && state.filtered.length > 0;
+      }
+
+      function openTopConfirm() {
+        if (!topConfirmOverlay) return;
+        focusBeforeTopConfirm = document.activeElement;
+        topConfirmOverlay.classList.add("show");
+        topConfirmYes.focus();
+      }
+
+      function closeTopConfirm(restore = true) {
+        if (!topConfirmOverlay) return;
+        topConfirmOverlay.classList.remove("show");
+        if (restore && focusBeforeTopConfirm && typeof focusBeforeTopConfirm.focus === "function") {
+          focusBeforeTopConfirm.focus();
+        }
+      }
+
       document.addEventListener("keydown", (e) => {
         if (questionSection.hidden || state.answered) return;
         if (!state.focusItems.length) return;
         const active = document.activeElement;
         const tag = active && active.tagName ? active.tagName.toUpperCase() : "";
-        if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(tag) && e.key !== "Escape") return;
+        if (["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(tag)) return;
         if (e.key === "ArrowDown") {
           e.preventDefault();
           setFocusIndex(state.focusIndex + 1);
@@ -870,8 +1225,6 @@
             e.preventDefault();
             openConfirm();
           }
-        } else if (e.key === "Escape") {
-          resetToTop();
         }
       });
 
@@ -943,13 +1296,7 @@
       });
 
       resultNext.addEventListener("click", () => {
-        resultOverlay.classList.remove("show");
-        state.currentIndex += 1;
-        if (state.currentIndex >= state.filtered.length) {
-          resetToTop();
-          return;
-        }
-        renderQuestion();
+        advanceAfterResult();
       });
 
       resultOverlay.addEventListener("keydown", (e) => {
@@ -958,7 +1305,7 @@
         const topBtn = resultTop || resultOverlay.querySelector(".topBtn");
         if (e.key === "Tab") {
           e.preventDefault();
-          const order = [resultBack, resultNext, topBtn].filter((btn) => btn && !btn.hidden && !btn.disabled);
+          const order = [resultBack, resultNext, topBtn].filter((btn) => btn && !btn.hidden);
           const idx = order.indexOf(document.activeElement);
           const delta = e.shiftKey ? -1 : 1;
           const next = order[(idx + delta + order.length) % order.length] || order[0];
@@ -968,7 +1315,7 @@
           resultBack.focus();
         } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
           e.preventDefault();
-          if (resultNext && !resultNext.hidden && !resultNext.disabled) {
+          if (resultNext && !resultNext.hidden) {
             resultNext.focus();
           } else if (topBtn) {
             topBtn.focus();
@@ -992,30 +1339,85 @@
               restoreQuestionFocus();
             }
           } else if (document.activeElement === topBtn) {
-            confirmOverlay.classList.remove("show");
-            resultOverlay.classList.remove("show");
             resetToTop();
           } else if (document.activeElement !== resultNext) {
             resultBack.focus();
           } else {
-            resultOverlay.classList.remove("show");
-            state.currentIndex += 1;
-            if (state.currentIndex >= state.filtered.length) {
-              resetToTop();
-              return;
-            }
-            renderQuestion();
+            advanceAfterResult();
           }
         }
       });
 
       document.querySelectorAll(".topBtn").forEach(btn => {
         btn.addEventListener("click", () => {
-          confirmOverlay.classList.remove("show");
-          resultOverlay.classList.remove("show");
           resetToTop();
         });
       });
+
+      if (topConfirmYes) {
+        topConfirmYes.addEventListener("click", () => {
+          closeTopConfirm(false);
+          resetToTop({ skipConfirm: true });
+        });
+      }
+      if (topConfirmNo) {
+        topConfirmNo.addEventListener("click", () => closeTopConfirm(true));
+      }
+      if (topConfirmOverlay) {
+        topConfirmOverlay.addEventListener("keydown", (e) => {
+          if (!topConfirmOverlay.classList.contains("show")) return;
+          e.stopPropagation();
+          const onButton = document.activeElement === topConfirmYes || document.activeElement === topConfirmNo;
+          if (e.key === "Tab") {
+            e.preventDefault();
+            if (!onButton) {
+              topConfirmYes.focus();
+              return;
+            }
+            const next = e.shiftKey
+              ? (document.activeElement === topConfirmYes ? topConfirmNo : topConfirmYes)
+              : (document.activeElement === topConfirmNo ? topConfirmYes : topConfirmNo);
+            next.focus();
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            topConfirmYes.focus();
+          } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+            e.preventDefault();
+            topConfirmNo.focus();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            closeTopConfirm(true);
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (document.activeElement === topConfirmNo) {
+              closeTopConfirm(true);
+            } else {
+              closeTopConfirm(false);
+              resetToTop({ skipConfirm: true });
+            }
+          }
+        });
+      }
+
+      if (retryMissedBtn) {
+        retryMissedBtn.addEventListener("click", () => {
+          const missed = getMissedSessionResults().map(item => item.serial);
+          startSessionFromSerials(missed, "間違えた問題はありません。");
+        });
+      }
+      if (retryAllBtn) {
+        retryAllBtn.addEventListener("click", () => {
+          const serials = state.activeSessionSerials.length
+            ? state.activeSessionSerials
+            : state.filtered.map(q => q.serial).filter(Boolean);
+          startSessionFromSerials(serials, "やり直す問題がありません。");
+        });
+      }
+      if (summaryTopBtn) {
+        summaryTopBtn.addEventListener("click", () => {
+          resetToTop({ skipConfirm: true });
+        });
+      }
 
       function restoreQuestionFocus() {
         state.answered = false;
@@ -1037,41 +1439,61 @@
       function setResultButtonsEnabled(enabled) {
         const buttons = [resultBack, resultNext, resultTop].filter(Boolean);
         buttons.forEach(btn => {
-          btn.disabled = !enabled;
-          btn.setAttribute("tabindex", enabled ? "0" : "-1");
+          btn.setAttribute("tabindex", "0");
         });
       }
 
-      function resetToTop() {
+      function resetToTop(options = {}) {
+        if (!options.skipConfirm && shouldConfirmTopReset()) {
+          openTopConfirm();
+          return;
+        }
         noResultsMode = false;
         state.answered = false;
         state.selectedIndex = null;
         state.currentIndex = 0;
         questionSection.hidden = true;
+        if (summarySection) summarySection.hidden = true;
+        confirmOverlay.classList.remove("show");
+        resultOverlay.classList.remove("show");
+        if (topConfirmOverlay) topConfirmOverlay.classList.remove("show");
         subjectSelect.value = "";
         examTypeSelect.value = "";
         subtopicSelect.value = "";
         if (keywordInput) keywordInput.value = "";
+        if (options.clearSession) {
+          state.sessionResults = [];
+          state.activeSessionSerials = [];
+          clearSavedSession();
+        }
         status.textContent = "";
         showStep("guide");
         updateState();
+        updateResumeControls();
       }
 
       guideNext.addEventListener("click", () => {
+        clearSavedSession();
         showStep("subject");
       });
       guideNext.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
+          clearSavedSession();
           showStep("subject");
         }
       });
+      if (resumeBtn) {
+        resumeBtn.addEventListener("click", () => {
+          resumeSavedSession();
+        });
+      }
 
       subjectSelect.addEventListener("change", () => {
         updateState();
       });
       subjectSelect.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !subjectNext.disabled) {
+        if (e.key === "Enter") {
           e.preventDefault();
           showStep("subtopic");
         }
@@ -1097,53 +1519,20 @@
         updateState();
       });
 	      examTypeSelect.addEventListener("keydown", (e) => {
-	        if (e.key === "Enter" && !startBtn.disabled) {
+	        if (e.key === "Enter") {
 	          e.preventDefault();
-	          trackAnalyticsEvent("search_submitted", {
-	            surface: "simple_search",
-	            props: {
-	              keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
-	              subject: subjectSelect.value || "",
-	              subtopic: subtopicSelect.value || "",
-	              exam_type: examTypeSelect.value || ""
-	            }
-	          });
-	          filterQuestions();
-	          showStep("");
-	          renderQuestion();
+	          beginCurrentSearch();
 	        }
 	      });
 	      orderSelect.addEventListener("keydown", (e) => {
-	        if (e.key === "Enter" && !startBtn.disabled) {
+	        if (e.key === "Enter") {
 	          e.preventDefault();
-	          trackAnalyticsEvent("search_submitted", {
-	            surface: "simple_search",
-	            props: {
-	              keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
-	              subject: subjectSelect.value || "",
-	              subtopic: subtopicSelect.value || "",
-	              exam_type: examTypeSelect.value || ""
-	            }
-	          });
-	          filterQuestions();
-	          showStep("");
-	          renderQuestion();
+	          beginCurrentSearch();
 	        }
 	      });
 
 	      startBtn.addEventListener("click", () => {
-	        trackAnalyticsEvent("search_submitted", {
-	          surface: "simple_search",
-	          props: {
-	            keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
-	            subject: subjectSelect.value || "",
-	            subtopic: subtopicSelect.value || "",
-	            exam_type: examTypeSelect.value || ""
-	          }
-	        });
-	        filterQuestions();
-	        showStep("");
-	        renderQuestion();
+	        beginCurrentSearch();
 	      });
 
       if (keywordInput) {
@@ -1151,20 +1540,7 @@
           if (e.isComposing) return;
           if (e.key === "Enter") {
 	            e.preventDefault();
-	            if (!startBtn.disabled) {
-	              trackAnalyticsEvent("search_submitted", {
-	                surface: "simple_search",
-	                props: {
-	                  keyword_len: String(keywordInput ? keywordInput.value : "").trim().length,
-	                  subject: subjectSelect.value || "",
-	                  subtopic: subtopicSelect.value || "",
-	                  exam_type: examTypeSelect.value || ""
-	                }
-	              });
-	              filterQuestions();
-	              showStep("");
-	              renderQuestion();
-	            }
+	            beginCurrentSearch();
           }
         });
       }
@@ -1198,6 +1574,7 @@
 	      loadData().then(() => {
 	        loadAnsweredState();
 	        updateState();
+        updateResumeControls();
         showStep("guide");
       });
 
@@ -1205,10 +1582,28 @@
         return Boolean(state.answeredMap[serial]);
       }
 
+      function recordSessionAnswer(question, selectedIndex, isCorrect) {
+        const serial = question && question.serial ? String(question.serial) : "";
+        if (!serial) return;
+        const item = {
+          serial,
+          stem: question && question.stem ? String(question.stem) : "",
+          selectedIndex: Number(selectedIndex) || 0,
+          isCorrect: Boolean(isCorrect)
+        };
+        const existingIndex = state.sessionResults.findIndex(result => result && result.serial === serial);
+        if (existingIndex >= 0) {
+          state.sessionResults[existingIndex] = item;
+        } else {
+          state.sessionResults.push(item);
+        }
+      }
+
 	      function markAnswered(question, selectedIndex, isCorrect) {
 	        const serial = question && question.serial ? String(question.serial) : "";
 	        if (!serial) return;
 	        state.answeredMap[serial] = { selectedIndex, isCorrect };
+	        recordSessionAnswer(question, selectedIndex, isCorrect);
 	        trackAnalyticsEvent("question_answered", {
 	          surface: "simple_question",
 	          entity_type: "question",
@@ -1223,6 +1618,7 @@
 	          }
 	        });
 	        saveAnsweredState();
+	        saveSimpleSession();
 	      }
 
       function loadAnsweredState() {
