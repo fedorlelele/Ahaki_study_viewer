@@ -13,22 +13,45 @@
     <!-- End Cloudflare Web Analytics -->
     <style>
       :root {
-        --bg-1: #ffffff;
-        --bg-2: #f1f5f9;
-        --ink: #111111;
-        --muted: #2b2b2b;
+        --bg-page: #f6f7f9;
+        --surface: #ffffff;
+        --surface-alt: #eef0f3;
+        --ink: #111827;
+        --text-muted: #4b5563;
         --accent: #0b5cab;
-        --card: #ffffff;
-        --line: #4a4a4a;
+        --accent-hover: #094a8a;
+        --accent-soft: #e6f1fb;
+        --accent-soft-ink: #0c447c;
+        --border-subtle: #d8dade;
+        --border-control: #6b7280;
+        --border-strong: #374151;
+        --ok-bg: #e1f5ee;
+        --ok-border: #1d9e75;
+        --ok-ink: #085041;
+        --ng-bg: #fcebeb;
+        --ng-border: #a32d2d;
+        --ng-ink: #791f1f;
+        --radius-sm: 8px;
+        --radius-lg: 12px;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 24px;
+        --space-6: 32px;
+        --font-body: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        font-family: var(--font-body);
+        font-size: 16px;
+        line-height: 1.7;
         color: var(--ink);
-        background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+        background: var(--bg-page);
         min-height: 100vh;
         padding-top: 56px;
+        overflow-x: hidden;
       }
       .skip-link {
         position: absolute;
@@ -36,9 +59,9 @@
         top: 0;
         z-index: 1000;
         background: var(--accent);
-        color: #fff;
-        padding: 8px 16px;
-        border-radius: 0 0 8px 0;
+        color: var(--surface);
+        padding: var(--space-2) var(--space-4);
+        border-radius: 0 0 var(--radius-sm) 0;
       }
       .skip-link:focus {
         left: 8px;
@@ -61,12 +84,28 @@
         outline-offset: 2px;
       }
       body.high-contrast {
-        --bg-1: #ffffff;
-        --bg-2: #edf2f7;
-        --ink: #050505;
-        --muted: #111827;
+        --bg-page: #ffffff;
+        --surface: #ffffff;
+        --surface-alt: #f3f4f6;
+        --ink: #000000;
+        --text-muted: #1f2937;
+        --border-subtle: #374151;
+        --border-control: #111827;
+        --border-strong: #111827;
         --accent: #004ea2;
-        --line: #1f2937;
+        --accent-hover: #003a7a;
+      }
+      body[data-font-family="sans"] {
+        --font-body: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      }
+      body[data-font-family="ud"] {
+        --font-body: "BIZ UDPGothic", "BIZ UDGothic", "UD Digi Kyokasho NK-R", "Yu Gothic", "Meiryo", sans-serif;
+      }
+      body[data-font-family="serif"] {
+        --font-body: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif;
+      }
+      body[data-font-family="rounded"] {
+        --font-body: "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
       }
       body[data-font-scale="large"] .controls input,
       body[data-font-scale="large"] .controls select,
@@ -75,11 +114,15 @@
       body[data-font-scale="large"] .toolbar select,
       body[data-font-scale="large"] .choice-btn,
       body[data-font-scale="large"] .stem,
+      body[data-font-scale="large"] .case-text,
       body[data-font-scale="large"] .answer,
       body[data-font-scale="large"] .explanation,
       body[data-font-scale="large"] .tagline,
+      body[data-font-scale="large"] .subject-pill,
+      body[data-font-scale="large"] .chip-link,
+      body[data-font-scale="large"] .tag-more,
       body[data-font-scale="large"] .meta {
-        font-size: 16px;
+        font-size: 18px;
       }
       body[data-font-scale="xlarge"] .controls input,
       body[data-font-scale="xlarge"] .controls select,
@@ -88,11 +131,15 @@
       body[data-font-scale="xlarge"] .toolbar select,
       body[data-font-scale="xlarge"] .choice-btn,
       body[data-font-scale="xlarge"] .stem,
+      body[data-font-scale="xlarge"] .case-text,
       body[data-font-scale="xlarge"] .answer,
       body[data-font-scale="xlarge"] .explanation,
       body[data-font-scale="xlarge"] .tagline,
+      body[data-font-scale="xlarge"] .subject-pill,
+      body[data-font-scale="xlarge"] .chip-link,
+      body[data-font-scale="xlarge"] .tag-more,
       body[data-font-scale="xlarge"] .meta {
-        font-size: 18px;
+        font-size: 20px;
       }
       body.ui-mode-accessible .card {
         box-shadow: none;
@@ -119,18 +166,19 @@
         left: 0;
         right: 0;
         height: 48px;
-        background: #fff;
-        border-bottom: 2px solid var(--line);
+        background: var(--surface);
+        border-bottom: 1px solid var(--border-subtle);
         z-index: 999;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 16px;
+        padding: 0 var(--space-4);
       }
       .site-title {
         margin: 0;
         font-size: 20px;
-        letter-spacing: 0.3px;
+        font-weight: 500;
+        letter-spacing: 0;
       }
       .site-title-short {
         display: none;
@@ -171,7 +219,7 @@
       .top-nav-actions {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--space-2);
       }
       .top-panels {
         position: fixed;
@@ -179,9 +227,9 @@
         left: 0;
         right: 0;
         z-index: 998;
-        background: #fff;
-        border-bottom: 2px solid var(--line);
-        padding: 12px 16px 16px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border-subtle);
+        padding: var(--space-3) var(--space-4) var(--space-4);
         max-height: calc(100vh - 48px);
         overflow: auto;
       }
@@ -189,45 +237,64 @@
         display: none;
       }
       .top-menu {
-        padding: 10px 12px;
-        border: 2px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
+        padding: var(--space-3);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--space-2);
+      }
+      .top-menu-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        align-items: center;
       }
       .top-menu button,
       .top-menu a {
-        padding: 8px 10px;
-        border-radius: 8px;
-        border: 2px solid var(--line);
-        background: #fff;
-        cursor: pointer;
-        font-size: 13px;
-        color: var(--ink);
         text-decoration: none;
-        min-height: 40px;
       }
       .top-menu button:hover,
       .top-menu a:hover {
-        border-color: var(--accent);
         color: var(--accent);
+      }
+      .admin-menu {
+        display: inline-block;
+      }
+      .admin-menu[hidden] {
+        display: none;
+      }
+      .admin-menu > summary {
+        list-style: none;
+      }
+      .admin-menu > summary::-webkit-details-marker {
+        display: none;
+      }
+      .admin-menu[open] > summary {
+        background: var(--surface-alt);
+      }
+      .admin-menu-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
       }
       .header-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
+        gap: var(--space-4);
         flex-wrap: wrap;
       }
       h1 {
         margin: 0;
         font-size: clamp(24px, 4vw, 36px);
-        letter-spacing: 0.5px;
+        font-weight: 500;
+        letter-spacing: 0;
       }
       .subtitle {
-        color: var(--muted);
+        color: var(--text-muted);
         margin-top: 6px;
         font-size: 14px;
       }
@@ -235,28 +302,25 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
-        padding: 14px 24px 20px;
+        padding: 14px var(--space-5) 20px;
       }
       .controls input,
       .controls select,
       .controls button {
-        padding: 11px 12px;
-        border: 2px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
+        padding: 11px var(--space-3);
+        border: 1px solid var(--border-control);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 15px;
         min-height: 44px;
       }
       .controls button {
-        background: var(--accent);
-        color: #fff;
-        border: none;
         cursor: pointer;
       }
       .search-row {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--space-3);
       }
       .search-input-wrap {
         position: relative;
@@ -269,7 +333,7 @@
       }
       .search-actions {
         display: flex;
-        gap: 10px;
+        gap: var(--space-2);
         flex-wrap: nowrap;
       }
       .search-actions button {
@@ -279,15 +343,15 @@
       .search-history {
         position: absolute;
         z-index: 40;
-        top: calc(100% + 4px);
+        top: calc(100% + var(--space-1));
         left: 0;
         right: 0;
         max-height: 320px;
         overflow: auto;
-        padding: 8px;
-        border: 2px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
+        padding: var(--space-2);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
         box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
       }
       .search-history[hidden] {
@@ -297,24 +361,24 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 6px;
-        color: var(--muted);
-        font-size: 12px;
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+        color: var(--text-muted);
+        font-size: 13px;
       }
       .search-history-list {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--space-1);
       }
       .search-history-row {
         display: flex;
         align-items: center;
-        gap: 6px;
-        border-radius: 8px;
+        gap: var(--space-2);
+        border-radius: var(--radius-sm);
       }
       .search-history-row.is-active {
-        background: #eef6ff;
+        background: var(--accent-soft);
       }
       .controls .search-history button {
         min-height: 36px;
@@ -326,8 +390,8 @@
       }
       .controls .search-history button:hover,
       .controls .search-history button:focus-visible {
-        border-color: var(--line);
-        background: #f8fafc;
+        border-color: var(--border-control);
+        background: var(--surface-alt);
       }
       .search-history-item {
         flex: 1;
@@ -340,57 +404,57 @@
       .search-history-delete {
         flex: 0 0 auto;
         width: 36px;
-        color: var(--muted);
+        color: var(--text-muted);
       }
       .search-history-clear {
         flex: 0 0 auto;
         color: var(--accent);
       }
       .search-history-empty {
-        padding: 8px 2px 4px;
-        color: var(--muted);
+        padding: var(--space-2) 2px var(--space-1);
+        color: var(--text-muted);
         font-size: 13px;
       }
       .tag-disambiguation {
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 8px 10px;
-        background: #fff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        padding: var(--space-2) 10px;
+        background: var(--surface);
         font-size: 13px;
       }
       .tag-disambiguation .note {
-        margin: 0 0 6px;
+        margin: 0 0 var(--space-2);
       }
       .tag-disambiguation-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--space-2);
       }
       .controls details.inline {
         margin-top: 0;
-        border: 2px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
-        padding: 8px 10px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        padding: var(--space-2) 10px;
       }
       .controls details.inline > summary {
         list-style: none;
         cursor: pointer;
         font-size: 13px;
         color: var(--ink);
-        font-weight: 600;
+        font-weight: 500;
       }
       .controls details.inline > summary::-webkit-details-marker {
         display: none;
       }
       .controls details.inline[open] > summary {
-        margin-bottom: 8px;
+        margin-bottom: var(--space-2);
       }
       .controls details.inline .row {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 8px;
+        gap: var(--space-3);
+        margin-bottom: var(--space-2);
       }
       .controls details.inline .row:last-child {
         margin-bottom: 0;
@@ -398,45 +462,143 @@
       .controls details.inline label {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--space-2);
+      }
+      .btn-primary,
+      .btn-secondary,
+      .btn-tertiary,
+      .top-menu a.btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.4;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: var(--surface);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-sm);
+        min-height: 44px;
+        padding: 10px 18px;
+        font-size: 15px;
+        cursor: pointer;
+      }
+      .btn-primary:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+      .btn-secondary {
+        background: var(--surface);
+        color: var(--ink);
+        border: 1px solid var(--border-control);
+        border-radius: var(--radius-sm);
+        min-height: 44px;
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .btn-secondary:hover {
+        background: var(--surface-alt);
+      }
+      .btn-tertiary {
+        background: transparent;
+        color: var(--accent);
+        border: none;
+        border-radius: var(--radius-sm);
+        min-height: 44px;
+        padding: 10px var(--space-2);
+        font-size: 14px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+      }
+      .btn-tertiary:hover {
+        background: var(--accent-soft);
+      }
+      .btn-primary:disabled,
+      .btn-secondary:disabled,
+      .btn-tertiary:disabled {
+        opacity: 1;
+        cursor: default;
+      }
+      .btn-primary:disabled {
+        background: var(--surface-alt);
+        border-color: var(--border-control);
+        color: var(--text-muted);
+      }
+      .btn-secondary:disabled {
+        background: var(--surface-alt);
+        border-color: var(--border-subtle);
+        color: var(--text-muted);
+      }
+      .btn-tertiary:disabled {
+        color: var(--text-muted);
+        text-decoration-color: var(--text-muted);
       }
       .toolbar button {
-        padding: 8px 12px;
-        border-radius: 8px;
-        border: 2px solid var(--line);
-        background: #fff;
-        cursor: pointer;
-        font-size: 13px;
-        min-height: 40px;
+        min-height: 44px;
       }
       .toolbar select {
-        padding: 8px 12px;
-        border-radius: 8px;
-        border: 2px solid var(--line);
-        background: #fff;
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-control);
+        background: var(--surface);
         cursor: pointer;
         font-size: 13px;
-        min-height: 40px;
+        min-height: 44px;
       }
       .toolbar {
-        padding: 0 24px 18px;
+        padding: 0 var(--space-5) 18px;
         display: flex;
-        gap: 16px;
+        gap: var(--space-4);
         align-items: center;
-        color: var(--muted);
+        color: var(--text-muted);
         font-size: 13px;
       }
       .toolbar.main {
         flex-wrap: wrap;
-        gap: 10px;
+        gap: var(--space-3);
+      }
+      .intro {
+        padding: var(--space-5) var(--space-5) var(--space-3);
       }
       .section-title {
-        margin: 0 0 4px;
+        margin: 0 0 var(--space-1);
         font-size: 18px;
+        font-weight: 500;
       }
-      .filter-summary {
+      .active-filters {
         flex: 1 1 420px;
         min-width: 280px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .result-count {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .filter-empty {
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+      .filter-chip {
+        background: var(--accent-soft);
+        color: var(--accent-soft-ink);
+        border: 1px solid var(--accent);
+        border-radius: 999px;
+        padding: var(--space-1) var(--space-3);
+        min-height: 32px;
+        font-size: 13px;
+        cursor: pointer;
+        min-width: 0;
+        flex: 0 0 auto;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+      .filter-chip:hover {
+        background: var(--surface-alt);
       }
       .result-page-nav {
         display: inline-flex;
@@ -450,9 +612,9 @@
       .result-page-nav input {
         width: 84px;
         min-height: 36px;
-        padding: 6px 8px;
-        border-radius: 8px;
-        border: 2px solid var(--line);
+        padding: 6px var(--space-2);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-control);
         font-size: 13px;
       }
       .answer-trend-content {
@@ -468,29 +630,29 @@
         margin-top: 0;
       }
       .results {
-        padding: 0 24px 40px;
+        padding: 0 var(--space-5) 40px;
         display: grid;
-        gap: 14px;
+        gap: var(--space-4);
       }
       .card {
-        background: var(--card);
-        border: 2px solid var(--line);
-        border-radius: 16px;
-        padding: 16px 18px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        background: var(--surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        padding: var(--space-4) 18px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
         animation: fadeIn 250ms ease-in;
       }
       .meta {
         display: flex;
-        gap: 10px;
+        gap: var(--space-3);
         flex-wrap: wrap;
         align-items: center;
-        color: var(--muted);
-        font-size: 12px;
+        color: var(--text-muted);
+        font-size: 13px;
       }
       .meta-left {
         display: inline-flex;
-        gap: 8px;
+        gap: var(--space-2);
         align-items: center;
         flex-wrap: wrap;
         min-width: 0;
@@ -499,84 +661,105 @@
         margin-left: auto;
       }
       .stem {
-        margin: 10px 0 8px;
+        margin: var(--space-3) 0 var(--space-2);
         font-size: 16px;
+        font-weight: 500;
+        line-height: 1.7;
+      }
+      .subject-pill {
+        display: inline-flex;
+        align-items: center;
+        background: var(--accent-soft);
+        color: var(--accent-soft-ink);
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-size: 14px;
+        line-height: 1.6;
       }
       .case-text {
-        margin: 10px 0 6px;
-        padding: 8px 10px;
-        background: #fff7e6;
-        border-left: 4px solid #b67b0b;
-        font-size: 13px;
+        margin: var(--space-3) 0 var(--space-2);
+        padding: var(--space-3);
+        background: var(--surface-alt);
+        border-left: 4px solid var(--border-strong);
+        font-size: 15px;
+        line-height: 1.8;
         white-space: pre-wrap;
       }
       .choices {
-        padding-left: 18px;
-        margin: 6px 0;
+        padding-left: var(--space-5);
+        margin: var(--space-2) 0;
       }
       .choice-btn {
-        display: inline-block;
+        display: flex;
+        align-items: center;
+        gap: 10px;
         width: 100%;
         text-align: left;
-        border: none;
-        background: transparent;
-        padding: 8px 6px;
-        font-size: 14px;
-        min-height: 32px;
+        border: 1px solid var(--border-control);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        padding: 10px var(--space-3);
+        margin-bottom: 6px;
+        font-size: 15px;
+        min-height: 44px;
         color: var(--ink);
         cursor: pointer;
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
-      .choice-btn:focus {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
+      .choice-btn:hover {
+        background: var(--surface-alt);
       }
       .choice-btn.selected {
-        background: #e6f0ff;
-        border-radius: 6px;
+        border-color: var(--accent);
+        border-width: 2px;
+        background: var(--accent-soft);
+        color: var(--accent-soft-ink);
       }
       .choice-btn.correct {
-        background: #e6f7ed;
-        color: #0b5c2b;
-        border-radius: 6px;
+        border: 2px solid var(--ok-border);
+        background: var(--ok-bg);
+        color: var(--ok-ink);
       }
       .choice-btn.incorrect {
-        background: #ffe7ea;
-        color: #7a0015;
-        border-radius: 6px;
+        border: 2px solid var(--ng-border);
+        background: var(--ng-bg);
+        color: var(--ng-ink);
       }
       .choice-feedback {
-        margin-top: 6px;
-        font-size: 12px;
-        color: var(--muted);
+        margin-top: var(--space-2);
+        font-size: 13px;
+        color: var(--text-muted);
       }
       .tagline {
-        margin-top: 8px;
-        font-size: 12px;
-        color: var(--muted);
+        margin-top: var(--space-2);
+        font-size: 14px;
+        color: var(--ink);
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: var(--space-2);
         align-items: center;
       }
       .tag-label {
-        font-weight: 600;
+        font-weight: 500;
+        color: var(--text-muted);
       }
       .tag-items {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: var(--space-2);
       }
       .tagline-break {
         flex-basis: 100%;
         height: 0;
       }
       .tag-more {
-        border: 1px solid var(--line);
-        background: #fff;
-        color: var(--muted);
+        border: 1px solid var(--border-control);
+        background: var(--surface);
+        color: var(--text-muted);
         border-radius: 999px;
-        font-size: 12px;
-        padding: 2px 8px;
+        font-size: 14px;
+        padding: 4px 10px;
         cursor: pointer;
       }
       .chip-link {
@@ -584,23 +767,33 @@
         margin: 2px 6px 0 0;
         padding: 2px 8px;
         border-radius: 999px;
-        border: 1px solid var(--line);
-        background: #fff;
-        color: var(--muted);
+        border: 1px solid var(--border-control);
+        background: var(--surface);
+        color: var(--text-muted);
         font-size: 12px;
         text-decoration: none;
         cursor: pointer;
+      }
+      .tagline .chip-link,
+      .deep-dive-tags .chip-link,
+      .tag-description-filters .chip-link {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent-soft-ink);
+        font-size: 14px;
+        line-height: 1.5;
+        padding: 4px 10px;
       }
       .tag-chip {
         position: relative;
       }
       .tag-chip.has-description {
-        border-color: #8fa6bf;
+        border-color: var(--accent);
       }
       .tag-chip.has-description::after {
         content: "●";
         font-size: 12px;
-        color: #617a93;
+        color: var(--accent-soft-ink);
         margin-left: 5px;
         vertical-align: middle;
       }
@@ -609,54 +802,58 @@
         border-color: var(--accent);
       }
       .chip-link:disabled {
-        opacity: 0.65;
+        opacity: 1;
+        color: var(--text-muted);
+        border-color: var(--border-subtle);
         cursor: default;
       }
       .tag-description {
         width: 100%;
-        margin-top: 6px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #f8fafc;
-        padding: 8px 10px;
+        margin-top: var(--space-2);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface-alt);
+        padding: var(--space-2) 10px;
         line-height: 1.7;
       }
       .tag-description-title {
-        font-weight: 700;
+        font-weight: 500;
         color: var(--ink);
+        font-size: 15px;
       }
       .tag-description-text {
-        margin-top: 4px;
-        color: #1f2937;
+        margin-top: var(--space-1);
+        color: var(--ink);
+        font-size: 15px;
       }
       .tag-description-meta {
-        margin-top: 6px;
+        margin-top: var(--space-2);
         font-size: 12px;
-        color: var(--muted);
+        color: var(--text-muted);
       }
       .tag-description-filters {
-        margin-top: 6px;
+        margin-top: var(--space-2);
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: var(--space-2);
       }
       .report-btn.reported {
-        background: #ffe7ea;
-        border-color: #b00020;
-        color: #7a0015;
+        background: var(--ng-bg);
+        border-color: var(--ng-border);
+        color: var(--ng-ink);
       }
       .proposal-list {
-        margin-top: 8px;
-        padding: 8px;
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        background: #f8fafc;
+        margin-top: var(--space-2);
+        padding: var(--space-2);
+        border: 1px dashed var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface-alt);
         font-size: 0.9em;
       }
       .proposal-item {
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px dashed var(--line);
+        margin-top: var(--space-2);
+        padding-top: var(--space-2);
+        border-top: 1px dashed var(--border-subtle);
       }
       .proposal-item:first-child {
         margin-top: 0;
@@ -666,47 +863,47 @@
       .proposal-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 8px;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
       }
       .qa-answer {
-        margin-top: 6px;
-        padding: 8px 10px;
-        border-left: 3px solid #0b7a5c;
-        background: #f4fbf8;
+        margin-top: var(--space-2);
+        padding: var(--space-2) 10px;
+        border-left: 3px solid var(--ok-border);
+        background: var(--ok-bg);
         line-height: 1.7;
       }
       .qa-meta {
-        margin-top: 6px;
+        margin-top: var(--space-2);
         display: inline-flex;
-        gap: 8px;
+        gap: var(--space-2);
         align-items: center;
         flex-wrap: wrap;
       }
       .deep-dive-panel {
-        margin-top: 12px;
+        margin-top: var(--space-3);
         padding: 10px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 13px;
         line-height: 1.6;
       }
       .deep-dive-body {
-        margin: 10px 0 0;
+        margin: var(--space-3) 0 0;
         padding: 12px 14px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #f9fbfd;
-        color: #0f172a;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface-alt);
+        color: var(--ink);
         font-size: 14px;
         line-height: 1.9;
         word-break: break-word;
       }
       .inline-meta {
-        margin-top: 8px;
+        margin-top: var(--space-2);
         display: inline-flex;
-        gap: 8px;
+        gap: var(--space-2);
         align-items: center;
         flex-wrap: wrap;
       }
@@ -719,15 +916,17 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid var(--line);
+        border: 1px solid var(--border-control);
         border-radius: 999px;
-        background: #fff;
+        background: var(--surface);
         cursor: pointer;
         font-size: 13px;
         line-height: 1;
       }
       .icon-mini-btn:disabled {
-        opacity: 0.5;
+        opacity: 1;
+        color: var(--text-muted);
+        border-color: var(--border-subtle);
         cursor: default;
       }
       .markdown-body > :first-child {
@@ -761,16 +960,16 @@
       .markdown-body code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         font-size: 0.95em;
-        background: #eef2f7;
+        background: var(--surface-alt);
         border-radius: 4px;
         padding: 0.1em 0.28em;
       }
       .markdown-body pre {
         margin: 0.6em 0;
         padding: 10px 12px;
-        border: 1px solid #dbe3ec;
-        border-radius: 6px;
-        background: #f8fbff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface-alt);
         overflow-x: auto;
       }
       .markdown-body pre code {
@@ -778,66 +977,70 @@
         padding: 0;
       }
       .deep-dive-tags {
-        margin-top: 8px;
+        margin-top: var(--space-2);
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: var(--space-2);
       }
       .proposal-label {
-        font-weight: 600;
-        margin-right: 6px;
+        font-weight: 500;
+        margin-right: var(--space-2);
       }
       .answer {
-        margin-top: 10px;
-        padding: 8px 10px;
+        margin-top: var(--space-3);
+        padding: var(--space-2) 10px;
         border-left: 4px solid var(--accent);
-        background: #e6f0ff;
+        background: var(--accent-soft);
         font-size: 13px;
         display: none;
       }
       .explanation {
-        margin-top: 8px;
-        padding: 8px 10px;
-        border-left: 4px solid #0b7a5c;
-        background: #e8f7f2;
+        margin-top: var(--space-2);
+        padding: var(--space-2) 10px;
+        border-left: 4px solid var(--ok-border);
+        background: var(--ok-bg);
         font-size: 13px;
         white-space: pre-wrap;
         display: none;
       }
       .answer-stats {
-        margin-top: 6px;
-        padding-top: 6px;
-        border-top: 1px dashed var(--line);
+        margin-top: var(--space-2);
+        padding-top: var(--space-2);
+        border-top: 1px dashed var(--border-subtle);
         font-size: 12px;
-        color: var(--muted);
+        color: var(--text-muted);
       }
       .progress-line {
-        margin-top: 8px;
+        margin-top: var(--space-2);
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 6px;
+        gap: var(--space-2);
         font-size: 12px;
       }
       .progress-badge {
         display: inline-block;
         padding: 3px 8px;
         border-radius: 999px;
-        border: 1px solid var(--line);
-        background: #fff;
+        border: 1px solid var(--border-control);
+        background: var(--surface);
       }
       .progress-badge.unstarted {
-        background: #f3f4f6;
+        background: var(--surface-alt);
       }
       .progress-badge.mastered {
-        background: #dcfce7;
+        background: var(--ok-bg);
+        color: var(--ok-ink);
+        border-color: var(--ok-border);
       }
       .progress-badge.needs_review {
-        background: #fee2e2;
+        background: var(--ng-bg);
+        color: var(--ng-ink);
+        border-color: var(--ng-border);
       }
       .progress-inline-controls {
         display: inline-flex;
-        gap: 6px;
+        gap: var(--space-2);
         align-items: center;
       }
       .progress-inline-controls select,
@@ -846,10 +1049,10 @@
         padding: 4px 6px;
       }
       .card-actions {
-        margin-top: 10px;
+        margin-top: var(--space-3);
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--space-2);
         align-items: center;
       }
       .card-actions details.inline {
@@ -858,7 +1061,7 @@
       .card-actions > button,
       .card-actions details.inline > summary.inline-summary,
       .card-actions .inline > button.inline-summary {
-        min-height: 40px;
+        min-height: 44px;
       }
       .card-menu-panel {
         min-width: 220px;
@@ -870,7 +1073,7 @@
       .action-btn {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--space-2);
       }
       .action-btn.icon-only,
       details.inline > summary.inline-summary.action-summary.icon-only,
@@ -900,12 +1103,12 @@
         min-width: 44px;
         min-height: 44px;
         padding: 0 12px;
-        border: 2px solid var(--line);
+        border: 1px solid var(--border-control);
         border-radius: 999px;
-        background: #fff;
+        background: var(--surface);
         color: var(--ink);
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 500;
         cursor: pointer;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
         opacity: 0;
@@ -929,19 +1132,71 @@
           right: 10px;
           bottom: max(10px, env(safe-area-inset-bottom));
         }
+        header {
+          padding-left: var(--space-3);
+          padding-right: var(--space-3);
+        }
+        .controls,
+        .toolbar,
+        .results,
+        .auth-container {
+          padding-left: var(--space-3);
+          padding-right: var(--space-3);
+        }
+        .search-actions {
+          flex-wrap: wrap;
+        }
+        .search-actions button {
+          flex: 1 1 120px;
+        }
+        .toolbar.main {
+          align-items: stretch;
+        }
+        .toolbar.main > button,
+        .toolbar.main > select {
+          flex: 1 1 100%;
+          width: 100%;
+          min-width: 0;
+        }
+        .active-filters {
+          flex: 1 1 100%;
+          min-width: 0;
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .filter-chip {
+          width: 100%;
+          max-width: 100%;
+          white-space: normal;
+          text-align: left;
+        }
+        .result-page-nav {
+          width: 100%;
+        }
+        .result-page-nav > * {
+          flex: 1 1 100%;
+        }
+        .result-page-nav input {
+          flex: 1 1 100%;
+          min-width: 72px;
+          width: 100%;
+        }
+        .result-page-nav button {
+          width: 100%;
+        }
       }
       details.inline > summary.inline-summary.action-summary,
       .inline > button.inline-summary.action-summary {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--space-2);
       }
       .note {
-        color: var(--muted);
+        color: var(--text-muted);
         font-size: 12px;
       }
       .update-list {
-        margin: 6px 0 8px;
+        margin: var(--space-2) 0 var(--space-2);
         padding-left: 18px;
         font-size: 12px;
       }
@@ -949,11 +1204,11 @@
         margin: 4px 0;
       }
       .user-readme {
-        margin: 6px 0;
+        margin: var(--space-2) 0;
         padding: 12px 14px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 13px;
         line-height: 1.75;
       }
@@ -993,16 +1248,16 @@
       .user-readme code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         font-size: 0.95em;
-        background: #f5f7fa;
-        border: 1px solid #e4e9f0;
+        background: var(--surface-alt);
+        border: 1px solid var(--border-subtle);
         border-radius: 4px;
         padding: 0.1em 0.3em;
       }
       .user-readme pre {
         overflow-x: auto;
-        background: #f5f7fa;
-        border: 1px solid #e4e9f0;
-        border-radius: 6px;
+        background: var(--surface-alt);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
         padding: 10px 12px;
         margin: 0.7em 0;
       }
@@ -1012,25 +1267,25 @@
         padding: 0;
       }
       .user-readme a {
-        color: #145aa8;
+        color: var(--accent);
         text-decoration: underline;
       }
       details.inline {
-        margin-top: 8px;
+        margin-top: var(--space-2);
       }
       details.inline > summary {
         cursor: pointer;
         font-size: 12px;
-        color: var(--muted);
+        color: var(--text-muted);
       }
       details.inline > summary.inline-summary,
       .inline > button.inline-summary {
         list-style: none;
         display: inline-block;
         padding: 6px 10px;
-        border-radius: 8px;
-        border: 2px solid var(--line);
-        background: #fff;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-control);
+        background: var(--surface);
         cursor: pointer;
         font-size: 12px;
         color: var(--ink);
@@ -1039,20 +1294,20 @@
         display: none;
       }
       .edit-panel {
-        margin-top: 6px;
-        padding: 8px 10px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
+        margin-top: var(--space-2);
+        padding: var(--space-2) 10px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 12px;
       }
       .edit-grid {
         display: grid;
-        gap: 6px;
+        gap: var(--space-2);
       }
       .edit-grid label {
         display: flex;
-        gap: 6px;
+        gap: var(--space-2);
         align-items: center;
       }
       .edit-panel input,
@@ -1061,8 +1316,8 @@
       .edit-panel button {
         margin-top: 6px;
         padding: 6px 8px;
-        border-radius: 6px;
-        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-control);
         font-size: 12px;
       }
       .edit-panel textarea {
@@ -1070,12 +1325,12 @@
       }
       .explanation-header {
         display: flex;
-        gap: 8px;
+        gap: var(--space-2);
         align-items: center;
         flex-wrap: wrap;
       }
       .explanation-body {
-        margin-top: 6px;
+        margin-top: var(--space-2);
         white-space: pre-wrap;
       }
       .inline-details[open] {
@@ -1085,83 +1340,83 @@
         width: 100%;
       }
       .auth-panel {
-        margin-top: 8px;
-        padding: 8px 10px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
+        margin-top: var(--space-2);
+        padding: var(--space-2) 10px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 12px;
       }
       .auth-panel input {
         width: 220px;
         padding: 6px 8px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        margin-right: 6px;
+        border: 1px solid var(--border-control);
+        border-radius: var(--radius-sm);
+        margin-right: var(--space-2);
       }
       .history-panel {
-        margin-top: 10px;
-        padding: 10px 12px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
+        margin-top: var(--space-3);
+        padding: 10px var(--space-3);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 13px;
       }
       .history-controls {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--space-2);
         align-items: center;
       }
       .history-controls input,
       .history-controls select,
       .history-controls button {
         padding: 6px 8px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
+        border: 1px solid var(--border-control);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 12px;
       }
       .history-list {
-        margin-top: 10px;
+        margin-top: var(--space-3);
         display: grid;
-        gap: 8px;
+        gap: var(--space-2);
       }
       .history-item {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 8px 10px;
-        background: #f8fafc;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: var(--space-2) 10px;
+        background: var(--surface-alt);
       }
       .history-meta {
         font-size: 12px;
-        color: var(--muted);
-        margin-bottom: 4px;
+        color: var(--text-muted);
+        margin-bottom: var(--space-1);
       }
       .history-body {
         font-size: 13px;
         white-space: pre-wrap;
       }
       .history-item button {
-        margin-top: 6px;
-        padding: 4px 8px;
+        margin-top: var(--space-2);
+        padding: var(--space-1) var(--space-2);
         font-size: 12px;
       }
       .ai-usage-summary {
-        margin-top: 10px;
+        margin-top: var(--space-3);
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 8px;
+        gap: var(--space-2);
       }
       .ai-usage-card {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #f8fafc;
-        padding: 8px 10px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface-alt);
+        padding: var(--space-2) 10px;
         font-size: 12px;
       }
       .ai-usage-card h3 {
-        margin: 0 0 6px;
+        margin: 0 0 var(--space-2);
         font-size: 13px;
       }
       .ai-usage-card table {
@@ -1176,33 +1431,33 @@
         font-variant-numeric: tabular-nums;
       }
       .proposal-panel {
-        margin-top: 10px;
+        margin-top: var(--space-3);
       }
       .proposal-controls {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 10px;
+        gap: var(--space-2);
+        margin-bottom: var(--space-3);
       }
       .proposal-controls input,
       .proposal-controls select,
       .proposal-controls button {
         padding: 6px 8px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
+        border: 1px solid var(--border-control);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 12px;
       }
       .proposal-list-wide {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
-        padding: 8px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        padding: var(--space-2);
         font-size: 12px;
       }
       .proposal-row {
-        border-top: 1px solid var(--line);
-        padding: 8px 0;
+        border-top: 1px solid var(--border-subtle);
+        padding: var(--space-2) 0;
       }
       .proposal-row:first-child {
         border-top: none;
@@ -1215,31 +1470,31 @@
         display: none;
       }
       .proposal-meta {
-        color: var(--muted);
+        color: var(--text-muted);
         font-size: 12px;
-        margin-bottom: 4px;
+        margin-bottom: var(--space-1);
       }
       .trend-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 12px;
-        margin: 6px 0 12px;
+        margin: var(--space-2) 0 var(--space-3);
       }
       .trend-bars {
         display: grid;
-        gap: 6px;
-        margin: 6px 0 12px;
+        gap: var(--space-2);
+        margin: var(--space-2) 0 var(--space-3);
         font-size: 12px;
       }
       .trend-bar {
         display: grid;
         grid-template-columns: minmax(84px, 140px) minmax(140px, 1fr) minmax(28px, auto);
         align-items: center;
-        gap: 8px;
+        gap: var(--space-2);
         min-height: 24px;
       }
       .trend-bar-label {
-        color: var(--muted);
+        color: var(--text-muted);
         font-size: 12px;
         white-space: nowrap;
         overflow: hidden;
@@ -1248,15 +1503,15 @@
       .trend-bar-track {
         width: 100%;
         min-width: 140px;
-        background: #f3f4f6;
-        border: 1px solid var(--line);
+        background: var(--surface-alt);
+        border: 1px solid var(--border-subtle);
         border-radius: 999px;
         height: 12px;
         overflow: hidden;
       }
       .trend-bar-fill {
         height: 100%;
-        background: #4b7bca;
+        background: var(--accent);
         border-radius: 999px;
       }
       .trend-bar-count {
@@ -1274,98 +1529,164 @@
       .trend-table th,
       .trend-table td {
         padding: 4px 6px;
-        border-bottom: 1px solid var(--line);
+        border-bottom: 1px solid var(--border-subtle);
         text-align: left;
       }
       .trend-table th {
-        color: var(--muted);
-        font-weight: 600;
+        color: var(--text-muted);
+        font-weight: 500;
       }
       .frequent-badge {
-        margin-left: 8px;
+        margin-left: var(--space-2);
         padding: 2px 6px;
         border-radius: 999px;
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 500;
       }
       .frequent-badge.level-1 {
-        background: #e6f1ff;
-        color: #0b3b75;
+        background: var(--accent-soft);
+        color: var(--accent-soft-ink);
       }
       .frequent-badge.level-2 {
-        background: #ffe6a3;
-        color: #5a2c00;
+        background: var(--surface-alt);
+        color: var(--ink);
       }
       .frequent-badge.level-3 {
-        background: #ffd1b8;
-        color: #5a1f00;
+        background: var(--ng-bg);
+        color: var(--ng-ink);
       }
       .frequent-tags {
-        margin-left: 6px;
+        margin-left: var(--space-2);
         font-size: 12px;
-        color: var(--muted);
+        color: var(--text-muted);
       }
       .auth-panel .note {
-        margin-top: 6px;
-        color: var(--muted);
+        margin-top: var(--space-2);
+        color: var(--text-muted);
         font-size: 12px;
       }
       .auth-toggle {
-        padding: 6px 10px;
-        border-radius: 8px;
-        border: 2px solid var(--line);
-        background: #fff;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-control);
+        background: var(--surface);
+        color: var(--ink);
         cursor: pointer;
-        font-size: 12px;
+        font-size: 14px;
+        min-height: 44px;
       }
       .auth-container {
-        padding: 0 24px 12px;
+        padding: 0 var(--space-5) var(--space-3);
       }
       .auth-panel[hidden] {
         display: none;
       }
       .card-actions button,
       .card-actions select {
-        padding: 6px 10px;
-        border-radius: 8px;
-        border: 2px solid var(--line);
-        background: #fff;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-control);
+        background: var(--surface);
         cursor: pointer;
-        font-size: 12px;
+        font-size: 14px;
+        min-height: 44px;
       }
       .request-btn {
-        padding: 6px 10px;
-        border-radius: 8px;
-        border: 2px solid var(--accent);
-        background: #fff;
+        padding: 10px 14px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--accent);
+        background: var(--surface);
         color: var(--accent);
         cursor: pointer;
-        font-size: 12px;
+        font-size: 14px;
+        min-height: 44px;
       }
       .request-btn.reported {
-        background: #ffe7ea;
-        border-color: #b00020;
-        color: #7a0015;
+        background: var(--ng-bg);
+        border-color: var(--ng-border);
+        color: var(--ng-ink);
       }
       .request-panel {
-        margin-top: 6px;
-        padding: 8px 10px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
+        margin-top: var(--space-2);
+        padding: var(--space-2) 10px;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
         font-size: 12px;
         flex-basis: 100%;
         width: 100%;
       }
       .request-panel textarea,
       .request-panel button {
-        margin-top: 6px;
+        margin-top: var(--space-2);
         font-size: 12px;
       }
       .request-panel textarea {
         width: 100%;
         min-height: 96px;
         resize: vertical;
+      }
+      button.btn-primary,
+      a.btn-primary,
+      summary.btn-primary {
+        background: var(--accent);
+        color: var(--surface);
+        border: 1px solid var(--accent);
+      }
+      button.btn-primary:hover,
+      a.btn-primary:hover,
+      summary.btn-primary:hover {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+        color: var(--surface);
+      }
+      button.btn-secondary,
+      a.btn-secondary,
+      summary.btn-secondary {
+        background: var(--surface);
+        color: var(--ink);
+        border: 1px solid var(--border-control);
+      }
+      button.btn-secondary:hover,
+      a.btn-secondary:hover,
+      summary.btn-secondary:hover {
+        background: var(--surface-alt);
+        color: var(--ink);
+      }
+      button.btn-tertiary,
+      a.btn-tertiary,
+      summary.btn-tertiary {
+        background: transparent;
+        color: var(--accent);
+        border: none;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      button.btn-tertiary:hover,
+      a.btn-tertiary:hover,
+      summary.btn-tertiary:hover {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      button.btn-primary:disabled,
+      button.btn-secondary:disabled,
+      button.btn-tertiary:disabled {
+        opacity: 1;
+        cursor: default;
+      }
+      button.btn-primary:disabled {
+        background: var(--surface-alt);
+        border-color: var(--border-control);
+        color: var(--text-muted);
+      }
+      button.btn-secondary:disabled {
+        background: var(--surface-alt);
+        border-color: var(--border-subtle);
+        color: var(--text-muted);
+      }
+      button.btn-tertiary:disabled {
+        color: var(--text-muted);
+        text-decoration-color: var(--text-muted);
       }
       .show .answer { display: block; }
       .show-explanation .answer { display: block; }
@@ -1400,6 +1721,19 @@
           flex: 1;
         }
       }
+      @media (max-width: 520px) {
+        .intro {
+          padding-left: var(--space-3);
+          padding-right: var(--space-3);
+        }
+        .search-actions {
+          flex-wrap: wrap;
+        }
+        .search-actions button {
+          flex: 1 1 100%;
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1412,30 +1746,37 @@
           <span class="site-title-short">ASV</span>
         </h1>
         <div class="top-nav-actions">
-          <button id="menuToggleBtn" class="auth-toggle" aria-expanded="false" aria-controls="topPanels" aria-label="メニュー">☰</button>
+          <button id="menuToggleBtn" class="auth-toggle btn-secondary" aria-expanded="false" aria-controls="topPanels" aria-label="メニュー">☰</button>
         </div>
       </div>
       <div id="topPanels" class="top-panels" hidden>
         <div id="topMenuContent" hidden>
           <nav class="top-menu" aria-label="メニュー">
-            <button id="authToggleBtn" class="auth-toggle" aria-expanded="false" aria-controls="teacherAuth">ログイン</button>
-            <button type="button" data-menu-target="updateInfo">更新情報</button>
-            <button type="button" data-menu-target="settingsPanel">設定</button>
-            <button type="button" data-menu-target="progressPanel">学習進捗</button>
-            <button type="button" data-menu-target="userReadme">利用ガイド</button>
-            <button type="button" data-menu-target="answerTrendPanel">回答数の推移</button>
-            <button type="button" data-menu-target="historyPanel">編集履歴</button>
-            <button type="button" data-menu-target="proposalPanel">修正提案一覧</button>
-	            <button type="button" data-menu-target="tagDisablePanel">タグ無効化</button>
-	            <button type="button" data-menu-target="aiGenerationPanel">AI機能公開</button>
-	            <button type="button" data-menu-target="aiUsagePanel">API使用状況</button>
-	            <button type="button" data-menu-target="senryuRankingPanel">川柳ランキング</button>
-	            <button type="button" data-menu-target="practiceRatingPanel">練習問題公開管理</button>
-	            <a id="analyticsMenuLink" href="./analytics.html" target="_blank" rel="noopener noreferrer" hidden>データ分析</a>
-	            <a href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ</a>
-	            <a href="./voicepeak_csv.html" target="_blank" rel="noopener noreferrer">VOICEPEAK CSV出力</a>
-	            <a href="./print_export.html" target="_blank" rel="noopener noreferrer">プリント作成ビュー</a>
-	            <a href="./simple.html">かんたんビューへのリンク</a>
+            <div class="top-menu-group" aria-label="学習メニュー">
+              <button id="authToggleBtn" class="auth-toggle btn-secondary" aria-expanded="false" aria-controls="teacherAuth">ログイン</button>
+              <button type="button" class="btn-secondary" data-menu-target="updateInfo">更新情報</button>
+              <button type="button" class="btn-secondary" data-menu-target="settingsPanel">設定</button>
+              <button type="button" class="btn-secondary" data-menu-target="progressPanel">学習進捗</button>
+              <button type="button" class="btn-secondary" data-menu-target="userReadme">利用ガイド</button>
+              <a class="btn-secondary" href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ</a>
+              <a class="btn-secondary" href="./print_export.html" target="_blank" rel="noopener noreferrer">プリント作成ビュー</a>
+              <a class="btn-secondary" href="./simple.html">かんたんビューへのリンク</a>
+            </div>
+            <details id="adminMenu" class="admin-menu" hidden>
+              <summary class="btn-secondary">管理メニュー</summary>
+              <div class="admin-menu-items" aria-label="管理メニュー項目">
+                <button type="button" class="btn-secondary" data-menu-target="answerTrendPanel">回答数の推移</button>
+                <button type="button" class="btn-secondary" data-menu-target="historyPanel">編集履歴</button>
+                <button type="button" class="btn-secondary" data-menu-target="proposalPanel">修正提案一覧</button>
+                <button type="button" class="btn-secondary" data-menu-target="tagDisablePanel">タグ無効化</button>
+                <button type="button" class="btn-secondary" data-menu-target="aiGenerationPanel">AI機能公開</button>
+                <button type="button" class="btn-secondary" data-menu-target="aiUsagePanel">API使用状況</button>
+                <button type="button" class="btn-secondary" data-menu-target="senryuRankingPanel">川柳ランキング</button>
+                <button type="button" class="btn-secondary" data-menu-target="practiceRatingPanel">練習問題公開管理</button>
+                <a id="analyticsMenuLink" class="btn-secondary" href="./analytics.html" target="_blank" rel="noopener noreferrer" hidden>データ分析</a>
+                <a class="btn-secondary" href="./voicepeak_csv.html" target="_blank" rel="noopener noreferrer">VOICEPEAK CSV出力</a>
+              </div>
+            </details>
 	          </nav>
 	        </div>
         <details class="inline" id="updateInfo" hidden>
@@ -1460,6 +1801,13 @@
             <option value="large">大</option>
             <option value="xlarge">特大</option>
           </select>
+          <label for="fontFamilySelect">フォント</label>
+          <select id="fontFamilySelect" aria-label="フォント">
+            <option value="sans">標準ゴシック</option>
+            <option value="ud">UDゴシック</option>
+            <option value="serif">明朝</option>
+            <option value="rounded">丸ゴシック</option>
+          </select>
           <div id="ttsQualitySettingWrap" hidden>
             <label for="ttsQualitySelect">読み上げ音質</label>
             <select id="ttsQualitySelect" aria-label="読み上げ音質">
@@ -1479,7 +1827,7 @@
           <label><input type="checkbox" id="showSubtopicsToggle" /> 小項目を表示</label>
           <label id="reportModeWrap" hidden><input type="checkbox" id="reportModeToggle" /> 修正要望モード</label>
           <label id="editModeWrap" hidden><input type="checkbox" id="editModeToggle" /> 編集モード</label>
-          <button type="button" class="top-panel-close" data-close-target="settingsPanel">閉じる</button>
+          <button type="button" class="top-panel-close btn-tertiary" data-close-target="settingsPanel">閉じる</button>
         </div>
         </details>
         <details class="inline" id="progressPanel" hidden>
@@ -1515,7 +1863,7 @@
         <summary>利用ガイド</summary>
         <div class="card-actions">
           <article class="user-readme" id="userReadmeText">読み込み中...</article>
-          <button type="button" class="top-panel-close" data-close-target="userReadme">閉じる</button>
+          <button type="button" class="top-panel-close btn-tertiary" data-close-target="userReadme">閉じる</button>
         </div>
         </details>
         <details class="inline" id="answerTrendPanel" hidden>
@@ -1667,8 +2015,8 @@
           <label for="authPassword" class="sr-only">ログイン用パスワード</label>
           <input id="authPassword" type="password" placeholder="パスワード" autocomplete="current-password" />
           <div class="progress-inline-controls">
-            <button id="authLoginBtn" type="button">ログイン</button>
-            <button id="authResetBtn" type="button">パスワード再設定</button>
+          <button id="authLoginBtn" class="btn-secondary" type="button">ログイン</button>
+          <button id="authResetBtn" class="btn-secondary" type="button">パスワード再設定</button>
           </div>
         </div>
         <div id="authRecoveryPanel" class="edit-panel" hidden>
@@ -1716,8 +2064,8 @@
           <div id="searchHistoryPanel" class="search-history" role="listbox" aria-label="検索履歴" hidden></div>
         </div>
         <div class="search-actions">
-          <button id="searchBtn" aria-label="検索を実行">検索</button>
-          <button id="resetBtn" aria-label="検索条件をリセット">リセット</button>
+          <button id="searchBtn" class="btn-primary" aria-label="検索を実行">検索</button>
+          <button id="resetBtn" class="btn-tertiary" aria-label="検索条件をリセット">リセット</button>
         </div>
       </div>
       <div id="tagDisambiguationBox" class="tag-disambiguation" hidden aria-live="polite"></div>
@@ -1752,7 +2100,7 @@
     </div>
 
     <div class="toolbar main">
-	      <button id="copyAllBtn" aria-label="検索結果をコピー">検索結果をコピー</button>
+	      <button id="copyAllBtn" class="btn-secondary" aria-label="検索結果をコピー">検索結果をコピー</button>
 	      <select id="sortSession" aria-label="並び替え">
 	        <option value="random" selected>ランダム</option>
 	        <option value="desc">新しい順</option>
@@ -1767,13 +2115,13 @@
         <option value="rate_desc">正答率が高い順</option>
         <option value="rate_asc">正答率が低い順</option>
       </select>
-      <span id="countInfo" aria-live="polite">読み込み中...</span>
-      <div id="filterSummary" class="note filter-summary"></div>
+      <span id="countInfo" class="sr-only" aria-live="polite">読み込み中...</span>
+      <div id="activeFilters" class="active-filters" role="group" aria-label="適用中の検索条件"></div>
       <div id="resultPageNav" class="result-page-nav" hidden>
         <span id="resultPageInfo" aria-live="polite">ページ 1/1</span>
         <label for="resultPageJumpInput">ページ移動</label>
         <input id="resultPageJumpInput" type="number" min="1" step="1" inputmode="numeric" />
-        <button id="resultPageJumpBtn" type="button">移動</button>
+        <button id="resultPageJumpBtn" class="btn-secondary" type="button">移動</button>
       </div>
     </div>
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
@@ -1866,6 +2214,7 @@
         ,progressLoading: false
         ,uiMode: "standard"
         ,fontScale: "normal"
+        ,fontFamily: "sans"
         ,highContrast: false
         ,keyboardShortcutsEnabled: true
         ,ttsEnabled: false
@@ -2045,10 +2394,15 @@
         });
       }
 
+      function normalizeFontFamily(value) {
+        return ["sans", "ud", "serif", "rounded"].includes(value) ? value : "sans";
+      }
+
       function applyUiPreferences() {
         document.body.classList.toggle("ui-mode-accessible", state.uiMode === "accessible");
         document.body.classList.toggle("high-contrast", !!state.highContrast);
         document.body.setAttribute("data-font-scale", state.fontScale || "normal");
+        document.body.setAttribute("data-font-family", normalizeFontFamily(state.fontFamily));
       }
 
       function updateAiPublicNotice() {
@@ -2102,6 +2456,13 @@
 	        const analyticsMenuLink = document.getElementById("analyticsMenuLink");
 	        if (analyticsMenuLink) {
 	          analyticsMenuLink.hidden = !isRoleAtLeast("admin");
+	        }
+	        const adminMenu = document.getElementById("adminMenu");
+	        if (adminMenu) {
+	          const visibleAdminItems = Array.from(adminMenu.querySelectorAll("button, a")).some((item) => !item.hidden);
+	          const showAdminMenu = isRoleAtLeast("teacher") && visibleAdminItems;
+	          adminMenu.hidden = !showAdminMenu;
+	          if (!showAdminMenu) adminMenu.open = false;
 	        }
 	      }
 
@@ -5955,6 +6316,195 @@
         return filtered;
       }
 
+      function getExamTypeLabel(value) {
+        if (value === "A") return "あん摩マッサージ指圧師";
+        if (value === "B") return "はり師・きゅう師";
+        return value || "";
+      }
+
+      function getSortLabel(value) {
+        const sortLabels = {
+          random: "ランダム",
+          asc: "古い順",
+          desc: "新しい順",
+          qa_desc: "Q&A追加順",
+          deep_dive_desc: "深掘り解説追加順",
+          review_desc: "復習優先順",
+          count_desc: "回答数が多い順",
+          count_asc: "回答数が少ない順",
+          correct_desc: "正答数が多い順",
+          correct_asc: "正答数が少ない順",
+          rate_desc: "正答率が高い順",
+          rate_asc: "正答率が低い順"
+        };
+        return sortLabels[value] || "ランダム";
+      }
+
+      function getAnsweredFilterLabel(value) {
+        if (value === "hide_answered") return "回答済みを非表示";
+        if (value === "only_answered") return "回答済みのみ表示";
+        return "";
+      }
+
+      function getActiveFilterDescriptors() {
+        const keywordEl = document.getElementById("keyword");
+        const subjectEl = document.getElementById("subjectSelect");
+        const subtopicEl = document.getElementById("subtopicSelect");
+        const examTypeEl = document.getElementById("examTypeSelect");
+        const sessionFromEl = document.getElementById("sessionFrom");
+        const sessionToEl = document.getElementById("sessionTo");
+        const progressEl = document.getElementById("progressStateFilter");
+        const answeredEl = document.getElementById("answeredFilter");
+        const sortEl = document.getElementById("sortSession");
+        const filters = [];
+        const keyword = String((keywordEl && keywordEl.value) || "").trim();
+        const subject = String((subjectEl && subjectEl.value) || "").trim();
+        const subtopic = String((subtopicEl && subtopicEl.value) || "").trim();
+        const examType = String((examTypeEl && examTypeEl.value) || "").trim();
+        const sessionFrom = String((sessionFromEl && sessionFromEl.value) || "").trim();
+        const sessionTo = String((sessionToEl && sessionToEl.value) || "").trim();
+        const progress = String((progressEl && progressEl.value) || "").trim();
+        const answered = isRoleAtLeast("student")
+          ? "all"
+          : String((answeredEl && answeredEl.value) || "all").trim();
+        const sort = String((sortEl && sortEl.value) || "random").trim() || "random";
+        if (keyword) filters.push({ key: "keyword", label: "キーワード", value: keyword });
+        if (subject) filters.push({ key: "subject", label: "科目", value: subject });
+        if (subtopic) filters.push({ key: "subtopic", label: "小項目", value: subtopic });
+        if (examType) filters.push({ key: "examType", label: "種別", value: getExamTypeLabel(examType) });
+        if (sessionFrom || sessionTo) {
+          const fromLabel = sessionFrom ? `${sessionFrom}回` : "";
+          const toLabel = sessionTo ? `${sessionTo}回` : "";
+          filters.push({ key: "session", label: "回数範囲", value: [fromLabel, toLabel].filter(Boolean).join("〜") });
+        }
+        if (progress) filters.push({ key: "progress", label: "進捗", value: getProgressStatusLabel(progress) });
+        const answeredLabel = getAnsweredFilterLabel(answered);
+        if (answeredLabel) filters.push({ key: "answered", label: "回答", value: answeredLabel });
+        if (sort !== "random") filters.push({ key: "sort", label: "並び替え", value: getSortLabel(sort) });
+        return filters;
+      }
+
+      function resetResultViewState() {
+        state.currentResultPage = 1;
+        state.pendingResultPage = null;
+        state.lastResultViewKey = "";
+      }
+
+      function clearActiveFilter(key, label) {
+        const keywordEl = document.getElementById("keyword");
+        const subjectEl = document.getElementById("subjectSelect");
+        const subtopicEl = document.getElementById("subtopicSelect");
+        const examTypeEl = document.getElementById("examTypeSelect");
+        const sessionFromEl = document.getElementById("sessionFrom");
+        const sessionToEl = document.getElementById("sessionTo");
+        const progressEl = document.getElementById("progressStateFilter");
+        const answeredEl = document.getElementById("answeredFilter");
+        const sortEl = document.getElementById("sortSession");
+        if (key === "keyword" && keywordEl) {
+          keywordEl.value = "";
+          closeSearchHistoryPanel();
+        } else if (key === "subject" && subjectEl) {
+          subjectEl.value = "";
+          updateSubtopicOptions("");
+        } else if (key === "subtopic" && subtopicEl) {
+          subtopicEl.value = "";
+        } else if (key === "examType" && examTypeEl) {
+          examTypeEl.value = "";
+        } else if (key === "session") {
+          if (sessionFromEl) sessionFromEl.value = "";
+          if (sessionToEl) sessionToEl.value = "";
+        } else if (key === "progress" && progressEl) {
+          progressEl.value = "";
+        } else if (key === "answered" && answeredEl) {
+          answeredEl.value = "all";
+          saveTagVisibility();
+        } else if (key === "sort" && sortEl) {
+          sortEl.value = "random";
+          state.randomOrderSeed = "";
+          clearPersistedRandomSeed();
+        }
+        resetResultViewState();
+        const list = filterQuestions();
+        renderResults(list);
+        syncSearchQueryToUrl();
+        announceStatus(`${label}の条件を解除しました。${list.length}件`);
+      }
+
+      function renderActiveFilters(resultCount, options = {}) {
+        const container = document.getElementById("activeFilters");
+        if (!container) return;
+        container.innerHTML = "";
+        const count = document.createElement("span");
+        count.className = "result-count";
+        count.textContent = options.loading ? "読み込み中" : `${Number(resultCount || 0)}件`;
+        container.appendChild(count);
+        const filters = getActiveFilterDescriptors();
+        if (!filters.length) {
+          const empty = document.createElement("span");
+          empty.className = "filter-empty";
+          empty.textContent = "条件なし（全問題を表示中）";
+          container.appendChild(empty);
+          return;
+        }
+        filters.forEach((filter) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "filter-chip";
+          chip.setAttribute("aria-label", `${filter.label} ${filter.value} の条件を解除`);
+          chip.textContent = `${filter.label}: ${filter.value} `;
+          const closeMark = document.createElement("span");
+          closeMark.setAttribute("aria-hidden", "true");
+          closeMark.textContent = "×";
+          chip.appendChild(closeMark);
+          chip.addEventListener("click", () => {
+            clearActiveFilter(filter.key, filter.label);
+          });
+          container.appendChild(chip);
+        });
+        const clearAll = document.createElement("button");
+        clearAll.type = "button";
+        clearAll.className = "btn-tertiary";
+        clearAll.textContent = "すべて解除";
+        clearAll.addEventListener("click", () => {
+          const resetBtn = document.getElementById("resetBtn");
+          if (resetBtn) resetBtn.click();
+          announceStatus("すべての条件を解除しました。");
+        });
+        container.appendChild(clearAll);
+      }
+
+      function decorateButtonVariants(root = document) {
+        const scope = root && typeof root.querySelectorAll === "function" ? root : document;
+        scope.querySelectorAll("button").forEach((button) => {
+          if (
+            button.classList.contains("btn-primary") ||
+            button.classList.contains("btn-secondary") ||
+            button.classList.contains("btn-tertiary") ||
+            button.classList.contains("choice-btn") ||
+            button.classList.contains("filter-chip") ||
+            button.classList.contains("request-btn") ||
+            button.classList.contains("icon-mini-btn") ||
+            button.classList.contains("back-to-top") ||
+            button.closest(".search-history")
+          ) {
+            return;
+          }
+          const text = String(button.textContent || "").trim();
+          if (button.id === "searchBtn") {
+            button.classList.add("btn-primary");
+          } else if (
+            button.id === "resetBtn" ||
+            button.classList.contains("top-panel-close") ||
+            text === "閉じる" ||
+            text.includes("解除")
+          ) {
+            button.classList.add("btn-tertiary");
+          } else {
+            button.classList.add("btn-secondary");
+          }
+        });
+      }
+
       function renderResults(list) {
         const renderId = (state.resultRenderId || 0) + 1;
         state.resultRenderId = renderId;
@@ -5965,9 +6515,8 @@
         moreContainer.innerHTML = "";
         if (!state.dataReady) {
           const countInfo = document.getElementById("countInfo");
-          const summaryEl = document.getElementById("filterSummary");
           if (countInfo) countInfo.textContent = "読み込み中...";
-          if (summaryEl) summaryEl.textContent = "データを読み込んでいます。";
+          renderActiveFilters(0, { loading: true });
           const loading = document.createElement("div");
           loading.className = "note";
           loading.textContent = "問題データを読み込み中...";
@@ -5982,8 +6531,7 @@
         const showExplanation = document.getElementById("toggleExplanation").checked;
 	        const countText = `件数: ${list.length}`;
 	        document.getElementById("countInfo").textContent = countText;
-	        const summaryEl = document.getElementById("filterSummary");
-	        if (summaryEl) summaryEl.textContent = buildFilterHeader();
+	        renderActiveFilters(list.length);
 	        const analyticsResultKey = [
 	          String(document.getElementById("keyword").value || "").trim(),
 	          document.getElementById("subjectSelect").value || "",
@@ -6081,7 +6629,13 @@
           const metaLeft = document.createElement("div");
           metaLeft.className = "meta-left";
           const metaLabel = document.createElement("span");
-          metaLabel.textContent = `${q.serial} / ${q.subject} / 第${q.exam_session}回`;
+          metaLabel.setAttribute("aria-label", `${q.serial} / ${q.subject} / 第${q.exam_session}回`);
+          metaLabel.appendChild(document.createTextNode(`${q.serial} / `));
+          const subjectPill = document.createElement("span");
+          subjectPill.className = "subject-pill";
+          subjectPill.textContent = q.subject || "";
+          metaLabel.appendChild(subjectPill);
+          metaLabel.appendChild(document.createTextNode(` / 第${q.exam_session}回`));
           metaLeft.appendChild(metaLabel);
 	          if (hasAnswered(q.serial) && !isRoleAtLeast("student")) {
 	            const answered = document.createElement("span");
@@ -6117,6 +6671,7 @@
             controls.className = "progress-inline-controls";
             const reviewBtn = document.createElement("button");
             reviewBtn.type = "button";
+            reviewBtn.className = "btn-tertiary";
             reviewBtn.textContent = "要復習";
             reviewBtn.disabled = status === "needs_review";
             reviewBtn.addEventListener("click", () => {
@@ -8649,12 +9204,14 @@
         const pageItems = subset.slice(pageStart, pageEnd);
         const more = document.createElement("button");
         more.type = "button";
+        more.className = "btn-secondary";
         const renderBatch = (batch) => {
           const frag = document.createDocumentFragment();
           batch.forEach((item) => {
             appendCard(item, frag);
           });
           container.appendChild(frag);
+          decorateButtonVariants(container);
         };
         const refreshMoreButton = () => {
           moreContainer.innerHTML = "";
@@ -8708,6 +9265,7 @@
 	        loadTagViewedSessionState();
 	        updateAiPublicNotice();
         ensureAccessibleNames();
+        decorateButtonVariants();
         renderResults([]);
         const searchStateFromUrl = getSearchStateFromUrl();
         const keywordFromUrl = String(searchStateFromUrl.keyword || "").trim();
@@ -8790,6 +9348,8 @@
               btn.setAttribute("aria-expanded", "false");
             });
           }
+          const adminMenu = document.getElementById("adminMenu");
+          if (adminMenu) adminMenu.open = false;
         };
         if (menuToggleBtn && topMenuContent) {
           topMenuContent.querySelectorAll("[data-menu-target]").forEach((btn) => {
@@ -9039,12 +9599,12 @@
           document.getElementById("sessionFrom").value = "";
 	        document.getElementById("sessionTo").value = "";
 	        document.getElementById("progressStateFilter").value = "";
+	        const answeredFilterEl = document.getElementById("answeredFilter");
+	        if (answeredFilterEl) answeredFilterEl.value = "all";
 	        document.getElementById("sortSession").value = "random";
           state.randomOrderSeed = "";
           clearPersistedRandomSeed();
-          state.currentResultPage = 1;
-          state.pendingResultPage = null;
-          state.lastResultViewKey = "";
+          resetResultViewState();
 	        saveTagVisibility();
 	        updateSubtopicOptions("");
 		        const list = filterQuestions();
@@ -9108,6 +9668,14 @@
           fontScaleSelect.addEventListener("change", (e) => {
             const next = e.target.value;
             state.fontScale = next === "large" || next === "xlarge" ? next : "normal";
+            saveTagVisibility();
+            applyUiPreferences();
+          });
+        }
+        const fontFamilySelect = document.getElementById("fontFamilySelect");
+        if (fontFamilySelect) {
+          fontFamilySelect.addEventListener("change", (e) => {
+            state.fontFamily = normalizeFontFamily(e.target.value);
             saveTagVisibility();
             applyUiPreferences();
           });
@@ -11447,6 +12015,7 @@
         const editModeRaw = localStorage.getItem("editMode");
         const modeRaw = localStorage.getItem("uiMode");
         const fontRaw = localStorage.getItem("fontScale");
+        const fontFamilyRaw = localStorage.getItem("fontFamily");
         const contrastRaw = localStorage.getItem("highContrast");
         const shortcutRaw = localStorage.getItem("keyboardShortcutsEnabled");
         const ttsQualityRaw = localStorage.getItem("ttsQuality");
@@ -11487,6 +12056,9 @@
         if (fontRaw === "normal" || fontRaw === "large" || fontRaw === "xlarge") {
           state.fontScale = fontRaw;
         }
+        if (fontFamilyRaw !== null) {
+          state.fontFamily = normalizeFontFamily(fontFamilyRaw);
+        }
         if (contrastRaw !== null) {
           state.highContrast = contrastRaw === "true";
         }
@@ -11502,6 +12074,7 @@
         const editModeToggle = document.getElementById("editModeToggle");
         const modeSelect = document.getElementById("uiModeSelect");
         const fontSelect = document.getElementById("fontScaleSelect");
+        const fontFamilySelect = document.getElementById("fontFamilySelect");
         const contrastToggle = document.getElementById("highContrastToggle");
         const shortcutToggle = document.getElementById("shortcutToggle");
         const ttsQualitySelect = document.getElementById("ttsQualitySelect");
@@ -11511,6 +12084,7 @@
         if (editModeToggle) editModeToggle.checked = state.editMode;
         if (modeSelect) modeSelect.value = state.uiMode;
         if (fontSelect) fontSelect.value = state.fontScale;
+        if (fontFamilySelect) fontFamilySelect.value = normalizeFontFamily(state.fontFamily);
         if (contrastToggle) contrastToggle.checked = state.highContrast;
         if (shortcutToggle) shortcutToggle.checked = state.keyboardShortcutsEnabled;
         if (ttsQualitySelect) ttsQualitySelect.value = normalizeTtsQuality(state.ttsQuality);
@@ -11531,6 +12105,7 @@
         localStorage.setItem("editMode", String(state.editMode));
         localStorage.setItem("uiMode", state.uiMode);
         localStorage.setItem("fontScale", state.fontScale);
+        localStorage.setItem("fontFamily", normalizeFontFamily(state.fontFamily));
         localStorage.setItem("highContrast", String(state.highContrast));
         localStorage.setItem("keyboardShortcutsEnabled", String(state.keyboardShortcutsEnabled));
         localStorage.setItem("ttsQuality", normalizeTtsQuality(state.ttsQuality));
@@ -12070,13 +12645,7 @@
         }
         if (activeExamTypes.length) {
           const examTypeText = activeExamTypes
-            .map((value) =>
-              value === "A"
-                ? "あん摩マッサージ指圧師"
-                : value === "B"
-                ? "はり師・きゅう師"
-                : value
-            )
+            .map((value) => getExamTypeLabel(value))
             .join(", ");
           parts.push(
             advanced.commandExamTypes.length
@@ -12095,23 +12664,8 @@
           parts.push(`回数範囲: ${range || "指定なし"}`);
         }
 	        if (progressState) parts.push(`進捗: ${getProgressStatusLabel(progressState)}`);
-	        if (sortSession) {
-	          const sortLabels = {
-	            random: "ランダム",
-	            asc: "古い順",
-	            desc: "新しい順",
-	            qa_desc: "Q&A追加順",
-	            deep_dive_desc: "深掘り解説追加順",
-	            review_desc: "復習優先順",
-	            count_desc: "回答数が多い順",
-	            count_asc: "回答数が少ない順",
-	            correct_desc: "正答数が多い順",
-	            correct_asc: "正答数が少ない順",
-	            rate_desc: "正答率が高い順",
-	            rate_asc: "正答率が低い順"
-	          };
-	          const label = sortLabels[sortSession] || "ランダム";
-	          parts.push(`並び替え: ${label}`);
+	        if (sortSession && sortSession !== "random") {
+	          parts.push(`並び替え: ${getSortLabel(sortSession)}`);
 	        }
         if (!isRoleAtLeast("student")) {
           if (answeredFilter === "hide_answered") parts.push("回答: 回答済みを非表示");
