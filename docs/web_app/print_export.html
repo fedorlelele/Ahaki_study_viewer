@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ahaki プリント作成ビュー</title>
+    <meta name="description" content="あん摩マッサージ指圧師・はり師・きゅう師国家試験の過去問からプリント教材を作成できるビューです。" />
     <!-- Cloudflare Web Analytics -->
     <script
       defer
@@ -11,7 +12,7 @@
       data-cf-beacon='{"token": "e88f0886e93c42adae0ff3dd06807843"}'
     ></script>
     <!-- End Cloudflare Web Analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <style>
       :root {
@@ -682,27 +683,47 @@
           manifest && manifest.total,
           chunks.length,
         ].filter(Boolean).join("_");
-        const loaded = [];
-        for (let i = 0; i < chunks.length; i += 1) {
-          const chunk = chunks[i] || {};
-          const relPath = normalizeChunkPath(chunk.path);
-          if (!relPath) continue;
-          setStatus(`問題データを読み込み中です... ${i + 1}/${chunks.length} チャンク`);
+        const relPaths = chunks
+          .map((chunk) => normalizeChunkPath((chunk || {}).path))
+          .filter(Boolean);
+        const results = new Array(relPaths.length);
+        let nextIndex = 0;
+        let doneCount = 0;
+        setStatus(`問題データを読み込み中です... (全${relPaths.length}チャンク)`);
+        const fetchChunkAt = async (index) => {
+          const relPath = relPaths[index];
           const resp = await fetch(
-            appendCacheVersion(`../output/web/${relPath}`, chunkVersion),
-            { cache: "no-store" }
+            appendCacheVersion(`../output/web/${relPath}`, chunkVersion)
           );
           if (!resp.ok) {
             throw new Error(`チャンク取得に失敗しました: ${relPath}`);
           }
-          const rows = await resp.json();
+          results[index] = await resp.json();
+          doneCount += 1;
+          if (doneCount === relPaths.length || doneCount % 5 === 0) {
+            setStatus(`問題データを読み込み中です... ${doneCount}/${relPaths.length} チャンク`);
+          }
+        };
+        const workerCount = Math.min(6, relPaths.length);
+        const workers = [];
+        for (let w = 0; w < workerCount; w += 1) {
+          workers.push(
+            (async () => {
+              while (nextIndex < relPaths.length) {
+                const index = nextIndex;
+                nextIndex += 1;
+                await fetchChunkAt(index);
+              }
+            })()
+          );
+        }
+        await Promise.all(workers);
+        const loaded = [];
+        results.forEach((rows) => {
           if (Array.isArray(rows) && rows.length) {
             loaded.push(...rows);
           }
-          if (i % 2 === 1) {
-            await pauseMainThread();
-          }
-        }
+        });
         return loaded;
       }
 

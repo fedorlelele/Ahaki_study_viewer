@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>タグ学習ラボ | Ahaki Study Viewer</title>
+    <meta name="description" content="国家試験過去問のタグから関連問題・解説・Q&Aをまとめて学習できるタグ学習ラボです。" />
     <style>
       :root {
         --bg: #f6f7f4;
@@ -529,8 +530,9 @@
       </div>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@18.0.5/lib/marked.umd.js" integrity="sha256-LcR2nf3in1HHrKGlOcZAfHicjqZEz4t9Ad7SipwdgAs=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.11/dist/purify.min.js" integrity="sha256-26u1sgWjM+xJyMCef8ow72bfBSO7i8D6nqhDhB8RHb0=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script>
       const supabaseClient =
@@ -611,10 +613,17 @@
         return escaped.replace(/\n/g, "<br>");
       }
 
+      function sanitizeRenderedHtml(html) {
+        if (window.DOMPurify && typeof window.DOMPurify.sanitize === "function") {
+          return window.DOMPurify.sanitize(html);
+        }
+        return html;
+      }
+
       function renderMarkdownToElement(target, text) {
         if (!target) return;
         target.classList.add("markdown-body");
-        target.innerHTML = markdownToHtml(text);
+        target.innerHTML = sanitizeRenderedHtml(markdownToHtml(text));
       }
 
 	      function parseApiError(payload, fallback) {

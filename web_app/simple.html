@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ahaki かんたんビュー</title>
+    <meta name="description" content="あん摩マッサージ指圧師・はり師・きゅう師国家試験の過去問を1問ずつ学習できるかんたんビューです。" />
     <!-- Cloudflare Web Analytics -->
     <script
       defer
@@ -404,7 +405,7 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
@@ -624,9 +625,88 @@
         });
       }
 
+      function appendCacheVersion(path, version) {
+        const value = String(version || "").trim();
+        if (!value) return path;
+        const joiner = path.includes("?") ? "&" : "?";
+        return `${path}${joiner}v=${encodeURIComponent(value)}`;
+      }
+
+      function normalizeChunkPath(path) {
+        return String(path || "").replace(/^\.?\/*/, "");
+      }
+
+      async function loadQuestionsFromChunks() {
+        const manifestResp = await fetch(
+          appendCacheVersion("../output/web/questions_manifest.json", Date.now()),
+          { cache: "no-store" }
+        );
+        if (!manifestResp.ok) {
+          throw new Error("questions_manifest.json load failed");
+        }
+        const manifest = await manifestResp.json();
+        const chunks = Array.isArray(manifest && manifest.chunks) ? manifest.chunks : [];
+        if (!chunks.length) return [];
+        const chunkVersion = [
+          manifest && manifest.generated_at,
+          manifest && manifest.total,
+          chunks.length,
+        ].filter(Boolean).join("_");
+        const relPaths = chunks
+          .map((chunk) => normalizeChunkPath((chunk || {}).path))
+          .filter(Boolean);
+        const results = new Array(relPaths.length);
+        let nextIndex = 0;
+        const fetchChunkAt = async (index) => {
+          const relPath = relPaths[index];
+          const resp = await fetch(
+            appendCacheVersion(`../output/web/${relPath}`, chunkVersion)
+          );
+          if (!resp.ok) {
+            throw new Error(`failed to fetch chunk: ${relPath}`);
+          }
+          results[index] = await resp.json();
+        };
+        const workerCount = Math.min(6, relPaths.length);
+        const workers = [];
+        for (let w = 0; w < workerCount; w += 1) {
+          workers.push(
+            (async () => {
+              while (nextIndex < relPaths.length) {
+                const index = nextIndex;
+                nextIndex += 1;
+                await fetchChunkAt(index);
+              }
+            })()
+          );
+        }
+        await Promise.all(workers);
+        const loaded = [];
+        results.forEach((rows) => {
+          if (Array.isArray(rows) && rows.length) {
+            loaded.push(...rows);
+          }
+        });
+        return loaded;
+      }
+
+      async function loadQuestionsWithFallback() {
+        try {
+          const rows = await loadQuestionsFromChunks();
+          if (rows.length) return rows;
+        } catch (_error) {
+          // フォールバックへ続行
+        }
+        const resp = await fetch("../output/web/questions.json");
+        if (!resp.ok) {
+          throw new Error("questions.json load failed");
+        }
+        return resp.json();
+      }
+
       function loadData() {
-        return fetch("../output/web/questions.json")
-          .then(r => r.json())
+        setStatus("問題データを読み込み中です...");
+        return loadQuestionsWithFallback()
           .then(data => {
             state.questions = data || [];
             const subjects = new Set();
@@ -1576,6 +1656,10 @@
 	        updateState();
         updateResumeControls();
         showStep("guide");
+        setStatus("");
+      }).catch((err) => {
+        console.error("問題データの読み込みに失敗しました。", err);
+        setStatus("問題データの読み込みに失敗しました。通信環境を確認して、ページを再読み込みしてください。");
       });
 
       function hasAnswered(serial) {

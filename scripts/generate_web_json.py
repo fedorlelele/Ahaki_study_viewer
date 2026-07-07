@@ -618,7 +618,7 @@ def main():
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
-        json.dumps(output, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(output, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
     print(f"Web JSON saved: {out_path}")
@@ -707,15 +707,15 @@ def main():
             index_by_subtopic.setdefault(subtopic, []).append(serial)
 
     (index_dir / "index_by_subject.json").write_text(
-        json.dumps(index_by_subject, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(index_by_subject, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
     (index_dir / "index_by_tag.json").write_text(
-        json.dumps(index_by_tag, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(index_by_tag, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
     (index_dir / "index_by_subtopic.json").write_text(
-        json.dumps(index_by_subtopic, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(index_by_subtopic, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
     for item in tag_catalog.values():
@@ -740,7 +740,26 @@ def main():
         key=lambda x: (-int(x.get("view_count", 0)), -int(x.get("related_count", 0)), x["tag"]),
     )
     (index_dir / "tag_catalog.json").write_text(
-        json.dumps(ordered_tag_catalog, ensure_ascii=False, indent=2) + "\n",
+        json.dumps(ordered_tag_catalog, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    # 高機能ビュー(index.html)が必要とする項目だけの軽量カタログ。
+    # タグ学習ラボは全項目入りの tag_catalog.json を継続利用する。
+    light_fields = (
+        "tag",
+        "canonical_tag",
+        "description",
+        "aliases",
+        "view_count",
+        "related_count",
+    )
+    tag_catalog_light = [
+        {field: item.get(field) for field in light_fields}
+        for item in ordered_tag_catalog
+    ]
+    (index_dir / "tag_catalog_light.json").write_text(
+        json.dumps(tag_catalog_light, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
 

@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ahaki Study Viewer</title>
+    <meta name="description" content="あん摩マッサージ指圧師・はり師・きゅう師国家試験の過去問を検索・学習できるビューアです。" />
     <!-- Cloudflare Web Analytics -->
     <script
       defer
@@ -242,14 +243,50 @@
         border-radius: var(--radius-lg);
         background: var(--surface);
         display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
+        flex-direction: column;
+        gap: var(--space-3);
       }
       .top-menu-group {
+        display: block;
+      }
+      .top-menu-group-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin: 0 0 var(--space-1);
+        letter-spacing: 0.02em;
+      }
+      .top-menu-items {
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-2);
         align-items: center;
+      }
+      .top-menu-items .btn-secondary {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .top-menu [data-menu-target][aria-expanded="true"],
+      .top-menu #authToggleBtn[aria-expanded="true"] {
+        background: var(--surface-alt);
+        border-color: var(--accent);
+        box-shadow: inset 0 -3px 0 var(--accent);
+      }
+      .new-tab-mark {
+        margin-left: 4px;
+      }
+      .admin-menu-caret {
+        margin-left: 4px;
+      }
+      @media (max-width: 520px) {
+        .top-menu-items {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        }
+        .top-menu-items .btn-secondary {
+          justify-content: center;
+        }
       }
       .top-menu button,
       .top-menu a {
@@ -1746,24 +1783,32 @@
           <span class="site-title-short">ASV</span>
         </h1>
         <div class="top-nav-actions">
-          <button id="menuToggleBtn" class="auth-toggle btn-secondary" aria-expanded="false" aria-controls="topPanels" aria-label="メニュー">☰</button>
+          <button id="menuToggleBtn" class="auth-toggle btn-secondary" aria-expanded="false" aria-controls="topPanels"><span aria-hidden="true">☰</span> メニュー</button>
         </div>
       </div>
       <div id="topPanels" class="top-panels" hidden>
         <div id="topMenuContent" hidden>
           <nav class="top-menu" aria-label="メニュー">
-            <div class="top-menu-group" aria-label="学習メニュー">
-              <button id="authToggleBtn" class="auth-toggle btn-secondary" aria-expanded="false" aria-controls="teacherAuth">ログイン</button>
-              <button type="button" class="btn-secondary" data-menu-target="updateInfo">更新情報</button>
-              <button type="button" class="btn-secondary" data-menu-target="settingsPanel">設定</button>
-              <button type="button" class="btn-secondary" data-menu-target="progressPanel">学習進捗</button>
-              <button type="button" class="btn-secondary" data-menu-target="userReadme">利用ガイド</button>
-              <a class="btn-secondary" href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ</a>
-              <a class="btn-secondary" href="./print_export.html" target="_blank" rel="noopener noreferrer">プリント作成ビュー</a>
-              <a class="btn-secondary" href="./simple.html">かんたんビューへのリンク</a>
+            <div class="top-menu-group" role="group" aria-labelledby="menuGroupToolsLabel">
+              <div class="top-menu-group-label" id="menuGroupToolsLabel">このページの機能</div>
+              <div class="top-menu-items">
+                <button id="authToggleBtn" class="auth-toggle btn-secondary" aria-expanded="false" aria-controls="teacherAuth">ログイン</button>
+                <button type="button" class="btn-secondary" data-menu-target="updateInfo">更新情報</button>
+                <button type="button" class="btn-secondary" data-menu-target="settingsPanel">設定</button>
+                <button type="button" class="btn-secondary" data-menu-target="progressPanel">学習進捗</button>
+                <button type="button" class="btn-secondary" data-menu-target="userReadme">利用ガイド</button>
+              </div>
+            </div>
+            <div class="top-menu-group" role="group" aria-labelledby="menuGroupViewsLabel">
+              <div class="top-menu-group-label" id="menuGroupViewsLabel">他のビューを開く</div>
+              <div class="top-menu-items">
+                <a class="btn-secondary" href="./simple.html">かんたんビュー</a>
+                <a class="btn-secondary" href="./tag_study.html" target="_blank" rel="noopener noreferrer">タグ学習ラボ<span class="new-tab-mark" aria-hidden="true">↗</span><span class="sr-only">（新しいタブで開く）</span></a>
+                <a class="btn-secondary" href="./print_export.html" target="_blank" rel="noopener noreferrer">プリント作成ビュー<span class="new-tab-mark" aria-hidden="true">↗</span><span class="sr-only">（新しいタブで開く）</span></a>
+              </div>
             </div>
             <details id="adminMenu" class="admin-menu" hidden>
-              <summary class="btn-secondary">管理メニュー</summary>
+              <summary class="btn-secondary">管理メニュー<span class="admin-menu-caret" aria-hidden="true">▾</span></summary>
               <div class="admin-menu-items" aria-label="管理メニュー項目">
                 <button type="button" class="btn-secondary" data-menu-target="answerTrendPanel">回答数の推移</button>
                 <button type="button" class="btn-secondary" data-menu-target="historyPanel">編集履歴</button>
@@ -2052,9 +2097,9 @@
 
     <main id="main" tabindex="-1" aria-label="学習ビュー">
     <div class="intro">
-      <h2 class="section-title">学習支援ポータル（検索・復習・解説）</h2>
-      <div class="note">問題検索・絞り込み・復習管理に加え、AIによるQ&A生成、深掘り解説、音声読み上げで学習を支援します。</div>
-      <div class="note">解説はAIが生成したもので、誤り（ハルシネーション）が含まれる可能性があります。</div>
+      <h2 class="section-title">過去問の検索・学習</h2>
+      <div class="note">キーワードや科目で過去問を探し、その場で回答・復習できます。AIによる解説・Q&Aにも対応。</div>
+      <div class="note">AI解説には誤りが含まれることがあります。</div>
       <div class="note" id="aiPublicNotice" hidden>AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。</div>
     </div>
     <div class="controls" role="search" aria-label="検索と絞り込み">
@@ -2129,8 +2174,9 @@
     </main>
     <button id="backToTopBtn" class="back-to-top" type="button" aria-label="ページ上部へ戻る" title="トップへ戻る">↑ トップ</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@18.0.5/lib/marked.umd.js" integrity="sha256-LcR2nf3in1HHrKGlOcZAfHicjqZEz4t9Ad7SipwdgAs=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.11/dist/purify.min.js" integrity="sha256-26u1sgWjM+xJyMCef8ow72bfBSO7i8D6nqhDhB8RHb0=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
@@ -2140,9 +2186,12 @@
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
+      const LOCAL_API_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
       const API_BASE =
         localStorage.getItem("reportApiBase") ||
-        (location.port === "8001" ? "" : "http://127.0.0.1:8001");
+        (LOCAL_API_HOSTNAMES.has(location.hostname) && location.port !== "8001"
+          ? "http://127.0.0.1:8001"
+          : "");
       const state = {
         questions: [],
         indexBySubject: {},
@@ -3040,26 +3089,41 @@
         ]
           .filter(Boolean)
           .join("_");
-        const loaded = [];
-        for (let i = 0; i < chunks.length; i += 1) {
-          const chunk = chunks[i] || {};
-          const relPath = normalizeChunkPath(chunk.path);
-          if (!relPath) continue;
+        const relPaths = chunks
+          .map((chunk) => normalizeChunkPath((chunk || {}).path))
+          .filter(Boolean);
+        const results = new Array(relPaths.length);
+        let nextIndex = 0;
+        const fetchChunkAt = async (index) => {
+          const relPath = relPaths[index];
           const resp = await fetch(
-            appendCacheVersion(`../output/web/${relPath}`, chunkVersion),
-            { cache: "no-store" }
+            appendCacheVersion(`../output/web/${relPath}`, chunkVersion)
           );
           if (!resp.ok) {
             throw new Error(`failed to fetch chunk: ${relPath}`);
           }
-          const rows = await resp.json();
+          results[index] = await resp.json();
+        };
+        const workerCount = Math.min(6, relPaths.length);
+        const workers = [];
+        for (let w = 0; w < workerCount; w += 1) {
+          workers.push(
+            (async () => {
+              while (nextIndex < relPaths.length) {
+                const index = nextIndex;
+                nextIndex += 1;
+                await fetchChunkAt(index);
+              }
+            })()
+          );
+        }
+        await Promise.all(workers);
+        const loaded = [];
+        results.forEach((rows) => {
           if (Array.isArray(rows) && rows.length) {
             loaded.push(...rows);
           }
-          if (i % 2 === 1) {
-            await pauseMainThread();
-          }
-        }
+        });
         return loaded;
       }
 
@@ -3078,13 +3142,30 @@
         }
       }
 
+      function loadTagCatalogLight() {
+        return fetch("../output/web/index/tag_catalog_light.json")
+          .then((r) => {
+            if (r.ok) return r.json();
+            return fetch("../output/web/index/tag_catalog.json").then((r2) =>
+              r2.ok ? r2.json() : []
+            );
+          })
+          .catch(() => []);
+      }
+
       function loadData() {
         return Promise.all([
           loadQuestionsWithFallback(),
-          fetch("../output/web/index/index_by_subject.json").then(r => r.json()),
+          fetch("../output/web/index/index_by_subject.json").then(r => {
+            if (!r.ok) throw new Error("index_by_subject.json load failed");
+            return r.json();
+          }),
           fetch("../output/web/index/index_by_tag.json").then(r => (r.ok ? r.json() : {})),
-          fetch("../output/web/index/index_by_subtopic.json").then(r => r.json()),
-          fetch("../output/web/index/tag_catalog.json").then(r => (r.ok ? r.json() : []))
+          fetch("../output/web/index/index_by_subtopic.json").then(r => {
+            if (!r.ok) throw new Error("index_by_subtopic.json load failed");
+            return r.json();
+          }),
+          loadTagCatalogLight()
         ]).then(([questions, bySubject, byTag, bySubtopic, tagCatalog]) => {
           state.questions = questions;
           state.questionBySerial = {};
@@ -4484,10 +4565,17 @@
         return escaped.replace(/\n/g, "<br>");
       }
 
+      function sanitizeRenderedHtml(html) {
+        if (window.DOMPurify && typeof window.DOMPurify.sanitize === "function") {
+          return window.DOMPurify.sanitize(html);
+        }
+        return html;
+      }
+
       function renderMarkdownToElement(target, text) {
         if (!target) return;
         target.classList.add("markdown-body");
-        target.innerHTML = markdownToHtml(text);
+        target.innerHTML = sanitizeRenderedHtml(markdownToHtml(text));
       }
 
       function normalizeTtsQuality(value) {
@@ -5884,6 +5972,7 @@
         if (next === state.currentResultPage) return false;
         state.currentResultPage = next;
         state.pendingResultPage = next;
+        state.focusFirstResultOnRender = true;
         renderResults(filterQuestions());
         return true;
       }
@@ -6503,6 +6592,25 @@
             button.classList.add("btn-secondary");
           }
         });
+      }
+
+      function applyPendingResultFocus(container) {
+        if (!container) return;
+        if (state.focusSerialOnRender) {
+          const serial = state.focusSerialOnRender;
+          state.focusSerialOnRender = null;
+          state.focusFirstResultOnRender = false;
+          const target = container.querySelector(`.card[aria-label="問題 ${serial}"]`);
+          if (target) {
+            target.focus({ preventScroll: true });
+            return;
+          }
+        }
+        if (state.focusFirstResultOnRender) {
+          state.focusFirstResultOnRender = false;
+          const first = container.querySelector(".card");
+          if (first) first.focus();
+        }
       }
 
       function renderResults(list) {
@@ -9155,6 +9263,7 @@
           retryBtn.addEventListener("click", () => {
             const scrollY = window.scrollY;
             clearSessionAnswer(q.serial);
+            state.focusSerialOnRender = q.serial;
             renderResults(filterQuestions());
             requestAnimationFrame(() => {
               window.scrollTo(0, scrollY);
@@ -9235,6 +9344,7 @@
           if (!isCurrentRender()) return false;
           renderBatch(resolvedBatch);
           ensureAccessibleNames(container);
+          applyPendingResultFocus(container);
           more.disabled = false;
           return true;
         };
@@ -9243,6 +9353,7 @@
           if (!isCurrentRender()) return;
           if (more.disabled || state.currentResultPage >= totalPages) return;
           state.currentResultPage += 1;
+          state.focusFirstResultOnRender = true;
           renderResults(filterQuestions());
         });
 
@@ -9252,6 +9363,30 @@
           refreshMoreButton();
           syncSearchQueryToUrl();
         })();
+      }
+
+      function renderDataLoadError() {
+        const container = document.getElementById("results");
+        if (!container) return;
+        container.innerHTML = "";
+        const box = document.createElement("div");
+        box.className = "note";
+        box.setAttribute("role", "alert");
+        const msg = document.createElement("p");
+        msg.textContent =
+          "問題データの読み込みに失敗しました。通信環境を確認して再試行してください。";
+        box.appendChild(msg);
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className = "btn-secondary";
+        retry.textContent = "再試行";
+        retry.addEventListener("click", () => {
+          window.location.reload();
+        });
+        box.appendChild(retry);
+        container.appendChild(box);
+        const countInfo = document.getElementById("countInfo");
+        if (countInfo) countInfo.textContent = "読み込みに失敗しました";
       }
 
       function init() {
@@ -9292,6 +9427,9 @@
           applySearchStateFromUrl(searchStateFromUrl);
           renderResults(filterQuestions());
           syncSearchQueryToUrl();
+        }).catch((err) => {
+          console.error("データの読み込みに失敗しました。", err);
+          renderDataLoadError();
         });
 
 	        initAuthUI();
@@ -9363,6 +9501,10 @@
             if (topPanels) topPanels.hidden = nextHidden;
             menuToggleBtn.setAttribute("aria-expanded", nextHidden ? "false" : "true");
             closeMenuTargets();
+            if (!nextHidden) {
+              const firstItem = topMenuContent.querySelector("button, a");
+              if (firstItem) firstItem.focus();
+            }
           });
           topMenuContent.querySelectorAll("[data-menu-target]").forEach((btn) => {
             btn.addEventListener("click", () => {
@@ -9406,7 +9548,12 @@
             });
           });
           document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") closeTopPanels();
+            if (e.key !== "Escape") return;
+            const wasOpen = topPanels && !topPanels.hidden;
+            closeTopPanels();
+            if (wasOpen && menuToggleBtn) {
+              menuToggleBtn.focus();
+            }
           });
           document.addEventListener("click", (e) => {
             const target = e.target;
@@ -9827,10 +9974,18 @@
               if (error) {
                 button.classList.remove("reported");
                 console.warn("報告に失敗しました。", error);
+                announceStatusNow("報告の送信に失敗しました");
                 return;
               }
               button.classList.add("reported");
+              announceStatusNow("報告を送信しました");
             });
+          return;
+        }
+        if (!API_BASE) {
+          button.classList.remove("reported");
+          console.warn("報告先APIが設定されていないため送信できません。");
+          announceStatusNow("報告を送信できませんでした（送信先が未設定です）");
           return;
         }
         fetch(
@@ -9841,14 +9996,17 @@
           .then(data => {
             if (data.message && data.message.startsWith("報告しました")) {
               button.classList.add("reported");
+              announceStatusNow("報告を送信しました");
             } else {
               button.classList.remove("reported");
               console.warn(data.message || "報告に失敗しました。");
+              announceStatusNow("報告の送信に失敗しました");
             }
           })
           .catch(err => {
             button.classList.remove("reported");
             console.warn("報告に失敗しました。", err);
+            announceStatusNow("報告の送信に失敗しました");
           });
       }
 
@@ -10683,11 +10841,28 @@
         }
       }
 
+      const resolvedQuestionCache = new Map();
+
       function applyOverridesToQuestion(q) {
-        const merged = { ...q };
         const override = state.overridesBySerial[q.serial];
+        const cached = resolvedQuestionCache.get(q.serial);
+        if (
+          cached &&
+          cached.base === q &&
+          cached.override === override &&
+          cached.disabledTags === state.disabledTags
+        ) {
+          return cached.value;
+        }
+        const merged = { ...q };
         if (!override) {
           merged.tags = filterDisabledTags(merged.tags || []);
+          resolvedQuestionCache.set(q.serial, {
+            base: q,
+            override,
+            disabledTags: state.disabledTags,
+            value: merged
+          });
           return merged;
         }
         if (override.explanation !== undefined && override.explanation !== null) {
@@ -10727,6 +10902,12 @@
           merged.answer_none = override.answer_none;
         }
         merged.tags = filterDisabledTags(merged.tags || []);
+        resolvedQuestionCache.set(q.serial, {
+          base: q,
+          override,
+          disabledTags: state.disabledTags,
+          value: merged
+        });
         return merged;
       }
 
