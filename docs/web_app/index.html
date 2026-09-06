@@ -2145,8 +2145,6 @@
     </div>
 
     <div class="toolbar main">
-      <label for="answerMedium">解答の媒体</label>
-      <select id="answerMedium"><option value="default">通常用</option><option value="braille">点字用</option></select>
 	      <button id="copyAllBtn" class="btn-secondary" aria-label="検索結果をコピー">検索結果をコピー</button>
 	      <select id="sortSession" aria-label="並び替え">
 	        <option value="random" selected>ランダム</option>
@@ -6015,7 +6013,6 @@
             sort: read("sort"),
             randomSeed: normalizeRandomSeedParamValue(read("rseed")),
             page: normalizePositiveIntParamValue(read("page")),
-            answerMedium: read("medium")
           };
           return stateFromUrl;
         } catch (_err) {
@@ -6025,10 +6022,6 @@
 
       function applySearchStateFromUrl(stateFromUrl) {
         const data = stateFromUrl || {};
-        if (data.answerMedium === "default" || data.answerMedium === "braille") {
-          AhakiQuestions.setAnswerMedium(data.answerMedium);
-          document.getElementById("answerMedium").value = data.answerMedium;
-        }
         const keywordInput = document.getElementById("keyword");
         const subjectSelect = document.getElementById("subjectSelect");
         const subtopicSelect = document.getElementById("subtopicSelect");
@@ -6136,8 +6129,7 @@
 
           const url = new URL(window.location.href);
           const beforeUrl = `${url.pathname}${url.search}${url.hash}`;
-          if (AhakiQuestions.getAnswerMedium() === "braille") url.searchParams.set("medium", "braille");
-          else url.searchParams.delete("medium");
+          url.searchParams.delete("medium");
           if (keyword) url.searchParams.set("q", keyword);
           else url.searchParams.delete("q");
 
@@ -9416,12 +9408,6 @@
       }
 
       function init() {
-        AhakiQuestions.bindAnswerMedium(document.getElementById("answerMedium"), () => {
-          clearSessionAnswer();
-          if (state.dataReady) renderResults(filterQuestions());
-          syncSearchQueryToUrl();
-          announceStatus("解答の媒体を変更しました。");
-        });
 	        loadAnsweredState();
 	        loadTagVisibility();
 	        loadQaLikedState();
@@ -11540,7 +11526,6 @@
 	        if (!serial) return;
 	        state.sessionAnswered[serial] = {
               eventId: AhakiQuestions.createAnswerEventId(),
-              answerMedium: AhakiQuestions.getAnswerMedium(),
 	          selectedIndex: Number(selectedIndex),
 	          isCorrect: Boolean(isCorrect)
 	        };
@@ -12539,7 +12524,7 @@
         const answeredFilter = isRoleAtLeast("student")
           ? "all"
           : ((answeredFilterEl && answeredFilterEl.value) || "all");
-        const parts = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning, `解答媒体: ${AhakiQuestions.getAnswerMedium() === "braille" ? "点字用" : "通常用"}`].filter(Boolean);
+        const parts = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean);
         if (keywordRaw) parts.push(`検索: ${keywordRaw}`);
         if (keyword) {
           const terms = (advanced.keywordTokens || [])
@@ -12647,9 +12632,6 @@
 	              ansLabel = indices
 	                .map(idx => nums[idx - 1] || String(idx))
 	                .join("・");
-	            } else {
-	              const answerText = q && q.answer_text ? String(q.answer_text).trim() : "";
-	              if (answerText) ansLabel = answerText;
 	            }
 	          }
 	          const ans = ansLabel ? `解答　${ansLabel}` : "解答　";

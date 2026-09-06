@@ -4,12 +4,12 @@ const Q = require('../web_app/shared/questions.js');
 
 const base = () => ({ serial: 'B20-095', subject: '生理学', stem: '旧問題', choices: ['1','2','3','4'], tags: ['旧タグ'], subtopics: ['旧項目'], answer_indices: [1], answer_index: 1, answer_none: false, answer_text: '1（点字問題は1、2）', answer_variants: { default: [1], braille: [1,2] }, answer_notes: ['点字問題は1、2'] });
 
-test('normal and braille answers are separate while legacy questions remain valid', () => {
+test('only normal booklet answers are used even with legacy medium arguments', () => {
   const q=base();
   assert.equal(Q.isAnswerCorrect(q,2,'default'),false);
-  assert.equal(Q.isAnswerCorrect(q,2,'braille'),true);
-  assert.equal(Q.formatAnswerLabel(q,'braille',true),'１・２');
-  assert.equal(Q.getAnswerNote(q),'点字問題は1、2');
+  assert.equal(Q.isAnswerCorrect(q,2,'braille'),false);
+  assert.equal(Q.formatAnswerLabel(q,'braille',true),'１');
+  assert.equal(Q.getAnswerNote(q),'');
   assert.deepEqual(Q.getAnswerIndices({choices:q.choices,answer_index:3},'braille'),[3]);
 });
 test('invalid selections never become correct for an excluded question', () => {
@@ -96,10 +96,10 @@ test('render generations reject late responses and cancellation invalidates a pe
   const guard=Q.createRenderGuard();const first=guard.begin();const second=guard.begin();
   assert.equal(first(),false);assert.equal(second(),true);guard.cancel();assert.equal(second(),false);
 });
-test('optional storage failures do not stop grading or choosing a medium', () => {
+test('optional storage failures do not affect normal booklet grading', () => {
   const previous=global.localStorage;
   global.localStorage={getItem(){throw Error('disabled')},setItem(){throw Error('quota')}};
-  try { assert.equal(Q.getAnswerMedium(),'default');assert.equal(Q.setAnswerMedium('braille'),'braille');assert.equal(Q.getAnswerMedium(),'braille'); } finally { global.localStorage=previous;Q.setAnswerMedium('default'); }
+  try { assert.equal(Q.getAnswerMedium(),'default');assert.equal(Q.setAnswerMedium('braille'),'default');assert.equal(Q.getAnswerMedium(),'default'); } finally { global.localStorage=previous;Q.setAnswerMedium('default'); }
 });
 
 test('generic teacher review sources keep the generator but replace stale AI review status', () => {
@@ -134,4 +134,17 @@ test('an already incorporated cloud revision preserves the published explanation
   const q={...base(),explanation_latest:'同期後',explanation_latest_source:'model:PublishedModel:checked',explanation_latest_model_name:'PublishedModel',explanation_latest_review_status:'teacher_approved',override_updated_at:'2026-09-06T01:00:00Z'};
   const row={serial:q.serial,explanation:'クラウド履歴',explanation_source:'model:OldModel',updated_at:'2026-09-06T01:00:00Z'};
   assert.equal(Q.applyQuestionOverride(q,row),q);
+});
+
+test('saved braille preference is ignored and normal multiple answers and notes survive', () => {
+  const previous=global.localStorage;
+  global.localStorage={getItem:()=> 'braille'};
+  try {
+    assert.equal(Q.getAnswerMedium(),'default');
+    assert.equal(Q.isAnswerCorrect(base(),2),false);
+    const q={...base(),answer_variants:{default:[1,3],braille:[2]},answer_notes:['採点対象外','(点字：２．)']};
+    assert.equal(Q.formatAnswerLabel(q),'1・3');
+    assert.equal(Q.isAnswerCorrect(q,3),true);
+    assert.equal(Q.getAnswerNote(q),'採点対象外');
+  } finally { global.localStorage=previous; }
 });

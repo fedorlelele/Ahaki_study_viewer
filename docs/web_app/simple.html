@@ -321,8 +321,6 @@
         <select id="examTypeSelect" aria-label="試験種別リスト">
           <option value="">すべて</option>
         </select>
-        <label for="answerMedium">解答の媒体</label>
-      <select id="answerMedium"><option value="default">通常用</option><option value="braille">点字用</option></select>
         <label for="orderSelect">表示順序を選択してください</label>
         <select id="orderSelect" aria-label="表示順序リスト">
           <option value="new" selected>新しい順</option>
@@ -539,7 +537,6 @@
 
       function getCurrentFilters() {
         return {
-          answerMedium: AhakiQuestions.getAnswerMedium(),
           subject: subjectSelect.value || "",
           subtopic: subtopicSelect.value || "",
           examType: examTypeSelect.value || "",
@@ -550,10 +547,6 @@
       }
 
       function applyFilters(filters = {}) {
-        if (filters.answerMedium) {
-          AhakiQuestions.setAnswerMedium(filters.answerMedium);
-          document.getElementById("answerMedium").value = AhakiQuestions.getAnswerMedium();
-        }
         subjectSelect.value = filters.subject || "";
         updateState();
         subtopicSelect.value = filters.subtopic || "";
@@ -943,7 +936,7 @@
       }
 
       function buildFilterHeader() {
-        const parts = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning, `解答媒体: ${AhakiQuestions.getAnswerMedium() === "braille" ? "点字用" : "通常用"}`].filter(Boolean);
+        const parts = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean);
         if (keywordInput && keywordInput.value.trim()) {
           parts.push(`キーワード: ${keywordInput.value.trim()}`);
         }
@@ -1001,12 +994,7 @@
       }
 
       const questionRenderGuard = AhakiQuestions.createRenderGuard();
-      AhakiQuestions.bindAnswerMedium(document.getElementById("answerMedium"), () => {
-        state.sessionResults = [];
-        resultOverlay.classList.remove("show");
-        confirmOverlay.classList.remove("show");
-        if (!questionSection.hidden && state.filtered.length) renderQuestion();
-      });
+
       async function renderQuestion() {
         const isCurrentRender = questionRenderGuard.begin();
         const base = state.filtered[state.currentIndex];

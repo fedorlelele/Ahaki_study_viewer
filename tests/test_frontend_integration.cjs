@@ -83,13 +83,13 @@ test('main initial data load applies cloud text/tags before any search or serial
  assert.deepEqual(Array.from(ctx.state.indexByTag['新タグ']),['A01-001']);
  assert.equal(ctx.state.indexByTag['旧タグ'],undefined);
 });
-test('simple and printable answer output retain the chosen medium and source note', () => {
+test('print output uses normal answers and omits braille notes even for legacy export mode', () => {
  const q={serial:'B20-095',stem:'問',choices:['1','2'],answer_indices:[1],answer_variants:{default:[1],braille:[1,2]},answer_notes:['点字問題は1、2']};
  const ctx=vm.createContext({AhakiQuestions:Q,normalizeText:x=>String(x||'').trim(),getDeepDiveText:()=>''});
  addFunctions(ctx,'print_export.html',['formatAnswerLabel','buildQuestionBlock']);
  const normal=ctx.buildQuestionBlock(q,0,{includeAnswer:true,answerMedium:'default'});
  const braille=ctx.buildQuestionBlock(q,0,{includeAnswer:true,answerMedium:'braille'});
- assert.match(normal,/解答　１\n/);assert.match(braille,/解答　１・２/);assert.match(braille,/注記: 点字問題は1、2/);
+ assert.match(normal,/解答　１$/);assert.equal(braille,normal);assert.doesNotMatch(braille,/点字|注記/);
 });
 test('print export snapshots the requested questions while deep explanations load', async () => {
  let release;let saved;

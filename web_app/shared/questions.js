@@ -10,38 +10,20 @@
   "use strict";
   const OVERRIDE_FIELDS = "serial, explanation, explanation_source, tags, subtopics, case_text, stem, choices, answer_indices, answer_index, answer_none, updated_at, synced_at";
   const MEDIUM_KEY = "ahaki_answer_medium_v1";
-  let currentMedium = "default";
-  function normalizeMedium(value) { return value === "braille" ? "braille" : "default"; }
-  function getAnswerMedium() {
-    try { currentMedium = normalizeMedium(localStorage.getItem(MEDIUM_KEY)); } catch (_) { /* use this page's selection */ }
-    return currentMedium;
-  }
-  function setAnswerMedium(value) {
-    const medium = normalizeMedium(value);
-    currentMedium = medium;
-    try { localStorage.setItem(MEDIUM_KEY, medium); } catch (_) { /* storage is optional */ }
-    return medium;
-  }
-  function bindAnswerMedium(select, onChange) {
+  // Compatibility for cached pages: the viewer always uses the normal booklet.
+  function normalizeMedium() { return "default"; }
+  function getAnswerMedium() { return "default"; }
+  function setAnswerMedium() { return "default"; }
+  function bindAnswerMedium(select) {
     if (!select) return;
-    select.value = getAnswerMedium();
-    select.addEventListener("change", () => {
-      setAnswerMedium(select.value);
-      if (onChange) onChange();
-    });
-    if (typeof window !== "undefined") window.addEventListener("storage", (event) => {
-      if (event.key !== MEDIUM_KEY) return;
-      select.value = getAnswerMedium();
-      if (onChange) onChange();
-    });
+    select.value = "default";
+    select.disabled = true;
   }
   function getAnswerIndices(question, medium = getAnswerMedium()) {
     if (!question) return [];
     const variants = question.answer_variants || {};
-    const variant = normalizeMedium(medium);
-    let values = Array.isArray(variants[variant]) ? variants[variant]
-      : Array.isArray(variants.default) ? variants.default : question.answer_indices;
-    const hasVariant = Array.isArray(variants[variant]) || Array.isArray(variants.default);
+    let values = Array.isArray(variants.default) ? variants.default : question.answer_indices;
+    const hasVariant = Array.isArray(variants.default);
     if (!Array.isArray(values) || (!hasVariant && !values.length)) values = question.answer_index ? [question.answer_index] : [];
     const limit = Array.isArray(question.choices) && question.choices.length ? question.choices.length : 9;
     return [...new Set(values.map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= limit))];
@@ -64,7 +46,8 @@
   function getAnswerNote(question) {
     if (!question) return "";
     const notes = question.answer_notes;
-    return Array.isArray(notes) ? notes.filter(Boolean).join(" / ") : String(notes || "");
+    return (Array.isArray(notes) ? notes : [notes])
+      .filter(note => note && !String(note).includes("点字")).join(" / ");
   }
   function normalizeExplanationStatus(status) {
     const value = String(status || "").trim();
