@@ -315,11 +315,14 @@
         </div>
       </section>
 
+      <p id="questionVersionInfo"></p>
       <section id="stepExamType" aria-label="試験種別選択" hidden>
         <label for="examTypeSelect">試験種別を選択してください</label>
         <select id="examTypeSelect" aria-label="試験種別リスト">
           <option value="">すべて</option>
         </select>
+        <label for="answerMedium">解答の媒体</label>
+      <select id="answerMedium"><option value="default">通常用</option><option value="braille">点字用</option></select>
         <label for="orderSelect">表示順序を選択してください</label>
         <select id="orderSelect" aria-label="表示順序リスト">
           <option value="new" selected>新しい順</option>
@@ -407,6 +410,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
+    <script src="./shared/questions.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
@@ -442,7 +446,7 @@
 	      }
 
 	      function getUserRole(user) {
-	        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+	        const role = user?.app_metadata?.role || "";
 	        return normalizeRole(role);
 	      }
 
@@ -516,11 +520,15 @@
       let focusBeforeTopConfirm = null;
 
       function announce(message) {
+        clearTimeout(state.announceTimer);
+        state.announceTimer = null;
         const el = document.getElementById("sr-status") || status;
         if (!el) return;
         el.textContent = "";
-        setTimeout(() => {
-          el.textContent = message || "";
+        if (!message) return;
+        state.announceTimer = setTimeout(() => {
+          state.announceTimer = null;
+          el.textContent = message;
         }, 20);
       }
 
@@ -531,6 +539,7 @@
 
       function getCurrentFilters() {
         return {
+          answerMedium: AhakiQuestions.getAnswerMedium(),
           subject: subjectSelect.value || "",
           subtopic: subtopicSelect.value || "",
           examType: examTypeSelect.value || "",
@@ -541,6 +550,10 @@
       }
 
       function applyFilters(filters = {}) {
+        if (filters.answerMedium) {
+          AhakiQuestions.setAnswerMedium(filters.answerMedium);
+          document.getElementById("answerMedium").value = AhakiQuestions.getAnswerMedium();
+        }
         subjectSelect.value = filters.subject || "";
         updateState();
         subtopicSelect.value = filters.subtopic || "";
@@ -645,6 +658,7 @@
           throw new Error("questions_manifest.json load failed");
         }
         const manifest = await manifestResp.json();
+        state.questionManifest = manifest;
         const chunks = Array.isArray(manifest && manifest.chunks) ? manifest.chunks : [];
         if (!chunks.length) return [];
         const chunkVersion = [
@@ -706,9 +720,9 @@
 
       function loadData() {
         setStatus("問題データを読み込み中です...");
-        return loadQuestionsWithFallback()
-          .then(data => {
-            state.questions = data || [];
+        return Promise.all([loadQuestionsWithFallback(), loadAllQuestionOverrides()])
+          .then(([data, rows]) => {
+            state.questions = AhakiQuestions.applyQuestionOverrides(data || [], rows);
             const subjects = new Set();
             const examTypes = new Set();
             const subMap = {};
@@ -872,6 +886,7 @@
 	      }
 
       function beginCurrentSearch(options = {}) {
+        setStatus("");
         if (options.clearSaved !== false) clearSavedSession();
         if (options.resetSessionResults !== false) {
           state.sessionResults = [];
@@ -928,7 +943,7 @@
       }
 
       function buildFilterHeader() {
-        const parts = [];
+        const parts = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning, `解答媒体: ${AhakiQuestions.getAnswerMedium() === "braille" ? "点字用" : "通常用"}`].filter(Boolean);
         if (keywordInput && keywordInput.value.trim()) {
           parts.push(`キーワード: ${keywordInput.value.trim()}`);
         }
@@ -958,6 +973,8 @@
         if (answerLabel) {
           lines.push("");
           lines.push(`解答　${answerLabel}`);
+          const answerNote = AhakiQuestions.getAnswerNote(q);
+          if (answerNote) lines.push(`注記: ${answerNote}`);
         }
         if (q.explanation_latest) {
           lines.push("解説");
@@ -983,12 +1000,24 @@
         }
       }
 
+      const questionRenderGuard = AhakiQuestions.createRenderGuard();
+      AhakiQuestions.bindAnswerMedium(document.getElementById("answerMedium"), () => {
+        state.sessionResults = [];
+        resultOverlay.classList.remove("show");
+        confirmOverlay.classList.remove("show");
+        if (!questionSection.hidden && state.filtered.length) renderQuestion();
+      });
       async function renderQuestion() {
+        const isCurrentRender = questionRenderGuard.begin();
         const base = state.filtered[state.currentIndex];
+        state.displayedQuestion = null;
+        confirmBtn.disabled = true;
         if (base) {
           await ensureOverridesLoaded([base.serial]);
         }
+        if (!isCurrentRender()) return;
         const q = applyOverridesToQuestion(base);
+        state.displayedQuestion = q || null;
         if (!q) {
           status.textContent = "条件に合う問題が見つかりませんでした。";
           resultOverlay.classList.add("show");
@@ -1003,6 +1032,7 @@
           announce("条件に合う問題が見つかりませんでした");
           return;
         }
+        confirmBtn.disabled = false;
         resultBack.textContent = "問題に戻る";
         resultNext.hidden = false;
         noResultsMode = false;
@@ -1102,6 +1132,7 @@
       }
 
       function openConfirm() {
+        if (!state.displayedQuestion || confirmBtn.disabled || state.answered) return;
         if (!state.selectedIndex) {
           setStatus("選択肢を選んでから回答を確定してください。");
           return;
@@ -1121,7 +1152,8 @@
       }
 
       function showResult() {
-        const q = applyOverridesToQuestion(state.filtered[state.currentIndex]);
+        const q = state.displayedQuestion;
+        if (!q || state.answered || confirmBtn.disabled) return;
         const correctIndices = getAnswerIndices(q);
         const isCorrect = isAnswerCorrect(q, Number(state.selectedIndex));
         const choicesList = q.choices || [];
@@ -1160,9 +1192,11 @@
         const answerLine = answerLabel
           ? `正答: ${answerLabel}${singleAnswerText ? " " + singleAnswerText : ""}`
           : "正答: 未登録";
+        const answerNote = AhakiQuestions.getAnswerNote(q);
+        const answerDetail = answerLine + (answerNote ? `\n注記: ${answerNote}` : "");
         const resultBody = exp
-          ? `${answerLine}\n解説:\n${exp}`
-          : `${answerLine}\n解説: (未登録)`;
+          ? `${answerDetail}\n解説:\n${exp}`
+          : `${answerDetail}\n解説: (未登録)`;
         resultOverlay.classList.add("show");
         resultBack.focus();
         announce(isCorrect ? "正解です" : `不正解です。${answerLabel ? `正解は${answerLabel}です` : ""}`);
@@ -1528,6 +1562,9 @@
           openTopConfirm();
           return;
         }
+        questionRenderGuard.cancel();
+        state.displayedQuestion = null;
+        confirmBtn.disabled = true;
         noResultsMode = false;
         state.answered = false;
         state.selectedIndex = null;
@@ -1546,19 +1583,21 @@
           state.activeSessionSerials = [];
           clearSavedSession();
         }
-        status.textContent = "";
+        setStatus("");
         showStep("guide");
         updateState();
         updateResumeControls();
       }
 
       guideNext.addEventListener("click", () => {
+        setStatus("");
         clearSavedSession();
         showStep("subject");
       });
       guideNext.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
+          setStatus("");
           clearSavedSession();
           showStep("subject");
         }
@@ -1656,7 +1695,9 @@
 	        updateState();
         updateResumeControls();
         showStep("guide");
-        setStatus("");
+        const versionInfo = document.getElementById("questionVersionInfo");
+        if (versionInfo) versionInfo.textContent = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean).join(" / ");
+        setStatus(state.overrideLoadWarning || "");
       }).catch((err) => {
         console.error("問題データの読み込みに失敗しました。", err);
         setStatus("問題データの読み込みに失敗しました。通信環境を確認して、ページを再読み込みしてください。");
@@ -1726,92 +1767,37 @@
       }
 
       function getAnswerIndices(question) {
-        if (!question) return [];
-        const indices = Array.isArray(question.answer_indices)
-          ? question.answer_indices.map(Number)
-          : [];
-        if (!indices.length && question.answer_index) {
-          indices.push(Number(question.answer_index));
-        }
-        return indices.filter(n => Number.isFinite(n));
+        return AhakiQuestions.getAnswerIndices(question);
       }
 
       function isAnswerCorrect(question, selectedIndex) {
-        if (!question) return false;
-        if (question.answer_none) return true;
-        const indices = getAnswerIndices(question);
-        if (!indices.length) return false;
-        return indices.includes(Number(selectedIndex));
+        return AhakiQuestions.isAnswerCorrect(question, selectedIndex);
       }
 
-      function formatAnswerLabel(question) {
-        if (!question) return "";
-        if (question.answer_none) return "なし";
-        const indices = getAnswerIndices(question);
-        if (!indices.length) return "";
-        return indices.join("・");
+      function formatAnswerLabel(question, medium = AhakiQuestions.getAnswerMedium()) {
+        return AhakiQuestions.formatAnswerLabel(question, medium, false);
+      }
+
+      function loadAllQuestionOverrides() {
+        if (!state.allQuestionOverridesPromise) {
+          state.allQuestionOverridesPromise = AhakiQuestions.loadQuestionOverrides(supabaseClient).then(rows => {
+            state.overridesBySerial = Object.fromEntries(rows.map(row => [row.serial, row]));
+            return rows;
+          }).catch(error => {
+            console.warn("訂正データを取得できませんでした。", error);
+            state.overrideLoadWarning = "訂正データを取得できないため、公開済みの問題データを使用しています。再読み込みで再試行できます。";
+            return [];
+          });
+        }
+        return state.allQuestionOverridesPromise;
       }
 
       async function ensureOverridesLoaded(serials) {
-        if (!supabaseClient || !serials.length) return;
-        const pending = serials.filter(serial => !state.overridesLoaded.has(serial));
-        if (!pending.length) return;
-        const chunkSize = 100;
-        for (let i = 0; i < pending.length; i += chunkSize) {
-          const chunk = pending.slice(i, i + chunkSize);
-          const { data, error } = await supabaseClient
-            .from("question_overrides")
-            .select("serial, explanation, explanation_source, tags, subtopics")
-            .in("serial", chunk)
-            .is("synced_at", null);
-          if (error) {
-            console.warn("差分の取得に失敗しました。", error);
-            return;
-          }
-          const map = {};
-          (data || []).forEach(row => {
-            map[row.serial] = row;
-          });
-          chunk.forEach(serial => {
-            state.overridesBySerial[serial] = map[serial] || null;
-            state.overridesLoaded.add(serial);
-          });
-          (data || []).forEach(row => {
-            const base = state.questions.find(item => item.serial === row.serial);
-            if (!base) return;
-            if (row.explanation !== null && row.explanation !== undefined) {
-              base.explanation_latest = row.explanation;
-            }
-            if (row.explanation_source !== null && row.explanation_source !== undefined) {
-              base.explanation_latest_source = row.explanation_source;
-            }
-            if (row.tags !== null && row.tags !== undefined) {
-              base.tags = row.tags;
-            }
-            if (row.subtopics !== null && row.subtopics !== undefined) {
-              base.subtopics = row.subtopics;
-            }
-          });
-        }
+        await loadAllQuestionOverrides();
       }
 
       function applyOverridesToQuestion(q) {
-        if (!q) return q;
-        const override = state.overridesBySerial[q.serial];
-        if (!override) return q;
-        const merged = { ...q };
-        if (override.explanation !== undefined && override.explanation !== null) {
-          merged.explanation_latest = override.explanation;
-          merged.explanation_latest_source =
-            override.explanation_source || merged.explanation_latest_source;
-        }
-        if (override.tags !== undefined && override.tags !== null) {
-          merged.tags = override.tags;
-        }
-        if (override.subtopics !== undefined && override.subtopics !== null) {
-          merged.subtopics = override.subtopics;
-        }
-        return merged;
+        return q ? AhakiQuestions.applyQuestionOverride(q, state.overridesBySerial[q.serial]) : q;
       }
 
 	      function createClientId(prefix = "id") {

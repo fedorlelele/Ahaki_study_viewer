@@ -2,39 +2,4 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DOCS_DIR="${ROOT_DIR}/docs"
-
-rm -rf "${DOCS_DIR}"
-mkdir -p "${DOCS_DIR}/output/web"
-mkdir -p "${DOCS_DIR}/config"
-
-cp -R "${ROOT_DIR}/web_app" "${DOCS_DIR}/"
-
-if [ -f "${ROOT_DIR}/web_app/config.js" ]; then
-  cp "${ROOT_DIR}/web_app/config.js" "${DOCS_DIR}/web_app/config.js"
-fi
-
-if [ -f "${ROOT_DIR}/config/subtopics_catalog.json" ]; then
-  cp "${ROOT_DIR}/config/subtopics_catalog.json" "${DOCS_DIR}/config/subtopics_catalog.json"
-fi
-
-if [ -d "${ROOT_DIR}/output/web" ]; then
-  cp -R "${ROOT_DIR}/output/web/"* "${DOCS_DIR}/output/web/"
-fi
-
-cat > "${DOCS_DIR}/index.html" <<'EOF'
-<!doctype html>
-<html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ahaki Study Viewer</title>
-  </head>
-  <body>
-    <h1>Ahaki Study Viewer</h1>
-    <p><a href="./web_app/">WebUIを開く</a></p>
-  </body>
-</html>
-EOF
-
-echo "Docs prepared: ${DOCS_DIR}"
+exec python3 -B "${ROOT_DIR}/scripts/prepare_pages.py" --root "${ROOT_DIR}" "$@"

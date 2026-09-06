@@ -36,8 +36,8 @@ def parse_args():
     parser.add_argument(
         "--version",
         type=int,
-        default=1,
-        help="Explanation version number.",
+        default=None,
+        help="Explicit new version (must exceed existing); default: per-question max + 1.",
     )
     parser.add_argument(
         "--model-name",
@@ -46,7 +46,7 @@ def parse_args():
     )
     parser.add_argument(
         "--review-status",
-        default="ai",
+        default=None,
         choices=["ai", "teacher_approved", "teacher_edited"],
         help="Default review status for imported explanations.",
     )
@@ -58,7 +58,8 @@ def main():
     db_path = Path(args.db)
     in_path = Path(args.infile)
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path.resolve().as_uri() + "?mode=rw", uri=True)
+    conn.execute("BEGIN IMMEDIATE")
     ensure_explanation_metadata_schema(conn)
     cursor = conn.cursor()
 
@@ -91,6 +92,17 @@ def main():
             if not row:
                 continue
             question_id = row[0]
+            source_names_model = bool(str(record.get("source") or "").strip()) and str(record.get("source")).strip() not in {
+                "llm", "ai", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"
+            }
+            if (meta["review_status"] in {"teacher_approved", "teacher_edited"}
+                    and not (record.get("model_name") or args.model_name) and not source_names_model):
+                prior = cursor.execute(
+                    "SELECT model_name FROM explanations WHERE question_id=? ORDER BY version DESC, id DESC LIMIT 1", (question_id,)
+                ).fetchone()
+                if prior and prior[0]:
+                    meta["model_name"] = prior[0]
+                    source = build_explanation_source(meta["model_name"], meta["review_status"])
 
             insert_explanation(
                 cursor,

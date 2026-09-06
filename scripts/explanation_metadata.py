@@ -165,6 +165,7 @@ def explanation_columns(conn):
 
 def ensure_explanation_metadata_schema(conn):
     columns = explanation_columns(conn)
+    added_review_status = "review_status" not in columns
     if "model_name" not in columns:
         conn.execute("ALTER TABLE explanations ADD COLUMN model_name TEXT")
         columns.add("model_name")
@@ -173,6 +174,11 @@ def ensure_explanation_metadata_schema(conn):
             "ALTER TABLE explanations ADD COLUMN review_status TEXT DEFAULT 'ai'"
         )
         columns.add("review_status")
+
+    # Acquire the write lock before any latest-version read by callers.
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_explanations_question_version ON explanations(question_id, version)")
 
     rows = conn.execute(
         "SELECT id, source, model_name, review_status FROM explanations"
@@ -184,13 +190,13 @@ def ensure_explanation_metadata_schema(conn):
         if source_text in LEGACY_SOURCE_METADATA:
             legacy_model, legacy_status = LEGACY_SOURCE_METADATA[source_text]
             model_name = model_name or legacy_model
-            if not review_status or review_status == STATUS_AI:
+            if not review_status or (added_review_status and review_status == STATUS_AI):
                 review_status = legacy_status
         parsed_model_source = parse_model_source(source_text)
         if parsed_model_source:
             parsed_model, parsed_status = parsed_model_source
             model_name = model_name or parsed_model
-            if not review_status or review_status == STATUS_AI:
+            if not review_status or (added_review_status and review_status == STATUS_AI):
                 review_status = parsed_status
         meta = derive_explanation_metadata(source, model_name, review_status)
         if original_model_name == meta["model_name"] and (
@@ -216,6 +222,20 @@ def insert_explanation(
     model_name=None,
     review_status=None,
 ):
+    if not cursor.connection.in_transaction:
+        cursor.execute("BEGIN IMMEDIATE")
+    latest = cursor.execute(
+        "SELECT version, model_name FROM explanations WHERE question_id = ? ORDER BY version DESC, id DESC LIMIT 1",
+        (question_id,),
+    ).fetchone()
+    latest_version = latest[0] if latest else 0
+    if version is None:
+        version = latest_version + 1
+    if isinstance(version, bool) or not isinstance(version, int) or version <= latest_version:
+        raise ValueError(f"question_id={question_id}: version must exceed {latest_version}")
+    status = normalize_review_status(review_status) or derive_explanation_metadata(source)["review_status"]
+    if latest and not model_name and status in {STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}:
+        model_name = latest[1]
     meta = derive_explanation_metadata(source, model_name, review_status)
     final_source = source or build_explanation_source(
         meta["model_name"],

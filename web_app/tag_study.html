@@ -514,7 +514,10 @@
               <button id="tagSearchClearBtn" type="button">クリア</button>
             </div>
             <div class="search-meta" id="searchMeta"></div>
-            <div class="result-list" id="resultList" role="listbox" aria-label="タグ検索結果"></div>
+            <div class="result-list" id="resultList" role="listbox" aria-label="タグ検索結果" aria-describedby="tagKeyboardHelp"></div>
+            <p id="tagKeyboardHelp" class="hint">候補内は上下矢印・Home・Endで移動できます。PageUp・PageDownでページを切り替えます。</p>
+            <nav id="resultPagination" aria-label="タグ候補のページ"></nav>
+            <p id="tagDataNotice" class="hint" role="status"></p>
           </div>
         </section>
 
@@ -534,6 +537,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@18.0.5/lib/marked.umd.js" integrity="sha256-LcR2nf3in1HHrKGlOcZAfHicjqZEz4t9Ad7SipwdgAs=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.11/dist/purify.min.js" integrity="sha256-26u1sgWjM+xJyMCef8ow72bfBSO7i8D6nqhDhB8RHb0=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
+    <script src="./shared/questions.js"></script>
     <script>
       const supabaseClient =
         window.supabase && window.SUPABASE_URL && window.SUPABASE_KEY
@@ -575,7 +579,7 @@
       }
 
       function getUserRole(user) {
-        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+        const role = user?.app_metadata?.role || "";
         return normalizeRole(role);
       }
 
@@ -1064,7 +1068,7 @@
               if (diffRelated !== 0) return diffRelated;
               return String(a.tag || "").localeCompare(String(b.tag || ""), "ja");
             })
-            .slice(0, 400);
+            ;
         } else {
           rows = state.tagCatalog
             .map((item) => ({ item, score: scoreTagItem(item, terms) }))
@@ -1077,9 +1081,9 @@
               if (diffRelated !== 0) return diffRelated;
               return String(a.item.tag || "").localeCompare(String(b.item.tag || ""), "ja");
             })
-            .slice(0, 500)
             .map((row) => row.item);
         }
+        state.searchResultPage = 0;
         renderSearchResults(rows, terms);
         const shouldAutoOpenSingle = options.autoOpenSingle !== false;
         if (shouldAutoOpenSingle && terms.length && rows.length === 1) {
@@ -1096,6 +1100,20 @@
 	        const list = document.getElementById("resultList");
 	        const meta = document.getElementById("searchMeta");
 	        if (!list || !meta) return;
+        const pagination = document.getElementById("resultPagination");
+        if (pagination) pagination.innerHTML = "";
+        const pageSize = 30;
+        const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+        state.searchResultPage = Math.min(Math.max(0, state.searchResultPage || 0), totalPages - 1);
+        const pageStart = state.searchResultPage * pageSize;
+        const pageRows = rows.slice(pageStart, pageStart + pageSize);
+        const switchPage = (next, focusLast = false) => {
+          state.searchResultPage = Math.max(0, Math.min(totalPages - 1, next));
+          renderSearchResults(rows, terms);
+          const candidates = list.querySelectorAll(".result-item");
+          const target = candidates[focusLast ? candidates.length - 1 : 0];
+          if (target) { candidates.forEach(item => item.tabIndex = -1); target.tabIndex = 0; target.focus(); }
+        };
 	        const analyticsKey = `${(terms || []).join(" ")}|${rows.length}`;
 	        if (state.lastAnalyticsSearchKey !== analyticsKey) {
 	          state.lastAnalyticsSearchKey = analyticsKey;
@@ -1133,9 +1151,28 @@
           : `候補 ${rows.length} 件（複数候補）`;
         announce(`タグ検索結果は${rows.length}件です`);
 
+        meta.textContent += ` / ページ ${state.searchResultPage + 1} / ${totalPages}`;
         const frag = document.createDocumentFragment();
-        rows.forEach((item) => {
+        const activeIndex = Math.max(0, pageRows.findIndex(item => item.tag === state.selectedTag));
+        pageRows.forEach((item, index) => {
           const btn = document.createElement("button");
+          btn.tabIndex = index === activeIndex ? 0 : -1;
+          btn.setAttribute("aria-posinset", String(pageStart + index + 1));
+          btn.setAttribute("aria-setsize", String(rows.length));
+          btn.addEventListener("keydown", event => {
+            let next = index;
+            if (event.key === "ArrowDown") next = Math.min(pageRows.length - 1, index + 1);
+            else if (event.key === "ArrowUp") next = Math.max(0, index - 1);
+            else if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = pageRows.length - 1;
+            else if (event.key === "PageDown") { event.preventDefault(); switchPage(state.searchResultPage + 1); return; }
+            else if (event.key === "PageUp") { event.preventDefault(); switchPage(state.searchResultPage - 1); return; }
+            else return;
+            event.preventDefault();
+            const candidates = list.querySelectorAll(".result-item");
+            candidates.forEach(candidate => candidate.tabIndex = -1);
+            if (candidates[next]) { candidates[next].tabIndex = 0; candidates[next].focus(); }
+          });
           btn.className = "result-item" + (state.selectedTag === item.tag ? " active" : "");
           btn.type = "button";
           btn.dataset.tag = item.tag || "";
@@ -1145,12 +1182,24 @@
             `<div class='result-item-title'>${escapeHtmlForMarkdown(item.tag || "")}</div>` +
             `<div class='result-item-meta'>関連問題 ${Number(item.related_count || 0)} / 閲覧 ${Number(item.view_count || 0)}</div>`;
           btn.addEventListener("click", () => {
+            list.querySelectorAll(".result-item").forEach(candidate => candidate.tabIndex = -1);
+            btn.tabIndex = 0;
             selectTag(item.tag, { focusDetail: true, fromSearch: true, searchTerms: getSearchTerms() });
           });
           frag.appendChild(btn);
         });
         list.innerHTML = "";
         list.appendChild(frag);
+        if (pagination && totalPages > 1) {
+          for (const [label, next, disabled] of [["前の候補ページ", state.searchResultPage - 1, state.searchResultPage === 0], ["次の候補ページ", state.searchResultPage + 1, state.searchResultPage === totalPages - 1]]) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = label;
+            button.disabled = disabled;
+            button.addEventListener("click", () => switchPage(next));
+            pagination.appendChild(button);
+          }
+        }
       }
 
       function nextRenderId(prefix) {
@@ -1305,6 +1354,8 @@
         if (!window.AI_API_BASE || !tag) return { ok: false, found: false };
         const cache = state.tagDeepDiveCache[tag];
         if (cache) return { ok: true, found: true, data: cache };
+        try {
+          return await AhakiQuestions.withTimeout((async () => {
         const resp = await fetch(`${window.AI_API_BASE}/ai/tag_deep_dive?tag=${encodeURIComponent(tag)}`);
         const payload = resp.ok ? await resp.json() : await resp.json().catch(() => ({}));
         if (!resp.ok) {
@@ -1313,6 +1364,10 @@
         if (!payload || !payload.found) return { ok: true, found: false };
         state.tagDeepDiveCache[tag] = payload.data;
         return { ok: true, found: true, data: payload.data };
+          })());
+        } catch (error) {
+          return { ok: false, found: false, message: "深掘り解説を取得できませんでした。再試行してください。" };
+        }
       }
 
       async function generateTagDeepDive(tag, item, statusEl, bodyEl, generateBtn) {
@@ -1399,12 +1454,18 @@
 
       async function loadTagQa(tag) {
         if (!window.AI_API_BASE || !tag) return { ok: false, items: [] };
+        try {
+          return await AhakiQuestions.withTimeout((async () => {
         const resp = await fetch(`${window.AI_API_BASE}/ai/tag_qa?tag=${encodeURIComponent(tag)}`);
         const payload = resp.ok ? await resp.json() : await resp.json().catch(() => ({}));
         if (!resp.ok) {
           return { ok: false, items: [], message: parseApiError(payload, `HTTP ${resp.status}`) };
         }
         return { ok: true, items: Array.isArray(payload.items) ? payload.items : [] };
+          })());
+        } catch (error) {
+          return { ok: false, items: [], message: "Q&Aを取得できませんでした。再試行してください。" };
+        }
       }
 
       async function postTagQaCounter(path, id) {
@@ -1788,6 +1849,7 @@
           deepDiveRequestId = "";
           updateDeepDiveRatingButtons();
         } else {
+          (async () => {
           const deepDiveLoaded = await loadTagDeepDive(tag);
           if (state.selectedTag !== tag) return;
           if (deepDiveLoaded.ok && deepDiveLoaded.found) {
@@ -1809,6 +1871,11 @@
             deepDiveRequestId = "";
           }
           updateDeepDiveRatingButtons();
+          })().catch(error => {
+            if (state.selectedTag !== tag) return;
+            deepDiveStatus.textContent = "深掘り解説の取得に失敗しました。再試行できます。";
+            console.warn(error);
+          });
         }
 
         loadBtn.addEventListener("click", async () => {
@@ -1902,11 +1969,18 @@
       }
 
       async function loadData() {
-        const [tagCatalog, indexByTag, indexBySubject, indexBySubtopic] = await Promise.all([
+        const [tagCatalog, indexByTag, indexBySubject, indexBySubtopic, overrideVersions, overrideRows] = await Promise.all([
           fetch("../output/web/index/tag_catalog.json").then((r) => (r.ok ? r.json() : [])),
           fetch("../output/web/index/index_by_tag.json").then((r) => (r.ok ? r.json() : {})),
           fetch("../output/web/index/index_by_subject.json").then((r) => (r.ok ? r.json() : {})),
           fetch("../output/web/index/index_by_subtopic.json").then((r) => (r.ok ? r.json() : {})),
+          fetch("../output/web/index/question_override_versions.json").then(r => r.ok ? r.json() : {}).catch(() => ({})),
+          AhakiQuestions.loadQuestionOverrides(supabaseClient).catch(error => {
+            console.warn("タグ訂正の取得に失敗しました。", error);
+            const notice = document.getElementById("tagDataNotice");
+            if (notice) notice.textContent = "訂正データを取得できないため、公開済みのタグ索引を表示しています。再読み込みで再試行できます。";
+            return [];
+          })
         ]);
 
         state.tagCatalog = Array.isArray(tagCatalog) ? tagCatalog : [];
@@ -1918,6 +1992,29 @@
           const tag = item && item.tag ? String(item.tag).trim() : "";
           if (!tag) return;
           state.tagCatalogByTag[tag] = item;
+        });
+        AhakiQuestions.applyIndexOverrides({ byTag: state.indexByTag, bySubtopic: state.indexBySubtopic }, overrideRows, overrideVersions);
+        const invertIndex = index => {
+          const bySerial = new Map();
+          Object.entries(index).forEach(([label, serials]) => serials.forEach(serial => {
+            if (!bySerial.has(serial)) bySerial.set(serial, []);
+            bySerial.get(serial).push(label);
+          }));
+          return bySerial;
+        };
+        const subjectsBySerial = invertIndex(state.indexBySubject);
+        const subtopicsBySerial = invertIndex(state.indexBySubtopic);
+        Object.entries(state.indexByTag).forEach(([tag, serials]) => {
+          if (!state.tagCatalogByTag[tag]) {
+            const item = { tag, aliases: [], description: "", subjects: [], subtopics: [], related_tags: [], view_count: 0 };
+            state.tagCatalog.push(item);
+            state.tagCatalogByTag[tag] = item;
+          }
+          const item = state.tagCatalogByTag[tag];
+          item.related_count = serials.length;
+          item.related_serials = serials;
+          item.subjects = [...new Set(serials.flatMap(serial => subjectsBySerial.get(serial) || []))];
+          item.subtopics = [...new Set(serials.flatMap(serial => subtopicsBySerial.get(serial) || []))];
         });
         state.tagEquivalentByNormalized = buildTagEquivalentMap();
       }
@@ -2041,7 +2138,11 @@
         initMenuBar();
         initAuthUi();
         initSearchUi();
-        await Promise.all([loadData(), loadAiConfig(), loadAuthState()]);
+        Promise.allSettled([
+          AhakiQuestions.withTimeout(loadAiConfig()),
+          AhakiQuestions.withTimeout(loadAuthState())
+        ]).then(() => renderAuthStatus());
+        await loadData();
         renderAuthStatus();
         await searchTags({ autoOpenSingle: false });
 

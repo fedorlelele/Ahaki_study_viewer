@@ -6,11 +6,13 @@ import sqlite3
 from pathlib import Path
 
 try:
+    from scripts.question_contract import resolve_question_answers, parse_answer_text
     from scripts.explanation_metadata import (
         derive_explanation_metadata,
         explanation_columns,
     )
 except ModuleNotFoundError:
+    from question_contract import resolve_question_answers, parse_answer_text
     from explanation_metadata import (
         derive_explanation_metadata,
         explanation_columns,
@@ -21,19 +23,6 @@ FULLWIDTH_TO_ASCII = str.maketrans("０１２３４５６７８９", "0123456789
 
 def normalize_digits(value):
     return value.translate(FULLWIDTH_TO_ASCII)
-
-
-def parse_answer_text(text):
-    if not text:
-        return [], False
-    normalized = normalize_digits(text)
-    if "なし" in normalized:
-        return [], True
-    if "すべて" in normalized:
-        return [1, 2, 3, 4], False
-    digits = re.findall(r"[1-4]", normalized)
-    indices = sorted({int(d) for d in digits})
-    return indices, False
 
 
 def load_question_columns(conn):
@@ -340,20 +329,15 @@ def load_question_qa(conn):
 
 
 def resolve_answer_meta(record):
-    indices = []
-    answer_none = False
-    raw_json = record.get("answer_indices_json")
-    if raw_json:
-        try:
-            indices = json.loads(raw_json)
-        except json.JSONDecodeError:
-            indices = []
-    if record.get("answer_none"):
-        answer_none = True
-    if not indices and not answer_none:
-        indices, answer_none = parse_answer_text(record.get("answer_text", ""))
-    return indices, answer_none
+    answer = resolve_question_answers(record)
+    return answer["answer_indices"], answer["answer_none"]
 
+
+def load_override_versions(conn):
+    exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='question_override_sync'").fetchone()
+    if not exists:
+        return {}
+    return dict(conn.execute("SELECT serial, override_updated_at FROM question_override_sync"))
 
 def load_update_notes(path):
     if not path.exists():
@@ -490,7 +474,8 @@ def main():
     out_path = Path(args.out)
     index_dir = Path(args.index_dir)
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path.resolve().as_uri() + "?mode=ro", uri=True)
+    conn.execute("BEGIN")
     questions = load_questions(conn)
     explanations = load_explanations(conn)
     tags = load_tags(conn)
@@ -504,6 +489,7 @@ def main():
     tag_view_stats = load_tag_view_stats(conn)
     tag_relations = load_tag_relations(conn)
     update_log = load_explanation_update_log(conn)
+    override_versions = load_override_versions(conn)
     conn.close()
 
     output = []
@@ -512,7 +498,7 @@ def main():
         qid = q["id"]
         if q.get("exam_session") and int(q["exam_session"]) > max_session:
             max_session = int(q["exam_session"])
-        answer_indices, answer_none = resolve_answer_meta(q)
+        answer = resolve_question_answers(q)
         exp_list = explanations.get(qid, [])
         exp_list_sorted = sorted(exp_list, key=lambda x: x.get("version", 0))
         latest_exp = exp_list_sorted[-1]["body"] if exp_list_sorted else None
@@ -531,9 +517,8 @@ def main():
             "case_text": q["case_text"],
             "stem": q["stem"],
             "choices": json.loads(q["choices_json"]),
-            "answer_index": q["answer_index"],
-            "answer_indices": answer_indices,
-            "answer_none": answer_none,
+            **answer,
+            "override_updated_at": override_versions.get(q["serial"], ""),
             "explanation_latest": latest_exp,
             "explanation_latest_source": latest_source,
             "explanation_latest_model_name": latest_model_name,
@@ -669,6 +654,9 @@ def main():
     )
 
     index_dir.mkdir(parents=True, exist_ok=True)
+    (index_dir / "question_override_versions.json").write_text(
+        json.dumps(override_versions, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
     index_by_subject = {}
     index_by_tag = {}
     index_by_subtopic = {}

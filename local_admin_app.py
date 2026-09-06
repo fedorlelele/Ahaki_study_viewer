@@ -1,5 +1,7 @@
 import argparse
 import json
+import hmac
+import secrets
 import os
 import re
 import sqlite3
@@ -301,6 +303,18 @@ HTML_PAGE = """<!doctype html>
     </div>
 
     <script>
+      // The token is embedded only in this same-origin, non-cacheable page.
+      const adminToken = "__AHAKI_ADMIN_TOKEN__";
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, options = {}) => {
+        const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+        if (url.origin === location.origin && url.pathname.startsWith("/api/")) {
+          const headers = new Headers(options.headers || (input instanceof Request ? input.headers : undefined));
+          headers.set("X-Ahaki-Admin-Token", adminToken);
+          options = { ...options, headers };
+        }
+        return originalFetch(input, options);
+      };
       function downloadText(filename, text) {
         const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
@@ -1800,9 +1814,38 @@ def build_jsonl(records, subtopic_catalog):
 
 class Handler(BaseHTTPRequestHandler):
     def _set_cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # No cross-origin grants: the local admin UI and API share one origin.
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'none'; base-uri 'none'")
+
+    def _require_local_request(self, token_required=True):
+        server = getattr(self, "server", None)
+        host = self.headers.get("Host", "")
+        try:
+            parsed_host = urlparse("http://" + host)
+            valid_host = (
+                server is not None
+                and parsed_host.hostname in server.allowed_hosts
+                and (parsed_host.port or 80) == server.server_port
+                and not parsed_host.username and not parsed_host.password
+                and parsed_host.netloc == host
+                and not parsed_host.path and not parsed_host.query and not parsed_host.fragment
+            )
+        except (ValueError, AttributeError):
+            valid_host = False
+        origin = self.headers.get("Origin")
+        if not valid_host or (origin is not None and origin != "http://" + host):
+            self._send_json({"error": "同じローカル管理画面から操作してください。"}, 403)
+            return False
+        if token_required:
+            expected = getattr(server, "admin_token", "")
+            actual = self.headers.get("X-Ahaki-Admin-Token", "")
+            if not expected or not hmac.compare_digest(str(actual), str(expected)):
+                self._send_json({"error": "管理画面を再読み込みしてから操作してください。"}, 403)
+                return False
+        return True
 
     def _send_json(self, payload, status=200):
         self.send_response(status)
@@ -1817,9 +1860,12 @@ class Handler(BaseHTTPRequestHandler):
         if not body:
             return {}
         try:
-            return json.loads(body)
-        except json.JSONDecodeError:
-            return {}
+            value = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise ValueError("JSONを解析できません。") from exc
+        if not isinstance(value, dict):
+            raise ValueError("JSONオブジェクトが必要です。")
+        return value
 
     def _read_multipart_file(self):
         content_type = self.headers.get("Content-Type", "")
@@ -1847,12 +1893,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if not self._require_local_request(token_required=parsed.path != "/"):
+            return
         if parsed.path == "/":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self._set_cors()
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            self.wfile.write(HTML_PAGE.replace("__AHAKI_ADMIN_TOKEN__", self.server.admin_token).encode("utf-8"))
             return
 
         if parsed.path == "/api/prompts":
@@ -1980,13 +2028,9 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(csv_text.encode("utf-8"))
             return
         if parsed.path == "/api/report":
-            params = parse_qs(parsed.query)
-            serial = params.get("serial", [""])[0]
-            kind = params.get("kind", [""])[0]
-            comment = params.get("comment", [""])[0]
-            payload = add_report_supabase(serial, kind, comment)
-            self._send_json(payload)
+            self._send_json({"error": "POSTが必要です。"}, 405)
             return
+
         if parsed.path == "/api/reports":
             params = parse_qs(parsed.query)
             limit = int(params.get("limit", ["2000"])[0] or 2000)
@@ -2029,7 +2073,29 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if not self._require_local_request():
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            if length < 0 or length > 50 * 1024 * 1024:
+                self._send_json({"error": "リクエストサイズが不正です。"}, 413)
+                return
+            if length and content_type != "application/json" and not (
+                content_type == "multipart/form-data" and urlparse(self.path).path.startswith("/api/import/")
+            ):
+                self._send_json({"error": "JSON形式で送信してください。"}, 415)
+                return
+            self._handle_post()
+        except (ValueError, sqlite3.IntegrityError) as exc:
+            self._send_json({"error": str(exc)}, 400)
+
+    def _handle_post(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/report":
+            payload = self._read_json()
+            self._send_json(add_report_supabase(payload.get("serial", ""), payload.get("kind", ""), payload.get("comment", "")))
+            return
         if parsed.path == "/api/reports/clear":
             payload = self._read_json()
             items = payload.get("items", [])
@@ -2056,7 +2122,7 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._read_json()
             user_id = payload.get("user_id", "")
             role = payload.get("role", "")
-            actor = payload.get("actor_id", "")
+            actor = None  # Local token authenticates this session, not a Supabase user UUID.
             result = set_admin_role(user_id, role, actor)
             self._send_json(result)
             return
@@ -2065,7 +2131,7 @@ class Handler(BaseHTTPRequestHandler):
             user_id = payload.get("user_id", "")
             disabled = bool(payload.get("disabled"))
             note = payload.get("note", "")
-            actor = payload.get("actor_id", "")
+            actor = None  # Local token authenticates this session, not a Supabase user UUID.
             result = set_user_disabled(user_id, disabled, note, actor)
             self._send_json(result)
             return
@@ -2290,9 +2356,19 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_OPTIONS(self):
+        if not self._require_local_request(token_required=False):
+            return
         self.send_response(204)
         self._set_cors()
         self.end_headers()
+
+
+
+def _source_specifies_explanation_model(source):
+    value = str(source or "").strip()
+    return bool(value) and value not in {
+        "llm", "ai", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"
+    }
 
 
 def import_explanations(db_path, jsonl_text, mode, version):
@@ -2312,10 +2388,6 @@ def import_explanations(db_path, jsonl_text, mode, version):
             record.get("model_name"),
             record.get("review_status"),
         )
-        source = record.get("source") or build_explanation_source(
-            meta["model_name"],
-            meta["review_status"],
-        )
         if not serial or not explanation:
             continue
         row = cursor.execute(
@@ -2325,6 +2397,18 @@ def import_explanations(db_path, jsonl_text, mode, version):
         if not row:
             continue
         question_id = row[0]
+        if (meta["review_status"] in {STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}
+                and not record.get("model_name")
+                and not _source_specifies_explanation_model(record.get("source"))):
+            prior = cursor.execute(
+                "SELECT model_name FROM explanations WHERE question_id=? ORDER BY version DESC, id DESC LIMIT 1",
+                (question_id,),
+            ).fetchone()
+            if prior and prior[0]:
+                meta["model_name"] = prior[0]
+        source = build_explanation_source(
+            meta["model_name"], meta["review_status"], fallback_source=record.get("source") or ""
+        )
         if mode == "skip":
             exists = cursor.execute(
                 "SELECT 1 FROM explanations WHERE question_id = ? LIMIT 1",
@@ -3822,7 +3906,7 @@ def fetch_supabase_overrides(since=None, limit=500):
     while True:
         query = (
             f"?select={quote(select)}&order=updated_at.asc&limit={limit}"
-            f"&offset={offset}&synced_at=is.null"
+            f"&offset={offset}"
         )
         if since:
             query += f"&updated_at=gte.{quote(since)}"
@@ -4034,68 +4118,89 @@ def build_supabase_answers(limit):
     return {"ok": True, "count": len(items), "items": items}
 
 
+
+def _parse_override_updated_at(value, serial):
+    try:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError()
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError()
+        return parsed
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"{serial}: 訂正の更新日時が不正です。タイムゾーン付きの日時が必要です。") from exc
+
+
 def sync_supabase_overrides(db_path, since):
     rows, error = fetch_supabase_overrides(since or None)
     if error:
         return {"message": error, "counts": {}}
     if not rows:
         return {"message": "Supabase差分はありません。", "counts": {}}
+    validated_rows = [
+        (row, _parse_override_updated_at(row.get("updated_at"), row["serial"]))
+        for row in rows if row.get("serial")
+    ]
     conn = sqlite3.connect(db_path)
-    ensure_explanation_metadata_schema(conn)
-    cursor = conn.cursor()
-    counts = {
-        "explanations": 0,
-        "tags": 0,
-        "subtopics": 0,
-        "case_text": 0,
-        "stem": 0,
-        "choices": 0,
-        "answers": 0,
-        "missing": 0,
-    }
-    synced_serials = []
-    for row in rows:
-        serial = row.get("serial")
-        if not serial:
-            continue
-        qrow = cursor.execute(
-            "SELECT id FROM questions WHERE serial = ?",
-            (serial,),
-        ).fetchone()
-        if not qrow:
-            counts["missing"] += 1
-            continue
-        question_id = qrow[0]
-        exp = row.get("explanation")
-        exp_source = row.get("explanation_source") or ""
-        if exp is not None or exp_source:
-            if apply_override_explanation(cursor, question_id, exp, exp_source):
-                counts["explanations"] += 1
-        if "tags" in row:
-            if apply_override_tags(cursor, question_id, row.get("tags")):
-                counts["tags"] += 1
-        if "subtopics" in row:
-            if apply_override_subtopics(cursor, question_id, row.get("subtopics")):
-                counts["subtopics"] += 1
-        question_updates = apply_override_question_fields(cursor, question_id, row)
-        counts["case_text"] += 1 if question_updates.get("case_text") else 0
-        counts["stem"] += 1 if question_updates.get("stem") else 0
-        counts["choices"] += 1 if question_updates.get("choices") else 0
-        counts["answers"] += 1 if question_updates.get("answers") else 0
-        synced_serials.append(serial)
-    add_explanation_update(conn, counts["explanations"])
-    conn.commit()
-    conn.close()
-    synced_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    _, sync_error = mark_supabase_overrides_synced(synced_serials, synced_at)
-    if sync_error:
-        return {
-            "message": f"SQLite同期は完了しましたが、Supabaseの同期フラグ更新に失敗しました: {sync_error}",
-            "counts": counts,
-            "since": since or "",
+    try:
+        ensure_explanation_metadata_schema(conn)
+        conn.execute("CREATE TABLE IF NOT EXISTS question_override_sync (serial TEXT PRIMARY KEY, override_updated_at TEXT NOT NULL)")
+        cursor = conn.cursor()
+        counts = {
+            "explanations": 0,
+            "tags": 0,
+            "subtopics": 0,
+            "case_text": 0,
+            "stem": 0,
+            "choices": 0,
+            "answers": 0,
+            "missing": 0,
         }
+        synced_serials = []
+        for row, incoming_time in validated_rows:
+            serial = row.get("serial")
+            if not serial:
+                continue
+            qrow = cursor.execute(
+                "SELECT id FROM questions WHERE serial = ?",
+                (serial,),
+            ).fetchone()
+            if not qrow:
+                counts["missing"] += 1
+                continue
+            question_id = qrow[0]
+            override_updated_at = row.get("updated_at") or ""
+            prior_sync = cursor.execute("SELECT override_updated_at FROM question_override_sync WHERE serial=?", (serial,)).fetchone()
+            if prior_sync and incoming_time <= _parse_override_updated_at(prior_sync[0], serial):
+                continue
+            exp = row.get("explanation")
+            exp_source = row.get("explanation_source") or ""
+            if exp is not None or exp_source:
+                if apply_override_explanation(cursor, question_id, exp, exp_source):
+                    counts["explanations"] += 1
+            if "tags" in row:
+                if apply_override_tags(cursor, question_id, row.get("tags")):
+                    counts["tags"] += 1
+            if "subtopics" in row:
+                if apply_override_subtopics(cursor, question_id, row.get("subtopics")):
+                    counts["subtopics"] += 1
+            question_updates = apply_override_question_fields(cursor, question_id, row)
+            counts["case_text"] += 1 if question_updates.get("case_text") else 0
+            counts["stem"] += 1 if question_updates.get("stem") else 0
+            counts["choices"] += 1 if question_updates.get("choices") else 0
+            counts["answers"] += 1 if question_updates.get("answers") else 0
+            if override_updated_at:
+                cursor.execute("INSERT INTO question_override_sync(serial, override_updated_at) VALUES(?,?) ON CONFLICT(serial) DO UPDATE SET override_updated_at=excluded.override_updated_at", (serial, override_updated_at))
+            synced_serials.append(serial)
+        add_explanation_update(conn, counts["explanations"])
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
     return {
-        "message": "Supabase差分を同期しました。",
+        "message": "Supabase差分をSQLiteへ同期しました。公開状態は変更していません。",
         "counts": counts,
         "since": since or "",
     }
@@ -4446,14 +4551,21 @@ def apply_override_explanation(cursor, question_id, body, source):
         latest if latest else ("", "", 0, "", "")
     )
     if body is None:
+        if not latest:
+            return False
         body = latest_body
-    if not body:
-        return False
-    meta = derive_explanation_metadata(source or latest_source, latest_model, latest_status)
-    src = source or latest_source or build_explanation_source(
-        meta["model_name"],
-        meta["review_status"],
-    )
+    if not isinstance(body, str):
+        raise ValueError("解説の訂正は文字列で指定してください。")
+    if source:
+        meta = derive_explanation_metadata(source)
+        if (meta["review_status"] in {STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}
+                and latest_model and not _source_specifies_explanation_model(source)):
+            meta["model_name"] = latest_model
+    else:
+        meta = derive_explanation_metadata(latest_source, latest_model, latest_status)
+        if body != latest_body:
+            meta["review_status"] = STATUS_TEACHER_EDITED
+    src = build_explanation_source(meta["model_name"], meta["review_status"], fallback_source=source or latest_source)
     if (
         latest_body == body
         and (latest_source or "") == (src or "")
@@ -4558,7 +4670,7 @@ def apply_override_question_fields(cursor, question_id, row):
     answer_keys = (
         row.get("answer_indices") is not None
         or row.get("answer_index") is not None
-        or row.get("answer_none") is not None
+        or row.get("answer_none") is True
     )
     if answer_keys:
         indices = row.get("answer_indices")
@@ -4678,7 +4790,6 @@ def list_admin_users(limit, page):
         uid = user.get("id") or ""
         role = (
             (user.get("app_metadata") or {}).get("role")
-            or (user.get("user_metadata") or {}).get("role")
             or ""
         )
         items.append(
@@ -5111,6 +5222,8 @@ def main():
         prompt_sample = prompt_sample_path.read_text(encoding="utf-8")
 
     server = HTTPServer((args.host, args.port), Handler)
+    server.allowed_hosts = {"localhost", "127.0.0.1", "::1", args.host}
+    server.admin_token = secrets.token_urlsafe(32)
     server.db_path = db_path
     server.subtopic_catalog = subtopic_catalog
     server.prompt_sample = prompt_sample

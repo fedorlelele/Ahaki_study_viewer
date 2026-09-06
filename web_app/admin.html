@@ -152,7 +152,7 @@
       }
 
       function getUserRole(user) {
-        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+        const role = user?.app_metadata?.role || "";
         return normalizeRole(role);
       }
 

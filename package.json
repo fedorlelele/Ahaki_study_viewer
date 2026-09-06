@@ -1,0 +1,10 @@
+{
+  "name": "ahaki-study-viewer",
+  "private": true,
+  "scripts": {
+    "test": "python3 -B scripts/run_checks.py"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14"
+  }
+}

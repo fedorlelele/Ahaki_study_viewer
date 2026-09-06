@@ -2145,6 +2145,8 @@
     </div>
 
     <div class="toolbar main">
+      <label for="answerMedium">解答の媒体</label>
+      <select id="answerMedium"><option value="default">通常用</option><option value="braille">点字用</option></select>
 	      <button id="copyAllBtn" class="btn-secondary" aria-label="検索結果をコピー">検索結果をコピー</button>
 	      <select id="sortSession" aria-label="並び替え">
 	        <option value="random" selected>ランダム</option>
@@ -2169,6 +2171,7 @@
         <button id="resultPageJumpBtn" class="btn-secondary" type="button">移動</button>
       </div>
     </div>
+    <p id="questionVersionInfo" class="note"></p>
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
     </main>
@@ -2178,6 +2181,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@18.0.5/lib/marked.umd.js" integrity="sha256-LcR2nf3in1HHrKGlOcZAfHicjqZEz4t9Ad7SipwdgAs=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.11/dist/purify.min.js" integrity="sha256-26u1sgWjM+xJyMCef8ow72bfBSO7i8D6nqhDhB8RHb0=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
+    <script src="./shared/questions.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
@@ -2186,12 +2190,6 @@
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
-      const LOCAL_API_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
-      const API_BASE =
-        localStorage.getItem("reportApiBase") ||
-        (LOCAL_API_HOSTNAMES.has(location.hostname) && location.port !== "8001"
-          ? "http://127.0.0.1:8001"
-          : "");
       const state = {
         questions: [],
         indexBySubject: {},
@@ -2214,6 +2212,7 @@
         editRequestsLoaded: new Set(),
         answerStatsBySerial: {},
         answerStatsLoaded: new Set(),
+        answerStatsFailed: new Set(),
         answerRows: null,
         answerTrendRows: null,
         answerTimeline: null,
@@ -2301,7 +2300,7 @@
       }
 
       function getUserRole(user) {
-        const role = user?.app_metadata?.role || user?.user_metadata?.role || "";
+        const role = user?.app_metadata?.role || "";
         return normalizeRole(role);
       }
 
@@ -2844,12 +2843,12 @@
         }
       }
 
-      async function sendProgressAnswer(serial, isCorrect) {
+      async function sendProgressAnswer(serial, isCorrect, eventId) {
         if (!serial || !isRoleAtLeast("student")) return;
         try {
           const payload = await progressApiRequest("/progress/answer", {
             method: "POST",
-            body: { serial, is_correct: Boolean(isCorrect) }
+            body: { serial, is_correct: Boolean(isCorrect), event_id: eventId || state.sessionAnswered[serial]?.eventId || AhakiQuestions.createAnswerEventId() }
           });
           if (payload && payload.item) {
             state.progressSelfBySerial[serial] = payload.item;
@@ -3078,6 +3077,7 @@
           throw new Error("chunk manifest not found");
         }
         const manifest = await manifestResp.json();
+        state.questionManifest = manifest;
         const chunks = Array.isArray(manifest && manifest.chunks) ? manifest.chunks : [];
         if (!chunks.length) {
           return [];
@@ -3165,8 +3165,14 @@
             if (!r.ok) throw new Error("index_by_subtopic.json load failed");
             return r.json();
           }),
-          loadTagCatalogLight()
-        ]).then(([questions, bySubject, byTag, bySubtopic, tagCatalog]) => {
+          loadTagCatalogLight(),
+          loadAllQuestionOverrides()
+        ]).then(([baseQuestions, bySubject, byTag, bySubtopic, tagCatalog, overrideRows]) => {
+          const questions = AhakiQuestions.applyQuestionOverrides(baseQuestions, overrideRows);
+          const indexes = AhakiQuestions.buildQuestionIndexes(questions);
+          bySubject = indexes.bySubject;
+          byTag = indexes.byTag;
+          bySubtopic = indexes.bySubtopic;
           state.questions = questions;
           state.questionBySerial = {};
           state.indexByTag = byTag || {};
@@ -6008,7 +6014,8 @@
             answered: read("answered"),
             sort: read("sort"),
             randomSeed: normalizeRandomSeedParamValue(read("rseed")),
-            page: normalizePositiveIntParamValue(read("page"))
+            page: normalizePositiveIntParamValue(read("page")),
+            answerMedium: read("medium")
           };
           return stateFromUrl;
         } catch (_err) {
@@ -6018,6 +6025,10 @@
 
       function applySearchStateFromUrl(stateFromUrl) {
         const data = stateFromUrl || {};
+        if (data.answerMedium === "default" || data.answerMedium === "braille") {
+          AhakiQuestions.setAnswerMedium(data.answerMedium);
+          document.getElementById("answerMedium").value = data.answerMedium;
+        }
         const keywordInput = document.getElementById("keyword");
         const subjectSelect = document.getElementById("subjectSelect");
         const subtopicSelect = document.getElementById("subtopicSelect");
@@ -6125,6 +6136,8 @@
 
           const url = new URL(window.location.href);
           const beforeUrl = `${url.pathname}${url.search}${url.hash}`;
+          if (AhakiQuestions.getAnswerMedium() === "braille") url.searchParams.set("medium", "braille");
+          else url.searchParams.delete("medium");
           if (keyword) url.searchParams.set("q", keyword);
           else url.searchParams.delete("q");
 
@@ -6633,6 +6646,8 @@
           updateResultPageNavigator(1);
           return;
         }
+        const versionInfo = document.getElementById("questionVersionInfo");
+        if (versionInfo) versionInfo.textContent = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean).join(" / ");
         const isTeacher = state.roleRank >= 2;
         const canTeacherEdit = isTeacher && state.editMode;
         const showAnswer = document.getElementById("toggleAnswer").checked;
@@ -6661,7 +6676,7 @@
 	          });
 	        }
 	        renderTagDisambiguationHints();
-	        announceStatusNow(list.length ? `${list.length}件の検索結果` : "該当する問題がありません");
+	        announceStatusNow([list.length ? `${list.length}件の検索結果` : "該当する問題がありません", state.overrideLoadWarning].filter(Boolean).join("。"));
         const sortSession = document.getElementById("sortSession").value;
         const activeKeywordTagTerms = getKeywordTagTerms();
         const isStatSort = [
@@ -6675,7 +6690,7 @@
         const pendingStatSerials = isStatSort
           ? list
               .map((item) => item && item.serial ? item.serial : "")
-              .filter((serial) => serial && !state.answerStatsLoaded.has(serial))
+              .filter((serial) => serial && !state.answerStatsLoaded.has(serial) && !state.answerStatsFailed.has(serial))
           : [];
         if (isStatSort && pendingStatSerials.length) {
           const loading = document.createElement("div");
@@ -7422,6 +7437,8 @@
           answer.className = "answer";
           const label = formatAnswerLabel(q);
           answer.textContent = label ? `正答: ${label}` : "正答: 未登録";
+          const answerNote = AhakiQuestions.getAnswerNote(q);
+          if (answerNote) answer.textContent += ` / 注記: ${answerNote}`;
           card.appendChild(answer);
           if (!isTeacher) {
             const answerDetails = document.createElement("details");
@@ -7630,18 +7647,10 @@
           expBody.className = "explanation-body";
           expBody.textContent = expText || "";
           explanation.appendChild(expBody);
-          const stats = state.answerStatsBySerial[q.serial] || null;
-          if (stats) {
-            const statsEl = document.createElement("div");
-            statsEl.className = "answer-stats";
-            if (stats.count >= 5) {
-              const rate = stats.count ? Math.round((stats.correct / stats.count) * 100) : 0;
-              statsEl.textContent = `回答数: ${stats.count} / 正答数: ${stats.correct} / 正答率: ${rate}%`;
-            } else {
-              statsEl.textContent = `集計中（回答数: ${stats.count}）`;
-            }
-            explanation.appendChild(statsEl);
-          }
+          const statsEl = document.createElement("div");
+          statsEl.className = "answer-stats";
+          statsEl.dataset.serial = q.serial;
+          explanation.appendChild(statsEl);
           card.appendChild(explanation);
 
           const beginnerQaSection = document.createElement("div");
@@ -9334,15 +9343,20 @@
           await ensureOverridesLoaded(pageItems.map((item) => item.serial));
           if (!isCurrentRender()) return false;
           if (canTeacherEdit) {
-            await ensureEditRequestsLoaded(pageItems.map((item) => item.serial));
+            await AhakiQuestions.withTimeout(ensureEditRequestsLoaded(pageItems.map((item) => item.serial)));
             if (!isCurrentRender()) return false;
           }
-          await ensureAnswerStatsLoaded(pageItems.map((item) => item.serial));
-          if (!isCurrentRender()) return false;
           const resolvedBatch = pageItems.map((item) => applyOverridesToQuestion(item));
-          await ensureTagViewCountsForQuestions(resolvedBatch);
-          if (!isCurrentRender()) return false;
           renderBatch(resolvedBatch);
+          updateAnswerStatsElements(container);
+          // Aggregates must never prevent reading or answering a question.
+          Promise.allSettled([
+            AhakiQuestions.withTimeout(ensureAnswerStatsLoaded(pageItems.map(item => item.serial))),
+            AhakiQuestions.withTimeout(ensureTagViewCountsForQuestions(resolvedBatch))
+          ]).then(() => {
+            if (!isCurrentRender()) return;
+            updateAnswerStatsElements(container);
+          });
           ensureAccessibleNames(container);
           applyPendingResultFocus(container);
           more.disabled = false;
@@ -9358,10 +9372,22 @@
         });
 
         (async () => {
-          const rendered = await renderPage();
-          if (!rendered || !isCurrentRender()) return;
-          refreshMoreButton();
-          syncSearchQueryToUrl();
+          try {
+            const rendered = await renderPage();
+            if (!rendered || !isCurrentRender()) return;
+            refreshMoreButton();
+            syncSearchQueryToUrl();
+          } catch (error) {
+            if (!isCurrentRender()) return;
+            console.warn("追加情報を取得できませんでした。", error);
+            container.innerHTML = "";
+            renderBatch(pageItems.map(item => applyOverridesToQuestion(item)));
+            ensureAccessibleNames(container);
+            applyPendingResultFocus(container);
+            more.disabled = false;
+            refreshMoreButton();
+            announceStatus("追加情報の取得に失敗しました。問題の学習は続けられます。");
+          }
         })();
       }
 
@@ -9390,6 +9416,12 @@
       }
 
       function init() {
+        AhakiQuestions.bindAnswerMedium(document.getElementById("answerMedium"), () => {
+          clearSessionAnswer();
+          if (state.dataReady) renderResults(filterQuestions());
+          syncSearchQueryToUrl();
+          announceStatus("解答の媒体を変更しました。");
+        });
 	        loadAnsweredState();
 	        loadTagVisibility();
 	        loadQaLikedState();
@@ -9418,7 +9450,10 @@
             renderUpdateLog(3);
           }
         });
-        Promise.all([loadData(), loadDisabledTags(), loadAiConfig(), loadDeepDiveSerials(), loadQaSerials()]).then(() => {
+        Promise.allSettled([loadDisabledTags(), loadAiConfig(), loadDeepDiveSerials(), loadQaSerials()]).then(() => {
+          if (state.dataReady && !Object.keys(state.sessionAnswered).length && !document.activeElement?.closest("#results")) renderResults(filterQuestions());
+        });
+        loadData().then(() => {
           computeFrequentScores();
           populateSelect(
             document.getElementById("subjectSelect"),
@@ -9982,32 +10017,8 @@
             });
           return;
         }
-        if (!API_BASE) {
-          button.classList.remove("reported");
-          console.warn("報告先APIが設定されていないため送信できません。");
-          announceStatusNow("報告を送信できませんでした（送信先が未設定です）");
-          return;
-        }
-        fetch(
-          `${API_BASE}/api/report?serial=${encodeURIComponent(serial)}&kind=${encodeURIComponent(kind)}&comment=${encodeURIComponent(comment || "")}`,
-          { mode: "cors" }
-        )
-          .then(resp => resp.json())
-          .then(data => {
-            if (data.message && data.message.startsWith("報告しました")) {
-              button.classList.add("reported");
-              announceStatusNow("報告を送信しました");
-            } else {
-              button.classList.remove("reported");
-              console.warn(data.message || "報告に失敗しました。");
-              announceStatusNow("報告の送信に失敗しました");
-            }
-          })
-          .catch(err => {
-            button.classList.remove("reported");
-            console.warn("報告に失敗しました。", err);
-            announceStatusNow("報告の送信に失敗しました");
-          });
+        button.classList.remove("reported");
+        announceStatusNow("報告先が未設定です。この画面からローカル管理アプリへは送信できません。管理アプリで報告するか、管理者へ連絡してください。");
       }
 
       function initAuthUI() {
@@ -10637,44 +10648,14 @@
                   return false;
                 }
                 const existing = state.overridesBySerial[serial] || {};
-                state.overridesBySerial[serial] = { ...existing, ...patch };
+                state.overridesBySerial[serial] = { ...existing, ...patch, updated_at: payload.updated_at };
                 state.overridesLoaded.add(serial);
-                const base = state.questions.find(item => item.serial === serial);
-                if (base) {
-                  if (Object.prototype.hasOwnProperty.call(patch, "explanation")) {
-                    base.explanation_latest = patch.explanation;
-                  }
-                  if (Object.prototype.hasOwnProperty.call(patch, "explanation_source")) {
-                    base.explanation_latest_source = patch.explanation_source;
-                    const meta = getExplanationMetadata(patch.explanation_source);
-                    base.explanation_latest_model_name = meta.model_name;
-                    base.explanation_latest_review_status = meta.review_status;
-                  }
-                if (Object.prototype.hasOwnProperty.call(patch, "tags")) {
-                  base.tags = patch.tags;
+                const baseIndex = state.questions.findIndex(item => item.serial === serial);
+                if (baseIndex >= 0) {
+                  const updated = AhakiQuestions.applyQuestionOverride(state.questions[baseIndex], state.overridesBySerial[serial]);
+                  state.questions[baseIndex] = updated;
+                  state.questionBySerial[serial] = updated;
                 }
-                if (Object.prototype.hasOwnProperty.call(patch, "subtopics")) {
-                  base.subtopics = patch.subtopics;
-                }
-                if (Object.prototype.hasOwnProperty.call(patch, "case_text")) {
-                  base.case_text = patch.case_text;
-                }
-                if (Object.prototype.hasOwnProperty.call(patch, "stem")) {
-                  base.stem = patch.stem;
-                }
-                if (Object.prototype.hasOwnProperty.call(patch, "choices")) {
-                  base.choices = patch.choices;
-                }
-                if (Object.prototype.hasOwnProperty.call(patch, "answer_indices")) {
-                  base.answer_indices = patch.answer_indices;
-                }
-                if (Object.prototype.hasOwnProperty.call(patch, "answer_index")) {
-                  base.answer_index = patch.answer_index;
-                }
-                if (Object.prototype.hasOwnProperty.call(patch, "answer_none")) {
-                  base.answer_none = patch.answer_none;
-                }
-              }
                 const scrollY = window.scrollY;
                 renderResults(filterQuestions());
                 requestAnimationFrame(() => {
@@ -10685,70 +10666,22 @@
           });
       }
 
-      async function ensureOverridesLoaded(serials) {
-        if (!supabaseClient || !serials.length) return;
-        const pending = serials.filter(serial => !state.overridesLoaded.has(serial));
-        if (!pending.length) return;
-        const chunkSize = 100;
-        for (let i = 0; i < pending.length; i += chunkSize) {
-          const chunk = pending.slice(i, i + chunkSize);
-          const { data, error } = await supabaseClient
-            .from("question_overrides")
-            .select(
-              "serial, explanation, explanation_source, tags, subtopics, case_text, stem, choices, answer_indices, answer_index, answer_none"
-            )
-            .in("serial", chunk)
-            .is("synced_at", null);
-          if (error) {
-            console.warn("差分の取得に失敗しました。", error);
-            return;
-          }
-          const map = {};
-          (data || []).forEach(row => {
-            map[row.serial] = row;
-          });
-          chunk.forEach(serial => {
-            state.overridesBySerial[serial] = map[serial] || null;
-            state.overridesLoaded.add(serial);
-          });
-          (data || []).forEach(row => {
-            const base = state.questions.find(item => item.serial === row.serial);
-            if (!base) return;
-            if (row.explanation !== null && row.explanation !== undefined) {
-              base.explanation_latest = row.explanation;
-            }
-            if (row.explanation_source !== null && row.explanation_source !== undefined) {
-              base.explanation_latest_source = row.explanation_source;
-              const meta = getExplanationMetadata(row.explanation_source);
-              base.explanation_latest_model_name = meta.model_name;
-              base.explanation_latest_review_status = meta.review_status;
-            }
-            if (row.tags !== null && row.tags !== undefined) {
-              base.tags = row.tags;
-            }
-            if (row.subtopics !== null && row.subtopics !== undefined) {
-              base.subtopics = row.subtopics;
-            }
-            if (row.case_text !== null && row.case_text !== undefined) {
-              base.case_text = row.case_text;
-            }
-            if (row.stem !== null && row.stem !== undefined) {
-              base.stem = row.stem;
-            }
-            if (row.choices !== null && row.choices !== undefined) {
-              base.choices = row.choices;
-            }
-            if (row.answer_indices !== null && row.answer_indices !== undefined) {
-              base.answer_indices = row.answer_indices;
-            }
-            if (row.answer_index !== null && row.answer_index !== undefined) {
-              base.answer_index = row.answer_index;
-            }
-            if (row.answer_none !== null && row.answer_none !== undefined) {
-              base.answer_none = row.answer_none;
-            }
+      function loadAllQuestionOverrides() {
+        if (!state.allQuestionOverridesPromise) {
+          state.allQuestionOverridesPromise = AhakiQuestions.loadQuestionOverrides(supabaseClient).then(rows => {
+            state.overridesBySerial = Object.fromEntries(rows.map(row => [row.serial, row]));
+            return rows;
+          }).catch(error => {
+            console.warn("訂正データを取得できませんでした。", error);
+            state.overrideLoadWarning = "訂正データを取得できないため、公開済みの問題データを使用しています。再読み込みで再試行できます。";
+            return [];
           });
         }
+        return state.allQuestionOverridesPromise;
+      }
+
+      async function ensureOverridesLoaded(serials) {
+        await loadAllQuestionOverrides();
       }
 
       async function ensureEditRequestsLoaded(serials) {
@@ -10786,128 +10719,60 @@
       }
 
       async function ensureAnswerStatsLoaded(serials) {
-        if (!supabaseClient || !serials.length) return;
-        const pending = Array.from(
-          new Set(serials.filter((serial) => serial && !state.answerStatsLoaded.has(serial)))
-        );
+        const pending = [...new Set((serials || []).filter(serial => serial && !state.answerStatsLoaded.has(serial) && !state.answerStatsFailed.has(serial)))];
         if (!pending.length) return;
-        const chunkSize = 100;
-        for (let i = 0; i < pending.length; i += chunkSize) {
-          const chunk = pending.slice(i, i + chunkSize);
-          const { data, error } = await supabaseClient
-            .from("answers")
-            .select("serial, is_correct, anon_id, created_at")
-            .in("serial", chunk);
-          if (error) {
-            console.warn("回答集計の取得に失敗しました。", error);
-            chunk.forEach(serial => {
-              state.answerStatsBySerial[serial] = { count: 0, correct: 0 };
-              state.answerStatsLoaded.add(serial);
-            });
-            continue;
-          }
-          const stats = {};
-          const latestByKey = {};
-          (data || []).forEach(row => {
-            const serial = row.serial;
-            if (!serial) return;
-            const anon = row.anon_id || "";
-            const created = row.created_at || "";
-            const day = created ? created.slice(0, 10) : "unknown";
-            const key = `${serial}|${anon}|${day}`;
-            const existing = latestByKey[key];
-            if (!existing || created > existing.created_at) {
-              latestByKey[key] = row;
-            }
+        const base = String(window.AI_API_BASE || "").replace(/\/$/, "");
+        try {
+          const items = await AhakiQuestions.loadAnswerStats(base, pending);
+          items.forEach(item => {
+            state.answerStatsBySerial[item.serial] = { count: Number(item.total), correct: Number(item.correct) };
+            state.answerStatsLoaded.add(item.serial);
           });
-          Object.values(latestByKey).forEach(row => {
-            if (!stats[row.serial]) {
-              stats[row.serial] = { count: 0, correct: 0 };
-            }
-            stats[row.serial].count += 1;
-            if (row.is_correct) {
-              stats[row.serial].correct += 1;
-            }
-          });
-          Object.keys(stats).forEach(serial => {
-            state.answerStatsBySerial[serial] = stats[serial];
-          });
-          chunk.forEach(serial => {
-            if (!state.answerStatsBySerial[serial]) {
-              state.answerStatsBySerial[serial] = { count: 0, correct: 0 };
-            }
-            state.answerStatsLoaded.add(serial);
-          });
+        } catch (error) {
+          console.warn("回答集計の取得に失敗しました。", error);
+          pending.forEach(serial => state.answerStatsFailed.add(serial));
         }
+      }
+
+      function updateAnswerStatsElements(container) {
+        if (!container) return;
+        container.querySelectorAll(".answer-stats[data-serial]").forEach(element => {
+          const serial = element.dataset.serial;
+          const stats = state.answerStatsBySerial[serial];
+          element.textContent = "";
+          if (stats) {
+            element.textContent = stats.count >= 5
+              ? `回答数: ${stats.count} / 正答数: ${stats.correct} / 正答率: ${Math.round(stats.correct / stats.count * 100)}%`
+              : `集計中（回答数: ${stats.count}）`;
+          } else if (state.answerStatsFailed.has(serial)) {
+            element.appendChild(document.createTextNode("回答集計を取得できませんでした。 "));
+            const retry = document.createElement("button");
+            retry.type = "button";
+            retry.textContent = "集計を再試行";
+            retry.addEventListener("click", () => {
+              state.answerStatsFailed.clear();
+              renderResults(filterQuestions());
+            });
+            element.appendChild(retry);
+          } else {
+            element.textContent = "回答集計を取得中…";
+          }
+        });
       }
 
       const resolvedQuestionCache = new Map();
 
       function applyOverridesToQuestion(q) {
+        if (!q) return q;
         const override = state.overridesBySerial[q.serial];
         const cached = resolvedQuestionCache.get(q.serial);
-        if (
-          cached &&
-          cached.base === q &&
-          cached.override === override &&
-          cached.disabledTags === state.disabledTags
-        ) {
-          return cached.value;
-        }
-        const merged = { ...q };
-        if (!override) {
-          merged.tags = filterDisabledTags(merged.tags || []);
-          resolvedQuestionCache.set(q.serial, {
-            base: q,
-            override,
-            disabledTags: state.disabledTags,
-            value: merged
-          });
-          return merged;
-        }
-        if (override.explanation !== undefined && override.explanation !== null) {
-          merged.explanation_latest = override.explanation;
-          merged.explanation_latest_source =
-            override.explanation_source || merged.explanation_latest_source;
-          const meta = getExplanationMetadata(
-            merged.explanation_latest_source,
-            merged.explanation_latest_model_name,
-            merged.explanation_latest_review_status
-          );
-          merged.explanation_latest_model_name = meta.model_name;
-          merged.explanation_latest_review_status = meta.review_status;
-        }
-        if (override.tags !== undefined && override.tags !== null) {
-          merged.tags = override.tags;
-        }
-        if (override.subtopics !== undefined && override.subtopics !== null) {
-          merged.subtopics = override.subtopics;
-        }
-        if (override.case_text !== undefined && override.case_text !== null) {
-          merged.case_text = override.case_text;
-        }
-        if (override.stem !== undefined && override.stem !== null) {
-          merged.stem = override.stem;
-        }
-        if (override.choices !== undefined && override.choices !== null) {
-          merged.choices = override.choices;
-        }
-        if (override.answer_indices !== undefined && override.answer_indices !== null) {
-          merged.answer_indices = override.answer_indices;
-        }
-        if (override.answer_index !== undefined && override.answer_index !== null) {
-          merged.answer_index = override.answer_index;
-        }
-        if (override.answer_none !== undefined && override.answer_none !== null) {
-          merged.answer_none = override.answer_none;
-        }
+        if (cached && cached.base === q && cached.override === override && cached.disabledTags === state.disabledTags) return cached.value;
+        const merged = { ...AhakiQuestions.applyQuestionOverride(q, override) };
+        const meta = getExplanationMetadata(merged.explanation_latest_source, merged.explanation_latest_model_name, merged.explanation_latest_review_status);
+        merged.explanation_latest_model_name = meta.model_name;
+        merged.explanation_latest_review_status = meta.review_status;
         merged.tags = filterDisabledTags(merged.tags || []);
-        resolvedQuestionCache.set(q.serial, {
-          base: q,
-          override,
-          disabledTags: state.disabledTags,
-          value: merged
-        });
+        resolvedQuestionCache.set(q.serial, { base: q, override, disabledTags: state.disabledTags, value: merged });
         return merged;
       }
 
@@ -11387,113 +11252,19 @@
       }
 
       function normalizeExplanationStatus(status) {
-        const value = String(status || "").trim();
-        if (!value) return "";
-        const aliases = {
-          ai: "ai",
-          llm: "ai",
-          raw: "ai",
-          checked: "teacher_approved",
-          approved: "teacher_approved",
-          teacher_checked: "teacher_approved",
-          teacher_approved: "teacher_approved",
-          teacher: "teacher_edited",
-          edited: "teacher_edited",
-          human: "teacher_edited",
-          teacher_edited: "teacher_edited"
-        };
-        return aliases[value] || "";
+        return AhakiQuestions.normalizeExplanationStatus(status);
       }
 
       function parseModelExplanationSource(source) {
-        const text = String(source || "").trim();
-        if (!text.startsWith("model:")) return null;
-        let payload = text.slice("model:".length);
-        const suffixes = [
-          [":teacher_approved", "teacher_approved"],
-          [":teacher_edited", "teacher_edited"],
-          [":checked", "teacher_approved"],
-          [":approved", "teacher_approved"],
-          [":teacher", "teacher_edited"],
-          [":edited", "teacher_edited"]
-        ];
-        for (const [suffix, status] of suffixes) {
-          if (payload.endsWith(suffix)) {
-            return {
-              model_name: payload.slice(0, -suffix.length).trim(),
-              review_status: status
-            };
-          }
-        }
-        return { model_name: payload.trim(), review_status: "ai" };
+        return AhakiQuestions.parseModelExplanationSource(source);
       }
 
       function getExplanationMetadata(source, modelName = "", reviewStatus = "") {
-        const src = String(source || "").trim();
-        let model = String(modelName || "").trim();
-        let status = normalizeExplanationStatus(reviewStatus);
-        const legacy = {
-          llm: ["Gemini3Flash", "ai"],
-          ai: ["Gemini3Flash", "ai"],
-          llm_checked: ["Gemini3Flash", "teacher_approved"],
-          teacher: ["Gemini3Flash", "teacher_edited"],
-          human: ["Gemini3Flash", "teacher_edited"],
-          llm_teacher: ["Gemini3Flash", "teacher_edited"],
-          ai_teacher: ["Gemini3Flash", "teacher_edited"],
-          codex_case_text_rewrite_20260616: ["GPT5.5", "ai"],
-          codex_case_text_rewrite_20260616_checked: ["GPT5.5", "teacher_approved"],
-          codex_case_text_rewrite_20260616_teacher: ["GPT5.5", "teacher_edited"]
-        };
-        if (legacy[src]) {
-          model = model || legacy[src][0];
-          status = status || legacy[src][1];
-        }
-        const parsed = parseModelExplanationSource(src);
-        if (parsed) {
-          model = model || parsed.model_name;
-          status = status || parsed.review_status;
-        }
-        if (!model && src) {
-          const suffixes = [
-            ["_checked", "teacher_approved"],
-            ["_approved", "teacher_approved"],
-            ["_teacher", "teacher_edited"],
-            ["_edited", "teacher_edited"]
-          ];
-          for (const [suffix, nextStatus] of suffixes) {
-            if (src.endsWith(suffix)) {
-              model = src.slice(0, -suffix.length);
-              status = status || nextStatus;
-              break;
-            }
-          }
-        }
-        if (!model && src) model = src;
-        if (!status) status = "ai";
-        return { source: src, model_name: model, review_status: status };
+        return AhakiQuestions.getExplanationMetadata(source, modelName, reviewStatus);
       }
 
       function buildExplanationSource(modelName, reviewStatus = "ai", fallbackSource = "") {
-        const model = String(modelName || "").trim();
-        const status = normalizeExplanationStatus(reviewStatus) || "ai";
-        const fallback = String(fallbackSource || "").trim();
-        if (fallback) {
-          const meta = getExplanationMetadata(fallback);
-          if (meta.model_name === model && meta.review_status === status) return fallback;
-        }
-        if (model === "GPT5.5") {
-          if (status === "teacher_approved") return "codex_case_text_rewrite_20260616_checked";
-          if (status === "teacher_edited") return "codex_case_text_rewrite_20260616_teacher";
-          return "codex_case_text_rewrite_20260616";
-        }
-        if (!model || model === "Gemini3Flash") {
-          if (status === "teacher_approved") return "llm_checked";
-          if (status === "teacher_edited") return "teacher";
-          return "llm";
-        }
-        if (status === "teacher_approved") return `model:${model}:checked`;
-        if (status === "teacher_edited") return `model:${model}:teacher`;
-        return `model:${model}`;
+        return AhakiQuestions.buildExplanationSource(modelName, reviewStatus, fallbackSource);
       }
 
       function formatExplanationLabel(source, modelName = "", reviewStatus = "") {
@@ -11531,30 +11302,15 @@
       }
 
       function getAnswerIndices(question) {
-        if (!question) return [];
-        const indices = Array.isArray(question.answer_indices)
-          ? question.answer_indices.map(Number)
-          : [];
-        if (!indices.length && question.answer_index) {
-          indices.push(Number(question.answer_index));
-        }
-        return indices.filter(n => Number.isFinite(n));
+        return AhakiQuestions.getAnswerIndices(question);
       }
 
       function isAnswerCorrect(question, selectedIndex) {
-        if (!question) return false;
-        if (question.answer_none) return true;
-        const indices = getAnswerIndices(question);
-        if (!indices.length) return false;
-        return indices.includes(Number(selectedIndex));
+        return AhakiQuestions.isAnswerCorrect(question, selectedIndex);
       }
 
-      function formatAnswerLabel(question) {
-        if (!question) return "";
-        if (question.answer_none) return "なし";
-        const indices = getAnswerIndices(question);
-        if (!indices.length) return "";
-        return indices.join("・");
+      function formatAnswerLabel(question, medium = AhakiQuestions.getAnswerMedium()) {
+        return AhakiQuestions.formatAnswerLabel(question, medium, false);
       }
 
       function formatAnswerLabelFrom(data) {
@@ -11764,7 +11520,7 @@
               registerAnswerTimelineNow();
             });
         }
-        sendProgressAnswer(question.serial, isCorrect);
+        sendProgressAnswer(question.serial, isCorrect, state.sessionAnswered[question.serial]?.eventId);
       }
 
       function hasAnswered(serial) {
@@ -11783,6 +11539,8 @@
 	        const serial = question && question.serial ? String(question.serial) : "";
 	        if (!serial) return;
 	        state.sessionAnswered[serial] = {
+              eventId: AhakiQuestions.createAnswerEventId(),
+              answerMedium: AhakiQuestions.getAnswerMedium(),
 	          selectedIndex: Number(selectedIndex),
 	          isCorrect: Boolean(isCorrect)
 	        };
@@ -12781,7 +12539,7 @@
         const answeredFilter = isRoleAtLeast("student")
           ? "all"
           : ((answeredFilterEl && answeredFilterEl.value) || "all");
-        const parts = [];
+        const parts = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning, `解答媒体: ${AhakiQuestions.getAnswerMedium() === "braille" ? "点字用" : "通常用"}`].filter(Boolean);
         if (keywordRaw) parts.push(`検索: ${keywordRaw}`);
         if (keyword) {
           const terms = (advanced.keywordTokens || [])
@@ -12896,6 +12654,8 @@
 	          }
 	          const ans = ansLabel ? `解答　${ansLabel}` : "解答　";
 	          lines.push(ans);
+          const answerNote = AhakiQuestions.getAnswerNote(q);
+          if (answerNote) lines.push(`注記: ${answerNote}`);
           if (showExplanation) {
             const exp = q.explanation_latest || "";
             if (exp) {

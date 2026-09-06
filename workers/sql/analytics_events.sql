@@ -34,20 +34,7 @@ create index if not exists analytics_events_props_gin
 
 alter table public.analytics_events enable row level security;
 
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'analytics_events'
-      and policyname = 'analytics_events_read'
-  ) then
-    create policy analytics_events_read
-      on public.analytics_events
-      for select
-      using (true);
-  end if;
-end $$;
+drop policy if exists analytics_events_read on public.analytics_events;
+revoke all on table public.analytics_events from anon, authenticated;
 
 commit;

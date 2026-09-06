@@ -23,20 +23,7 @@ create index if not exists ai_feedback_events_feature_created_idx
 
 alter table public.ai_feedback_events enable row level security;
 
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'ai_feedback_events'
-      and policyname = 'ai_feedback_events_read'
-  ) then
-    create policy ai_feedback_events_read
-      on public.ai_feedback_events
-      for select
-      using (true);
-  end if;
-end $$;
+drop policy if exists ai_feedback_events_read on public.ai_feedback_events;
+revoke all on table public.ai_feedback_events from anon, authenticated;
 
 commit;

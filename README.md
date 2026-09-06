@@ -310,8 +310,15 @@ cat output/gemini_batches/practice_senryu_batch_filled_YYYYMMDD_HHMMSS.progress.
 
 ## 11. バックアップ
 
-最重要は `output/ahaki.sqlite` です。  
-この1ファイルがあれば主要データの復旧が可能です。
+問題・解説・タグの正本は `output/ahaki.sqlite` です。稼働中も整合したコピーを作るため、SQLiteのbackup APIを使います。
+
+```bash
+python3 -B scripts/backup_database.py
+```
+
+保存先は `output/backups/` です。既存ファイルへの上書きを拒否し、保存前に `PRAGMA quick_check` を確認します。従来の `scripts/backup_sqlite.sh` も同じ処理を呼び、`AHAKI_BACKUP_DIR` で保存先を変更できます。
+
+復元時はローカル管理アプリを停止し、現在のDBも退避してから、確認済みのバックアップへ差し替えます。Supabase上の学習履歴・Q&A・クラウド訂正・認証ユーザーは、このSQLiteバックアップの復元範囲に含まれません。
 
 ## 12. トラブルシュート
 
@@ -333,8 +340,22 @@ cat output/gemini_batches/practice_senryu_batch_filled_YYYYMMDD_HHMMSS.progress.
 python scripts/check_secret_hygiene.py
 ```
 
-最小テスト実行:
+Python・フロントの通信競合・Worker・SQL・構文検査をまとめて実行:
 
 ```bash
-python -m unittest discover -s tests -v
+npm ci --ignore-scripts
+python3 -B scripts/run_checks.py
 ```
+
+SQLは開発依存のPGliteで実際に実行します。本番Supabaseへの接続や外部生成APIの呼び出しはありません。GitHub Actionsでも同じ入口を実行します。個人Skillのステージ版も検証する場合は `--with-skills` を付けます（python-docx入りのローカルランタイムが必要。`AHAKI_ARTIFACT_PYTHON` で指定可能）。
+
+## 14. 問題・訂正・教材の共通仕様
+
+- 通常用と点字用の正答を分け、`answer_text` に原記録、`answer_variants` に媒体別正答、`answer_notes` に原注記を保持します。範囲外や矛盾した正答は公開JSON生成と検索・監査で拒否します。
+- クラウド訂正は検索前に適用します。SQLiteに取り込んだ訂正の `updated_at` を問題ごとの `override_updated_at` として公開し、各ビューはその版より新しい訂正を適用します。SQLite同期だけではクラウド訂正を公開済みとみなしません。
+- 解説の通常取り込みは `max(version)+1` をトランザクション内で採番します。古い版番号の明示指定は拒否します。教師の確認・修正で生成元モデルを保持し、明示された新しいモデル名があればそちらを使用します。
+- `scripts/prepare_pages.sh` は一時ディレクトリで問題数・全チャンク・索引を検証してから `docs/` を置換します。失敗時は旧公開素材を保持・復元します。
+- ローカル管理画面のAPIには起動ごとのトークン、Host・Origin検査が必要です。管理画面内の操作には自動付与されます。外部ページから無認証で管理APIを呼ぶ経路は利用できません。
+- 関連Skillの問題束検証器は問題番号・症例・シリアル・Viewer/QRの整合を調べます。QR更新は本文を保持し、QR容量超過やWord画像欠落を保存前に検出します。
+
+フロントの契約は `web_app/shared/README.md`、SQLとWorkerの本番適用順は `workers/README.md` を参照してください。2026-09-06の変更にはSQL移行が必要なため、Worker・Pagesだけを先に公開しないでください。

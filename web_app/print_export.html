@@ -14,6 +14,7 @@
     <!-- End Cloudflare Web Analytics -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
+    <script src="./shared/questions.js"></script>
     <style>
       :root {
         --bg-1: #ffffff;
@@ -479,6 +480,8 @@
           <div class="section-label">出力内容</div>
           <div class="field-grid">
             <div class="field full">
+              <label for="answerMedium">解答の媒体</label>
+      <select id="answerMedium"><option value="default">通常用</option><option value="braille">点字用</option></select>
               <label for="numberingSelect">問題番号の形式</label>
               <select id="numberingSelect">
                 <option value="serial">シリアルを使う（A01-001 など）</option>
@@ -676,6 +679,7 @@
           throw new Error("questions_manifest.json の取得に失敗しました。");
         }
         const manifest = await manifestResp.json();
+        state.questionManifest = manifest;
         const chunks = Array.isArray(manifest && manifest.chunks) ? manifest.chunks : [];
         if (!chunks.length) return [];
         const chunkVersion = [
@@ -1066,6 +1070,8 @@
         const includeExplanation = els.includeExplanation.checked;
         const includeDeepDive = els.includeDeepDive.checked;
         return {
+          answerMedium: AhakiQuestions.getAnswerMedium(),
+          sortLabel: getSortLabel(),
           numbering: els.numberingSelect.value === "continuous" ? "continuous" : "serial",
           includeExplanation,
           includeDeepDive,
@@ -1077,11 +1083,11 @@
         return DEFAULT_DEEP_DIVE_EXPORT_LIMIT;
       }
 
-      function getDeepDiveExportCandidateCount() {
-        return state.filtered.filter((question) => hasDeepDiveAvailable(question)).length;
+      function getDeepDiveExportCandidateCount(questions = state.filtered) {
+        return questions.filter((question) => hasDeepDiveAvailable(question)).length;
       }
 
-      async function ensureDeepDiveExportWithinLimit() {
+      async function ensureDeepDiveExportWithinLimit(questions = state.filtered) {
         const mode = getExportMode();
         if (!mode.includeDeepDive) {
           return { ok: true, count: 0, limit: getDeepDiveExportLimit() };
@@ -1094,29 +1100,15 @@
           await ensureDeepDiveIndexLoaded();
         }
         const limit = getDeepDiveExportLimit();
-        const count = getDeepDiveExportCandidateCount();
+        const count = getDeepDiveExportCandidateCount(questions);
         if (count > limit) {
           return { ok: false, count, limit, reason: "over_limit" };
         }
         return { ok: true, count, limit };
       }
 
-      function formatAnswerLabel(question) {
-        const nums = ["１", "２", "３", "４", "５", "６", "７", "８", "９"];
-        if (question.answer_none) return "なし";
-        const indices = Array.isArray(question.answer_indices)
-          ? question.answer_indices.filter((value) => Number(value) >= 1)
-          : [];
-        if (indices.length) {
-          return indices
-            .map((value) => nums[Number(value) - 1] || String(value))
-            .join("・");
-        }
-        const answerIndex = Number(question.answer_index) || 0;
-        if (answerIndex >= 1) {
-          return nums[answerIndex - 1] || String(answerIndex);
-        }
-        return normalizeText(question.answer_text);
+      function formatAnswerLabel(question, medium = AhakiQuestions.getAnswerMedium()) {
+        return AhakiQuestions.formatAnswerLabel(question, medium, true);
       }
 
       function normalizeDeepDiveRow(row) {
@@ -1238,9 +1230,11 @@
           lines.push(`${label}．${choice}`);
         });
         if (mode.includeAnswer) {
-          const answerLabel = formatAnswerLabel(question);
+          const answerLabel = formatAnswerLabel(question, mode.answerMedium);
           lines.push("");
           lines.push(answerLabel ? `解答　${answerLabel}` : "解答");
+          const answerNote = AhakiQuestions.getAnswerNote(question);
+          if (answerNote) lines.push(`注記: ${answerNote}`);
         }
         if (mode.includeExplanation) {
           const explanationText = normalizeText(question.explanation_latest);
@@ -1303,9 +1297,12 @@
         return [
           title,
           `出力日時: ${formatDisplayDate(new Date())}`,
+          AhakiQuestions.manifestVersionText(state.questionManifest),
+          ...(state.overrideLoadWarning ? [state.overrideLoadWarning] : []),
+          `解答媒体: ${mode.answerMedium === "braille" ? "点字用" : "通常用"}`,
           `検索条件: ${summaryText || "条件なし"}`,
           `問題数: ${list.length}件`,
-          `並び順: ${getSortLabel()}`,
+          `並び順: ${mode.sortLabel || getSortLabel()}`,
           `問題番号: ${numberingLabel}`,
           `出力内容: ${contentParts.length ? contentParts.join(" / ") : "問題のみ"}`,
         ].join("\n");
@@ -1457,6 +1454,8 @@
         const groups = getSubtopicGroups();
         const deepDiveLimit = getDeepDiveExportLimit();
         const lines = [
+          AhakiQuestions.manifestVersionText(state.questionManifest),
+          ...(state.overrideLoadWarning ? [state.overrideLoadWarning] : []),
           `対象問題数: ${state.filtered.length}件`,
           `通常解説あり: ${explanationAvailable}件`,
           `深掘り解説あり: ${deepDiveAvailable}件`,
@@ -1522,13 +1521,17 @@
       }
 
       async function downloadCurrentTxt() {
+        applyFilters();
+        const exportQuestions = state.filtered.slice();
+        const summaryText = buildFilterSummary();
+        const exportTitle = buildCurrentExportTitle();
         if (!state.filtered.length) {
           setStatus("TXT 保存できる問題がありません。", "warn");
           return;
         }
         const mode = getExportMode();
         if (mode.includeDeepDive) {
-          const limitCheck = await ensureDeepDiveExportWithinLimit();
+          const limitCheck = await ensureDeepDiveExportWithinLimit(exportQuestions);
           if (limitCheck.reason === "missing_config") {
             setStatus("深掘り解説を出力するには config.js の Supabase 設定が必要です。", "warn");
             return;
@@ -1542,7 +1545,7 @@
           }
           setStatus(`深掘り解説を Supabase から取得中です... 0/${limitCheck.count}`);
           try {
-            await ensureDeepDiveContentLoaded(state.filtered, (loaded, total) => {
+            await ensureDeepDiveContentLoaded(exportQuestions, (loaded, total) => {
               setStatus(`深掘り解説を Supabase から取得中です... ${loaded}/${total}`);
             });
           } catch (error) {
@@ -1551,8 +1554,8 @@
             return;
           }
         }
-        const title = buildCurrentExportTitle();
-        const text = buildExportText(title, state.filtered, mode, buildFilterSummary());
+        const title = exportTitle;
+        const text = buildExportText(title, exportQuestions, mode, summaryText);
         const filename = `${sanitizeFilename(title)}_${formatLocalTimestamp()}.txt`;
         downloadText(filename, text);
         setStatus(`TXT を保存しました: ${filename}`);
@@ -1660,6 +1663,10 @@
       }
 
       async function downloadSubtopicZip() {
+        applyFilters();
+        const exportQuestions = state.filtered.slice();
+        const summaryText = buildFilterSummary();
+        const exportTitle = buildCurrentExportTitle();
         const subject = normalizeText(els.subjectSelect.value);
         if (!subject) {
           setStatus("小項目・種別別 ZIP を保存するには科目を選択してください。", "warn");
@@ -1672,7 +1679,7 @@
         }
         const mode = getExportMode();
         if (mode.includeDeepDive) {
-          const limitCheck = await ensureDeepDiveExportWithinLimit();
+          const limitCheck = await ensureDeepDiveExportWithinLimit(exportQuestions);
           if (limitCheck.reason === "missing_config") {
             setStatus("深掘り解説を出力するには config.js の Supabase 設定が必要です。", "warn");
             return;
@@ -1686,7 +1693,7 @@
           }
           setStatus(`深掘り解説を Supabase から取得中です... 0/${limitCheck.count}`);
           try {
-            await ensureDeepDiveContentLoaded(state.filtered, (loaded, total) => {
+            await ensureDeepDiveContentLoaded(exportQuestions, (loaded, total) => {
               setStatus(`深掘り解説を Supabase から取得中です... ${loaded}/${total}`);
             });
           } catch (error) {
@@ -1695,7 +1702,7 @@
             return;
           }
         }
-        const baseSummary = buildFilterSummary();
+        const baseSummary = summaryText;
         const files = groups.map((group) => {
           const title = `${subject} / ${group.subtopic} / ${group.examType}`;
           const text = buildExportText(
@@ -1716,6 +1723,7 @@
       }
 
       function registerEvents() {
+        AhakiQuestions.bindAnswerMedium(document.getElementById("answerMedium"), applyFilters);
         els.subjectSelect.addEventListener("change", () => {
           const currentSubtopic = normalizeText(els.subtopicSelect.value);
           updateSubtopicOptions();
@@ -1759,8 +1767,15 @@
       async function init() {
         registerEvents();
         try {
-          const rows = await loadQuestionsWithFallback();
-          state.questions = preprocessQuestions(rows);
+          const [rows, overrides] = await Promise.all([
+            loadQuestionsWithFallback(),
+            AhakiQuestions.loadQuestionOverrides(supabaseClient).catch(error => {
+              console.warn("訂正データを取得できませんでした。", error);
+              state.overrideLoadWarning = "訂正データを取得できないため、公開済みの問題データを使用しています。再読み込みで再試行できます。";
+              return [];
+            })
+          ]);
+          state.questions = preprocessQuestions(AhakiQuestions.applyQuestionOverrides(rows, overrides));
           rebuildSelectOptions();
           state.ready = true;
           if (supabaseClient) {
@@ -1774,7 +1789,7 @@
               });
           }
           applyFilters();
-          setStatus(`問題データを読み込みました。全 ${state.questions.length} 問です。`);
+          setStatus([`問題データを読み込みました。全 ${state.questions.length} 問です。`, AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean).join("\n"));
         } catch (error) {
           console.error(error);
           state.ready = false;

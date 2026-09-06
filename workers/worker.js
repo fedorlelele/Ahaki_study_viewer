@@ -2,7 +2,7 @@ const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization,Content-Type"
+  "Access-Control-Allow-Headers": "Authorization,Content-Type,Idempotency-Key"
 };
 const ANALYTICS_TIME_ZONE = "Asia/Tokyo";
 const ANALYTICS_DATE_PARTS_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -26,21 +26,28 @@ export default {
       if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: CORS_HEADERS });
       }
+      if (path === "/stats/answers" && request.method === "GET") {
+        const serials = normalizeQuestionSerialList(url.searchParams.get("serials") || "", 201);
+        if (!serials.length || serials.length > 200) return jsonResponse({ message: "serials must contain 1 to 200 question IDs" }, 400);
+        const items = await callWorkerRpc(env, "worker_answer_stats", { p_serials: serials });
+        if (!Array.isArray(items)) throw workerError(503, "回答統計を確認できません。");
+        return jsonResponse({ ok: true, items });
+      }
       if (path.startsWith("/admin/")) {
-        return handleAdmin(request, env);
+        return await handleAdmin(request, env);
       }
       if (path.startsWith("/ai/")) {
-        return handleAi(request, env);
+        return await handleAi(request, env);
       }
       if (path.startsWith("/progress/")) {
-        return handleProgress(request, env);
+        return await handleProgress(request, env);
       }
       if (path.startsWith("/analytics/")) {
-        return handleAnalytics(request, env);
+        return await handleAnalytics(request, env);
       }
       return jsonResponse({ message: "Not found" }, 404);
-    } catch (_err) {
-      return jsonResponse({ message: "Internal error" }, 500);
+    } catch (err) {
+      return jsonResponse({ message: err.status ? err.message : "Internal error" }, err.status || 500);
     }
   }
 };
@@ -345,7 +352,7 @@ async function handleAi(request, env) {
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, requestId);
   if (!limit.ok) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -361,7 +368,7 @@ async function handleAi(request, env) {
       error_code: "worker_rate_limited",
       prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
   }
   const payload = {
     contents: [
@@ -371,8 +378,15 @@ async function handleAi(request, env) {
       }
     ]
   };
-  const callGemini = (model) =>
-    fetch(
+  let geminiCallCount = 0;
+  const callGemini = async (model) => {
+    if (geminiCallCount++ > 0) {
+      const fallbackLimit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, `${requestId}:fallback`);
+      if (!fallbackLimit.ok) {
+        return new Response(JSON.stringify({ error: { message: fallbackLimit.message } }), { status: fallbackLimit.status || 429 });
+      }
+    }
+    return fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
@@ -380,6 +394,7 @@ async function handleAi(request, env) {
         body: JSON.stringify(payload)
       }
     );
+  };
   let usedModel = requestedModel;
   let resp = await callGemini(usedModel);
   if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
@@ -491,13 +506,8 @@ async function handleTtsSynthesis(request, env) {
   const serial = String(body.serial || "").trim() || null;
   const usageMode = "free";
   const textCharCount = estimateTtsCharCount(text, useSsml);
-  let usageUserId = null;
-  try {
-    const user = await authenticate(request, env);
-    usageUserId = user && user.id ? String(user.id) : null;
-  } catch (_err) {
-    usageUserId = null;
-  }
+  const user = await authenticate(request, env);
+  const usageUserId = user && user.id ? String(user.id) : null;
   const apiKey =
     env.GOOGLE_TTS_API_KEY ||
     env.GCP_TTS_API_KEY ||
@@ -532,7 +542,7 @@ async function handleTtsSynthesis(request, env) {
     "";
   const voiceName = quality === "high" ? (highVoice || standardVoice) : standardVoice;
   const usageEndpoint = quality === "high" ? "tts_high" : "tts_standard";
-  const quota = await checkTtsMonthlyQuota(env, usageEndpoint, textCharCount);
+  const quota = await checkTtsMonthlyQuota(env, usageEndpoint, textCharCount, requestId, getRateLimitActor(request, user));
   if (quota && quota.ok === false) {
     await safeLogAiUsage(env, {
       mode: usageMode,
@@ -546,12 +556,12 @@ async function handleTtsSynthesis(request, env) {
       input_chars: inputChars,
       output_chars: 0,
       char_count: textCharCount,
-      error_code: "tts_monthly_quota_exceeded",
+      error_code: quota.status === 503 ? "tts_quota_unavailable" : "tts_quota_exceeded",
       prompt_version: promptVersion
     });
     return jsonResponse(
       {
-        message: "TTS monthly quota exceeded",
+        message: quota.status === 503 ? "TTS is temporarily unavailable" : "TTS quota exceeded",
         quality,
         endpoint: usageEndpoint,
         detail: quota.message,
@@ -560,7 +570,7 @@ async function handleTtsSynthesis(request, env) {
         requested: textCharCount,
         request_id: requestId
       },
-      429
+      quota.status || 429
     );
   }
 
@@ -728,58 +738,22 @@ async function handleProgress(request, env) {
     if (!serial || !status) {
       return jsonResponse({ message: "serial と status は必須です。" }, 400);
     }
-    const current = await fetchUserProgressBySerials(env, targetUserId, [serial]);
-    const prev = current && current[0] ? current[0] : null;
-    const now = new Date().toISOString();
-    const next = {
-      user_id: targetUserId,
-      serial,
-      status,
-      attempt_count: Number(prev?.attempt_count || 0),
-      correct_count: Number(prev?.correct_count || 0),
-      last_answered_at: prev?.last_answered_at || null,
-      last_is_correct: prev?.last_is_correct ?? null,
-      next_review_at:
-        status === "needs_review"
-          ? now
-          : status === "mastered"
-            ? plusDaysIso(now, 7)
-            : null,
-      updated_at: now
-    };
-    const saved = await upsertUserProgress(env, next);
+    const saved = await callWorkerRpc(env, "worker_set_progress_status", {
+      p_user_id: targetUserId, p_serial: serial, p_status: status
+    });
     return jsonResponse({ ok: true, item: saved });
   }
 
   if (path === "/progress/answer" && request.method === "POST") {
     const body = await readJson(request);
     const serial = String(body.serial || "").trim();
-    const isCorrect = Boolean(body.is_correct);
-    if (!serial) return jsonResponse({ message: "serial は必須です。" }, 400);
-    const current = await fetchUserProgressBySerials(env, user.id, [serial]);
-    const prev = current && current[0] ? current[0] : null;
-    const attemptCount = Number(prev?.attempt_count || 0) + 1;
-    const correctCount = Number(prev?.correct_count || 0) + (isCorrect ? 1 : 0);
-    const status = isCorrect ? "mastered" : "needs_review";
-    const now = new Date().toISOString();
-    const nextReviewAt =
-      status === "needs_review"
-        ? now
-        : status === "mastered"
-          ? plusDaysIso(now, 7)
-          : plusDaysIso(now, 2);
-    const next = {
-      user_id: user.id,
-      serial,
-      status,
-      attempt_count: attemptCount,
-      correct_count: correctCount,
-      last_answered_at: now,
-      last_is_correct: isCorrect,
-      next_review_at: nextReviewAt,
-      updated_at: now
-    };
-    const saved = await upsertUserProgress(env, next);
+    if (typeof body.is_correct !== "boolean") return jsonResponse({ message: "is_correct must be boolean" }, 400);
+    if (!serial || serial.length > 100) return jsonResponse({ message: "serial は必須です。" }, 400);
+    const eventId = String(body.event_id || request.headers.get("Idempotency-Key") || createRequestId("answer")).trim();
+    if (!eventId || eventId.length > 160) return jsonResponse({ message: "event_id is invalid" }, 400);
+    const saved = await callWorkerRpc(env, "worker_record_answer", {
+      p_user_id: user.id, p_serial: serial, p_is_correct: body.is_correct, p_event_id: eventId
+    });
     return jsonResponse({ ok: true, item: saved });
   }
 
@@ -794,27 +768,13 @@ async function handleProgress(request, env) {
     });
     const serials = Object.keys(dedup);
     if (!serials.length) return jsonResponse({ ok: true, inserted: 0, items: [] });
-    const existing = await fetchUserProgressBySerials(env, user.id, serials);
-    const existingSet = new Set((existing || []).map((row) => row.serial));
-    const now = new Date().toISOString();
-    const pending = [];
-    serials.forEach((serial) => {
-      if (existingSet.has(serial)) return;
-      const isCorrect = dedup[serial];
-      pending.push({
-        user_id: user.id,
-        serial,
-        status: isCorrect ? "mastered" : "needs_review",
-        attempt_count: 1,
-        correct_count: isCorrect ? 1 : 0,
-        last_answered_at: now,
-        last_is_correct: isCorrect,
-        next_review_at: isCorrect ? plusDaysIso(now, 7) : now,
-        updated_at: now
-      });
+    if (serials.length > 20000 || serials.some(serial => serial.length > 100)) {
+      return jsonResponse({ message: "取り込み件数またはserialが上限を超えています。" }, 400);
+    }
+    const inserted = await callWorkerRpc(env, "worker_import_progress", {
+      p_user_id: user.id,
+      p_items: serials.map(serial => ({ serial, is_correct: dedup[serial] }))
     });
-    if (!pending.length) return jsonResponse({ ok: true, inserted: 0, items: [] });
-    const inserted = await upsertUserProgressMany(env, pending);
     return jsonResponse({ ok: true, inserted: inserted.length, items: inserted });
   }
 
@@ -825,7 +785,7 @@ async function handleProgress(request, env) {
         message: "Progress API error",
         detail: err && err.message ? err.message : String(err || "")
       },
-      500
+      err.status || 500
     );
   }
 }
@@ -879,7 +839,7 @@ async function handleAnalytics(request, env) {
         message: "Analytics API error",
         detail: err && err.message ? err.message : String(err || "")
       },
-      500
+      err.status || 500
     );
   }
 }
@@ -2053,7 +2013,7 @@ async function handleQuestionQa(request, env) {
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, requestId);
   if (!limit.ok) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -2069,7 +2029,7 @@ async function handleQuestionQa(request, env) {
       error_code: "worker_rate_limited",
       prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
   }
   const payload = {
     contents: [
@@ -2079,8 +2039,15 @@ async function handleQuestionQa(request, env) {
       }
     ]
   };
-  const callGemini = (model) =>
-    fetch(
+  let geminiCallCount = 0;
+  const callGemini = async (model) => {
+    if (geminiCallCount++ > 0) {
+      const fallbackLimit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, `${requestId}:fallback`);
+      if (!fallbackLimit.ok) {
+        return new Response(JSON.stringify({ error: { message: fallbackLimit.message } }), { status: fallbackLimit.status || 429 });
+      }
+    }
+    return fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
@@ -2088,6 +2055,7 @@ async function handleQuestionQa(request, env) {
         body: JSON.stringify(payload)
       }
     );
+  };
   let usedModel = requestedModel;
   let resp = await callGemini(usedModel);
   if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
@@ -2210,7 +2178,7 @@ async function handleQuestionSenryu(request, env) {
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, requestId);
   if (!limit.ok) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -2226,7 +2194,7 @@ async function handleQuestionSenryu(request, env) {
       error_code: "worker_rate_limited",
       prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
   }
   const payload = {
     contents: [
@@ -2236,8 +2204,15 @@ async function handleQuestionSenryu(request, env) {
       }
     ]
   };
-  const callGemini = (model) =>
-    fetch(
+  let geminiCallCount = 0;
+  const callGemini = async (model) => {
+    if (geminiCallCount++ > 0) {
+      const fallbackLimit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, `${requestId}:fallback`);
+      if (!fallbackLimit.ok) {
+        return new Response(JSON.stringify({ error: { message: fallbackLimit.message } }), { status: fallbackLimit.status || 429 });
+      }
+    }
+    return fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
@@ -2245,6 +2220,7 @@ async function handleQuestionSenryu(request, env) {
         body: JSON.stringify(payload)
       }
     );
+  };
   let usedModel = requestedModel;
   let resp = await callGemini(usedModel);
   if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
@@ -2411,7 +2387,7 @@ async function handlePracticeQuestions(request, env) {
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, requestId);
   if (!limit.ok) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -2427,7 +2403,7 @@ async function handlePracticeQuestions(request, env) {
       error_code: "worker_rate_limited",
       prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
   }
   const payload = {
     contents: [
@@ -2437,8 +2413,15 @@ async function handlePracticeQuestions(request, env) {
       }
     ]
   };
-  const callGemini = (model) =>
-    fetch(
+  let geminiCallCount = 0;
+  const callGemini = async (model) => {
+    if (geminiCallCount++ > 0) {
+      const fallbackLimit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, `${requestId}:fallback`);
+      if (!fallbackLimit.ok) {
+        return new Response(JSON.stringify({ error: { message: fallbackLimit.message } }), { status: fallbackLimit.status || 429 });
+      }
+    }
+    return fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
@@ -2446,6 +2429,7 @@ async function handlePracticeQuestions(request, env) {
         body: JSON.stringify(payload)
       }
     );
+  };
   let usedModel = requestedModel;
   let resp = await callGemini(usedModel);
   if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
@@ -2620,7 +2604,7 @@ async function handleTagDeepDive(request, env) {
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, requestId);
   if (!limit.ok) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -2636,7 +2620,7 @@ async function handleTagDeepDive(request, env) {
       error_code: "worker_rate_limited",
       prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
   }
   const payload = {
     contents: [
@@ -2646,8 +2630,15 @@ async function handleTagDeepDive(request, env) {
       }
     ]
   };
-  const callGemini = (model) =>
-    fetch(
+  let geminiCallCount = 0;
+  const callGemini = async (model) => {
+    if (geminiCallCount++ > 0) {
+      const fallbackLimit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, `${requestId}:fallback`);
+      if (!fallbackLimit.ok) {
+        return new Response(JSON.stringify({ error: { message: fallbackLimit.message } }), { status: fallbackLimit.status || 429 });
+      }
+    }
+    return fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
@@ -2655,6 +2646,7 @@ async function handleTagDeepDive(request, env) {
         body: JSON.stringify(payload)
       }
     );
+  };
   let usedModel = requestedModel;
   let resp = await callGemini(usedModel);
   if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
@@ -2837,7 +2829,7 @@ async function handleTagQa(request, env) {
   }
   const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
   const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini.mode);
+  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, requestId);
   if (!limit.ok) {
     await safeLogAiUsage(env, {
       mode: gemini.mode,
@@ -2853,7 +2845,7 @@ async function handleTagQa(request, env) {
       error_code: "worker_rate_limited",
       prompt_version: promptVersion
     });
-    return jsonResponse({ message: limit.message, request_id: requestId }, 429);
+    return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
   }
   const payload = {
     contents: [
@@ -2863,8 +2855,15 @@ async function handleTagQa(request, env) {
       }
     ]
   };
-  const callGemini = (model) =>
-    fetch(
+  let geminiCallCount = 0;
+  const callGemini = async (model) => {
+    if (geminiCallCount++ > 0) {
+      const fallbackLimit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, `${requestId}:fallback`);
+      if (!fallbackLimit.ok) {
+        return new Response(JSON.stringify({ error: { message: fallbackLimit.message } }), { status: fallbackLimit.status || 429 });
+      }
+    }
+    return fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
@@ -2872,6 +2871,7 @@ async function handleTagQa(request, env) {
         body: JSON.stringify(payload)
       }
     );
+  };
   let usedModel = requestedModel;
   let resp = await callGemini(usedModel);
   if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
@@ -4030,7 +4030,7 @@ async function fetchUserProgressBySerials(env, userId, serials) {
       "Content-Type": "application/json"
     }
   });
-  if (!resp.ok) return [];
+  if (!resp.ok) throw workerError(503, "進捗を取得できません。既存の記録は変更していません。");
   const rows = (await resp.json()) || [];
   rows.forEach((row) => {
     if (!row) return;
@@ -4052,51 +4052,13 @@ async function fetchAllUserProgress(env, userId) {
       "Content-Type": "application/json"
     }
   });
-  if (!resp.ok) return [];
+  if (!resp.ok) throw workerError(503, "進捗を取得できません。既存の記録は変更していません。");
   const rows = (await resp.json()) || [];
   rows.forEach((row) => {
     if (!row) return;
     row.status = normalizeProgressStatus(row.status) || "unstarted";
   });
   return rows;
-}
-
-async function upsertUserProgress(env, payload) {
-  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/user_progress`, {
-    method: "POST",
-    headers: {
-      apikey: env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=representation"
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!resp.ok) {
-    const detail = await resp.text();
-    throw new Error(`progress upsert failed: ${detail}`);
-  }
-  const rows = await resp.json();
-  return rows && rows[0] ? rows[0] : payload;
-}
-
-async function upsertUserProgressMany(env, payloads) {
-  if (!Array.isArray(payloads) || !payloads.length) return [];
-  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/user_progress`, {
-    method: "POST",
-    headers: {
-      apikey: env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=representation"
-    },
-    body: JSON.stringify(payloads)
-  });
-  if (!resp.ok) {
-    const detail = await resp.text();
-    throw new Error(`progress batch upsert failed: ${detail}`);
-  }
-  return (await resp.json()) || [];
 }
 
 async function fetchUserGoals(env, userId) {
@@ -4266,15 +4228,22 @@ async function authenticate(request, env) {
       Authorization: `Bearer ${token}`
     }
   });
-  if (!resp.ok) return null;
-  return await resp.json();
+  if (!resp.ok) throw workerError(resp.status === 401 || resp.status === 403 ? 401 : 503, "認証を確認できません。");
+  const user = await resp.json();
+  if (!user || !user.id) throw workerError(401, "認証を確認できません。");
+  const flags = await fetch(`${env.SUPABASE_URL}/rest/v1/user_flags?select=disabled&user_id=eq.${encodeURIComponent(user.id)}&limit=1`, {
+    headers: getSupabaseServiceHeaders(env)
+  });
+  if (!flags.ok) throw workerError(503, "アカウント状態を確認できません。");
+  const rows = await flags.json();
+  if (!Array.isArray(rows)) throw workerError(503, "アカウント状態を確認できません。");
+  if (rows.some(row => row.disabled === true)) throw workerError(403, "このアカウントは停止されています。");
+  return user;
 }
 
 function getRole(user) {
   const role =
-    user?.app_metadata?.role ||
-    user?.user_metadata?.role ||
-    "";
+    user?.app_metadata?.role || "";
   return role === "student" || role === "teacher" || role === "admin" ? role : "";
 }
 
@@ -4316,8 +4285,9 @@ async function getAppSettingValue(env, key) {
       }
     }
   );
-  if (!resp.ok) return null;
+  if (!resp.ok) throw workerError(503, "機能設定を確認できません。");
   const rows = await resp.json();
+  if (!Array.isArray(rows)) throw workerError(503, "機能設定を確認できません。");
   const row = rows && rows[0] ? rows[0] : null;
   if (!row || row.setting_value === undefined || row.setting_value === null) return null;
   return row.setting_value;
@@ -4346,26 +4316,19 @@ async function getAppSettingString(env, key, fallback = "") {
 }
 
 async function setAppSettingValue(env, key, value, actor) {
-  await fetch(`${env.SUPABASE_URL}/rest/v1/app_settings?setting_key=eq.${encodeURIComponent(key)}`, {
-    method: "DELETE",
-    headers: {
-      apikey: env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json"
-    }
-  });
   const payload = {
     setting_key: key,
     setting_value: value,
     updated_at: new Date().toISOString(),
     updated_by: actor?.id || null
   };
-  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/app_settings`, {
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/app_settings?on_conflict=setting_key`, {
     method: "POST",
     headers: {
       apikey: env.SUPABASE_SERVICE_KEY,
       Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates"
     },
     body: JSON.stringify(payload)
   });
@@ -4398,31 +4361,11 @@ function getSupabaseExactCountFromHeaders(resp) {
 
 async function fetchPaidGeminiUsageCountSince(env, sinceIso) {
   if (!sinceIso) return 0;
-  const url =
-    `${env.SUPABASE_URL}/rest/v1/ai_usage_logs` +
-    `?select=id` +
-    `&mode=eq.paid` +
-    `&outcome=neq.rate_limited` +
-    `&endpoint=not.like.${encodeURIComponent("tts*")}` +
-    `&created_at=gte.${encodeURIComponent(sinceIso)}` +
-    `&limit=1`;
-  const resp = await fetch(url, {
-    method: "HEAD",
-    headers: {
-      apikey: env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      Prefer: "count=exact"
-    }
+  const data = await callWorkerRpc(env, "worker_usage_total", {
+    p_kind: "gemini_paid", p_since: sinceIso
   });
-  if (!resp.ok) {
-    const detail = await resp.text().catch(() => "");
-    throw new Error(detail || "Supabase count failed");
-  }
-  const count = getSupabaseExactCountFromHeaders(resp);
-  if (count === null) {
-    throw new Error("Supabase count header is missing");
-  }
-  return count;
+  if (!Number.isSafeInteger(data) || data < 0) throw workerError(503, "利用枠を確認できません。");
+  return data;
 }
 
 async function getAiPublicPaidEnabled(env) {
@@ -4450,7 +4393,7 @@ async function getAiPublicPaidState(env) {
     try {
       used = await fetchPaidGeminiUsageCountSince(env, startedAt);
     } catch (err) {
-      countError = String(err && err.message ? err.message : err || "");
+      throw workerError(503, "有料生成の利用枠を確認できないため生成を停止しました。");
     }
   }
   const remaining = Math.max(0, limit - used);
@@ -4587,7 +4530,9 @@ async function resolveGeminiRoute(env, role) {
     apiKey,
     defaultModel,
     public_paid_active: usePublicPaid,
-    public_paid_remaining: publicPaid.remaining
+    public_paid_remaining: publicPaid.remaining,
+    public_paid_started_at: usePublicPaid ? publicPaid.started_at : null,
+    public_paid_limit: usePublicPaid ? publicPaid.limit : 0
   };
 }
 
@@ -4839,27 +4784,17 @@ async function updateDisable(env, body, actor) {
   const userId = body.user_id || "";
   const disabled = Boolean(body.disabled);
   if (!userId) return jsonResponse({ message: "user_id required" }, 400);
-  await fetch(`${env.SUPABASE_URL}/rest/v1/user_flags?user_id=eq.${userId}`, {
-    method: "DELETE",
-    headers: {
-      apikey: env.SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json"
-    }
-  });
-  if (!disabled) {
-    return jsonResponse({ ok: true });
-  }
-  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/user_flags`, {
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/user_flags?on_conflict=user_id`, {
     method: "POST",
     headers: {
       apikey: env.SUPABASE_SERVICE_KEY,
       Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates"
     },
     body: JSON.stringify({
       user_id: userId,
-      disabled: true,
+      disabled,
       note: body.note || "",
       updated_at: new Date().toISOString(),
       updated_by: actor?.id || null
@@ -5059,64 +4994,14 @@ function getTtsMonthlyLimitByEndpoint(env, endpoint) {
   return normalizePositiveInt(env.TTS_MONTHLY_CHAR_LIMIT_STANDARD || common);
 }
 
-async function fetchAiUsageCharsSince(env, endpoint, sinceIso) {
-  const base =
-    `${env.SUPABASE_URL}/rest/v1/ai_usage_logs` +
-    `?select=char_count` +
-    `&endpoint=eq.${encodeURIComponent(endpoint)}` +
-    `&outcome=eq.success` +
-    `&created_at=gte.${encodeURIComponent(sinceIso)}` +
-    `&order=created_at.asc`;
-  let offset = 0;
-  let total = 0;
-  const limit = 1000;
-  const maxRows = 200000;
-  while (offset < maxRows) {
-    const pageUrl = `${base}&limit=${limit}&offset=${offset}`;
-    const resp = await fetch(pageUrl, {
-      headers: {
-        apikey: env.SUPABASE_SERVICE_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-        "Content-Type": "application/json"
-      }
-    });
-    const data = await resp.json();
-    if (!resp.ok) {
-      const detailText = JSON.stringify(data || {});
-      if (detailText.includes("char_count")) {
-        return { ok: true, total_chars: 0 };
-      }
-      return { ok: false, detail: data };
-    }
-    const rows = Array.isArray(data) ? data : [];
-    rows.forEach((row) => {
-      total += normalizePositiveInt(row && row.char_count);
-    });
-    if (rows.length < limit) break;
-    offset += limit;
-  }
-  return { ok: true, total_chars: total };
-}
-
-async function checkTtsMonthlyQuota(env, endpoint, requestedChars) {
-  const limit = getTtsMonthlyLimitByEndpoint(env, endpoint);
-  if (limit <= 0) return { ok: true, limit: 0, used: 0 };
-  const needed = normalizePositiveInt(requestedChars);
-  const since = getCurrentMonthStartIsoUtc();
-  const usage = await fetchAiUsageCharsSince(env, endpoint, since);
-  if (!usage.ok) {
-    return { ok: true, limit, used: 0 };
-  }
-  const used = normalizePositiveInt(usage.total_chars);
-  if (used + needed > limit) {
-    return {
-      ok: false,
-      limit,
-      used,
-      message: `月間上限（${limit.toLocaleString("ja-JP")}文字）に達したため停止しました。`
-    };
-  }
-  return { ok: true, limit, used };
+async function checkTtsMonthlyQuota(env, endpoint, requestedChars, requestId, actor) {
+  const monthlyLimit = getTtsMonthlyLimitByEndpoint(env, endpoint);
+  return reserveWorkerUsage(env, {
+    p_request_id: requestId, p_actor: actor, p_kind: endpoint,
+    p_amount: requestedChars, p_day_limit: normalizePositiveInt(env.TTS_RATE_LIMIT_PER_DAY || env.RATE_LIMIT_PER_DAY),
+    p_minute_limit: normalizePositiveInt(env.TTS_RATE_LIMIT_PER_MIN || env.RATE_LIMIT_PER_MIN),
+    p_month_limit: monthlyLimit, p_public_started_at: null, p_public_limit: 0
+  });
 }
 
 async function listPracticeQuestionsAdmin(env, params, user, _role) {
@@ -5374,17 +5259,10 @@ function jsonResponse(payload, status = 200) {
   });
 }
 
-function estimateTtsCharCount(text, isSsml) {
-  const raw = String(text || "");
-  if (!raw) return 0;
-  const plain = isSsml
-    ? raw
-        .replace(/<[^>]*>/g, "")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&amp;/g, "&")
-    : raw;
-  return plain.length;
+function estimateTtsCharCount(text, _isSsml) {
+  // Reserve the full submitted input, including SSML. Stripping tags can
+  // underestimate billable input; UTF-16 length errs on the conservative side.
+  return String(text || "").length;
 }
 
 function base64ToUint8Array(base64) {
@@ -5397,49 +5275,48 @@ function base64ToUint8Array(base64) {
   return bytes;
 }
 
-async function checkRateLimit(env, userId, mode = "free") {
-  const isPaid = mode === "paid";
-  const daySetting = isPaid
-    ? env.PAID_RATE_LIMIT_PER_DAY || env.RATE_LIMIT_PER_DAY
-    : env.RATE_LIMIT_PER_DAY;
-  const minSetting = isPaid
-    ? env.PAID_RATE_LIMIT_PER_MIN || env.RATE_LIMIT_PER_MIN
-    : env.RATE_LIMIT_PER_MIN;
-  if (!daySetting && !minSetting) {
-    return { ok: true };
-  }
-  const now = new Date();
-  const dayKey = `${userId}:${now.toISOString().slice(0, 10)}`;
-  const minKey = `${userId}:${now.toISOString().slice(0, 16)}`;
-  const dayLimit = Number(daySetting || 0);
-  const minLimit = Number(minSetting || 0);
+function workerError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
 
-  if (dayLimit > 0) {
-    const allowed = await bumpRate(dayKey, dayLimit, 60 * 60 * 24);
-    if (!allowed) {
-      return { ok: false, message: "1日の利用上限に達しました。" };
-    }
+async function callWorkerRpc(env, name, body) {
+  let resp;
+  try {
+    resp = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
+      method: "POST", headers: getSupabaseServiceHeaders(env), body: JSON.stringify(body)
+    });
+  } catch (_err) {
+    throw workerError(503, "データベース処理を確認できません。しばらくしてから再試行してください。");
   }
-  if (minLimit > 0) {
-    const allowed = await bumpRate(minKey, minLimit, 60 * 2);
-    if (!allowed) {
-      return { ok: false, message: "短時間の利用上限に達しました。" };
-    }
+  if (!resp.ok) {
+    const detail = await resp.json().catch(() => ({}));
+    if (detail.code === "22023") throw workerError(409, "同じ操作IDに異なる内容が指定されています。");
+    throw workerError(503, "処理を完了できませんでした。時間をおいて再試行してください。");
   }
-  return { ok: true };
+  try { return await resp.json(); }
+  catch (_err) { throw workerError(503, "データベース応答を確認できません。"); }
+}
 
-  async function bumpRate(key, limit, ttlSeconds) {
-    const cacheKey = new Request(`https://rate/${key}`);
-    const cached = await caches.default.match(cacheKey);
-    const current = cached ? Number(await cached.text()) : 0;
-    if (current >= limit) return false;
-    const next = current + 1;
-    await caches.default.put(
-      cacheKey,
-      new Response(String(next), {
-        headers: { "Cache-Control": `max-age=${ttlSeconds}` }
-      })
-    );
-    return true;
+async function reserveWorkerUsage(env, body) {
+  try {
+    const result = await callWorkerRpc(env, "worker_reserve_usage", body);
+    if (!result || typeof result.ok !== "boolean") throw workerError(503, "利用枠を確認できません。");
+    return result.ok ? result : { ...result, status: 429, message: "利用上限に達しました。" };
+  } catch (err) {
+    return { ok: false, status: 503, message: "利用枠を確認できないため生成を停止しました。" };
   }
+}
+
+async function checkRateLimit(env, actor, gemini, requestId) {
+  const isPaid = gemini.mode === "paid";
+  return reserveWorkerUsage(env, {
+    p_request_id: requestId, p_actor: actor, p_kind: isPaid ? "gemini_paid" : "gemini_free", p_amount: 1,
+    p_day_limit: normalizePositiveInt(isPaid ? env.PAID_RATE_LIMIT_PER_DAY || env.RATE_LIMIT_PER_DAY : env.RATE_LIMIT_PER_DAY),
+    p_minute_limit: normalizePositiveInt(isPaid ? env.PAID_RATE_LIMIT_PER_MIN || env.RATE_LIMIT_PER_MIN : env.RATE_LIMIT_PER_MIN),
+    p_month_limit: 0,
+    p_public_started_at: gemini.public_paid_started_at || null,
+    p_public_limit: gemini.public_paid_limit || 0
+  });
 }
