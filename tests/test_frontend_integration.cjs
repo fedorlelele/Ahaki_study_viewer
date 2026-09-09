@@ -91,14 +91,12 @@ test('print output uses normal answers and omits braille notes even for legacy e
  const braille=ctx.buildQuestionBlock(q,0,{includeAnswer:true,answerMedium:'braille'});
  assert.match(normal,/解答　１$/);assert.equal(braille,normal);assert.doesNotMatch(braille,/点字|注記/);
 });
-test('print export snapshots the requested questions while deep explanations load', async () => {
- let release;let saved;
- const original={serial:'A01-001'};
- const ctx=vm.createContext({state:{filtered:[original]},console,applyFilters(){},buildFilterSummary:()=>ctx.state.filtered[0].serial,buildCurrentExportTitle:()=>ctx.state.filtered[0].serial,getExportMode:()=>({includeDeepDive:true,answerMedium:'default'}),ensureDeepDiveExportWithinLimit:async()=>({ok:true,count:1}),ensureDeepDiveContentLoaded:()=>new Promise(r=>release=r),setStatus(){},buildExportText:(title,list,mode,summary)=>({title,serials:Array.from(list,q=>q.serial),medium:mode.answerMedium,summary}),sanitizeFilename:x=>x,formatLocalTimestamp:()=>'',downloadText:(filename,text)=>saved=text});
+test('print export uses the current filter for its filename, summary, and questions without fetching explanations', () => {
+ let saved;
+ const ctx=vm.createContext({state:{filtered:[{serial:'A01-001'}]},console,applyFilters(){ctx.state.filtered=[{serial:'A01-002'}];},buildFilterSummary:()=>ctx.state.filtered[0].serial,buildCurrentExportTitle:()=>ctx.state.filtered[0].serial,getExportMode:()=>({includeExplanation:true,includeAnswer:true}),setStatus(){},buildExportText:(title,list,mode,summary)=>({title,serials:Array.from(list,q=>q.serial),explanation:mode.includeExplanation,summary}),sanitizeFilename:x=>x,formatLocalTimestamp:()=>'',downloadText:(filename,text)=>saved={filename,text}});
  addFunctions(ctx,'print_export.html',['downloadCurrentTxt']);
- const pending=ctx.downloadCurrentTxt();await new Promise(resolve=>setImmediate(resolve));
- ctx.state.filtered=[{serial:'A01-002'}];release();await pending;
- assert.deepEqual(saved,{title:'A01-001',serials:['A01-001'],medium:'default',summary:'A01-001'});
+ ctx.downloadCurrentTxt();
+ assert.deepEqual(saved,{filename:'A01-002_.txt',text:{title:'A01-002',serials:['A01-002'],explanation:true,summary:'A01-002'}});
 });
 test('tag candidates have one Tab entry per 30-result page and keyboard paging', () => {
  const {document,element}=dom();const elements={resultList:element(),searchMeta:element(),resultPagination:element()};document.getElementById=id=>elements[id];

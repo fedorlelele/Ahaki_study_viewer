@@ -18,405 +18,92 @@
     <script src="./shared/study-tools.js"></script>
     <style>
       :root {
-        --bg-1: #ffffff;
-        --bg-2: #f1f5f9;
-        --card: #ffffff;
-        --ink: #111111;
-        --muted: #475569;
-        --line: #1f2937;
+        --bg: #f4f7fb;
+        --card: #fff;
+        --ink: #18283b;
+        --muted: #526174;
+        --line: #ccd6e2;
         --accent: #0b5cab;
-        --accent-soft: #d9e9fb;
-        --warn: #8a4b08;
-        --warn-bg: #fff4db;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
-        color: var(--ink);
-        font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
-      }
-      .skip-link {
-        position: absolute;
-        left: -9999px;
-        top: 0;
-        z-index: 1000;
-        background: var(--accent);
-        color: #fff;
-        padding: 8px 16px;
-      }
-      .skip-link:focus {
-        left: 8px;
-        top: 8px;
-      }
-      .visually-hidden {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        margin: -1px;
-        padding: 0;
-        overflow: hidden;
-        clip: rect(0 0 0 0);
-        white-space: nowrap;
-        border: 0;
-      }
-      :focus-visible {
-        outline: 3px solid var(--accent);
-        outline-offset: 2px;
-      }
-      a {
-        color: var(--accent);
-      }
-      .topbar {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 14px 20px;
-        background: rgba(255, 255, 255, 0.96);
-        border-bottom: 2px solid var(--line);
-        backdrop-filter: blur(10px);
-      }
-      .topbar h1 {
-        margin: 0;
-        font-size: clamp(20px, 3vw, 28px);
-      }
-      .top-links {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .top-links a {
-        display: inline-flex;
-        align-items: center;
-        min-height: 40px;
-        padding: 8px 12px;
-        border: 2px solid var(--line);
-        border-radius: 999px;
-        background: #fff;
-        color: var(--ink);
-        text-decoration: none;
-      }
-      .top-links a:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-      }
-      .page {
-        width: min(1200px, calc(100% - 32px));
-        margin: 20px auto 40px;
-      }
-      .hero,
-      .card {
-        background: var(--card);
-        border: 2px solid var(--line);
-        border-radius: 18px;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-      }
-      .hero {
-        padding: 24px;
-        margin-bottom: 18px;
-      }
-      .hero h2 {
-        margin: 0 0 8px;
-        font-size: clamp(24px, 4vw, 36px);
-      }
-      .hero p {
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.7;
-      }
-      .hero-notes {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 10px;
-        margin-top: 18px;
-      }
-      .hero-note {
-        padding: 12px 14px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: #fff;
-        font-size: 14px;
-      }
-      .layout {
-        display: grid;
-        grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
-        gap: 18px;
-      }
-      .card {
-        padding: 20px;
-      }
-      .card h3 {
-        margin: 0 0 16px;
-        font-size: 20px;
-      }
-      .section-label {
-        margin: 18px 0 8px;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        color: var(--muted);
-        text-transform: uppercase;
-      }
-      .section-label:first-of-type {
-        margin-top: 0;
-      }
-      .field-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-      }
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .field.full {
-        grid-column: 1 / -1;
-      }
-      label {
-        font-weight: 700;
-        font-size: 14px;
-      }
-      input,
-      select,
-      button {
-        width: 100%;
-        min-height: 44px;
-        padding: 10px 12px;
-        border: 2px solid var(--line);
-        border-radius: 12px;
-        font: inherit;
-        color: var(--ink);
-        background: #fff;
-      }
-      input:focus,
-      select:focus,
-      button:focus {
-        outline: 3px solid var(--accent);
-        outline-offset: 2px;
-      }
-      .field-help {
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.5;
-      }
-      .toggle-list {
-        display: grid;
-        gap: 10px;
-      }
-      .toggle-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 10px 12px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #fff;
-      }
-      .toggle-item input {
-        width: 20px;
-        min-height: 20px;
-        margin-top: 2px;
-      }
-      .toggle-item label {
-        margin: 0;
-        font-size: 15px;
-      }
-      .toggle-item .field-help {
-        margin-top: 2px;
-      }
-      .action-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 14px;
-      }
-      button {
-        cursor: pointer;
-        font-weight: 700;
-      }
-      button.primary {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-      }
-      button.secondary {
-        background: #fff;
-      }
-      button.accent-soft {
-        background: var(--accent-soft);
-      }
-      button:disabled {
-        cursor: not-allowed;
-        opacity: 0.55;
-      }
-      .status {
-        margin-top: 14px;
-        padding: 12px 14px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: #fff;
-        font-size: 14px;
-        line-height: 1.6;
-        white-space: pre-wrap;
-      }
-      .status.warn {
-        border-color: #d59f46;
-        background: var(--warn-bg);
-        color: var(--warn);
-      }
-      .summary-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 12px;
-        margin-bottom: 16px;
-      }
-      .summary-item {
-        padding: 14px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: linear-gradient(180deg, #ffffff, #f8fafc);
-      }
-      .summary-item strong {
-        display: block;
-        font-size: 24px;
-        margin-bottom: 6px;
-      }
-      .summary-item span {
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .inline-note {
-        margin: 0 0 16px;
-        padding: 12px 14px;
-        border-radius: 12px;
-        background: #f8fafc;
-        color: var(--muted);
-        line-height: 1.7;
-      }
-      .subtopic-breakdown {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 10px;
-        margin: 16px 0;
-      }
-      .subtopic-chip {
-        padding: 12px 14px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: #fff;
-      }
-      .subtopic-chip strong {
-        display: block;
-        margin-bottom: 4px;
-      }
-      .preview-table-wrap {
-        overflow: auto;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-      }
-      .text-preview {
-        margin: 16px 0;
-        padding: 14px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-      }
-      .text-preview summary {
-        cursor: pointer;
-        font-weight: 700;
-        min-height: 44px;
-        padding: 8px 0;
-      }
-      .text-preview pre {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        font: inherit;
-        line-height: 1.8;
-      }
-      .handoff-notice {
-        margin-bottom: 18px;
-        padding: 14px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: #eff6ff;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        background: #fff;
-      }
-      th,
-      td {
-        padding: 12px;
-        border-bottom: 1px solid #cbd5e1;
-        vertical-align: top;
-        text-align: left;
-        font-size: 14px;
-      }
-      thead th {
-        position: sticky;
-        top: 0;
-        background: #eff6ff;
-        z-index: 1;
-      }
-      .serial-cell {
-        white-space: nowrap;
-        font-variant-numeric: tabular-nums;
-      }
-      .stem-cell {
-        min-width: 320px;
-      }
-      .empty {
-        padding: 28px 12px;
-        text-align: center;
-        color: var(--muted);
-      }
-      .footnote {
-        margin-top: 14px;
-        font-size: 13px;
-        color: var(--muted);
-        line-height: 1.7;
-      }
-      @media (max-width: 960px) {
-        .layout {
-          grid-template-columns: 1fr;
-        }
-      }
-      @media (max-width: 640px) {
-        .page {
-          width: min(100%, calc(100% - 20px));
-          margin-top: 10px;
-        }
-        .topbar {
-          padding: 12px;
-          align-items: flex-start;
-          flex-direction: column;
-        }
-        .field-grid,
-        .action-grid {
-          grid-template-columns: 1fr;
-        }
-        .summary-list {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .stem-cell {
-          min-width: 220px;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          scroll-behavior: auto !important;
-          transition-duration: 0.01ms !important;
-        }
+        --accent-soft: #eaf3ff;
+      }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif; line-height: 1.65; }
+      a { color: var(--accent); }
+      :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+      .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100; background: var(--accent); color: #fff; padding: 10px 16px; }
+      .skip-link:focus { left: 8px; top: 8px; }
+      .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px max(20px, calc((100% - 1160px) / 2)); background: #fff; border-bottom: 1px solid var(--line); }
+      .topbar h1 { margin: 0; font-size: 21px; }
+      .top-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+      .top-links a { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; text-underline-offset: 4px; }
+      .page { width: min(1160px, calc(100% - 40px)); margin: 24px auto 48px; }
+      .intro { margin: 0 0 22px; color: var(--muted); }
+      .layout { display: grid; grid-template-columns: minmax(280px, 350px) minmax(0, 1fr); gap: 24px; align-items: start; }
+      .card { min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; box-shadow: 0 4px 16px #18283b05; }
+      .card h2 { margin: 0 0 20px; font-size: 19px; }
+      .step { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-right: 8px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 15px; font-weight: 700; }
+      summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 700; }
+      .filter-card > summary { font-size: 19px; padding: 0; }
+      .filter-card[open] > summary { margin-bottom: 20px; }
+      .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+      .field { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+      .field.full { grid-column: 1 / -1; }
+      label, legend { font-size: 14px; font-weight: 700; }
+      input, select, button { font: inherit; color: var(--ink); }
+      input:not([type=radio]), select { width: 100%; min-width: 0; min-height: 44px; padding: 9px 10px; border: 1px solid #8899ad; border-radius: 8px; background: #fff; }
+      .field-help, .inline-note, .footnote { color: var(--muted); font-size: 13px; line-height: 1.7; }
+      .field-help { margin: 0; }
+      .inline-note { margin: 8px 0 14px; }
+      .advanced, .optional { margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--line); }
+      .advanced .field-grid { margin-top: 12px; }
+      button { min-height: 44px; padding: 10px 16px; border: 1px solid #8899ad; border-radius: 8px; background: #fff; cursor: pointer; font-weight: 700; }
+      button:hover { background: var(--accent-soft); border-color: var(--accent); }
+      button:disabled { opacity: .55; cursor: not-allowed; }
+      button.primary { width: 100%; background: var(--accent); border-color: var(--accent); color: #fff; min-height: 52px; font-size: 17px; }
+      button.primary:hover { background: #084b8d; }
+      button.text-button { padding: 8px 0; border: 0; background: transparent; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; }
+      #resetBtn { margin-top: 16px; }
+      .content-options { margin: 0; padding: 0; border: 0; min-width: 0; }
+      .content-options legend { margin-bottom: 10px; }
+      .choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .content-choice { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; padding: 14px 6px; border: 1px solid #8899ad; border-radius: 10px; cursor: pointer; font-size: 15px; }
+      .content-choice:has(input:checked) { background: var(--accent-soft); border: 2px solid var(--accent); padding: 13px 5px; color: #064780; }
+      .content-choice input { margin: 0; width: 18px; height: 18px; accent-color: var(--accent); }
+      .content-choice small { flex-basis: 100%; text-align: center; font-size: 12px; color: var(--muted); font-weight: 400; }
+      .result-heading { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 4px; }
+      .result-heading strong { font-size: 30px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+      .result-heading span { font-size: 14px; }
+      #filterSummary { margin-top: 8px; overflow-wrap: anywhere; }
+      .status { margin: 12px 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+      .status:empty { display: none; }
+      .status.warn { padding: 12px 14px; border-radius: 8px; background: #fff4db; color: #794000; border: 1px solid #c48c3d; }
+      .text-preview { margin: 20px 0; border: 1px solid var(--line); border-radius: 10px; padding: 0 16px; background: #fafcff; }
+      .text-preview pre { margin: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 15px; line-height: 1.9; }
+      .handoff-notice { margin-bottom: 20px; padding: 14px 18px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 6px; }
+      .handoff-notice p { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+      .preview-table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; margin-top: 12px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; font-size: 13px; }
+      th { background: #f0f5fb; }
+      .serial-cell { white-space: nowrap; }
+      .stem-cell { min-width: 220px; }
+      .empty { text-align: center; padding: 24px 12px; color: var(--muted); }
+      .subtopic-breakdown { display: grid; gap: 6px; margin: 12px 0; }
+      .subtopic-chip { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 8px 0; font-size: 13px; }
+      .subtopic-chip span { white-space: nowrap; }
+      @media (max-width: 820px) {
+        .layout { grid-template-columns: 1fr; gap: 16px; }
+        .topbar { align-items: flex-start; flex-direction: column; gap: 2px; }
+      }
+      @media (max-width: 480px) {
+        .page { width: calc(100% - 24px); margin-top: 16px; }
+        .topbar { padding: 12px 16px; }
+        .card { padding: 18px; }
+        .content-choice { font-size: 14px; }
+        .content-choice small { font-size: 11px; }
+        .choice-grid { gap: 6px; }
       }
     </style>
   </head>
@@ -424,192 +111,113 @@
     <a href="#main" class="skip-link">本文へスキップ</a>
     <div id="sr-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <header class="topbar">
-      <h1>Ahaki プリント作成ビュー</h1>
+      <h1>Ahaki プリント作成</h1>
       <nav class="top-links" aria-label="ページ移動">
         <a href="./index.html">高機能ビュー</a>
         <a href="./simple.html">かんたんビュー</a>
-        <a href="./voicepeak_csv.html">VOICEPEAK CSV出力</a>
       </nav>
     </header>
 
     <main id="main" class="page" tabindex="-1">
-      <section class="hero">
-        <h2>検索結果から配布用テキストをまとめて作成</h2>
-        <p>
-          科目・小項目・試験種別・回数範囲・シリアル範囲・キーワードで絞り込み、並び順や出力内容を指定して
-          `.txt` を生成します。科目を選ぶと、その科目内の小項目ごと、さらに試験種別ごとに別ファイルへ分割して `.zip` でも保存できます。
-        </p>
-        <div class="hero-notes">
-          <div class="hero-note">解説または深掘り解説を含める場合、解答は自動で同梱します。</div>
-          <div class="hero-note">ZIP 保存は、現在の検索条件を引き継いだうえで、選択科目内の小項目ごと・種別ごとに分割します。</div>
-          <div class="hero-note">スペース区切りキーワードは AND 検索です。`筋 伸張` のように入力できます。</div>
-        </div>
-      </section>
+      <p class="intro">問題を選び、内容を確認して保存。Wordなどに貼り付けて使えるテキストを作成します。</p>
+      <div id="handoffNotice" class="handoff-notice" hidden>
+        <p id="handoffMessage" role="status"></p>
+        <button id="clearHandoffBtn" class="text-button" type="button">引き継ぎを解除して全問題から選ぶ</button>
+      </div>
 
       <div class="layout">
-        <section class="card" aria-labelledby="filterTitle">
-          <h3 id="filterTitle">出力条件</h3>
-
-          <div id="handoffNotice" class="handoff-notice" hidden>
-            <p id="handoffMessage" role="status"></p>
-            <button id="clearHandoffBtn" class="secondary" type="button">引き継ぎを解除して全問題から選ぶ</button>
-          </div>
-
-          <div class="section-label">検索条件</div>
+        <details id="filterDetails" class="card filter-card" open>
+          <summary><span class="step" aria-hidden="true">1</span>問題を選ぶ</summary>
           <div class="field-grid">
             <div class="field full">
               <label for="keywordInput">キーワード</label>
-              <input id="keywordInput" type="text" placeholder="例: 生理学 受容器 A33-010" />
-              <div class="field-help">問題文、症例文、選択肢、タグ、小項目、通常解説、シリアルを対象に検索します。</div>
+              <input id="keywordInput" type="search" placeholder="例：筋 伸張" aria-describedby="keywordHelp" />
+              <p id="keywordHelp" class="field-help">スペースで区切ると、すべての語を含む問題を検索します。</p>
             </div>
-            <div class="field">
-              <label for="subjectSelect">科目</label>
-              <select id="subjectSelect">
-                <option value="">すべて</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="subtopicSelect">小項目</label>
-              <select id="subtopicSelect">
-                <option value="">すべて</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="examTypeSelect">試験種別</label>
-              <select id="examTypeSelect">
-                <option value="">すべて</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="sortSelect">並び順</label>
-              <select id="sortSelect">
-                <option id="handoffSortOption" value="handoff" hidden disabled>検索結果の順</option>
-                <option value="serial_asc">シリアル昇順</option>
-                <option value="serial_desc">シリアル降順</option>
-                <option value="session_desc">新しい回数順</option>
-                <option value="session_asc">古い回数順</option>
-                <option value="subject_serial">科目順→シリアル昇順</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="sessionFrom">回数 From</label>
-              <input id="sessionFrom" type="number" min="1" step="1" placeholder="例: 20" />
-            </div>
-            <div class="field">
-              <label for="sessionTo">回数 To</label>
-              <input id="sessionTo" type="number" min="1" step="1" placeholder="例: 34" />
-            </div>
-            <div class="field">
-              <label for="serialFrom">シリアル From</label>
-              <input id="serialFrom" type="text" placeholder="例: A20-001" />
-            </div>
-            <div class="field">
-              <label for="serialTo">シリアル To</label>
-              <input id="serialTo" type="text" placeholder="例: A33-160" />
-            </div>
-          </div>
-
-          <div class="section-label">出力内容</div>
-          <div class="field-grid">
             <div class="field full">
-              <label for="numberingSelect">問題番号の形式</label>
-              <select id="numberingSelect">
-                <option value="serial">シリアルを使う（A01-001 など）</option>
-                <option value="continuous">通し番号を使う（問題1, 問題2 ...）</option>
-              </select>
+              <label for="subjectSelect">科目</label>
+              <select id="subjectSelect"><option value="">すべて</option></select>
+            </div>
+            <div class="field full">
+              <label for="subtopicSelect">小項目</label>
+              <select id="subtopicSelect"><option value="">すべて</option></select>
+            </div>
+            <div class="field full">
+              <label for="examTypeSelect">試験種別</label>
+              <select id="examTypeSelect"><option value="">すべて</option></select>
             </div>
           </div>
-
-          <div class="toggle-list">
-            <div class="toggle-item">
-              <input id="includeAnswer" type="checkbox" />
-              <div>
-                <label for="includeAnswer">解答を含める</label>
-                <div class="field-help">選択肢番号の正答を出力します。</div>
+          <details class="advanced">
+            <summary>回数・問題番号・並び順</summary>
+            <div class="field-grid">
+              <div class="field"><label for="sessionFrom">第何回から</label><input id="sessionFrom" type="number" min="1" step="1" placeholder="例：20" /></div>
+              <div class="field"><label for="sessionTo">第何回まで</label><input id="sessionTo" type="number" min="1" step="1" placeholder="例：34" /></div>
+              <div class="field"><label for="serialFrom">問題IDの開始</label><input id="serialFrom" type="text" placeholder="A20-001" /></div>
+              <div class="field"><label for="serialTo">問題IDの終了</label><input id="serialTo" type="text" placeholder="A33-160" /></div>
+              <div class="field full">
+                <label for="sortSelect">並び順</label>
+                <select id="sortSelect">
+                  <option id="handoffSortOption" value="handoff" hidden disabled>検索結果の順</option>
+                  <option value="serial_asc">問題ID順</option>
+                  <option value="serial_desc">問題IDの逆順</option>
+                  <option value="session_desc">新しい回から</option>
+                  <option value="session_asc">古い回から</option>
+                  <option value="subject_serial">科目ごとに問題ID順</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label for="numberingSelect">プリントの問題番号</label>
+                <select id="numberingSelect">
+                  <option value="serial">元の問題ID（A01-001など）</option>
+                  <option value="continuous">通し番号（問題1、問題2…）</option>
+                </select>
               </div>
             </div>
-            <div class="toggle-item">
-              <input id="includeExplanation" type="checkbox" />
-              <div>
-                <label for="includeExplanation">解説を含める</label>
-                <div class="field-help">通常解説を含めます。ON にすると解答も自動で付きます。</div>
-              </div>
-            </div>
-            <div class="toggle-item">
-              <input id="includeDeepDive" type="checkbox" />
-              <div>
-                <label for="includeDeepDive">深掘り解説を含める</label>
-                <div class="field-help">作成済みの深掘り解説を取得します。ON にすると解答も自動で付きます。新しい解説の生成は行いません。</div>
-                <div class="field-help">深掘り解説付き出力は 100 件固定です。上限を超える場合は保存せず、検索条件を絞るよう案内します。</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="action-grid">
-            <button id="searchBtn" class="primary" type="button">条件を反映</button>
-            <button id="resetBtn" class="secondary" type="button">条件をリセット</button>
-            <button id="downloadTxtBtn" class="accent-soft" type="button" disabled>現在の結果を TXT 保存</button>
-            <button id="downloadZipBtn" class="accent-soft" type="button" disabled>選択科目を小項目・種別別 ZIP 保存</button>
-          </div>
-
-          <div id="statusBox" class="status" role="status" aria-live="polite">問題データを読み込み中です...</div>
-        </section>
+          </details>
+          <button id="resetBtn" class="text-button" type="button">検索条件をクリア</button>
+          <p class="field-help">条件を変えると、件数とプレビューが更新されます。</p>
+        </details>
 
         <section class="card" aria-labelledby="previewTitle">
-          <h3 id="previewTitle">出力プレビュー</h3>
+          <h2 id="previewTitle"><span class="step" aria-hidden="true">2</span>内容を選んで保存</h2>
+          <fieldset class="content-options">
+            <legend>出力内容</legend>
+            <div class="choice-grid">
+              <label class="content-choice"><input id="contentQuestions" type="radio" name="outputContent" value="questions" checked />問題のみ<small>問題・選択肢</small></label>
+              <label class="content-choice"><input id="contentAnswers" type="radio" name="outputContent" value="answers" />解答付き<small>問題・解答</small></label>
+              <label class="content-choice"><input id="contentExplanations" type="radio" name="outputContent" value="explanations" />解説付き<small>問題・解答・解説</small></label>
+            </div>
+          </fieldset>
+          <div class="result-heading"><strong id="totalCount">0</strong><span>問が対象</span></div>
           <p id="filterSummary" class="inline-note">条件を読み込み中です。</p>
+          <div id="statusBox" class="status" role="status" aria-live="polite">問題データを読み込み中です...</div>
 
-          <div class="summary-list">
-            <div class="summary-item">
-              <strong id="totalCount">0</strong>
-              <span>現在の対象問題数</span>
-            </div>
-            <div class="summary-item">
-              <strong id="deepDiveCount">0</strong>
-              <span>深掘り解説あり</span>
-            </div>
-            <div class="summary-item">
-              <strong id="explanationCount">0</strong>
-              <span>通常解説あり</span>
-            </div>
-            <div class="summary-item">
-              <strong id="subtopicFileCount">0</strong>
-              <span>ZIP 内の想定ファイル数</span>
-            </div>
-          </div>
+          <button id="downloadTxtBtn" class="primary" type="button" disabled>TXTで保存</button>
+          <p class="field-help">テキストファイルを保存します。プレビューと同じ内容で全問を出力します。</p>
 
-          <div id="subtopicBreakdown" class="subtopic-breakdown"></div>
-
-          <details id="textPreviewDetails" class="text-preview">
-            <summary>先頭1問の出力内容を確認</summary>
-            <p id="textPreviewStatus" class="inline-note" role="status">開くと、現在の出力設定で症例・選択肢・解答・解説を確認できます。</p>
-            <button id="retryTextPreviewBtn" class="secondary" type="button" hidden>プレビューを再試行</button>
+          <details id="textPreviewDetails" class="text-preview" open>
+            <summary>先頭1問の仕上がり</summary>
+            <p id="textPreviewStatus" class="inline-note"></p>
             <pre id="textPreviewContent" aria-label="先頭1問の出力テキスト"></pre>
           </details>
 
-          <div class="preview-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width: 88px;">出力番号</th>
-                  <th style="width: 110px;">シリアル</th>
-                  <th style="width: 150px;">科目</th>
-                  <th class="stem-cell">問題文</th>
-                  <th style="width: 180px;">小項目</th>
-                </tr>
-              </thead>
-              <tbody id="previewBody">
-                <tr>
-                  <td class="empty" colspan="5">読み込み中です...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="footnote">
-            プレビューは先頭 40 件です。ZIP 保存では、現在の検索条件を反映したうえで、選択中の科目内にある小項目ごと・
-            種別ごとにテキストを分割します。小項目未設定の問題は `未分類` ファイルにまとめます。
-          </div>
+          <details class="optional">
+            <summary>対象問題の一覧を確認</summary>
+            <p class="inline-note">先頭40問を表示しています。保存時は対象の全問が含まれます。</p>
+            <div class="preview-table-wrap" tabindex="0" role="region" aria-label="対象問題の一覧（横にスクロールできます）">
+              <table>
+                <thead><tr><th>出力番号</th><th>問題ID</th><th>科目</th><th class="stem-cell">問題文</th><th>小項目</th></tr></thead>
+                <tbody id="previewBody"><tr><td class="empty" colspan="5">読み込み中です...</td></tr></tbody>
+              </table>
+            </div>
+          </details>
+          <details class="optional">
+            <summary>小項目ごとに分けて保存（ZIP）</summary>
+            <p id="zipHelp" class="inline-note">科目を選ぶと、小項目・試験種別ごとに分けたテキストをまとめて保存できます。</p>
+            <div id="subtopicBreakdown" class="subtopic-breakdown"></div>
+            <button id="downloadZipBtn" type="button" aria-describedby="zipHelp" disabled>ZIPで保存</button>
+            <p class="footnote">複数の小項目に属する問題は各ファイルに含まれます。小項目がない問題は「未分類」にまとめます。</p>
+          </details>
         </section>
       </div>
     </main>
@@ -620,19 +228,12 @@
         filtered: [],
         subtopicsBySubject: {},
         allSubtopics: [],
-        deepDiveSerials: new Set(),
-        deepDiveLatestBySerial: {},
-        deepDiveBySerial: {},
-        deepDiveFetchedSerials: new Set(),
-        deepDiveIndexLoaded: false,
-        deepDiveIndexPromise: null,
         handoff: { status: "none" },
         handoffQuestions: [],
-        textPreviewGeneration: 0,
+        filterTimer: null,
         ready: false,
       };
 
-      const DEFAULT_DEEP_DIVE_EXPORT_LIMIT = 100;
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
       const supabaseClient =
@@ -654,6 +255,11 @@
       })();
 
       const els = {
+        filterDetails: document.getElementById("filterDetails"),
+        contentQuestions: document.getElementById("contentQuestions"),
+        contentAnswers: document.getElementById("contentAnswers"),
+        contentExplanations: document.getElementById("contentExplanations"),
+        zipHelp: document.getElementById("zipHelp"),
         keywordInput: document.getElementById("keywordInput"),
         subjectSelect: document.getElementById("subjectSelect"),
         subtopicSelect: document.getElementById("subtopicSelect"),
@@ -664,19 +270,12 @@
         serialTo: document.getElementById("serialTo"),
         sortSelect: document.getElementById("sortSelect"),
         numberingSelect: document.getElementById("numberingSelect"),
-        includeAnswer: document.getElementById("includeAnswer"),
-        includeExplanation: document.getElementById("includeExplanation"),
-        includeDeepDive: document.getElementById("includeDeepDive"),
-        searchBtn: document.getElementById("searchBtn"),
         resetBtn: document.getElementById("resetBtn"),
         downloadTxtBtn: document.getElementById("downloadTxtBtn"),
         downloadZipBtn: document.getElementById("downloadZipBtn"),
         statusBox: document.getElementById("statusBox"),
         filterSummary: document.getElementById("filterSummary"),
         totalCount: document.getElementById("totalCount"),
-        deepDiveCount: document.getElementById("deepDiveCount"),
-        explanationCount: document.getElementById("explanationCount"),
-        subtopicFileCount: document.getElementById("subtopicFileCount"),
         subtopicBreakdown: document.getElementById("subtopicBreakdown"),
         previewBody: document.getElementById("previewBody"),
         handoffNotice: document.getElementById("handoffNotice"),
@@ -686,7 +285,6 @@
         textPreviewDetails: document.getElementById("textPreviewDetails"),
         textPreviewStatus: document.getElementById("textPreviewStatus"),
         textPreviewContent: document.getElementById("textPreviewContent"),
-        retryTextPreviewBtn: document.getElementById("retryTextPreviewBtn"),
       };
 
       function announce(message) {
@@ -741,7 +339,7 @@
         const results = new Array(relPaths.length);
         let nextIndex = 0;
         let doneCount = 0;
-        setStatus(`問題データを読み込み中です... (全${relPaths.length}チャンク)`);
+        setStatus(`問題データを読み込み中です... (0%)`);
         const fetchChunkAt = async (index) => {
           const relPath = relPaths[index];
           const resp = await fetch(
@@ -753,7 +351,7 @@
           results[index] = await resp.json();
           doneCount += 1;
           if (doneCount === relPaths.length || doneCount % 5 === 0) {
-            setStatus(`問題データを読み込み中です... ${doneCount}/${relPaths.length} チャンク`);
+            setStatus(`問題データを読み込み中です... ${Math.round(doneCount / relPaths.length * 100)}%`);
           }
         };
         const workerCount = Math.min(6, relPaths.length);
@@ -792,49 +390,6 @@
             throw new Error("questions.json の取得にも失敗しました。");
           }
           return resp.json();
-        }
-      }
-
-      async function ensureDeepDiveIndexLoaded() {
-        if (!supabaseClient) {
-          state.deepDiveIndexLoaded = true;
-          return;
-        }
-        if (state.deepDiveIndexLoaded) return;
-        if (state.deepDiveIndexPromise) {
-          await state.deepDiveIndexPromise;
-          return;
-        }
-        state.deepDiveIndexPromise = (async () => {
-          const limit = 1000;
-          for (let offset = 0; offset < 200000; offset += limit) {
-            const { data, error } = await supabaseClient
-              .from("deep_dive_explanations")
-              .select("serial, updated_at")
-              .order("updated_at", { ascending: false })
-              .range(offset, offset + limit - 1);
-            if (error) {
-              throw error;
-            }
-            const rows = Array.isArray(data) ? data : [];
-            rows.forEach((row) => {
-              const serial = normalizeText(row && row.serial);
-              if (!serial) return;
-              state.deepDiveSerials.add(serial);
-              if (row.updated_at) {
-                state.deepDiveLatestBySerial[serial] = String(row.updated_at);
-              }
-            });
-            if (rows.length < limit) {
-              break;
-            }
-          }
-          state.deepDiveIndexLoaded = true;
-        })();
-        try {
-          await state.deepDiveIndexPromise;
-        } finally {
-          state.deepDiveIndexPromise = null;
         }
       }
 
@@ -905,9 +460,6 @@
 
       function buildSearchText(question) {
         const answerParts = [AhakiQuestions.formatAnswerLabel(question)];
-        const deepDiveText = question.deep_dive && question.deep_dive.explanation
-          ? question.deep_dive.explanation
-          : "";
         return [
           question.serial,
           question.subject,
@@ -918,7 +470,6 @@
           Array.isArray(question.tags) ? question.tags.join(" ") : "",
           Array.isArray(question.subtopics) ? question.subtopics.join(" ") : "",
           question.explanation_latest,
-          deepDiveText,
           answerParts.join(" "),
         ]
           .filter(Boolean)
@@ -1052,7 +603,7 @@
         els.handoffSortOption.hidden = !active;
         els.handoffSortOption.disabled = !active;
         els.handoffMessage.textContent = active
-          ? `検索結果 ${state.handoffQuestions.length} 問を引き継ぎました。${handoff.bundle.title ? ` ${handoff.bundle.title}` : ""}\nこの問題の範囲内で、さらに絞り込めます。「条件をリセット」で引き継いだ全問と順序に戻ります。`
+          ? `検索結果 ${state.handoffQuestions.length} 問を引き継ぎました。${handoff.bundle.title ? ` ${handoff.bundle.title}` : ""}\nこの問題の範囲内で、さらに絞り込めます。「検索条件をクリア」で引き継いだ全問と順序に戻ります。`
           : (handoff.message || "");
       }
 
@@ -1063,7 +614,9 @@
         url.searchParams.delete("studySet");
         window.history.replaceState(null, "", url.toString());
         renderStudyHandoff();
+        els.filterDetails.open = true;
         resetControls();
+        els.keywordInput.focus();
       }
 
       function filterQuestions() {
@@ -1126,11 +679,11 @@
         const serialTo = normalizeSerialInput(els.serialTo.value);
         const sortLabels = {
           handoff: "検索結果の順",
-          serial_asc: "シリアル昇順",
-          serial_desc: "シリアル降順",
-          session_desc: "新しい回数順",
-          session_asc: "古い回数順",
-          subject_serial: "科目順→シリアル昇順",
+          serial_asc: "問題ID順",
+          serial_desc: "問題IDの逆順",
+          session_desc: "新しい回から",
+          session_asc: "古い回から",
+          subject_serial: "科目ごとに問題ID順",
         };
         if (state.handoff.status === "ready") {
           parts.push(`引き継いだ検索結果: ${state.handoffQuestions.length}問${state.handoff.bundle.title ? `（${state.handoff.bundle.title}）` : ""}`);
@@ -1143,152 +696,24 @@
           parts.push(`回数: ${sessionFrom || "..."}〜${sessionTo || "..."}`);
         }
         if (serialFrom || serialTo) {
-          parts.push(`シリアル: ${serialFrom || "..."}〜${serialTo || "..."}`);
+          parts.push(`問題ID: ${serialFrom || "..."}〜${serialTo || "..."}`);
         }
-        parts.push(`並び順: ${sortLabels[els.sortSelect.value] || "シリアル昇順"}`);
+        parts.push(`並び順: ${sortLabels[els.sortSelect.value] || "問題ID順"}`);
         return parts.length ? parts.join(" / ") : "条件なし";
       }
 
       function getExportMode() {
-        const includeExplanation = els.includeExplanation.checked;
-        const includeDeepDive = els.includeDeepDive.checked;
+        const includeExplanation = els.contentExplanations.checked;
         return {
           sortLabel: getSortLabel(),
           numbering: els.numberingSelect.value === "continuous" ? "continuous" : "serial",
           includeExplanation,
-          includeDeepDive,
-          includeAnswer: els.includeAnswer.checked || includeExplanation || includeDeepDive,
+          includeAnswer: els.contentAnswers.checked || includeExplanation,
         };
-      }
-
-      function getDeepDiveExportLimit() {
-        return DEFAULT_DEEP_DIVE_EXPORT_LIMIT;
-      }
-
-      function getDeepDiveExportCandidateCount(questions = state.filtered) {
-        return questions.filter((question) => hasDeepDiveAvailable(question)).length;
-      }
-
-      async function ensureDeepDiveExportWithinLimit(questions = state.filtered) {
-        const mode = getExportMode();
-        if (!mode.includeDeepDive) {
-          return { ok: true, count: 0, limit: getDeepDiveExportLimit() };
-        }
-        if (!supabaseClient) {
-          return { ok: false, count: 0, limit: getDeepDiveExportLimit(), reason: "missing_config" };
-        }
-        if (!state.deepDiveIndexLoaded) {
-          setStatus("深掘り解説件数を確認中です...");
-          await ensureDeepDiveIndexLoaded();
-        }
-        const limit = getDeepDiveExportLimit();
-        const count = getDeepDiveExportCandidateCount(questions);
-        if (count > limit) {
-          return { ok: false, count, limit, reason: "over_limit" };
-        }
-        return { ok: true, count, limit };
       }
 
       function formatAnswerLabel(question, medium = AhakiQuestions.getAnswerMedium()) {
         return AhakiQuestions.formatAnswerLabel(question, medium, true);
-      }
-
-      function normalizeDeepDiveRow(row) {
-        if (!row) return null;
-        const tags = Array.isArray(row.tags)
-          ? row.tags
-          : typeof row.tags === "string"
-            ? (() => {
-                try {
-                  const parsed = JSON.parse(row.tags);
-                  return Array.isArray(parsed) ? parsed : [];
-                } catch (_error) {
-                  return [];
-                }
-              })()
-            : [];
-        return {
-          serial: normalizeText(row.serial),
-          explanation: normalizeText(row.explanation),
-          tags,
-          updated_at: normalizeText(row.updated_at),
-        };
-      }
-
-      function getDeepDiveRecord(question) {
-        const serial = normalizeText(question && question.serial);
-        if (!serial) return null;
-        if (Object.prototype.hasOwnProperty.call(state.deepDiveBySerial, serial)) {
-          return state.deepDiveBySerial[serial];
-        }
-        return question && question.deep_dive ? normalizeDeepDiveRow(question.deep_dive) : null;
-      }
-
-      function getDeepDiveText(question) {
-        const record = getDeepDiveRecord(question);
-        return normalizeText(record && record.explanation);
-      }
-
-      function hasDeepDiveAvailable(question) {
-        if (getDeepDiveText(question)) return true;
-        return state.deepDiveSerials.has(normalizeText(question && question.serial));
-      }
-
-      async function ensureDeepDiveContentLoaded(questions, progressCallback) {
-        if (!supabaseClient || !Array.isArray(questions) || !questions.length) {
-          return;
-        }
-        await ensureDeepDiveIndexLoaded().catch((error) => {
-          console.warn("deep dive index load failed", error);
-        });
-        const serials = Array.from(
-          new Set(
-            questions
-              .map((question) => normalizeText(question && question.serial))
-              .filter(Boolean)
-          )
-        );
-        const pending = serials.filter((serial) => {
-          if (state.deepDiveFetchedSerials.has(serial)) {
-            return false;
-          }
-          if (state.deepDiveIndexLoaded && !state.deepDiveSerials.has(serial)) {
-            state.deepDiveFetchedSerials.add(serial);
-            state.deepDiveBySerial[serial] = null;
-            return false;
-          }
-          return true;
-        });
-        let completed = 0;
-        const chunkSize = 150;
-        for (let i = 0; i < pending.length; i += chunkSize) {
-          const chunk = pending.slice(i, i + chunkSize);
-          const { data, error } = await supabaseClient
-            .from("deep_dive_explanations")
-            .select("serial, explanation, tags, updated_at")
-            .in("serial", chunk);
-          if (error) {
-            throw error;
-          }
-          const map = {};
-          (Array.isArray(data) ? data : []).forEach((row) => {
-            const normalized = normalizeDeepDiveRow(row);
-            if (!normalized || !normalized.serial) return;
-            map[normalized.serial] = normalized;
-            state.deepDiveSerials.add(normalized.serial);
-            if (normalized.updated_at) {
-              state.deepDiveLatestBySerial[normalized.serial] = normalized.updated_at;
-            }
-          });
-          chunk.forEach((serial) => {
-            state.deepDiveFetchedSerials.add(serial);
-            state.deepDiveBySerial[serial] = map[serial] || null;
-          });
-          completed += chunk.length;
-          if (typeof progressCallback === "function") {
-            progressCallback(completed, pending.length);
-          }
-        }
       }
 
       function getExamTypeShortLabel(examType) {
@@ -1325,13 +750,6 @@
             lines.push(explanationText);
           }
         }
-        if (mode.includeDeepDive) {
-          const deepDiveText = getDeepDiveText(question);
-          if (deepDiveText) {
-            lines.push("深掘り解説");
-            lines.push(deepDiveText);
-          }
-        }
         return lines.join("\n");
       }
 
@@ -1360,23 +778,22 @@
       function getSortLabel() {
         const labels = {
           handoff: "検索結果の順",
-          serial_asc: "シリアル昇順",
-          serial_desc: "シリアル降順",
-          session_desc: "新しい回数順",
-          session_asc: "古い回数順",
-          subject_serial: "科目順→シリアル昇順",
+          serial_asc: "問題ID順",
+          serial_desc: "問題IDの逆順",
+          session_desc: "新しい回から",
+          session_asc: "古い回から",
+          subject_serial: "科目ごとに問題ID順",
         };
-        return labels[els.sortSelect.value] || "シリアル昇順";
+        return labels[els.sortSelect.value] || "問題ID順";
       }
 
       function buildExportHeader(title, list, mode, summaryText) {
         const contentParts = [];
         if (mode.includeAnswer) contentParts.push("解答");
         if (mode.includeExplanation) contentParts.push("解説");
-        if (mode.includeDeepDive) contentParts.push("深掘り解説");
         const numberingLabel = mode.numbering === "continuous"
           ? "通し番号（問題1, 問題2 ...）"
-          : "シリアル";
+          : "問題ID";
         return [
           title,
           `出力日時: ${formatDisplayDate(new Date())}`,
@@ -1471,13 +888,8 @@
       function renderPreview() {
         const mode = getExportMode();
         const groups = getSubtopicGroups();
-        const deepDiveAvailable = state.filtered.filter((question) => hasDeepDiveAvailable(question)).length;
-        const explanationAvailable = state.filtered.filter((question) => normalizeText(question.explanation_latest)).length;
         els.filterSummary.textContent = `現在の条件: ${buildFilterSummary()}`;
-        els.totalCount.textContent = String(state.filtered.length);
-        els.deepDiveCount.textContent = String(deepDiveAvailable);
-        els.explanationCount.textContent = String(explanationAvailable);
-        els.subtopicFileCount.textContent = String(groups.length);
+        els.totalCount.textContent = state.filtered.length.toLocaleString("ja-JP");
         renderSubtopicBreakdown(groups);
 
         els.previewBody.innerHTML = "";
@@ -1512,13 +924,10 @@
         });
       }
 
-      async function updateTextPreview() {
-        const generation = ++state.textPreviewGeneration;
+      function updateTextPreview() {
         els.textPreviewContent.textContent = "";
-        els.textPreviewContent.setAttribute("aria-busy", "false");
-        els.retryTextPreviewBtn.hidden = true;
         if (!els.textPreviewDetails.open) {
-          els.textPreviewStatus.textContent = "開くと、現在の出力設定で症例・選択肢・解答・解説を確認できます。";
+          els.textPreviewStatus.textContent = "";
           return;
         }
         if (state.handoff.status === "error") {
@@ -1527,52 +936,33 @@
         }
         const question = state.filtered[0];
         if (!state.ready || !question) {
-          els.textPreviewStatus.textContent = state.ready ? "条件に合う問題がありません。" : "問題データを読み込み中です...";
+          els.textPreviewStatus.textContent = state.ready ? "条件に合う問題がありません。検索条件を広げてください。" : "問題データを読み込み中です...";
           return;
         }
         const mode = getExportMode();
-        if (mode.includeDeepDive) {
-          els.textPreviewStatus.textContent = "先頭1問の深掘り解説を読み込み中です...";
-          els.textPreviewContent.setAttribute("aria-busy", "true");
-          try {
-            if (!supabaseClient && !getDeepDiveText(question)) {
-              throw new Error("深掘り解説に接続できません。");
-            }
-            await ensureDeepDiveContentLoaded([question]);
-          } catch (error) {
-            if (generation !== state.textPreviewGeneration) return;
-            els.textPreviewContent.setAttribute("aria-busy", "false");
-            els.textPreviewStatus.textContent = "深掘り解説を取得できないため、出力内容を確認できません。再試行してください。";
-            els.retryTextPreviewBtn.hidden = false;
-            return;
-          }
-          if (generation !== state.textPreviewGeneration) return;
-        }
-        const notes = [`${state.filtered.length} 問中の先頭1問（${question.serial}）です。保存する TXT と同じ出力設定です。`];
+        const notes = [`${state.filtered.length} 問中の先頭1問（${question.serial}）です。`];
         if (mode.includeExplanation && !normalizeText(question.explanation_latest)) {
           notes.push("この問題には通常解説がありません。");
         }
-        if (mode.includeDeepDive && !getDeepDiveText(question)) {
-          notes.push("この問題には作成済みの深掘り解説がありません。保存時も深掘り解説は付きません。");
-        }
         els.textPreviewStatus.textContent = notes.join("\n");
         els.textPreviewContent.textContent = buildQuestionBlock(question, 0, mode);
-        els.textPreviewContent.setAttribute("aria-busy", "false");
       }
 
       function syncActionButtons() {
         const hasResults = state.ready && state.filtered.length > 0;
-        const hasSubjectGroups = hasResults && getSubtopicGroups().length > 0;
-        const mode = getExportMode();
-        const overDeepDiveLimit =
-          mode.includeDeepDive &&
-          state.deepDiveIndexLoaded &&
-          getDeepDiveExportCandidateCount() > getDeepDiveExportLimit();
-        els.downloadTxtBtn.disabled = !hasResults || overDeepDiveLimit;
-        els.downloadZipBtn.disabled = !hasSubjectGroups || overDeepDiveLimit;
+        const groups = getSubtopicGroups();
+        els.downloadTxtBtn.disabled = !hasResults;
+        els.downloadTxtBtn.textContent = hasResults ? `${state.filtered.length.toLocaleString("ja-JP")}問をTXTで保存` : "TXTで保存";
+        els.downloadZipBtn.disabled = !hasResults || !groups.length;
+        els.downloadZipBtn.textContent = groups.length ? `${groups.length}ファイルをZIPで保存` : "ZIPで保存";
+        els.zipHelp.textContent = !normalizeText(els.subjectSelect.value)
+          ? "科目を選ぶと、小項目・試験種別ごとに分けて保存できます。"
+          : groups.length ? "現在の対象問題を、小項目・試験種別ごとのテキストに分けます。" : "条件に合う問題がありません。検索条件を広げてください。";
       }
 
       function applyFilters() {
+        window.clearTimeout(state.filterTimer);
+        state.filterTimer = null;
         if (!state.ready) return;
         state.filtered = filterQuestions();
         renderPreview();
@@ -1582,49 +972,21 @@
           setStatus(state.handoff.message, "warn");
           return;
         }
-
+        const messages = [];
+        if (state.overrideLoadWarning) messages.push(state.overrideLoadWarning);
+        if (!state.filtered.length) messages.push("条件に合う問題がありません。検索条件を広げてください。");
         const mode = getExportMode();
-        const deepDiveAvailable = state.filtered.filter((question) => hasDeepDiveAvailable(question)).length;
-        const explanationAvailable = state.filtered.filter((question) => normalizeText(question.explanation_latest)).length;
-        const groups = getSubtopicGroups();
-        const deepDiveLimit = getDeepDiveExportLimit();
-        const lines = [
-          AhakiQuestions.manifestVersionText(state.questionManifest),
-          ...(state.overrideLoadWarning ? [state.overrideLoadWarning] : []),
-          `対象問題数: ${state.filtered.length}件`,
-          `通常解説あり: ${explanationAvailable}件`,
-          `深掘り解説あり: ${deepDiveAvailable}件`,
-        ];
-        if (mode.includeDeepDive && !supabaseClient) {
-          lines.push("深掘り解説の取得には config.js の Supabase 設定が必要です。");
+        if (mode.includeExplanation) {
+          const missing = state.filtered.filter(question => !normalizeText(question.explanation_latest)).length;
+          if (missing) messages.push(`${missing}問には通常解説がありません。その問題は問題と解答のみを出力します。`);
         }
-        if (mode.includeDeepDive && supabaseClient && !state.deepDiveIndexLoaded) {
-          lines.push("深掘り解説件数は Supabase 索引の読み込み後に更新されます。");
-        }
-        if (mode.includeDeepDive) {
-          lines.push(`深掘り解説付き出力の上限: ${deepDiveLimit}件`);
-        }
-        if (mode.includeDeepDive && deepDiveAvailable < state.filtered.length) {
-          lines.push(`深掘り解説なし: ${state.filtered.length - deepDiveAvailable}件`);
-        }
-        if (mode.includeDeepDive && state.deepDiveIndexLoaded && deepDiveAvailable > deepDiveLimit) {
-          lines.push(`上限超過: ${deepDiveAvailable}件が対象です。条件を絞ってください。`);
-        }
-        if (normalizeText(els.subjectSelect.value)) {
-          lines.push(`小項目別 ZIP 想定ファイル数: ${groups.length}件`);
-        } else {
-          lines.push("小項目別 ZIP は科目を選択すると有効になります。");
-        }
-        setStatus(
-          lines.join("\n"),
-          mode.includeDeepDive && (
-            deepDiveAvailable < state.filtered.length ||
-            (state.deepDiveIndexLoaded && deepDiveAvailable > deepDiveLimit)
-          )
-            ? "warn"
-            : ""
-        );
-        announce("プリントの出力条件を更新しました");
+        setStatus(messages.join("\n"), messages.length ? "warn" : "");
+        announce(`${state.filtered.length}問が対象です。プレビューを更新しました。`);
+      }
+
+      function scheduleFilters() {
+        window.clearTimeout(state.filterTimer);
+        state.filterTimer = window.setTimeout(applyFilters, 300);
       }
 
       function resetControls() {
@@ -1637,10 +999,6 @@
         els.serialFrom.value = "";
         els.serialTo.value = "";
         els.sortSelect.value = state.handoff.status === "ready" ? "handoff" : "serial_asc";
-        els.numberingSelect.value = "serial";
-        els.includeAnswer.checked = false;
-        els.includeExplanation.checked = false;
-        els.includeDeepDive.checked = false;
         applyFilters();
       }
 
@@ -1656,7 +1014,7 @@
         return parts.join(" / ");
       }
 
-      async function downloadCurrentTxt() {
+      function downloadCurrentTxt() {
         applyFilters();
         const exportQuestions = state.filtered.slice();
         const summaryText = buildFilterSummary();
@@ -1666,30 +1024,6 @@
           return;
         }
         const mode = getExportMode();
-        if (mode.includeDeepDive) {
-          const limitCheck = await ensureDeepDiveExportWithinLimit(exportQuestions);
-          if (limitCheck.reason === "missing_config") {
-            setStatus("深掘り解説を出力するには config.js の Supabase 設定が必要です。", "warn");
-            return;
-          }
-          if (!limitCheck.ok) {
-            setStatus(
-              `深掘り解説付き出力は最大 ${limitCheck.limit} 件です。\n現在 ${limitCheck.count} 件が対象です。検索条件を絞ってください。`,
-              "warn"
-            );
-            return;
-          }
-          setStatus(`深掘り解説を Supabase から取得中です... 0/${limitCheck.count}`);
-          try {
-            await ensureDeepDiveContentLoaded(exportQuestions, (loaded, total) => {
-              setStatus(`深掘り解説を Supabase から取得中です... ${loaded}/${total}`);
-            });
-          } catch (error) {
-            console.error(error);
-            setStatus(`深掘り解説の取得に失敗しました。\n${error && error.message ? error.message : String(error)}`, "warn");
-            return;
-          }
-        }
         const title = exportTitle;
         const text = buildExportText(title, exportQuestions, mode, summaryText);
         const filename = `${sanitizeFilename(title)}_${formatLocalTimestamp()}.txt`;
@@ -1798,11 +1132,9 @@
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
 
-      async function downloadSubtopicZip() {
+      function downloadSubtopicZip() {
         applyFilters();
-        const exportQuestions = state.filtered.slice();
         const summaryText = buildFilterSummary();
-        const exportTitle = buildCurrentExportTitle();
         const subject = normalizeText(els.subjectSelect.value);
         if (!subject) {
           setStatus("小項目・種別別 ZIP を保存するには科目を選択してください。", "warn");
@@ -1814,30 +1146,6 @@
           return;
         }
         const mode = getExportMode();
-        if (mode.includeDeepDive) {
-          const limitCheck = await ensureDeepDiveExportWithinLimit(exportQuestions);
-          if (limitCheck.reason === "missing_config") {
-            setStatus("深掘り解説を出力するには config.js の Supabase 設定が必要です。", "warn");
-            return;
-          }
-          if (!limitCheck.ok) {
-            setStatus(
-              `深掘り解説付き出力は最大 ${limitCheck.limit} 件です。\n現在 ${limitCheck.count} 件が対象です。検索条件を絞ってください。`,
-              "warn"
-            );
-            return;
-          }
-          setStatus(`深掘り解説を Supabase から取得中です... 0/${limitCheck.count}`);
-          try {
-            await ensureDeepDiveContentLoaded(exportQuestions, (loaded, total) => {
-              setStatus(`深掘り解説を Supabase から取得中です... ${loaded}/${total}`);
-            });
-          } catch (error) {
-            console.error(error);
-            setStatus(`深掘り解説の取得に失敗しました。\n${error && error.message ? error.message : String(error)}`, "warn");
-            return;
-          }
-        }
         const baseSummary = summaryText;
         const files = groups.map((group) => {
           const title = `${subject} / ${group.subtopic} / ${group.examType}`;
@@ -1871,14 +1179,12 @@
         els.examTypeSelect.addEventListener("change", applyFilters);
         els.sortSelect.addEventListener("change", applyFilters);
         els.numberingSelect.addEventListener("change", applyFilters);
-        els.includeAnswer.addEventListener("change", applyFilters);
-        els.includeExplanation.addEventListener("change", applyFilters);
-        els.includeDeepDive.addEventListener("change", applyFilters);
-        els.searchBtn.addEventListener("click", applyFilters);
+        [els.contentQuestions, els.contentAnswers, els.contentExplanations].forEach(element => {
+          element.addEventListener("change", applyFilters);
+        });
         els.resetBtn.addEventListener("click", resetControls);
         els.clearHandoffBtn.addEventListener("click", clearStudyHandoff);
         els.textPreviewDetails.addEventListener("toggle", updateTextPreview);
-        els.retryTextPreviewBtn.addEventListener("click", updateTextPreview);
         els.downloadTxtBtn.addEventListener("click", downloadCurrentTxt);
         els.downloadZipBtn.addEventListener("click", downloadSubtopicZip);
 
@@ -1889,8 +1195,14 @@
           els.serialFrom,
           els.serialTo,
         ].forEach((element) => {
+          element.addEventListener("input", event => {
+            if (!event.isComposing) scheduleFilters();
+          });
+          element.addEventListener("compositionstart", () => window.clearTimeout(state.filterTimer));
+          element.addEventListener("compositionend", scheduleFilters);
+          element.addEventListener("change", applyFilters);
           element.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
+            if (event.key === "Enter" && !event.isComposing && event.keyCode !== 229) {
               applyFilters();
             }
           });
@@ -1916,17 +1228,8 @@
           state.questions = preprocessQuestions(AhakiQuestions.applyQuestionOverrides(rows, overrides));
           rebuildSelectOptions();
           initializeStudyHandoff();
+          els.filterDetails.open = state.handoff.status !== "ready";
           state.ready = true;
-          if (supabaseClient) {
-            ensureDeepDiveIndexLoaded()
-              .then(() => {
-                if (state.ready) applyFilters();
-              })
-              .catch((error) => {
-                console.warn("deep dive index load failed", error);
-                if (state.ready) applyFilters();
-              });
-          }
           applyFilters();
         } catch (error) {
           console.error(error);
