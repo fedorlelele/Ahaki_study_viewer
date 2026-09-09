@@ -1771,6 +1771,11 @@
           width: 100%;
         }
       }
+      .saved-search { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface); }
+      .saved-search summary { cursor: pointer; }
+      .saved-search-controls, .result-study-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+      .saved-search-controls input, .saved-search-controls select { min-width: 0; max-width: 100%; flex: 1 1 200px; min-height: 44px; font: inherit; padding: 8px 10px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); color: var(--ink); background: var(--surface); }
+      #savedSearchStatus:empty, #searchToolsStatus:empty { display: none; }
     </style>
   </head>
   <body>
@@ -2144,7 +2149,36 @@
       </details>
     </div>
 
+    <details id="savedSearchPanel" class="saved-search">
+      <summary>検索条件を保存・呼び出し</summary>
+      <p class="note">ログイン不要。このブラウザに保存します。端末・ブラウザ間では共有されません。</p>
+      <div class="saved-search-controls">
+        <label for="searchPresetName">条件の名前</label>
+        <input id="searchPresetName" type="text" maxlength="60" placeholder="例: 生理学・第30回以降" />
+        <button id="saveSearchPresetBtn" type="button" disabled>現在の条件を保存</button>
+      </div>
+      <div class="saved-search-controls">
+        <label for="searchPresetSelect">保存済みの条件</label>
+        <select id="searchPresetSelect"><option value="">選択してください</option></select>
+        <button id="loadSearchPresetBtn" type="button" disabled>呼び出す</button>
+        <button id="updateSearchPresetBtn" type="button" disabled>現在の条件で上書き</button>
+        <button id="deleteSearchPresetBtn" type="button" disabled>削除</button>
+      </div>
+      <p id="savedSearchStatus" class="note" role="status" aria-live="polite"></p>
+    </details>
+    <div class="result-study-actions">
+      <button id="studyResultBtn" type="button" disabled>この検索結果を1問ずつ解く</button>
+      <button id="printResultBtn" type="button" disabled>この検索結果でプリント作成</button>
+      <span class="note">全ページ分の問題と並び順を引き継ぎます。</span>
+    </div>
+    <p id="searchToolsStatus" class="note" role="status" aria-live="polite"></p>
     <div class="toolbar main">
+      <label for="copyFormatSelect">コピー内容</label>
+      <select id="copyFormatSelect">
+        <option value="questions">問題のみ</option>
+        <option value="answers">解答付き</option>
+        <option value="explanations">解説付き</option>
+      </select>
 	      <button id="copyAllBtn" class="btn-secondary" aria-label="検索結果をコピー">検索結果をコピー</button>
 	      <select id="sortSession" aria-label="並び替え">
 	        <option value="random" selected>ランダム</option>
@@ -2180,6 +2214,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.11/dist/purify.min.js" integrity="sha256-26u1sgWjM+xJyMCef8ow72bfBSO7i8D6nqhDhB8RHb0=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
+    <script src="./shared/study-tools.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
@@ -5981,6 +6016,135 @@
         return true;
       }
 
+      function setSearchToolsMessage(message, preset = false) {
+        const el = document.getElementById(preset ? "savedSearchStatus" : "searchToolsStatus");
+        if (el) el.textContent = message;
+      }
+
+      function getCurrentSearchSettings() {
+        const value = id => String(document.getElementById(id)?.value || "").trim();
+        const sort = value("sortSession") || "random";
+        return {
+          keyword: value("keyword"), subject: value("subjectSelect"), subtopic: value("subtopicSelect"),
+          examType: value("examTypeSelect"), sessionFrom: value("sessionFrom"), sessionTo: value("sessionTo"),
+          progress: value("progressStateFilter"), answered: isRoleAtLeast("student") ? "all" : (value("answeredFilter") || "all"), sort,
+          randomSeed: sort === "random" ? ensureRandomOrderSeed(sort, true) : ""
+        };
+      }
+
+      function updateResultStudyActions() {
+        const count = (state.resultQuestions || []).length;
+        for (const id of ["studyResultBtn", "printResultBtn", "copyAllBtn"]) {
+          const button = document.getElementById(id);
+          if (button) button.disabled = !state.dataReady || !count;
+        }
+        const copy = document.getElementById("copyAllBtn");
+        if (copy) copy.setAttribute("aria-label", `検索結果全${count}問をコピー`);
+        const selected = document.getElementById("searchPresetSelect")?.value;
+        for (const id of ["saveSearchPresetBtn", "loadSearchPresetBtn", "updateSearchPresetBtn"]) {
+          const button = document.getElementById(id);
+          if (button) button.disabled = !state.dataReady || (id !== "saveSearchPresetBtn" && !selected);
+        }
+        const remove = document.getElementById("deleteSearchPresetBtn");
+        if (remove) remove.disabled = !selected;
+      }
+
+      function refreshSearchPresets(selectedId = "") {
+        const select = document.getElementById("searchPresetSelect");
+        select.replaceChildren();
+        const empty = document.createElement("option");
+        empty.value = "";
+        empty.textContent = "選択してください";
+        select.appendChild(empty);
+        for (const preset of AhakiStudy.listSearchPresets()) {
+          const option = document.createElement("option");
+          option.value = preset.id;
+          option.textContent = preset.name;
+          select.appendChild(option);
+        }
+        select.value = selectedId;
+        updateResultStudyActions();
+      }
+
+      function saveCurrentSearchPreset(update = false) {
+        if (!state.dataReady) return;
+        try {
+          const selectedId = document.getElementById("searchPresetSelect").value;
+          const existing = update ? AhakiStudy.listSearchPresets().find(item => item.id === selectedId) : null;
+          if (update && !existing) throw new Error("上書きする条件を選択してください。");
+          const name = existing ? existing.name : document.getElementById("searchPresetName").value;
+          const preset = AhakiStudy.saveSearchPreset(name, getCurrentSearchSettings(), existing?.id || "");
+          refreshSearchPresets(preset.id);
+          setSearchToolsMessage(`「${preset.name}」を${update ? "現在の条件で上書き" : "保存"}しました。`, true);
+        } catch (error) {
+          setSearchToolsMessage(error.message || "検索条件を保存できませんでした。", true);
+        }
+      }
+
+      function loadSelectedSearchPreset() {
+        if (!state.dataReady) return;
+        const id = document.getElementById("searchPresetSelect").value;
+        const preset = AhakiStudy.listSearchPresets().find(item => item.id === id);
+        if (!preset) { setSearchToolsMessage("保存済みの条件を選択してください。", true); return; }
+        // Clear every field first, so a saved empty field never inherits another search.
+        applySearchStateFromUrl({keyword:"", subject:"", subtopic:"", examType:"", sessionFrom:"", sessionTo:"", progress:"", answered:"all", sort:"random", randomSeed:"", page:"1"});
+        applySearchStateFromUrl({...preset.filters, page:"1"});
+        resetResultViewState();
+        closeSearchHistoryPanel();
+        renderResults(filterQuestions());
+        syncSearchQueryToUrl();
+        setSearchToolsMessage(`「${preset.name}」を呼び出しました。`, true);
+      }
+
+      function openResultStudyView(destination) {
+        if (!state.dataReady || !(state.resultQuestions || []).length) return;
+        try {
+          if (!["simple.html", "print_export.html"].includes(destination)) return;
+          const token = AhakiStudy.saveHandoff(state.resultQuestions.map(q => q.serial), state.resultTransferTitle || state.resultTitle || "検索結果");
+          // Same-tab navigation works without popup permission; Back returns to the search.
+          window.location.assign(`./${destination}?studySet=${encodeURIComponent(token)}`);
+        } catch (error) {
+          setSearchToolsMessage(error.message || "検索結果を引き継げませんでした。");
+        }
+      }
+
+      async function copyCurrentResults() {
+        const list = (state.resultQuestions || []).slice();
+        if (!list.length) return;
+        const header = state.resultTitle || "検索結果";
+        const mode = getCopyMode();
+        try {
+          await ensureOverridesLoaded(list.map(item => item.serial));
+          const body = list.map(q => formatQuestionForCopy(applyOverridesToQuestion(q), mode)).join("\n\n");
+          await copyToClipboard(`${header}\n\n${body}`.trim());
+        } catch (_error) {
+          setSearchToolsMessage("コピーに失敗しました。もう一度お試しください。");
+        }
+      }
+
+      function initSearchTools() {
+        AhakiStudy.bindCopyFormat(document.getElementById("copyFormatSelect"), persisted => {
+          setSearchToolsMessage(persisted ? "コピー内容を保存しました。" : "コピー内容を変更しました。このブラウザでは設定を保存できません。");
+        });
+        refreshSearchPresets();
+        document.getElementById("saveSearchPresetBtn").addEventListener("click", () => saveCurrentSearchPreset());
+        document.getElementById("updateSearchPresetBtn").addEventListener("click", () => saveCurrentSearchPreset(true));
+        document.getElementById("loadSearchPresetBtn").addEventListener("click", loadSelectedSearchPreset);
+        document.getElementById("searchPresetSelect").addEventListener("change", updateResultStudyActions);
+        document.getElementById("deleteSearchPresetBtn").addEventListener("click", () => {
+          try {
+            const id = document.getElementById("searchPresetSelect").value;
+            if (!id) return;
+            AhakiStudy.deleteSearchPreset(id);
+            refreshSearchPresets();
+            setSearchToolsMessage("保存済みの条件を削除しました。", true);
+          } catch (error) { setSearchToolsMessage(error.message || "削除できませんでした。", true); }
+        });
+        document.getElementById("studyResultBtn").addEventListener("click", () => openResultStudyView("simple.html"));
+        document.getElementById("printResultBtn").addEventListener("click", () => openResultStudyView("print_export.html"));
+        window.addEventListener("storage", () => refreshSearchPresets(document.getElementById("searchPresetSelect").value));
+      }
+
       function getSearchStateFromUrl() {
         const empty = {
           keyword: undefined,
@@ -6619,6 +6783,8 @@
       }
 
       function renderResults(list) {
+        state.resultQuestions = [];
+        updateResultStudyActions();
         const renderId = (state.resultRenderId || 0) + 1;
         state.resultRenderId = renderId;
         const isCurrentRender = () => state.resultRenderId === renderId;
@@ -6698,6 +6864,11 @@
           })();
           return;
         }
+
+        state.resultQuestions = list.slice();
+        state.resultTitle = buildFilterHeader();
+        state.resultTransferTitle = getActiveFilterDescriptors().map(item => `${item.label}: ${item.value}`).join(" / ") || "すべての問題";
+        updateResultStudyActions();
 
         function appendCard(q, target) {
           const card = document.createElement("div");
@@ -9410,6 +9581,7 @@
       }
 
       function init() {
+        initSearchTools();
 	        loadAnsweredState();
 	        loadTagVisibility();
 	        loadQaLikedState();
@@ -9894,14 +10066,8 @@
           });
         }
 
-      document.getElementById("copyAllBtn").addEventListener("click", async () => {
-        const list = filterQuestions();
-        await ensureOverridesLoaded(list.map(item => item.serial));
-        const header = buildFilterHeader();
-        const mode = getCopyMode();
-        const body = list.map(q => formatQuestionForCopy(applyOverridesToQuestion(q), mode)).join("\n\n");
-        copyToClipboard(`${header}\n\n${body}`.trim());
-      });
+      document.getElementById("copyAllBtn").addEventListener("click", copyCurrentResults);
+
 
 
 	        document.getElementById("keyword").addEventListener("keydown", (e) => {
@@ -12619,12 +12785,7 @@
       }
 
       function getCopyMode() {
-        const showAnswer = document.getElementById("toggleAnswer").checked;
-        const showExplanation = document.getElementById("toggleExplanation").checked;
-        return {
-          showAnswer: showAnswer || showExplanation,
-          showExplanation: showExplanation
-        };
+        return AhakiStudy.getCopyMode();
       }
 
 	      function formatQuestionForCopy(q, mode) {
@@ -12777,17 +12938,26 @@
         return { explanation: text, tags: [] };
       }
 
-      function copyToClipboard(text) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text);
-          return;
+      async function copyToClipboard(text) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            try {
+              textarea.select();
+              if (!document.execCommand("copy")) throw new Error("copy failed");
+            } finally { textarea.remove(); }
+          }
+          setSearchToolsMessage("コピーしました。");
+          announceStatus("コピーしました。");
+          return true;
+        } catch (_error) {
+          setSearchToolsMessage("コピーできませんでした。ブラウザのクリップボード設定を確認して再試行してください。");
+          return false;
         }
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        textarea.remove();
       }
     </script>
   </body>

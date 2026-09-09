@@ -15,6 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
+    <script src="./shared/study-tools.js"></script>
     <style>
       :root {
         --bg-1: #ffffff;
@@ -321,6 +322,31 @@
         border: 1px solid var(--line);
         border-radius: 14px;
       }
+      .text-preview {
+        margin: 16px 0;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+      .text-preview summary {
+        cursor: pointer;
+        font-weight: 700;
+        min-height: 44px;
+        padding: 8px 0;
+      }
+      .text-preview pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font: inherit;
+        line-height: 1.8;
+      }
+      .handoff-notice {
+        margin-bottom: 18px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #eff6ff;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -424,6 +450,11 @@
         <section class="card" aria-labelledby="filterTitle">
           <h3 id="filterTitle">出力条件</h3>
 
+          <div id="handoffNotice" class="handoff-notice" hidden>
+            <p id="handoffMessage" role="status"></p>
+            <button id="clearHandoffBtn" class="secondary" type="button">引き継ぎを解除して全問題から選ぶ</button>
+          </div>
+
           <div class="section-label">検索条件</div>
           <div class="field-grid">
             <div class="field full">
@@ -452,6 +483,7 @@
             <div class="field">
               <label for="sortSelect">並び順</label>
               <select id="sortSelect">
+                <option id="handoffSortOption" value="handoff" hidden disabled>検索結果の順</option>
                 <option value="serial_asc">シリアル昇順</option>
                 <option value="serial_desc">シリアル降順</option>
                 <option value="session_desc">新しい回数順</option>
@@ -500,14 +532,14 @@
               <input id="includeExplanation" type="checkbox" />
               <div>
                 <label for="includeExplanation">解説を含める</label>
-                <div class="field-help">`explanation_latest` を使います。ON にすると解答も自動で付きます。</div>
+                <div class="field-help">通常解説を含めます。ON にすると解答も自動で付きます。</div>
               </div>
             </div>
             <div class="toggle-item">
               <input id="includeDeepDive" type="checkbox" />
               <div>
                 <label for="includeDeepDive">深掘り解説を含める</label>
-                <div class="field-help">Supabase の `deep_dive_explanations` から取得します。ON にすると解答も自動で付きます。</div>
+                <div class="field-help">作成済みの深掘り解説を取得します。ON にすると解答も自動で付きます。新しい解説の生成は行いません。</div>
                 <div class="field-help">深掘り解説付き出力は 100 件固定です。上限を超える場合は保存せず、検索条件を絞るよう案内します。</div>
               </div>
             </div>
@@ -548,6 +580,13 @@
 
           <div id="subtopicBreakdown" class="subtopic-breakdown"></div>
 
+          <details id="textPreviewDetails" class="text-preview">
+            <summary>先頭1問の出力内容を確認</summary>
+            <p id="textPreviewStatus" class="inline-note" role="status">開くと、現在の出力設定で症例・選択肢・解答・解説を確認できます。</p>
+            <button id="retryTextPreviewBtn" class="secondary" type="button" hidden>プレビューを再試行</button>
+            <pre id="textPreviewContent" aria-label="先頭1問の出力テキスト"></pre>
+          </details>
+
           <div class="preview-table-wrap">
             <table>
               <thead>
@@ -587,6 +626,9 @@
         deepDiveFetchedSerials: new Set(),
         deepDiveIndexLoaded: false,
         deepDiveIndexPromise: null,
+        handoff: { status: "none" },
+        handoffQuestions: [],
+        textPreviewGeneration: 0,
         ready: false,
       };
 
@@ -637,6 +679,14 @@
         subtopicFileCount: document.getElementById("subtopicFileCount"),
         subtopicBreakdown: document.getElementById("subtopicBreakdown"),
         previewBody: document.getElementById("previewBody"),
+        handoffNotice: document.getElementById("handoffNotice"),
+        handoffMessage: document.getElementById("handoffMessage"),
+        clearHandoffBtn: document.getElementById("clearHandoffBtn"),
+        handoffSortOption: document.getElementById("handoffSortOption"),
+        textPreviewDetails: document.getElementById("textPreviewDetails"),
+        textPreviewStatus: document.getElementById("textPreviewStatus"),
+        textPreviewContent: document.getElementById("textPreviewContent"),
+        retryTextPreviewBtn: document.getElementById("retryTextPreviewBtn"),
       };
 
       function announce(message) {
@@ -977,7 +1027,47 @@
         return Number.isFinite(num) ? num : null;
       }
 
+      function initializeStudyHandoff() {
+        state.handoff = AhakiStudy.readHandoff(window.location.search);
+        state.handoffQuestions = [];
+        if (state.handoff.status === "ready") {
+          const ordered = AhakiStudy.orderQuestions(state.questions, state.handoff.bundle.serials);
+          if (ordered.missingSerials.length) {
+            state.handoff = {
+              status: "error",
+              message: `引き継いだ問題のうち ${ordered.missingSerials.length} 問を読み込めませんでした。元の検索画面からもう一度引き継いでください。`,
+            };
+          } else {
+            state.handoffQuestions = ordered.questions;
+            els.sortSelect.value = "handoff";
+          }
+        }
+        renderStudyHandoff();
+      }
+
+      function renderStudyHandoff() {
+        const handoff = state.handoff;
+        const active = handoff.status === "ready";
+        els.handoffNotice.hidden = handoff.status === "none";
+        els.handoffSortOption.hidden = !active;
+        els.handoffSortOption.disabled = !active;
+        els.handoffMessage.textContent = active
+          ? `検索結果 ${state.handoffQuestions.length} 問を引き継ぎました。${handoff.bundle.title ? ` ${handoff.bundle.title}` : ""}\nこの問題の範囲内で、さらに絞り込めます。「条件をリセット」で引き継いだ全問と順序に戻ります。`
+          : (handoff.message || "");
+      }
+
+      function clearStudyHandoff() {
+        state.handoff = { status: "none" };
+        state.handoffQuestions = [];
+        const url = new URL(window.location.href);
+        url.searchParams.delete("studySet");
+        window.history.replaceState(null, "", url.toString());
+        renderStudyHandoff();
+        resetControls();
+      }
+
       function filterQuestions() {
+        if (state.handoff.status === "error") return [];
         const terms = getKeywordTerms();
         const subject = normalizeText(els.subjectSelect.value);
         const subtopic = normalizeText(els.subtopicSelect.value);
@@ -989,7 +1079,8 @@
         const hasSerialFrom = isValidSerialParts(serialFrom);
         const hasSerialTo = isValidSerialParts(serialTo);
 
-        const filtered = state.questions.filter((question) => {
+        const candidates = state.handoff.status === "ready" ? state.handoffQuestions : state.questions;
+        const filtered = candidates.filter((question) => {
           if (subject && question.subject !== subject) return false;
           if (subtopic && !(question.subtopics || []).includes(subtopic)) return false;
           if (examType && question.exam_type !== examType) return false;
@@ -1006,7 +1097,9 @@
         });
 
         const sortKey = els.sortSelect.value;
-        if (sortKey === "serial_desc") {
+        if (sortKey === "handoff" && state.handoff.status === "ready") {
+          // Filtering preserves the complete transferred order, including off-screen results.
+        } else if (sortKey === "serial_desc") {
           filtered.sort((a, b) => compareSerialValue(b, a));
         } else if (sortKey === "session_desc") {
           filtered.sort((a, b) => compareBySession(a, b, true));
@@ -1032,12 +1125,16 @@
         const serialFrom = normalizeSerialInput(els.serialFrom.value);
         const serialTo = normalizeSerialInput(els.serialTo.value);
         const sortLabels = {
+          handoff: "検索結果の順",
           serial_asc: "シリアル昇順",
           serial_desc: "シリアル降順",
           session_desc: "新しい回数順",
           session_asc: "古い回数順",
           subject_serial: "科目順→シリアル昇順",
         };
+        if (state.handoff.status === "ready") {
+          parts.push(`引き継いだ検索結果: ${state.handoffQuestions.length}問${state.handoff.bundle.title ? `（${state.handoff.bundle.title}）` : ""}`);
+        }
         if (keyword) parts.push(`キーワード: ${keyword}`);
         if (subject) parts.push(`科目: ${subject}`);
         if (subtopic) parts.push(`小項目: ${subtopic}`);
@@ -1262,6 +1359,7 @@
 
       function getSortLabel() {
         const labels = {
+          handoff: "検索結果の順",
           serial_asc: "シリアル昇順",
           serial_desc: "シリアル降順",
           session_desc: "新しい回数順",
@@ -1414,6 +1512,54 @@
         });
       }
 
+      async function updateTextPreview() {
+        const generation = ++state.textPreviewGeneration;
+        els.textPreviewContent.textContent = "";
+        els.textPreviewContent.setAttribute("aria-busy", "false");
+        els.retryTextPreviewBtn.hidden = true;
+        if (!els.textPreviewDetails.open) {
+          els.textPreviewStatus.textContent = "開くと、現在の出力設定で症例・選択肢・解答・解説を確認できます。";
+          return;
+        }
+        if (state.handoff.status === "error") {
+          els.textPreviewStatus.textContent = state.handoff.message;
+          return;
+        }
+        const question = state.filtered[0];
+        if (!state.ready || !question) {
+          els.textPreviewStatus.textContent = state.ready ? "条件に合う問題がありません。" : "問題データを読み込み中です...";
+          return;
+        }
+        const mode = getExportMode();
+        if (mode.includeDeepDive) {
+          els.textPreviewStatus.textContent = "先頭1問の深掘り解説を読み込み中です...";
+          els.textPreviewContent.setAttribute("aria-busy", "true");
+          try {
+            if (!supabaseClient && !getDeepDiveText(question)) {
+              throw new Error("深掘り解説に接続できません。");
+            }
+            await ensureDeepDiveContentLoaded([question]);
+          } catch (error) {
+            if (generation !== state.textPreviewGeneration) return;
+            els.textPreviewContent.setAttribute("aria-busy", "false");
+            els.textPreviewStatus.textContent = "深掘り解説を取得できないため、出力内容を確認できません。再試行してください。";
+            els.retryTextPreviewBtn.hidden = false;
+            return;
+          }
+          if (generation !== state.textPreviewGeneration) return;
+        }
+        const notes = [`${state.filtered.length} 問中の先頭1問（${question.serial}）です。保存する TXT と同じ出力設定です。`];
+        if (mode.includeExplanation && !normalizeText(question.explanation_latest)) {
+          notes.push("この問題には通常解説がありません。");
+        }
+        if (mode.includeDeepDive && !getDeepDiveText(question)) {
+          notes.push("この問題には作成済みの深掘り解説がありません。保存時も深掘り解説は付きません。");
+        }
+        els.textPreviewStatus.textContent = notes.join("\n");
+        els.textPreviewContent.textContent = buildQuestionBlock(question, 0, mode);
+        els.textPreviewContent.setAttribute("aria-busy", "false");
+      }
+
       function syncActionButtons() {
         const hasResults = state.ready && state.filtered.length > 0;
         const hasSubjectGroups = hasResults && getSubtopicGroups().length > 0;
@@ -1431,6 +1577,11 @@
         state.filtered = filterQuestions();
         renderPreview();
         syncActionButtons();
+        updateTextPreview();
+        if (state.handoff.status === "error") {
+          setStatus(state.handoff.message, "warn");
+          return;
+        }
 
         const mode = getExportMode();
         const deepDiveAvailable = state.filtered.filter((question) => hasDeepDiveAvailable(question)).length;
@@ -1473,7 +1624,7 @@
             ? "warn"
             : ""
         );
-        announce("プリントを生成しました");
+        announce("プリントの出力条件を更新しました");
       }
 
       function resetControls() {
@@ -1485,7 +1636,7 @@
         els.sessionTo.value = "";
         els.serialFrom.value = "";
         els.serialTo.value = "";
-        els.sortSelect.value = "serial_asc";
+        els.sortSelect.value = state.handoff.status === "ready" ? "handoff" : "serial_asc";
         els.numberingSelect.value = "serial";
         els.includeAnswer.checked = false;
         els.includeExplanation.checked = false;
@@ -1498,6 +1649,7 @@
         const subtopic = normalizeText(els.subtopicSelect.value);
         const examType = normalizeText(els.examTypeSelect.value);
         const parts = ["Ahakiプリント"];
+        if (state.handoff.status === "ready" && state.handoff.bundle.title) parts.push(state.handoff.bundle.title);
         if (subject) parts.push(subject);
         if (subtopic) parts.push(subtopic);
         if (examType) parts.push(examType);
@@ -1724,6 +1876,9 @@
         els.includeDeepDive.addEventListener("change", applyFilters);
         els.searchBtn.addEventListener("click", applyFilters);
         els.resetBtn.addEventListener("click", resetControls);
+        els.clearHandoffBtn.addEventListener("click", clearStudyHandoff);
+        els.textPreviewDetails.addEventListener("toggle", updateTextPreview);
+        els.retryTextPreviewBtn.addEventListener("click", updateTextPreview);
         els.downloadTxtBtn.addEventListener("click", downloadCurrentTxt);
         els.downloadZipBtn.addEventListener("click", downloadSubtopicZip);
 
@@ -1760,6 +1915,7 @@
           ]);
           state.questions = preprocessQuestions(AhakiQuestions.applyQuestionOverrides(rows, overrides));
           rebuildSelectOptions();
+          initializeStudyHandoff();
           state.ready = true;
           if (supabaseClient) {
             ensureDeepDiveIndexLoaded()
@@ -1772,12 +1928,13 @@
               });
           }
           applyFilters();
-          setStatus([`問題データを読み込みました。全 ${state.questions.length} 問です。`, AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean).join("\n"));
         } catch (error) {
           console.error(error);
           state.ready = false;
           setStatus(`読み込みに失敗しました。\n${error && error.message ? error.message : String(error)}`, "warn");
           els.previewBody.innerHTML = "<tr><td class='empty' colspan='5'>データを読み込めませんでした。</td></tr>";
+          els.textPreviewContent.textContent = "";
+          els.textPreviewStatus.textContent = "問題データを読み込めませんでした。ページを再読み込みしてください。";
         }
         syncActionButtons();
       }

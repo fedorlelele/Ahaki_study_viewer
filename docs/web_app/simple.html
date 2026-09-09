@@ -331,12 +331,22 @@
         <label><input type="checkbox" id="showAnswered" checked /> 回答済みの問題を表示</label>
         <div class="row">
           <button id="startBtn">問題を表示</button>
-          <button id="copyAllBtn" type="button">検索結果をコピー</button>
           <button class="backBtn">戻る</button>
           <button class="topBtn">トップへ戻る</button>
         </div>
       </section>
 
+      <p id="studySetInfo" hidden></p>
+      <div class="row" aria-label="コピー設定">
+        <label for="copyFormat">コピー内容</label>
+        <select id="copyFormat">
+          <option value="questions">問題のみ</option>
+          <option value="answers">解答付き</option>
+          <option value="explanations">解説付き</option>
+        </select>
+        <button id="copyAllBtn" type="button" disabled>対象の問題をコピー</button>
+      </div>
+      <label><input type="checkbox" id="skipAnswerConfirmation" /> 回答前の確認を省略</label>
       <div class="status" id="status" role="status" aria-live="polite"></div>
       <div class="help">キーボード: ↑↓で選択 / 数字キーで直接選択 / Enterで回答 / Tabで項目移動</div>
 
@@ -409,6 +419,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
+    <script src="./shared/study-tools.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
@@ -429,6 +440,8 @@
         sessionResults: [],
         activeSessionSerials: [],
         resumeSession: null,
+        studySet: null,
+        incomingStudySetError: "",
         lastSubject: "",
         focusItems: [],
         focusIndex: 0,
@@ -473,6 +486,9 @@
       const showAnsweredToggle = document.getElementById("showAnswered");
       const startBtn = document.getElementById("startBtn");
       const copyAllBtn = document.getElementById("copyAllBtn");
+      const copyFormat = document.getElementById("copyFormat");
+      const skipAnswerConfirmation = document.getElementById("skipAnswerConfirmation");
+      const studySetInfo = document.getElementById("studySetInfo");
       const guideNext = document.getElementById("guideNext");
       const resumeBtn = document.getElementById("resumeBtn");
       const resumeInfo = document.getElementById("resumeInfo");
@@ -570,7 +586,7 @@
       }
 
       function clearSavedSession() {
-        localStorage.removeItem(SIMPLE_SESSION_KEY);
+        try { localStorage.removeItem(SIMPLE_SESSION_KEY); } catch (_) {}
         state.resumeSession = null;
         updateResumeControls();
       }
@@ -598,7 +614,9 @@
         resumeBtn.hidden = false;
         resumeBtn.textContent = `前回の続きから再開する（${[dateText, progressText].filter(Boolean).join("・")}）`;
         resumeInfo.hidden = false;
-        resumeInfo.textContent = "前回の学習条件と位置を保存しています。";
+        resumeInfo.textContent = saved.studySet
+          ? "引き継いだ問題の順序と学習位置を保存しています。"
+          : "前回の学習条件と位置を保存しています。";
       }
 
       function saveSimpleSession() {
@@ -606,6 +624,7 @@
         const current = state.filtered[state.currentIndex];
         const payload = {
           filters: getCurrentFilters(),
+          studySet: state.studySet || null,
           currentIndex: state.currentIndex,
           currentSerial: current && current.serial ? String(current.serial) : "",
           total: state.filtered.length,
@@ -615,7 +634,7 @@
             ? state.activeSessionSerials
             : state.filtered.map(q => q.serial).filter(Boolean)
         };
-        localStorage.setItem(SIMPLE_SESSION_KEY, JSON.stringify(payload));
+        try { localStorage.setItem(SIMPLE_SESSION_KEY, JSON.stringify(payload)); } catch (_) {}
         state.resumeSession = payload;
       }
 
@@ -826,6 +845,11 @@
       }
 
       function filterQuestions(options = {}) {
+        if (state.incomingStudySetError) {
+          state.filtered = [];
+          setStatus(state.incomingStudySetError);
+          return;
+        }
         const resetIndex = options.resetIndex !== false;
         const subject = subjectSelect.value;
         const examType = examTypeSelect.value;
@@ -879,6 +903,7 @@
 	      }
 
       function beginCurrentSearch(options = {}) {
+        if (state.studySet || state.incomingStudySetError) clearStudySetContext();
         setStatus("");
         if (options.clearSaved !== false) clearSavedSession();
         if (options.resetSessionResults !== false) {
@@ -892,6 +917,71 @@
         renderQuestion();
       }
 
+      function clearStudySetContext() {
+        state.studySet = null;
+        state.incomingStudySetError = "";
+        studySetInfo.hidden = true;
+        studySetInfo.textContent = "";
+        const url = new URL(window.location.href);
+        url.searchParams.delete("studySet");
+        window.history.replaceState(null, "", url);
+      }
+
+      function updateStudySetInfo() {
+        studySetInfo.hidden = !state.studySet;
+        studySetInfo.textContent = state.studySet
+          ? `引き継いだ問題: ${state.studySet.title || "検索結果"}（${state.filtered.length}問・元の並び順）`
+          : "";
+      }
+
+      function showStudySetError(message) {
+        questionRenderGuard.cancel();
+        state.displayedQuestion = null;
+        state.filtered = [];
+        state.activeSessionSerials = [];
+        state.studySet = null;
+        state.incomingStudySetError = message;
+        confirmBtn.disabled = true;
+        questionSection.hidden = true;
+        updateStudySetInfo();
+        showStep("guide");
+        setStatus(message);
+      }
+
+      function loadIncomingStudySet(search = window.location.search) {
+        const incoming = AhakiStudy.readHandoff(search);
+        if (incoming.status === "none") return false;
+        if (incoming.status !== "ready") {
+          showStudySetError(incoming.message || "引き継いだ問題を読み込めませんでした。高機能ビューで問題を選び直してください。");
+          return true;
+        }
+        const ordered = AhakiStudy.orderQuestions(state.questions, incoming.bundle.serials);
+        if (ordered.missingSerials.length || !ordered.questions.length) {
+          showStudySetError("引き継いだ問題に見つからないものがあります。高機能ビューで問題を選び直してください。");
+          return true;
+        }
+        const saved = loadSavedSession();
+        const sameSet = saved && saved.studySet
+          && saved.studySet.createdAt === incoming.bundle.createdAt
+          && JSON.stringify(saved.studySet.serials) === JSON.stringify(incoming.bundle.serials);
+        if (sameSet) {
+          resumeSavedSession();
+          return true;
+        }
+        clearSavedSession();
+        state.studySet = incoming.bundle;
+        state.incomingStudySetError = "";
+        state.filtered = ordered.questions;
+        state.activeSessionSerials = ordered.questions.map(q => q.serial);
+        state.currentIndex = 0;
+        state.sessionResults = [];
+        updateStudySetInfo();
+        updateJumpOptions();
+        showStep("");
+        renderQuestion();
+        return true;
+      }
+
       function resumeSavedSession() {
         const saved = loadSavedSession();
         if (!saved || !saved.filters) {
@@ -899,15 +989,29 @@
           updateResumeControls();
           return;
         }
+        state.incomingStudySetError = "";
         applyFilters(saved.filters);
         state.sessionResults = Array.isArray(saved.sessionResults) ? saved.sessionResults : [];
         state.activeSessionSerials = Array.isArray(saved.activeSessionSerials) ? saved.activeSessionSerials : [];
-        filterQuestions({ resetIndex: false });
+        state.studySet = saved.studySet && typeof saved.studySet === "object" ? saved.studySet : null;
         if (state.activeSessionSerials.length) {
-          const restoredList = state.activeSessionSerials
-            .map(serial => getQuestionBySerial(serial))
-            .filter(Boolean);
-          if (restoredList.length) state.filtered = restoredList;
+          let restored;
+          try {
+            restored = AhakiStudy.orderQuestions(state.questions, state.activeSessionSerials);
+          } catch (_) {
+            showStudySetError("前回の問題一覧を復元できませんでした。開始ボタンから条件を選び直してください。");
+            return;
+          }
+          if (restored.missingSerials.length || !restored.questions.length) {
+            showStudySetError("前回の問題をすべて復元できませんでした。開始ボタンから条件を選び直してください。");
+            return;
+          }
+          state.filtered = restored.questions;
+        } else if (state.studySet) {
+          showStudySetError("前回の問題一覧を復元できませんでした。高機能ビューで問題を選び直してください。");
+          return;
+        } else {
+          filterQuestions({ resetIndex: false });
         }
         if (!state.filtered.length) {
           clearSavedSession();
@@ -930,12 +1034,17 @@
         if (!state.activeSessionSerials.length) {
           state.activeSessionSerials = state.filtered.map(q => q.serial).filter(Boolean);
         }
+        updateStudySetInfo();
+        updateJumpOptions();
         showStep("");
         renderQuestion();
         setStatus("前回の続きから再開しました。");
       }
 
       function buildFilterHeader() {
+        if (state.studySet) {
+          return `対象: ${state.studySet.title || "検索結果"} / ${state.filtered.length}問 / 元の並び順`;
+        }
         const parts = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean);
         if (keywordInput && keywordInput.value.trim()) {
           parts.push(`キーワード: ${keywordInput.value.trim()}`);
@@ -949,7 +1058,7 @@
         return parts.length ? `検索条件: ${parts.join(" / ")}` : "検索条件: なし";
       }
 
-      function formatQuestionForCopy(question) {
+      function formatQuestionForCopy(question, mode = AhakiStudy.getCopyMode()) {
         const q = applyOverridesToQuestion(question);
         const lines = [];
         if (q.case_text) {
@@ -963,13 +1072,13 @@
           lines.push(`${n}．${choice}`);
         });
         const answerLabel = formatAnswerLabel(q);
-        if (answerLabel) {
+        if (mode.showAnswer && answerLabel) {
           lines.push("");
           lines.push(`解答　${answerLabel}`);
           const answerNote = AhakiQuestions.getAnswerNote(q);
           if (answerNote) lines.push(`注記: ${answerNote}`);
         }
-        if (q.explanation_latest) {
+        if (mode.showExplanation && q.explanation_latest) {
           lines.push("解説");
           lines.push(q.explanation_latest);
         }
@@ -977,19 +1086,25 @@
       }
 
       async function copySearchResults() {
-        if (!state.filtered.length) {
-          status.textContent = "コピーする問題がありません。";
+        if (state.incomingStudySetError) {
+          setStatus(state.incomingStudySetError);
           return;
         }
-        await ensureOverridesLoaded(state.filtered.map(q => q.serial));
+        const questions = state.filtered.slice();
+        if (!questions.length) {
+          setStatus("コピーする問題がありません。");
+          return;
+        }
+        const mode = AhakiStudy.getCopyMode();
         const header = buildFilterHeader();
-        const blocks = state.filtered.map(formatQuestionForCopy);
-        const text = [header, "", ...blocks].join("\n\n");
         try {
+          await ensureOverridesLoaded(questions.map(q => q.serial));
+          const blocks = questions.map(q => formatQuestionForCopy(q, mode));
+          const text = [header, "", ...blocks].join("\n\n");
           await navigator.clipboard.writeText(text);
-          status.textContent = "検索結果をコピーしました。";
+          setStatus(`${questions.length}問を${mode.showExplanation ? "解説付き" : mode.showAnswer ? "解答付き" : "問題のみ"}でコピーしました。`);
         } catch (err) {
-          status.textContent = "コピーに失敗しました。";
+          setStatus("コピーに失敗しました。もう一度お試しください。");
         }
       }
 
@@ -1126,6 +1241,10 @@
           return;
         }
         focusBeforeDialog = document.activeElement;
+        if (skipAnswerConfirmation.checked) {
+          showResult();
+          return;
+        }
         const item = choices.querySelector(`li[data-index='${state.selectedIndex}']`);
         confirmChoice.textContent = item ? (item.dataset.choiceLabel || item.textContent) : "";
         confirmOverlay.classList.add("show");
@@ -1232,10 +1351,15 @@
       }
 
       function startSessionFromSerials(serials, fallbackMessage) {
-        const list = (serials || [])
-          .map(serial => getQuestionBySerial(serial))
-          .filter(Boolean);
-        if (!list.length) {
+        let ordered;
+        try {
+          ordered = AhakiStudy.orderQuestions(state.questions, serials || []);
+        } catch (_) {
+          setStatus(fallbackMessage || "対象の問題を復元できませんでした。");
+          return;
+        }
+        const list = ordered.questions;
+        if (ordered.missingSerials.length || !list.length) {
           setStatus(fallbackMessage || "対象の問題がありません。");
           return;
         }
@@ -1245,6 +1369,8 @@
         state.answered = false;
         state.sessionResults = [];
         state.activeSessionSerials = list.map(q => q.serial).filter(Boolean);
+        updateStudySetInfo();
+        updateJumpOptions();
         if (summarySection) summarySection.hidden = true;
         showStep("");
         renderQuestion();
@@ -1578,6 +1704,7 @@
       }
 
       guideNext.addEventListener("click", () => {
+        clearStudySetContext();
         setStatus("");
         clearSavedSession();
         showStep("subject");
@@ -1585,6 +1712,7 @@
       guideNext.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
+          clearStudySetContext();
           setStatus("");
           clearSavedSession();
           showStep("subject");
@@ -1652,9 +1780,18 @@
         });
       }
 
+      AhakiStudy.bindCopyFormat(copyFormat, persisted => {
+        if (!persisted) setStatus("コピー内容は変更しましたが、このブラウザーに保存できませんでした。");
+      });
+      skipAnswerConfirmation.checked = AhakiStudy.getSkipAnswerConfirmation();
+      skipAnswerConfirmation.addEventListener("change", () => {
+        const persisted = AhakiStudy.setSkipAnswerConfirmation(skipAnswerConfirmation.checked);
+        if (!persisted) setStatus("確認の設定は変更しましたが、このブラウザーに保存できませんでした。");
+      });
+
       if (copyAllBtn) {
         copyAllBtn.addEventListener("click", () => {
-          filterQuestions();
+          if (questionSection.hidden && !state.studySet) filterQuestions();
           copySearchResults();
         });
       }
@@ -1685,7 +1822,8 @@
         showStep("guide");
         const versionInfo = document.getElementById("questionVersionInfo");
         if (versionInfo) versionInfo.textContent = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean).join(" / ");
-        setStatus(state.overrideLoadWarning || "");
+        copyAllBtn.disabled = false;
+        if (!loadIncomingStudySet()) setStatus(state.overrideLoadWarning || "");
       }).catch((err) => {
         console.error("問題データの読み込みに失敗しました。", err);
         setStatus("問題データの読み込みに失敗しました。通信環境を確認して、ページを再読み込みしてください。");
