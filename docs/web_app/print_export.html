@@ -52,7 +52,11 @@
       .field.full { grid-column: 1 / -1; }
       label, legend { font-size: 14px; font-weight: 700; }
       input, select, button { font: inherit; color: var(--ink); }
-      input:not([type=radio]), select { width: 100%; min-width: 0; min-height: 44px; padding: 9px 10px; border: 1px solid #8899ad; border-radius: 8px; background: #fff; }
+      input:not([type=radio]):not([type=checkbox]), select { width: 100%; min-width: 0; min-height: 44px; padding: 9px 10px; border: 1px solid #8899ad; border-radius: 8px; background: #fff; }
+      .checkbox-label { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+      .checkbox-label input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex-shrink: 0; }
+      input:disabled { opacity: .55; }
+      .output-settings { margin-top: 16px; }
       .field-help, .inline-note, .footnote { color: var(--muted); font-size: 13px; line-height: 1.7; }
       .field-help { margin: 0; }
       .inline-note { margin: 8px 0 14px; }
@@ -148,7 +152,7 @@
             </div>
           </div>
           <details class="advanced">
-            <summary>回数・問題番号・並び順</summary>
+            <summary>回数・問題IDの範囲・並び順</summary>
             <div class="field-grid">
               <div class="field"><label for="sessionFrom">第何回から</label><input id="sessionFrom" type="number" min="1" step="1" placeholder="例：20" /></div>
               <div class="field"><label for="sessionTo">第何回まで</label><input id="sessionTo" type="number" min="1" step="1" placeholder="例：34" /></div>
@@ -163,13 +167,6 @@
                   <option value="session_desc">新しい回から</option>
                   <option value="session_asc">古い回から</option>
                   <option value="subject_serial">科目ごとに問題ID順</option>
-                </select>
-              </div>
-              <div class="field full">
-                <label for="numberingSelect">プリントの問題番号</label>
-                <select id="numberingSelect">
-                  <option value="serial">元の問題ID（A01-001など）</option>
-                  <option value="continuous">通し番号（問題1、問題2…）</option>
                 </select>
               </div>
             </div>
@@ -188,6 +185,27 @@
               <label class="content-choice"><input id="contentExplanations" type="radio" name="outputContent" value="explanations" />解説付き<small>問題・解答・解説</small></label>
             </div>
           </fieldset>
+          <details class="advanced output-settings">
+            <summary>問題番号・シリアルの設定</summary>
+            <div class="field-grid">
+              <div class="field full">
+                <label for="numberingSelect">問題番号の形式</label>
+                <select id="numberingSelect">
+                  <option value="serial">元のシリアル（B19-081など）</option>
+                  <option value="continuous">通し番号（問題1、問題2…）</option>
+                </select>
+              </div>
+              <div id="numberingStartField" class="field full" hidden>
+                <label for="numberingStart">開始番号</label>
+                <input id="numberingStart" type="number" min="1" max="999999" step="1" value="1" inputmode="numeric" aria-describedby="numberingStartHelp" disabled />
+                <p id="numberingStartHelp" class="field-help">30なら「問題30」から始まります。ZIPでは各ファイルがこの番号から始まります。</p>
+              </div>
+              <div class="field full">
+                <label class="checkbox-label" for="appendExplanationSerial"><input id="appendExplanationSerial" type="checkbox" aria-describedby="explanationSerialHelp" disabled />解説末尾にシリアルを付ける</label>
+                <p id="explanationSerialHelp" class="field-help">「解説付き」で使用できます。解説の末尾に（B19-081）のように付けます。リンクは付きません。</p>
+              </div>
+            </div>
+          </details>
           <div class="result-heading"><strong id="totalCount">0</strong><span>問が対象</span></div>
           <p id="filterSummary" class="inline-note">条件を読み込み中です。</p>
           <div id="statusBox" class="status" role="status" aria-live="polite">問題データを読み込み中です...</div>
@@ -270,6 +288,9 @@
         serialTo: document.getElementById("serialTo"),
         sortSelect: document.getElementById("sortSelect"),
         numberingSelect: document.getElementById("numberingSelect"),
+        numberingStart: document.getElementById("numberingStart"),
+        numberingStartField: document.getElementById("numberingStartField"),
+        appendExplanationSerial: document.getElementById("appendExplanationSerial"),
         resetBtn: document.getElementById("resetBtn"),
         downloadTxtBtn: document.getElementById("downloadTxtBtn"),
         downloadZipBtn: document.getElementById("downloadZipBtn"),
@@ -707,9 +728,53 @@
         return {
           sortLabel: getSortLabel(),
           numbering: els.numberingSelect.value === "continuous" ? "continuous" : "serial",
+          startNumber: getNumberingStart({ startNumber: Number(els.numberingStart.value) }),
+          appendExplanationSerial: includeExplanation && els.appendExplanationSerial.checked,
           includeExplanation,
           includeAnswer: els.contentAnswers.checked || includeExplanation,
         };
+      }
+
+      function getNumberingStart(mode) {
+        const start = Number(mode.startNumber);
+        return Number.isInteger(start) && start >= 1 && start <= 999999 ? start : 1;
+      }
+
+      function formatQuestionNumber(question, index, mode) {
+        const continuous = `問題${getNumberingStart(mode) + index}`;
+        return mode.numbering === "continuous" ? continuous : (question.serial || continuous);
+      }
+
+      function getOutputSettingsError() {
+        if (els.numberingSelect.value !== "continuous") return "";
+        const raw = normalizeText(els.numberingStart.value);
+        const start = Number(raw);
+        return /^\d+$/.test(raw) && Number.isInteger(start) && start >= 1 && start <= 999999
+          ? "" : "開始番号は1〜999999の整数で入力してください。";
+      }
+
+      function syncOutputControls() {
+        const continuous = els.numberingSelect.value === "continuous";
+        els.numberingStartField.hidden = !continuous;
+        els.numberingStart.disabled = !continuous;
+        els.numberingStart.setAttribute("aria-invalid", getOutputSettingsError() ? "true" : "false");
+        els.appendExplanationSerial.disabled = !els.contentExplanations.checked;
+      }
+
+      function formatPrintExplanation(question, mode) {
+        let text = normalizeText(question.explanation_latest)
+          .replace(/\[([AB]\d{2}-\d{3})\]\([^\s)]+\)/g, "$1");
+        const serial = normalizeText(question.serial);
+        if (/^[AB]\d{2}-\d{3}$/.test(serial)) {
+          // Reuse a pre-existing trailing reference rather than duplicating it.
+          const suffixes = [`（${serial}）`, `(${serial})`];
+          let suffix;
+          while ((suffix = suffixes.find(value => text.endsWith(value)))) {
+            text = text.slice(0, -suffix.length).trimEnd();
+          }
+          if (text && mode.includeExplanation && mode.appendExplanationSerial) text += `（${serial}）`;
+        }
+        return text;
       }
 
       function formatAnswerLabel(question, medium = AhakiQuestions.getAnswerMedium()) {
@@ -725,7 +790,7 @@
 
       function buildQuestionBlock(question, index, mode) {
         const lines = [];
-        const title = mode.numbering === "continuous" ? `問題${index + 1}` : (question.serial || `問題${index + 1}`);
+        const title = formatQuestionNumber(question, index, mode);
         if (question.case_text) {
           lines.push(String(question.case_text));
         }
@@ -744,7 +809,7 @@
           if (answerNote) lines.push(`注記: ${answerNote}`);
         }
         if (mode.includeExplanation) {
-          const explanationText = normalizeText(question.explanation_latest);
+          const explanationText = formatPrintExplanation(question, mode);
           if (explanationText) {
             lines.push("解説");
             lines.push(explanationText);
@@ -792,8 +857,8 @@
         if (mode.includeAnswer) contentParts.push("解答");
         if (mode.includeExplanation) contentParts.push("解説");
         const numberingLabel = mode.numbering === "continuous"
-          ? "通し番号（問題1, 問題2 ...）"
-          : "問題ID";
+          ? `通し番号（問題${getNumberingStart(mode)}から）`
+          : "シリアル";
         return [
           title,
           `出力日時: ${formatDisplayDate(new Date())}`,
@@ -803,6 +868,7 @@
           `問題数: ${list.length}件`,
           `並び順: ${mode.sortLabel || getSortLabel()}`,
           `問題番号: ${numberingLabel}`,
+          ...(mode.includeExplanation ? [`解説末尾のシリアル: ${mode.appendExplanationSerial ? "付ける（リンクなし）" : "付けない"}`] : []),
           `出力内容: ${contentParts.length ? contentParts.join(" / ") : "問題のみ"}`,
         ].join("\n");
       }
@@ -893,6 +959,16 @@
         renderSubtopicBreakdown(groups);
 
         els.previewBody.innerHTML = "";
+        if (getOutputSettingsError()) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 5;
+          cell.className = "empty";
+          cell.textContent = getOutputSettingsError();
+          row.appendChild(cell);
+          els.previewBody.appendChild(row);
+          return;
+        }
         if (!state.filtered.length) {
           els.previewBody.innerHTML = "<tr><td class='empty' colspan='5'>条件に合う問題がありません。</td></tr>";
           return;
@@ -902,9 +978,7 @@
           const row = document.createElement("tr");
           const numberCell = document.createElement("td");
           numberCell.className = "serial-cell";
-          numberCell.textContent = mode.numbering === "continuous"
-            ? `問題${index + 1}`
-            : String(question.serial || "");
+          numberCell.textContent = formatQuestionNumber(question, index, mode);
           const serialCell = document.createElement("td");
           serialCell.className = "serial-cell";
           serialCell.textContent = question.serial || "";
@@ -934,6 +1008,10 @@
           els.textPreviewStatus.textContent = state.handoff.message;
           return;
         }
+        if (getOutputSettingsError()) {
+          els.textPreviewStatus.textContent = getOutputSettingsError();
+          return;
+        }
         const question = state.filtered[0];
         if (!state.ready || !question) {
           els.textPreviewStatus.textContent = state.ready ? "条件に合う問題がありません。検索条件を広げてください。" : "問題データを読み込み中です...";
@@ -941,7 +1019,7 @@
         }
         const mode = getExportMode();
         const notes = [`${state.filtered.length} 問中の先頭1問（${question.serial}）です。`];
-        if (mode.includeExplanation && !normalizeText(question.explanation_latest)) {
+        if (mode.includeExplanation && !formatPrintExplanation(question, mode)) {
           notes.push("この問題には通常解説がありません。");
         }
         els.textPreviewStatus.textContent = notes.join("\n");
@@ -949,7 +1027,7 @@
       }
 
       function syncActionButtons() {
-        const hasResults = state.ready && state.filtered.length > 0;
+        const hasResults = state.ready && state.filtered.length > 0 && !getOutputSettingsError();
         const groups = getSubtopicGroups();
         els.downloadTxtBtn.disabled = !hasResults;
         els.downloadTxtBtn.textContent = hasResults ? `${state.filtered.length.toLocaleString("ja-JP")}問をTXTで保存` : "TXTで保存";
@@ -963,6 +1041,7 @@
       function applyFilters() {
         window.clearTimeout(state.filterTimer);
         state.filterTimer = null;
+        syncOutputControls();
         if (!state.ready) return;
         state.filtered = filterQuestions();
         renderPreview();
@@ -973,11 +1052,12 @@
           return;
         }
         const messages = [];
+        if (getOutputSettingsError()) messages.push(getOutputSettingsError());
         if (state.overrideLoadWarning) messages.push(state.overrideLoadWarning);
         if (!state.filtered.length) messages.push("条件に合う問題がありません。検索条件を広げてください。");
         const mode = getExportMode();
         if (mode.includeExplanation) {
-          const missing = state.filtered.filter(question => !normalizeText(question.explanation_latest)).length;
+          const missing = state.filtered.filter(question => !formatPrintExplanation(question, mode)).length;
           if (missing) messages.push(`${missing}問には通常解説がありません。その問題は問題と解答のみを出力します。`);
         }
         setStatus(messages.join("\n"), messages.length ? "warn" : "");
@@ -1016,6 +1096,7 @@
 
       function downloadCurrentTxt() {
         applyFilters();
+        if (getOutputSettingsError()) return;
         const exportQuestions = state.filtered.slice();
         const summaryText = buildFilterSummary();
         const exportTitle = buildCurrentExportTitle();
@@ -1134,6 +1215,7 @@
 
       function downloadSubtopicZip() {
         applyFilters();
+        if (getOutputSettingsError()) return;
         const summaryText = buildFilterSummary();
         const subject = normalizeText(els.subjectSelect.value);
         if (!subject) {
@@ -1179,6 +1261,7 @@
         els.examTypeSelect.addEventListener("change", applyFilters);
         els.sortSelect.addEventListener("change", applyFilters);
         els.numberingSelect.addEventListener("change", applyFilters);
+        els.appendExplanationSerial.addEventListener("change", applyFilters);
         [els.contentQuestions, els.contentAnswers, els.contentExplanations].forEach(element => {
           element.addEventListener("change", applyFilters);
         });
@@ -1194,6 +1277,7 @@
           els.sessionTo,
           els.serialFrom,
           els.serialTo,
+          els.numberingStart,
         ].forEach((element) => {
           element.addEventListener("input", event => {
             if (!event.isComposing) scheduleFilters();

@@ -26,12 +26,14 @@ function element() {
 function context(bundle = { status: 'none' }) {
   const els = Object.fromEntries([
     'keywordInput', 'subjectSelect', 'subtopicSelect', 'examTypeSelect', 'sessionFrom', 'sessionTo',
-    'serialFrom', 'serialTo', 'sortSelect', 'numberingSelect', 'contentQuestions', 'contentAnswers',
+    'serialFrom', 'serialTo', 'sortSelect', 'numberingSelect', 'numberingStart', 'numberingStartField',
+    'appendExplanationSerial', 'contentQuestions', 'contentAnswers',
     'contentExplanations', 'filterDetails', 'handoffNotice', 'handoffMessage', 'handoffSortOption', 'textPreviewDetails',
     'textPreviewStatus', 'textPreviewContent',
   ].map(name => [name, element()]));
   els.sortSelect.value = 'serial_asc';
   els.numberingSelect.value = 'serial';
+  els.numberingStart.value = '1';
   els.contentQuestions.checked = true;
   const window = { location: { href: 'https://example.test/print_export.html?studySet=abc&keep=1', search: '?studySet=abc&keep=1' }, history: { replaceState(_state, _title, value) { this.url = value; } } };
   let nextTimer = 1;
@@ -63,7 +65,8 @@ function context(bundle = { status: 'none' }) {
     'compareSerialValue', 'compareBySession', 'compareBySubjectSerial', 'buildSearchText', 'preprocessQuestions',
     'getKeywordTerms', 'matchesKeyword', 'getNumberOrNull', 'initializeStudyHandoff', 'renderStudyHandoff',
     'clearStudyHandoff', 'filterQuestions', 'resetControls', 'buildFilterSummary', 'getSubtopicGroups',
-    'getSortLabel', 'getExportMode', 'formatAnswerLabel', 'buildQuestionBlock', 'updateTextPreview',
+    'getSortLabel', 'getExportMode', 'getNumberingStart', 'formatQuestionNumber', 'getOutputSettingsError',
+    'syncOutputControls', 'formatAnswerLabel', 'formatPrintExplanation', 'buildQuestionBlock', 'updateTextPreview',
     'applyFilters', 'scheduleFilters', 'formatLocalTimestamp', 'formatDisplayDate', 'buildExportHeader',
     'buildExportText', 'sanitizeFilename', 'buildCurrentExportTitle', 'downloadCurrentTxt', 'downloadSubtopicZip',
     'crc32', 'createBuffer', 'writeDosDateTime', 'createZipBlob']);
@@ -194,6 +197,142 @@ test('three content choices give the same complete question blocks in preview, T
   }
 });
 
+test('custom numbering and an unlinked explanation serial agree in preview, TXT, and actual ZIP entries', async () => {
+  const ctx = context();
+  ctx.state.questions = ctx.preprocessQuestions([
+    row(1, { serial: 'B19-081', stem: '群発頭痛について正しいのはどれか。' }),
+    row(2, { serial: 'B19-082' }),
+    row(3, { serial: 'B19-083', subtopics: ['神経'] }),
+  ]);
+  ctx.els.subjectSelect.value = '生理学';
+  ctx.els.numberingSelect.value = 'continuous';
+  ctx.els.numberingStart.value = '30';
+  ctx.els.appendExplanationSerial.checked = true;
+  ctx.els.textPreviewDetails.open = true;
+  chooseContent(ctx, 'contentExplanations');
+  ctx.applyFilters();
+  const mode = ctx.getExportMode();
+  assert.equal(mode.startNumber, 30);
+  assert.equal(mode.appendExplanationSerial, true);
+  assert.equal(ctx.els.numberingStartField.hidden, false);
+  assert.equal(ctx.els.numberingStart.disabled, false);
+  assert.equal(ctx.els.appendExplanationSerial.disabled, false);
+  const block = ctx.els.textPreviewContent.textContent;
+  assert.match(block, /問題30　群発頭痛について正しいのはどれか。\n１．選択肢甲\n２．選択肢乙/);
+  assert.match(block, /解答　２\n解説\n通常解説の全文（B19-081）$/);
+  assert.doesNotMatch(block, /https?:|\]\(/);
+  await ctx.downloadCurrentTxt();
+  assert.ok(ctx.savedTxt.text.includes(block));
+  assert.match(ctx.savedTxt.text, /問題31　問題文2/);
+  assert.match(ctx.savedTxt.text, /問題32　問題文3/);
+  await ctx.downloadSubtopicZip();
+  const entries = await unzipTextEntries(ctx.savedZip.blob);
+  assert.equal(entries.length, 2);
+  const muscle = entries.find(entry => entry.name.includes('筋'));
+  const nerve = entries.find(entry => entry.name.includes('神経'));
+  assert.ok(muscle.text.includes(block));
+  assert.match(muscle.text, /問題31　問題文2/);
+  assert.match(muscle.text, /通常解説の全文（B19-082）/);
+  assert.match(nerve.text, /問題30　問題文3/);
+  assert.match(nerve.text, /通常解説の全文（B19-083）/);
+});
+
+test('serial setting follows explanation mode, removes linked legacy suffixes, and preserves the selected preference', () => {
+  const ctx = context();
+  const q = row(1, {
+    serial: 'B19-081',
+    explanation_latest: '通常解説。関連問題は[B19-082](https://example.test/?q=B19-082)。（[B19-081](https://example.test/?q=B19-081)）',
+  });
+  ctx.state.questions = ctx.preprocessQuestions([q]);
+  ctx.els.textPreviewDetails.open = true;
+  ctx.els.numberingSelect.value = 'continuous';
+  ctx.els.numberingStart.value = '30';
+  chooseContent(ctx, 'contentExplanations');
+  ctx.applyFilters();
+  assert.equal(ctx.getExportMode().appendExplanationSerial, false);
+  assert.match(ctx.els.textPreviewContent.textContent, /通常解説。関連問題はB19-082。$/);
+  assert.doesNotMatch(ctx.els.textPreviewContent.textContent, /B19-081|https?:|\]\(/);
+  ctx.els.appendExplanationSerial.checked = true;
+  ctx.applyFilters();
+  assert.match(ctx.els.textPreviewContent.textContent, /通常解説。関連問題はB19-082。（B19-081）$/);
+  assert.equal(ctx.els.textPreviewContent.textContent.match(/B19-081/g).length, 1);
+  for (const content of ['contentAnswers', 'contentQuestions']) {
+    chooseContent(ctx, content);
+    ctx.applyFilters();
+    assert.equal(ctx.els.appendExplanationSerial.disabled, true);
+    assert.equal(ctx.getExportMode().appendExplanationSerial, false);
+    assert.equal(ctx.els.appendExplanationSerial.checked, true, 'mode changes preserve the preference');
+    assert.doesNotMatch(ctx.els.textPreviewContent.textContent, /B19-081|関連問題|解説/);
+  }
+  chooseContent(ctx, 'contentExplanations');
+  ctx.applyFilters();
+  assert.equal(ctx.getExportMode().appendExplanationSerial, true);
+  assert.match(ctx.els.textPreviewContent.textContent, /（B19-081）$/);
+  ctx.els.numberingSelect.value = 'serial';
+  ctx.applyFilters();
+  assert.equal(ctx.els.numberingStartField.hidden, true);
+  assert.equal(ctx.els.numberingStart.disabled, true);
+  assert.match(ctx.els.textPreviewContent.textContent, /B19-081　問題文1/);
+  assert.match(ctx.els.textPreviewContent.textContent, /（B19-081）$/);
+  ctx.els.numberingSelect.value = 'continuous';
+  ctx.applyFilters();
+  assert.match(ctx.els.textPreviewContent.textContent, /問題30　問題文1/);
+});
+
+test('a missing explanation or a legacy serial-only note does not create an explanation suffix', () => {
+  const ctx = context();
+  ctx.els.numberingSelect.value = 'continuous';
+  ctx.els.appendExplanationSerial.checked = true;
+  chooseContent(ctx, 'contentExplanations');
+  for (const explanation_latest of ['', '  ', '（B19-081）', '(B19-081)', '（[B19-081](https://example.test/?q=B19-081)）']) {
+    const block = ctx.buildQuestionBlock(row(1, { serial: 'B19-081', explanation_latest }), 0, ctx.getExportMode());
+    assert.match(block, /問題1　問題文1/);
+    assert.match(block, /解答　２$/);
+    assert.doesNotMatch(block, /解説|B19-081|https?:/);
+  }
+});
+
+test('invalid starting numbers clear the preview and block both exports until corrected', async () => {
+  for (const value of ['', '0', '-1', '1.5', 'abc', '1000000']) {
+    const ctx = context();
+    ctx.state.questions = ctx.preprocessQuestions([row(1)]);
+    ctx.els.subjectSelect.value = '生理学';
+    ctx.els.numberingSelect.value = 'continuous';
+    ctx.els.numberingStart.value = value;
+    ctx.els.textPreviewDetails.open = true;
+    ctx.els.textPreviewContent.textContent = '古いプレビュー';
+    ctx.applyFilters();
+    assert.ok(ctx.getOutputSettingsError(), value);
+    assert.equal(ctx.getExportMode().startNumber, 1, 'invalid internal values have a safe fallback');
+    assert.equal(ctx.els.textPreviewContent.textContent, '', value);
+    assert.ok(ctx.els.textPreviewStatus.textContent, value);
+    assert.equal(ctx.els.numberingStart.attrs['aria-invalid'], 'true', value);
+    await ctx.downloadCurrentTxt();
+    assert.equal(ctx.savedTxt, undefined, value);
+    await ctx.downloadSubtopicZip();
+    assert.equal(ctx.savedZip, undefined, value);
+    ctx.els.numberingStart.value = '30';
+    ctx.applyFilters();
+    assert.equal(ctx.getOutputSettingsError(), '');
+    assert.notEqual(ctx.els.numberingStart.attrs['aria-invalid'], 'true');
+    assert.match(ctx.els.textPreviewContent.textContent, /問題30　問題文1/);
+    await ctx.downloadCurrentTxt();
+    assert.match(ctx.savedTxt.text, /問題30　問題文1/);
+    await ctx.downloadSubtopicZip();
+    assert.equal((await unzipTextEntries(ctx.savedZip.blob)).length, 1);
+  }
+  const ctx = context();
+  ctx.els.numberingSelect.value = 'continuous';
+  for (const value of ['1', '999999']) {
+    ctx.els.numberingStart.value = value;
+    assert.equal(ctx.getOutputSettingsError(), '');
+    assert.equal(ctx.getExportMode().startNumber, Number(value));
+  }
+  ctx.els.numberingSelect.value = 'serial';
+  ctx.els.numberingStart.value = 'invalid';
+  assert.equal(ctx.getOutputSettingsError(), '', 'hidden starting number does not block serial numbering');
+});
+
 test('search includes ordinary explanations but never a cached deep-dive-only term', () => {
   const ctx = context();
   ctx.state.questions = ctx.preprocessQuestions([
@@ -257,12 +396,18 @@ test('reset clears only search conditions and restores the transferred scope whi
   for (const name of filterNames) ctx.els[name].value = '古い条件';
   ctx.els.sortSelect.value = 'serial_asc';
   ctx.els.numberingSelect.value = 'continuous';
+  ctx.els.numberingStart.value = '30';
+  ctx.els.appendExplanationSerial.checked = true;
   chooseContent(ctx, 'contentExplanations');
   ctx.resetControls();
   for (const name of filterNames) assert.equal(ctx.els[name].value, '', name);
   assert.equal(ctx.els.numberingSelect.value, 'continuous');
+  assert.equal(ctx.els.numberingStart.value, '30');
+  assert.equal(ctx.els.appendExplanationSerial.checked, true);
   assert.equal(ctx.els.contentExplanations.checked, true);
   assert.equal(ctx.getExportMode().includeAnswer, true);
+  assert.equal(ctx.getExportMode().startNumber, 30);
+  assert.equal(ctx.getExportMode().appendExplanationSerial, true);
   assert.deepEqual(Array.from(ctx.state.filtered, q => q.serial), ['A01-003', 'A01-001']);
 });
 

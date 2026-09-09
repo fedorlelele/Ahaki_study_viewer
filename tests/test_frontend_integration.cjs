@@ -86,14 +86,14 @@ test('main initial data load applies cloud text/tags before any search or serial
 test('print output uses normal answers and omits braille notes even for legacy export mode', () => {
  const q={serial:'B20-095',stem:'問',choices:['1','2'],answer_indices:[1],answer_variants:{default:[1],braille:[1,2]},answer_notes:['点字問題は1、2']};
  const ctx=vm.createContext({AhakiQuestions:Q,normalizeText:x=>String(x||'').trim(),getDeepDiveText:()=>''});
- addFunctions(ctx,'print_export.html',['formatAnswerLabel','buildQuestionBlock']);
+ addFunctions(ctx,'print_export.html',['formatAnswerLabel','getNumberingStart','formatQuestionNumber','formatPrintExplanation','buildQuestionBlock']);
  const normal=ctx.buildQuestionBlock(q,0,{includeAnswer:true,answerMedium:'default'});
  const braille=ctx.buildQuestionBlock(q,0,{includeAnswer:true,answerMedium:'braille'});
  assert.match(normal,/解答　１$/);assert.equal(braille,normal);assert.doesNotMatch(braille,/点字|注記/);
 });
 test('print export uses the current filter for its filename, summary, and questions without fetching explanations', () => {
  let saved;
- const ctx=vm.createContext({state:{filtered:[{serial:'A01-001'}]},console,applyFilters(){ctx.state.filtered=[{serial:'A01-002'}];},buildFilterSummary:()=>ctx.state.filtered[0].serial,buildCurrentExportTitle:()=>ctx.state.filtered[0].serial,getExportMode:()=>({includeExplanation:true,includeAnswer:true}),setStatus(){},buildExportText:(title,list,mode,summary)=>({title,serials:Array.from(list,q=>q.serial),explanation:mode.includeExplanation,summary}),sanitizeFilename:x=>x,formatLocalTimestamp:()=>'',downloadText:(filename,text)=>saved={filename,text}});
+ const ctx=vm.createContext({state:{filtered:[{serial:'A01-001'}]},console,applyFilters(){ctx.state.filtered=[{serial:'A01-002'}];},getOutputSettingsError:()=>'',buildFilterSummary:()=>ctx.state.filtered[0].serial,buildCurrentExportTitle:()=>ctx.state.filtered[0].serial,getExportMode:()=>({includeExplanation:true,includeAnswer:true}),setStatus(){},buildExportText:(title,list,mode,summary)=>({title,serials:Array.from(list,q=>q.serial),explanation:mode.includeExplanation,summary}),sanitizeFilename:x=>x,formatLocalTimestamp:()=>'',downloadText:(filename,text)=>saved={filename,text}});
  addFunctions(ctx,'print_export.html',['downloadCurrentTxt']);
  ctx.downloadCurrentTxt();
  assert.deepEqual(saved,{filename:'A01-002_.txt',text:{title:'A01-002',serials:['A01-002'],explanation:true,summary:'A01-002'}});
