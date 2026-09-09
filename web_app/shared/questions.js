@@ -56,6 +56,7 @@
       ai: "ai",
       llm: "ai",
       raw: "ai",
+      ai_fact_checked: "ai_fact_checked",
       checked: "teacher_approved",
       approved: "teacher_approved",
       teacher_checked: "teacher_approved",
@@ -72,6 +73,7 @@
     if (!text.startsWith("model:")) return null;
     let payload = text.slice("model:".length);
     const suffixes = [
+      [":ai_fact_checked", "ai_fact_checked"],
       [":teacher_approved", "teacher_approved"],
       [":teacher_edited", "teacher_edited"],
       [":checked", "teacher_approved"],
@@ -96,6 +98,7 @@
     const legacy = {
       llm: ["Gemini3Flash", "ai"],
       ai: ["Gemini3Flash", "ai"],
+      ai_fact_checked: ["Gemini3Flash", "ai_fact_checked"],
       llm_checked: ["Gemini3Flash", "teacher_approved"],
       teacher: ["Gemini3Flash", "teacher_edited"],
       human: ["Gemini3Flash", "teacher_edited"],
@@ -116,6 +119,7 @@
     }
     if (!model && src) {
       const suffixes = [
+        ["_ai_fact_checked", "ai_fact_checked"],
         ["_checked", "teacher_approved"],
         ["_approved", "teacher_approved"],
         ["_teacher", "teacher_edited"],
@@ -141,6 +145,7 @@
       const meta = getExplanationMetadata(fallback);
       if (meta.model_name === model && meta.review_status === status) return fallback;
     }
+    if (status === "ai_fact_checked") return `model:${model || "Gemini3Flash"}:ai_fact_checked`;
     if (model === "GPT5.5") {
       if (status === "teacher_approved") return "codex_case_text_rewrite_20260616_checked";
       if (status === "teacher_edited") return "codex_case_text_rewrite_20260616_teacher";
@@ -165,8 +170,8 @@
       // The incoming source describes this revision; old explicit fields belong
       // to the previous revision and must not override a newly named model.
       meta = getExplanationMetadata(source);
-      const generic = new Set(["llm", "ai", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"]);
-      if (generic.has(source) && ["teacher_approved", "teacher_edited"].includes(meta.review_status) && previous.model_name) meta.model_name = previous.model_name;
+      const generic = new Set(["llm", "ai", "ai_fact_checked", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"]);
+      if (generic.has(source) && ["ai_fact_checked", "teacher_approved", "teacher_edited"].includes(meta.review_status) && previous.model_name) meta.model_name = previous.model_name;
     } else {
       meta = { ...previous };
       if (hasBody && row.explanation !== base.explanation_latest) meta.review_status = "teacher_edited";

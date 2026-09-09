@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
 from scripts.explanation_metadata import (
+    STATUS_AI_FACT_CHECKED,
     STATUS_TEACHER_APPROVED,
     STATUS_TEACHER_EDITED,
     build_explanation_source,
@@ -2367,7 +2368,7 @@ class Handler(BaseHTTPRequestHandler):
 def _source_specifies_explanation_model(source):
     value = str(source or "").strip()
     return bool(value) and value not in {
-        "llm", "ai", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"
+        "llm", "ai", "ai_fact_checked", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"
     }
 
 
@@ -2397,7 +2398,7 @@ def import_explanations(db_path, jsonl_text, mode, version):
         if not row:
             continue
         question_id = row[0]
-        if (meta["review_status"] in {STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}
+        if (meta["review_status"] in {STATUS_AI_FACT_CHECKED, STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}
                 and not record.get("model_name")
                 and not _source_specifies_explanation_model(record.get("source"))):
             prior = cursor.execute(
@@ -2418,14 +2419,16 @@ def import_explanations(db_path, jsonl_text, mode, version):
                 continue
         latest = cursor.execute(
             """
-            SELECT body FROM explanations
+            SELECT body, source, model_name, review_status FROM explanations
             WHERE question_id = ?
-            ORDER BY id DESC LIMIT 1
+            ORDER BY version DESC, id DESC LIMIT 1
             """,
             (question_id,),
         ).fetchone()
         if latest and latest[0].strip() == explanation:
-            continue
+            previous_meta = derive_explanation_metadata(latest[1], latest[2], latest[3])
+            if previous_meta["model_name"] == meta["model_name"] and previous_meta["review_status"] == meta["review_status"]:
+                continue
         if mode == "replace":
             cursor.execute("DELETE FROM explanations WHERE question_id = ?", (question_id,))
         if version is None:
@@ -4558,7 +4561,7 @@ def apply_override_explanation(cursor, question_id, body, source):
         raise ValueError("解説の訂正は文字列で指定してください。")
     if source:
         meta = derive_explanation_metadata(source)
-        if (meta["review_status"] in {STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}
+        if (meta["review_status"] in {STATUS_AI_FACT_CHECKED, STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}
                 and latest_model and not _source_specifies_explanation_model(source)):
             meta["model_name"] = latest_model
     else:

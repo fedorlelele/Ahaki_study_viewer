@@ -115,6 +115,22 @@ class TemporaryDatabaseTests(unittest.TestCase):
                     self.assertEqual(conn.execute("SELECT source,model_name,review_status FROM explanations ORDER BY version DESC LIMIT 1").fetchone(),
                                      (expected_source, expected_model, "teacher_approved"))
 
+    def test_unchanged_local_import_records_ai_verification_once(self):
+        with sqlite3.connect(self.db) as conn:
+            body = conn.execute("SELECT body FROM explanations ORDER BY version DESC LIMIT 1").fetchone()[0]
+        record = json.dumps({"serial": "A01-001", "explanation": body, "source": "ai_fact_checked"})
+        with patch.object(admin, "clear_feedback_flag"), patch.object(admin, "clear_supabase_feedback"):
+            self.assertEqual(admin.import_explanations(self.db, record, "append", None), 1)
+            self.assertEqual(admin.import_explanations(self.db, record, "append", None), 0)
+        with sqlite3.connect(self.db) as conn:
+            self.assertEqual(conn.execute("SELECT body,model_name,review_status FROM explanations ORDER BY version DESC LIMIT 1").fetchone(), (body, "OriginalModel", "ai_fact_checked"))
+
+    def test_insert_review_uses_explicit_source_model(self):
+        from scripts.explanation_metadata import insert_explanation
+        with sqlite3.connect(self.db) as conn:
+            insert_explanation(conn.cursor(), 1, "new text", None, "model:NewModel:ai_fact_checked")
+            self.assertEqual(conn.execute("SELECT model_name,review_status FROM explanations ORDER BY version DESC LIMIT 1").fetchone(), ("NewModel", "ai_fact_checked"))
+
     def test_cloud_review_preserves_explicit_source_model(self):
         with sqlite3.connect(self.db) as conn:
             self.assertTrue(admin.apply_override_explanation(conn.cursor(), 1, "reviewed by new model", "model:NewModel:checked"))

@@ -7591,6 +7591,8 @@
               q.explanation_latest_review_status
             );
             expTitle.textContent = expText ? `解説${teacherLabel}:` : "解説: (未登録)";
+            const expAiCheck = buildExplanationAiReviewButton(q);
+            if (expAiCheck) expHeader.appendChild(expAiCheck);
             if (isExplanationApprovedSource(source, q.explanation_latest_review_status)) {
               const expRevoke = document.createElement("button");
               expRevoke.textContent = "承認取消";
@@ -10480,6 +10482,21 @@
         return applyOverrideChange(question.serial, "subtopics", before, after, { subtopics: next }, note);
       }
 
+      function buildExplanationAiReviewButton(question) {
+        if (!String(question.explanation_latest || "").trim()) return null;
+        const source = question.explanation_latest_source || "";
+        const meta = getExplanationMetadata(source, question.explanation_latest_model_name, question.explanation_latest_review_status);
+        const aiChecked = meta.review_status === "ai_fact_checked";
+        const button = document.createElement("button");
+        button.textContent = aiChecked ? "AI検証取消" : "AI検証済みにする";
+        button.title = aiChecked ? "AIによるファクトチェック済みの記録を取り消す" : "AIによるファクトチェックが完了した解説に付けるラベル";
+        button.addEventListener("click", () => {
+          const baseSource = getExplanationBaseSource(source, meta.model_name) || "llm";
+          return applyExplanationConfirm(question, buildExplanationStatusSource(baseSource, aiChecked ? "ai" : "ai_fact_checked"));
+        });
+        return button;
+      }
+
       function applyExplanationConfirm(question, nextSource) {
         const current = question.explanation_latest_source || "";
         const meta = getExplanationMetadata(
@@ -11256,6 +11273,9 @@
       function formatExplanationLabel(source, modelName = "", reviewStatus = "") {
         const meta = getExplanationMetadata(source, modelName, reviewStatus);
         if (!meta.model_name) return "";
+        if (meta.review_status === "ai_fact_checked") {
+          return `（${meta.model_name}・AI検証済み）`;
+        }
         if (meta.review_status === "teacher_approved") {
           return `（${meta.model_name}・教師承認済み）`;
         }

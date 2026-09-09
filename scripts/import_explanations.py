@@ -47,7 +47,7 @@ def parse_args():
     parser.add_argument(
         "--review-status",
         default=None,
-        choices=["ai", "teacher_approved", "teacher_edited"],
+        choices=["ai", "ai_fact_checked", "teacher_approved", "teacher_edited"],
         help="Default review status for imported explanations.",
     )
     return parser.parse_args()
@@ -93,9 +93,9 @@ def main():
                 continue
             question_id = row[0]
             source_names_model = bool(str(record.get("source") or "").strip()) and str(record.get("source")).strip() not in {
-                "llm", "ai", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"
+                "llm", "ai", "ai_fact_checked", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"
             }
-            if (meta["review_status"] in {"teacher_approved", "teacher_edited"}
+            if (meta["review_status"] in {"ai_fact_checked", "teacher_approved", "teacher_edited"}
                     and not (record.get("model_name") or args.model_name) and not source_names_model):
                 prior = cursor.execute(
                     "SELECT model_name FROM explanations WHERE question_id=? ORDER BY version DESC, id DESC LIMIT 1", (question_id,)

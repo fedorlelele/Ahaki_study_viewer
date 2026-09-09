@@ -2,6 +2,7 @@ import sqlite3
 
 
 STATUS_AI = "ai"
+STATUS_AI_FACT_CHECKED = "ai_fact_checked"
 STATUS_TEACHER_APPROVED = "teacher_approved"
 STATUS_TEACHER_EDITED = "teacher_edited"
 
@@ -11,6 +12,7 @@ CASE_TEXT_REWRITE_SOURCE = "codex_case_text_rewrite_20260616"
 
 VALID_REVIEW_STATUSES = {
     STATUS_AI,
+    STATUS_AI_FACT_CHECKED,
     STATUS_TEACHER_APPROVED,
     STATUS_TEACHER_EDITED,
 }
@@ -18,6 +20,7 @@ VALID_REVIEW_STATUSES = {
 LEGACY_SOURCE_METADATA = {
     "llm": (DEFAULT_MODEL_NAME, STATUS_AI),
     "ai": (DEFAULT_MODEL_NAME, STATUS_AI),
+    "ai_fact_checked": (DEFAULT_MODEL_NAME, STATUS_AI_FACT_CHECKED),
     "llm_checked": (DEFAULT_MODEL_NAME, STATUS_TEACHER_APPROVED),
     "teacher": (DEFAULT_MODEL_NAME, STATUS_TEACHER_EDITED),
     "human": (DEFAULT_MODEL_NAME, STATUS_TEACHER_EDITED),
@@ -37,11 +40,13 @@ LEGACY_SOURCE_METADATA = {
 KNOWN_MODEL_SOURCE = {
     DEFAULT_MODEL_NAME: {
         STATUS_AI: "llm",
+        STATUS_AI_FACT_CHECKED: f"model:{DEFAULT_MODEL_NAME}:ai_fact_checked",
         STATUS_TEACHER_APPROVED: "llm_checked",
         STATUS_TEACHER_EDITED: "teacher",
     },
     CASE_TEXT_REWRITE_MODEL_NAME: {
         STATUS_AI: CASE_TEXT_REWRITE_SOURCE,
+        STATUS_AI_FACT_CHECKED: f"model:{CASE_TEXT_REWRITE_MODEL_NAME}:ai_fact_checked",
         STATUS_TEACHER_APPROVED: f"{CASE_TEXT_REWRITE_SOURCE}_checked",
         STATUS_TEACHER_EDITED: f"{CASE_TEXT_REWRITE_SOURCE}_teacher",
     },
@@ -49,6 +54,7 @@ KNOWN_MODEL_SOURCE = {
 
 MODEL_SOURCE_PREFIX = "model:"
 MODEL_STATUS_SUFFIXES = {
+    ":ai_fact_checked": STATUS_AI_FACT_CHECKED,
     ":checked": STATUS_TEACHER_APPROVED,
     ":approved": STATUS_TEACHER_APPROVED,
     ":teacher_approved": STATUS_TEACHER_APPROVED,
@@ -63,6 +69,7 @@ def normalize_review_status(value):
     if not status:
         return ""
     aliases = {
+        "ai_fact_checked": STATUS_AI_FACT_CHECKED,
         "checked": STATUS_TEACHER_APPROVED,
         "approved": STATUS_TEACHER_APPROVED,
         "teacher_checked": STATUS_TEACHER_APPROVED,
@@ -112,6 +119,7 @@ def derive_explanation_metadata(source=None, model_name=None, review_status=None
 
     if not normalized_model and source_text:
         for suffix, status in (
+            ("_ai_fact_checked", STATUS_AI_FACT_CHECKED),
             ("_checked", STATUS_TEACHER_APPROVED),
             ("_approved", STATUS_TEACHER_APPROVED),
             ("_teacher", STATUS_TEACHER_EDITED),
@@ -151,7 +159,9 @@ def build_explanation_source(model_name, review_status=STATUS_AI, fallback_sourc
         return fallback or KNOWN_MODEL_SOURCE[DEFAULT_MODEL_NAME][status]
 
     suffix = ""
-    if status == STATUS_TEACHER_APPROVED:
+    if status == STATUS_AI_FACT_CHECKED:
+        suffix = ":ai_fact_checked"
+    elif status == STATUS_TEACHER_APPROVED:
         suffix = ":checked"
     elif status == STATUS_TEACHER_EDITED:
         suffix = ":teacher"
@@ -234,7 +244,11 @@ def insert_explanation(
     if isinstance(version, bool) or not isinstance(version, int) or version <= latest_version:
         raise ValueError(f"question_id={question_id}: version must exceed {latest_version}")
     status = normalize_review_status(review_status) or derive_explanation_metadata(source)["review_status"]
-    if latest and not model_name and status in {STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}:
+    source_text = str(source or "").strip()
+    source_names_model = bool(source_text) and source_text not in {
+        "llm", "ai", "ai_fact_checked", "llm_checked", "teacher", "human", "llm_teacher", "ai_teacher"
+    }
+    if latest and not model_name and not source_names_model and status in {STATUS_AI_FACT_CHECKED, STATUS_TEACHER_APPROVED, STATUS_TEACHER_EDITED}:
         model_name = latest[1]
     meta = derive_explanation_metadata(source, model_name, review_status)
     final_source = source or build_explanation_source(

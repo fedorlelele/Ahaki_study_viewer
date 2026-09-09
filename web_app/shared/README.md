@@ -7,7 +7,8 @@
 - `question_overrides` は `serial` 順に500件ずつ取得し、検索索引を作る前に適用します。`synced_at` はローカル同期の状態であり、公開済みである証拠として使いません。
 - 公開問題の `override_updated_at` は、SQLiteへ取り込んだクラウド行の `updated_at` です。クラウド行がこの時刻以下なら適用済みとして無視します。時刻が欠ける場合はクラウド差分を優先します。
 - タグ研究室は軽量な `index/question_override_versions.json`（`{serial: override_updated_at}`）で同じ判定を行います。
-- 解説の訂正は本文・source・モデル名・確認状態を一緒に更新します。新sourceが `model:NewModel:checked` のようにモデルを明示した場合はそのモデルを採用し、`teacher`・`llm_checked` 等の一般的な承認／編集マーカーだけ元モデルを引き継ぎます。本文だけが変わった場合は元モデルを保ち、`teacher_edited` として扱います。sourceの解析・生成も通常ビューと共通です。
+- 解説の訂正は本文・source・モデル名・確認状態を一緒に更新します。新sourceが `model:NewModel:checked` のようにモデルを明示した場合はそのモデルを採用し、`teacher`・`llm_checked`・`ai_fact_checked` 等の一般的な確認／編集マーカーだけ元モデルを引き継ぎます。本文だけが変わった場合は元モデルを保ち、`teacher_edited` として扱います。sourceの解析・生成も通常ビューと共通です。
+- `ai_fact_checked` は「AI検証済み」（AIによるファクトチェック済み）を表し、sourceは `model:<生成モデル名>:ai_fact_checked` で保持します。「教師承認済み」「教師編集済み」とは独立した状態です。教師・管理者は編集モードでAI検証済みの記録・取消を行えます。既存の教師ラベルをAIラベルへ読み替える処理は含めず、移行対象データだけを別途更新します。
 - NULL・未指定は変更なし、空文字・空配列は明示的な削除です。正答の更新は `answer_indices` / `answer_index` が非NULL、または `answer_none === true` の場合です。`answer_none: false` だけの既存行は、正答を変更しません。
 - 正答を訂正した場合、古い `answer_variants`・`answer_notes` を破棄します。媒体別の訂正を保存する契約が追加されるまでは、訂正後の正答を使います。
 - 訂正取得は8秒で打ち切り、部分取得は採用せず、公開済みデータで学習を継続します。画面とコピー・出力ヘッダに取得失敗を残します。

@@ -136,6 +136,38 @@ test('an already incorporated cloud revision preserves the published explanation
   assert.equal(Q.applyQuestionOverride(q,row),q);
 });
 
+test('AI fact-check status round-trips without changing teacher status meanings or known model names', () => {
+  assert.equal(Q.normalizeExplanationStatus('ai_fact_checked'),'ai_fact_checked');
+  for(const model of ['Gemini3Flash','GPT5.5','NewModel']) {
+    const source=Q.buildExplanationSource(model,'ai_fact_checked');
+    assert.equal(source,`model:${model}:ai_fact_checked`);
+    assert.deepEqual(Q.getExplanationMetadata(source),{source,model_name:model,review_status:'ai_fact_checked'});
+    for(const status of ['ai','teacher_approved','teacher_edited']) {
+      const next=Q.getExplanationMetadata(Q.buildExplanationSource(model,status,source));
+      assert.equal(next.model_name,model);
+      assert.equal(next.review_status,status);
+    }
+  }
+  assert.equal(Q.getExplanationMetadata('llm_checked').review_status,'teacher_approved');
+  assert.equal(Q.getExplanationMetadata('teacher').review_status,'teacher_edited');
+  assert.equal(Q.getExplanationMetadata('NewModel_ai_fact_checked').model_name,'NewModel');
+});
+
+test('source-only AI fact checks inherit the old model only when the incoming source is generic', () => {
+  const q={...base(),explanation_latest:'確認済み解説',explanation_latest_source:'model:OldModel:teacher',explanation_latest_model_name:'OldModel',explanation_latest_review_status:'teacher_edited'};
+  for(const [source,model] of [['ai_fact_checked','OldModel'],['model:NewModel:ai_fact_checked','NewModel']]) {
+    const result=Q.applyQuestionOverride(q,{serial:q.serial,explanation_source:source});
+    assert.equal(result.explanation_latest,q.explanation_latest);
+    assert.equal(result.explanation_latest_model_name,model);
+    assert.equal(result.explanation_latest_review_status,'ai_fact_checked');
+    assert.equal(result.explanation_latest_source,`model:${model}:ai_fact_checked`);
+    const edited=Q.applyQuestionOverride(result,{explanation:'教師が追記した解説'});
+    assert.equal(edited.explanation_latest_review_status,'teacher_edited');
+    assert.equal(edited.explanation_latest_model_name,model);
+    assert.equal(Q.applyQuestionOverride(result,{explanation:q.explanation_latest}).explanation_latest_review_status,'ai_fact_checked');
+  }
+});
+
 test('saved braille preference is ignored and normal multiple answers and notes survive', () => {
   const previous=global.localStorage;
   global.localStorage={getItem:()=> 'braille'};

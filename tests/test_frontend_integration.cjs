@@ -161,3 +161,37 @@ test('a manual source-only approval follows the same metadata merge as initial c
  assert.equal(ctx.state.questions[0].explanation_latest_review_status,'teacher_approved');
  assert.equal(ctx.state.questionBySerial[q.serial],ctx.state.questions[0]);
 });
+
+test('normal explanation labels distinguish AI fact checks from unchanged teacher labels', () => {
+ const ctx=vm.createContext({AhakiQuestions:Q});
+ addFunctions(ctx,'index.html',['getExplanationMetadata','formatExplanationLabel']);
+ for(const [source,label] of [['model:GPT5.5:ai_fact_checked','GPT5.5・AI検証済み'],['llm_checked','Gemini3Flash・教師承認済み'],['teacher','Gemini3Flash・教師編集済み'],['model:NewModel','NewModel']]) {
+   assert.equal(ctx.formatExplanationLabel(source),`（${label}）`);
+ }
+});
+
+test('AI review controls record and revoke verification while future teacher approval and editing remain available', async () => {
+ const {document}=dom();
+ const q={serial:'A01-001',explanation_latest:'元解説',explanation_latest_source:'model:GPT5.5',explanation_latest_model_name:'GPT5.5',explanation_latest_review_status:'ai'};
+ const patches=[];
+ const ctx=vm.createContext({document,AhakiQuestions:Q,applyOverrideChange:async(serial,kind,before,after,patch)=>{patches.push(patch);return true;}});
+ addFunctions(ctx,'index.html',['getExplanationMetadata','buildExplanationSource','getExplanationBaseSource','buildExplanationStatusSource','buildExplanationAiReviewButton','applyExplanationConfirm','applyExplanationEdit']);
+ assert.equal(ctx.buildExplanationAiReviewButton({...q,explanation_latest:' '}),null);
+ let button=ctx.buildExplanationAiReviewButton(q);
+ assert.equal(button.textContent,'AI検証済みにする');
+ await button.listeners.click();
+ assert.equal(patches[0].explanation_source,'model:GPT5.5:ai_fact_checked');
+ const checked=Q.applyQuestionOverride(q,patches[0]);
+ assert.equal(checked.explanation_latest_review_status,'ai_fact_checked');
+ assert.equal(checked.explanation_latest,q.explanation_latest);
+ button=ctx.buildExplanationAiReviewButton(checked);
+ assert.equal(button.textContent,'AI検証取消');
+ await button.listeners.click();
+ assert.equal(Q.getExplanationMetadata(patches[1].explanation_source).review_status,'ai');
+ await ctx.applyExplanationConfirm(checked);
+ assert.equal(Q.getExplanationMetadata(patches[2].explanation_source).review_status,'teacher_approved');
+ await ctx.applyExplanationEdit(checked,'教師が編集した解説','');
+ assert.equal(Q.getExplanationMetadata(patches[3].explanation_source).review_status,'teacher_edited');
+ assert.equal(patches[3].explanation,'教師が編集した解説');
+ assert.equal(Q.getExplanationMetadata(patches[3].explanation_source).model_name,'GPT5.5');
+});
