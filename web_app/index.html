@@ -2204,6 +2204,7 @@
       </div>
     </div>
     <p id="questionVersionInfo" class="note"></p>
+    <p class="note">回答後もページの並びは変わりません。最新の回答・進捗で絞り込むには、もう一度「検索」を押してください。</p>
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
     </main>
@@ -2315,6 +2316,7 @@
         ,randomOrderSeed: ""
         ,currentResultPage: 1
         ,pendingResultPage: null
+        ,resultSearch: null
 	        ,lastResultViewKey: ""
 	        ,resultTotalPages: 1
 	        ,resultRenderId: 0
@@ -3393,6 +3395,7 @@
         const { input } = getSearchHistoryElements();
         if (input) addSearchHistoryTerm(input.value);
         closeSearchHistoryPanel();
+        resetResultViewState();
         renderResults(filterQuestions());
         syncSearchQueryToUrl();
       }
@@ -6004,6 +6007,7 @@
       }
 
       function jumpToResultPage(rawPage) {
+        if (!state.dataReady || !(state.resultQuestions || []).length) return false;
         const total = Math.max(1, Number(state.resultTotalPages || 1));
         const parsed = Number(rawPage);
         if (!Number.isFinite(parsed)) return false;
@@ -6011,8 +6015,9 @@
         if (next === state.currentResultPage) return false;
         state.currentResultPage = next;
         state.pendingResultPage = next;
+        state.focusSerialOnRender = null;
         state.focusFirstResultOnRender = true;
-        renderResults(filterQuestions());
+        renderResults(state.resultQuestions.slice(), { preserveSearch: true });
         return true;
       }
 
@@ -6266,29 +6271,12 @@
         }
       }
 
-      function syncSearchQueryToUrl() {
+      function syncSearchQueryToUrl(settings) {
         try {
-          const keywordInput = document.getElementById("keyword");
-          if (!keywordInput) return;
-          const subjectSelect = document.getElementById("subjectSelect");
-          const subtopicSelect = document.getElementById("subtopicSelect");
-          const examTypeSelect = document.getElementById("examTypeSelect");
-          const sessionFromEl = document.getElementById("sessionFrom");
-          const sessionToEl = document.getElementById("sessionTo");
-          const progressSelect = document.getElementById("progressStateFilter");
-          const answeredSelect = document.getElementById("answeredFilter");
-          const sortSelect = document.getElementById("sortSession");
-
-          const keyword = String(keywordInput.value || "").trim();
-          const subject = String((subjectSelect && subjectSelect.value) || "").trim();
-          const subtopic = String((subtopicSelect && subtopicSelect.value) || "").trim();
-          const examType = String((examTypeSelect && examTypeSelect.value) || "").trim();
-          const sessionFrom = normalizeSessionParamValue(sessionFromEl ? sessionFromEl.value : "");
-          const sessionTo = normalizeSessionParamValue(sessionToEl ? sessionToEl.value : "");
-          const progress = String((progressSelect && progressSelect.value) || "").trim();
-          const answered = String((answeredSelect && answeredSelect.value) || "").trim();
-          const sort = String((sortSelect && sortSelect.value) || "").trim();
-          const randomSeed = ensureRandomOrderSeed(sort || "random", true);
+          const search = settings || getCurrentSearchSettings();
+          const { keyword, subject, subtopic, examType, progress, answered, sort, randomSeed } = search;
+          const sessionFrom = normalizeSessionParamValue(search.sessionFrom);
+          const sessionTo = normalizeSessionParamValue(search.sessionTo);
           const page = normalizePositiveIntParamValue(state.currentResultPage || 1);
 
           const url = new URL(window.location.href);
@@ -6646,6 +6634,9 @@
         state.currentResultPage = 1;
         state.pendingResultPage = null;
         state.lastResultViewKey = "";
+        state.resultSearch = null;
+        state.focusSerialOnRender = null;
+        state.focusFirstResultOnRender = false;
       }
 
       function clearActiveFilter(key, label) {
@@ -6696,7 +6687,7 @@
         count.className = "result-count";
         count.textContent = options.loading ? "読み込み中" : `${Number(resultCount || 0)}件`;
         container.appendChild(count);
-        const filters = getActiveFilterDescriptors();
+        const filters = options.filters || getActiveFilterDescriptors();
         if (!filters.length) {
           const empty = document.createElement("span");
           empty.className = "filter-empty";
@@ -6768,9 +6759,9 @@
         if (state.focusSerialOnRender) {
           const serial = state.focusSerialOnRender;
           state.focusSerialOnRender = null;
-          state.focusFirstResultOnRender = false;
           const target = container.querySelector(`.card[aria-label="問題 ${serial}"]`);
           if (target) {
+            state.focusFirstResultOnRender = false;
             target.focus({ preventScroll: true });
             return;
           }
@@ -6782,7 +6773,10 @@
         }
       }
 
-      function renderResults(list) {
+      function renderResults(list, options = {}) {
+        // Keep both the order and its search metadata stable during navigation.
+        const preservedSearch = options.preserveSearch ? state.resultSearch : null;
+        state.resultSearch = null;
         state.resultQuestions = [];
         updateResultStudyActions();
         const renderId = (state.resultRenderId || 0) + 1;
@@ -6810,15 +6804,18 @@
         const canTeacherEdit = isTeacher && state.editMode;
         const showAnswer = document.getElementById("toggleAnswer").checked;
         const showExplanation = document.getElementById("toggleExplanation").checked;
+        const search = preservedSearch || {
+          settings: getCurrentSearchSettings(),
+          queryKey: buildResultViewKey(),
+          filters: getActiveFilterDescriptors(),
+          title: buildFilterHeader(),
+          keywordTagTerms: getKeywordTagTerms()
+        };
 	        const countText = `件数: ${list.length}`;
 	        document.getElementById("countInfo").textContent = countText;
-	        renderActiveFilters(list.length);
+	        renderActiveFilters(list.length, { filters: search.filters });
 	        const analyticsResultKey = [
-	          String(document.getElementById("keyword").value || "").trim(),
-	          document.getElementById("subjectSelect").value || "",
-	          document.getElementById("subtopicSelect").value || "",
-	          document.getElementById("examTypeSelect").value || "",
-	          document.getElementById("sortSession").value || "",
+	          search.queryKey,
 	          String(state.currentResultPage || 1),
 	          String(list.length)
 	        ].join("|");
@@ -6829,14 +6826,14 @@
 	            props: {
 	              result_count: list.length,
 	              page: state.currentResultPage || 1,
-	              sort: document.getElementById("sortSession").value || ""
+	              sort: search.settings.sort
 	            }
 	          });
 	        }
-	        renderTagDisambiguationHints();
+	        if (!preservedSearch) renderTagDisambiguationHints();
 	        announceStatusNow([list.length ? `${list.length}件の検索結果` : "該当する問題がありません", state.overrideLoadWarning].filter(Boolean).join("。"));
-        const sortSession = document.getElementById("sortSession").value;
-        const activeKeywordTagTerms = getKeywordTagTerms();
+        const sortSession = search.settings.sort;
+        const activeKeywordTagTerms = search.keywordTagTerms;
         const isStatSort = [
           "count_desc",
           "count_asc",
@@ -6845,7 +6842,7 @@
           "rate_desc",
           "rate_asc"
         ].includes(sortSession);
-        const pendingStatSerials = isStatSort
+        const pendingStatSerials = isStatSort && !preservedSearch
           ? list
               .map((item) => item && item.serial ? item.serial : "")
               .filter((serial) => serial && !state.answerStatsLoaded.has(serial) && !state.answerStatsFailed.has(serial))
@@ -6866,8 +6863,9 @@
         }
 
         state.resultQuestions = list.slice();
-        state.resultTitle = buildFilterHeader();
-        state.resultTransferTitle = getActiveFilterDescriptors().map(item => `${item.label}: ${item.value}`).join(" / ") || "すべての問題";
+        state.resultSearch = search;
+        state.resultTitle = search.title;
+        state.resultTransferTitle = search.filters.map(item => `${item.label}: ${item.value}`).join(" / ") || "すべての問題";
         updateResultStudyActions();
 
         function appendCard(q, target) {
@@ -9438,9 +9436,10 @@
             const scrollY = window.scrollY;
             clearSessionAnswer(q.serial);
             state.focusSerialOnRender = q.serial;
-            renderResults(filterQuestions());
+            renderResults(state.resultQuestions.slice(), { preserveSearch: true });
+            const retryRenderId = state.resultRenderId;
             requestAnimationFrame(() => {
-              window.scrollTo(0, scrollY);
+              if (state.resultRenderId === retryRenderId) window.scrollTo(0, scrollY);
             });
           });
 	          if (answered) {
@@ -9456,7 +9455,7 @@
 	          target.appendChild(card);
 	        }
 
-        const queryKey = buildResultViewKey(sortSession);
+        const queryKey = search.queryKey;
         const pendingPage = state.pendingResultPage;
         if (state.lastResultViewKey !== queryKey) {
           state.lastResultViewKey = queryKey;
@@ -9531,9 +9530,7 @@
         more.addEventListener("click", () => {
           if (!isCurrentRender()) return;
           if (more.disabled || state.currentResultPage >= totalPages) return;
-          state.currentResultPage += 1;
-          state.focusFirstResultOnRender = true;
-          renderResults(filterQuestions());
+          jumpToResultPage(state.currentResultPage + 1);
         });
 
         (async () => {
@@ -9541,7 +9538,7 @@
             const rendered = await renderPage();
             if (!rendered || !isCurrentRender()) return;
             refreshMoreButton();
-            syncSearchQueryToUrl();
+            syncSearchQueryToUrl(search.settings);
           } catch (error) {
             if (!isCurrentRender()) return;
             console.warn("追加情報を取得できませんでした。", error);
@@ -9551,6 +9548,7 @@
             applyPendingResultFocus(container);
             more.disabled = false;
             refreshMoreButton();
+            syncSearchQueryToUrl(search.settings);
             announceStatus("追加情報の取得に失敗しました。問題の学習は続けられます。");
           }
         })();
@@ -10920,7 +10918,7 @@
             retry.textContent = "集計を再試行";
             retry.addEventListener("click", () => {
               state.answerStatsFailed.clear();
-              renderResults(filterQuestions());
+              renderResults(state.resultQuestions.slice(), { preserveSearch: true });
             });
             element.appendChild(retry);
           } else {

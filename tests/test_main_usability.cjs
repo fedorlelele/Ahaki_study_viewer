@@ -20,3 +20,68 @@ test('saved conditions work without a user account and clear old fields before r
 test('copy mode is independent of the answer/explanation display toggles',()=>{
  const ctx=vm.createContext({AhakiStudy:{getCopyMode:()=>({showAnswer:false,showExplanation:false})},document:{getElementById(){throw Error('display checkbox must not be consulted');}}});add(ctx,['getCopyMode']);assert.deepEqual(ctx.getCopyMode(),{showAnswer:false,showExplanation:false});
 });
+
+test('pagination uses the displayed order after answers change live filtering',()=>{
+ const original=Array.from({length:60},(_,i)=>({serial:`A01-${String(i+1).padStart(3,'0')}`}));
+ let rendered;
+ const ctx=vm.createContext({state:{dataReady:true,resultQuestions:original,currentResultPage:1,resultTotalPages:3,focusSerialOnRender:'A01-001'},
+  filterQuestions(){throw Error('navigation must not recalculate answered/progress filters');},
+  renderResults(list,options){rendered={list,options};ctx.state.resultQuestions=[];}});
+ add(ctx,['jumpToResultPage']);
+ assert.equal(ctx.jumpToResultPage(2),true);
+ assert.deepEqual(Array.from(rendered.list.slice(20,40)),original.slice(20,40));
+ assert.notEqual(rendered.list,original);
+ assert.equal(rendered.options.preserveSearch,true);
+ assert.equal(ctx.state.focusSerialOnRender,null);
+ assert.equal(ctx.state.focusFirstResultOnRender,true);
+ assert.equal(ctx.state.pendingResultPage,2);
+});
+
+test('pagination clamps to last page and rejects empty, loading and unchanged results',()=>{
+ let renders=0;
+ const ctx=vm.createContext({state:{dataReady:true,resultQuestions:[{serial:'A01-001'}],currentResultPage:1,resultTotalPages:3},renderResults(){renders++;}});
+ add(ctx,['jumpToResultPage']);
+ assert.equal(ctx.jumpToResultPage('invalid'),false);
+ assert.equal(ctx.jumpToResultPage(1),false);
+ assert.equal(ctx.jumpToResultPage(99),true);
+ assert.equal(ctx.state.currentResultPage,3);
+ ctx.state.dataReady=false;
+ assert.equal(ctx.jumpToResultPage(2),false);
+ ctx.state.dataReady=true;ctx.state.resultQuestions=[];
+ assert.equal(ctx.jumpToResultPage(2),false);
+ assert.equal(renders,1);
+});
+
+test('missing retry target falls back to first-result focus',()=>{
+ let focused=0;
+ const ctx=vm.createContext({state:{focusSerialOnRender:'previous-page',focusFirstResultOnRender:true}});
+ add(ctx,['applyPendingResultFocus']);
+ ctx.applyPendingResultFocus({querySelector:selector=>selector==='.card'?{focus(){focused++;}}:null});
+ assert.equal(focused,1);
+ assert.equal(ctx.state.focusFirstResultOnRender,false);
+ assert.equal(ctx.state.focusSerialOnRender,null);
+});
+
+test('explicit search resets to page one and refreshes the result set',()=>{
+ let rendered,filters=0;
+ const ctx=vm.createContext({state:{currentResultPage:3,pendingResultPage:3,lastResultViewKey:'old',resultSearch:{},focusSerialOnRender:'old',focusFirstResultOnRender:true},
+  getSearchHistoryElements:()=>({input:{value:'new'}}),addSearchHistoryTerm(){},closeSearchHistoryPanel(){},
+  filterQuestions(){filters++;return [{serial:'new'}];},renderResults:list=>rendered=list,syncSearchQueryToUrl(){}});
+ add(ctx,['resetResultViewState','runKeywordSearch']);ctx.runKeywordSearch();
+ assert.equal(filters,1);assert.equal(rendered[0].serial,'new');
+ assert.equal(ctx.state.currentResultPage,1);assert.equal(ctx.state.pendingResultPage,null);
+ assert.equal(ctx.state.resultSearch,null);assert.equal(ctx.state.focusSerialOnRender,null);
+});
+
+test('page URL uses applied search metadata even while inputs have unsubmitted edits',()=>{
+ let saved;
+ const ctx=vm.createContext({state:{currentResultPage:2},URL,
+  window:{location:{href:'https://example.test/web_app/index.html?q=old&sort=asc'}},history:{replaceState:(_a,_b,url)=>saved=url},
+  getCurrentSearchSettings(){throw Error('must not read draft input');},isRoleAtLeast:()=>false,
+  normalizeSessionParamValue:x=>x||'',normalizePositiveIntParamValue:x=>String(x),setPersistedRandomSeed(){}});
+ add(ctx,['syncSearchQueryToUrl']);
+ ctx.syncSearchQueryToUrl({keyword:'original',subject:'',subtopic:'',examType:'',progress:'',answered:'hide_answered',sort:'asc',randomSeed:'',sessionFrom:'',sessionTo:''});
+ const u=new URL(saved,'https://example.test');
+ assert.equal(u.searchParams.get('q'),'original');assert.equal(u.searchParams.get('answered'),'hide_answered');
+ assert.equal(u.searchParams.get('page'),'2');assert.equal(u.searchParams.get('sort'),'asc');
+});
