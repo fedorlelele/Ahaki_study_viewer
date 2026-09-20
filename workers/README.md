@@ -65,6 +65,16 @@
 - `GET /admin/practice_questions?days=30&serial=...`（teacher/admin向け評価一覧）
 - `POST /admin/practice_questions/publish`（teacher/adminが個別/一括で公開・非公開）
 
+### 問題のAI質問のモデル（2026-09-20）
+
+`POST /ai/question_qa` は、Google の [モデル一覧](https://ai.google.dev/gemini-api/docs/models)と[料金表](https://ai.google.dev/gemini-api/docs/pricing)で標準テキスト生成の無料枠を確認した `gemini-3.8-flash` を優先し、Google API の `429` / `RESOURCE_EXHAUSTED` 時に `gemini-3.7-flash` を1回試します。認証エラー・入力エラー・サーバーエラーは自動再試行しません。各試行の前に既存のサイト利用枠を別の ID で予約し、サイト側の上限や予約障害では即時停止します。
+
+このエンドポイントは管理者を含め `GEMINI_API_KEY_FREE`（未設定時のみ互換用 `GEMINI_API_KEY`）だけを使います。無料プロジェクトのキーを設定してください。有料キー・有料公開設定へは切り替えず、旧クライアントの `body.model` や汎用 `GEMINI_MODEL*` 環境変数にも依存しません。他の AI エンドポイントのモデル設定は従来どおりです。
+
+成功応答は `model`（実使用 ID）、`preferred_model`、`fallback_used`、保存済みの `item` を含みます。履歴の各 `items` にも `model` を返します。`item` は公開履歴と同じ `id, serial, question, answer, model, view_count, like_count, created_at` のみを含み、作成者 ID は公開しません。履歴への保存失敗は成功として返しません。
+
+先に `workers/sql/migration_20260920_question_qa_model.sql` を Supabase に適用し、その後 Worker、Pages の順に更新してください。移行は `question_qa.model` の追加と、サイト管理者が Gemini 3 Flash と確認した既存 Q&A の空モデル欄への `gemini-3-flash-preview` 補完のみを行います。問題の通常解説やそのモデル・AI検証ラベルは変更しません。移行は再実行可能で、記録済みのモデルは保持します。
+
 主な分析API:
 
 - `POST /analytics/collect`（匿名/ログイン問わずイベント送信）

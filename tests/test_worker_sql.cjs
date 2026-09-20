@@ -13,6 +13,30 @@ const migration = sql('migration_20260906_worker_safety.sql');
 const uid = '00000000-0000-0000-0000-000000000001';
 const secondUid = '00000000-0000-0000-0000-000000000002';
 
+test('PostgreSQL: Q&A model migration preserves content and existing model provenance on repeat', async () => {
+  const { PGlite } = require(modulePath);
+  const db = new PGlite();
+  try {
+    await db.exec(`create table public.question_qa (id text primary key, answer text, created_at timestamptz);
+      insert into public.question_qa values ('legacy', '以前の回答', '2026-09-01T00:00:00Z');`);
+    const migration = sql('migration_20260920_question_qa_model.sql');
+    await db.exec(migration);
+    assert.equal((await db.query("select model from public.question_qa where id='legacy'")).rows[0].model, 'gemini-3-flash-preview');
+    await db.exec(`insert into public.question_qa (id,answer,model) values
+      ('current','新しい回答','gemini-3.8-flash'), ('blank','別の旧回答',' ');
+      insert into public.question_qa (id,answer) values ('old-worker','旧Workerの回答');`);
+    await db.exec(migration);
+    const rows = (await db.query('select id,answer,model from public.question_qa order by id')).rows;
+    assert.deepEqual(rows, [
+      { id: 'blank', answer: '別の旧回答', model: 'gemini-3-flash-preview' },
+      { id: 'current', answer: '新しい回答', model: 'gemini-3.8-flash' },
+      { id: 'legacy', answer: '以前の回答', model: 'gemini-3-flash-preview' },
+      { id: 'old-worker', answer: '旧Workerの回答', model: 'gemini-3-flash-preview' }
+    ]);
+    assert.equal((await db.query("select created_at::text as stamp from public.question_qa where id='legacy'")).rows[0].stamp, '2026-09-01 00:00:00+00');
+  } finally { await db.close(); }
+});
+
 test('PostgreSQL: migration, authorization, progress transactions, and usage budgets', async t => {
   const { PGlite } = require(modulePath);
   const db = new PGlite();

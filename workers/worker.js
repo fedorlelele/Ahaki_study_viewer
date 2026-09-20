@@ -1,4 +1,8 @@
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
+// Standard text generation is free for these models (Google pricing, 2026-09-20).
+// Keep this server-side allowlist independent of legacy client/model settings.
+const QUESTION_QA_FREE_MODELS = Object.freeze(["gemini-3.8-flash", "gemini-3.7-flash"]);
+const QUESTION_QA_LEGACY_MODEL = "gemini-3-flash-preview";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
@@ -2007,30 +2011,14 @@ async function handleQuestionQa(request, env) {
   const prompt = buildQuestionQaPrompt(body);
   const promptVersion = sanitizeAnalyticsText(body.prompt_version || "v1", 40) || "v1";
   const inputChars = prompt.length;
-  const gemini = await resolveGeminiRoute(env, role);
+  const gemini = {
+    mode: "free",
+    apiKey: env.GEMINI_API_KEY_FREE || env.GEMINI_API_KEY
+  };
   if (!gemini.apiKey) {
     return jsonResponse({ message: "Gemini API key is not configured.", request_id: requestId }, 500);
   }
-  const requestedModel = body.model || gemini.defaultModel || "gemini-3-flash-preview";
-  const fallbackModel = "gemini-3-flash-preview";
-  const limit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, requestId);
-  if (!limit.ok) {
-    await safeLogAiUsage(env, {
-      mode: gemini.mode,
-      endpoint: "question_qa",
-      outcome: "rate_limited",
-      serial,
-      user_id: user && user.id ? user.id : null,
-      model: requestedModel,
-      request_id: requestId,
-      latency_ms: Date.now() - startedAt,
-      input_chars: inputChars,
-      output_chars: 0,
-      error_code: "worker_rate_limited",
-      prompt_version: promptVersion
-    });
-    return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
-  }
+  const requestedModel = QUESTION_QA_FREE_MODELS[0];
   const payload = {
     contents: [
       {
@@ -2039,28 +2027,45 @@ async function handleQuestionQa(request, env) {
       }
     ]
   };
-  let geminiCallCount = 0;
-  const callGemini = async (model) => {
-    if (geminiCallCount++ > 0) {
-      const fallbackLimit = await checkRateLimit(env, getRateLimitActor(request, user), gemini, `${requestId}:fallback`);
-      if (!fallbackLimit.ok) {
-        return new Response(JSON.stringify({ error: { message: fallbackLimit.message } }), { status: fallbackLimit.status || 429 });
-      }
+  let usedModel = requestedModel;
+  let resp;
+  for (let attempt = 0; attempt < QUESTION_QA_FREE_MODELS.length; attempt += 1) {
+    usedModel = QUESTION_QA_FREE_MODELS[attempt];
+    const limit = await checkRateLimit(
+      env, getRateLimitActor(request, user), gemini,
+      attempt === 0 ? requestId : `${requestId}:fallback:${attempt}`
+    );
+    if (!limit.ok) {
+      await safeLogAiUsage(env, {
+        mode: gemini.mode,
+        endpoint: "question_qa",
+        outcome: "rate_limited",
+        serial,
+        user_id: user && user.id ? user.id : null,
+        model: usedModel,
+        request_id: requestId,
+        latency_ms: Date.now() - startedAt,
+        input_chars: inputChars,
+        output_chars: 0,
+        error_code: "worker_rate_limited",
+        prompt_version: promptVersion
+      });
+      return jsonResponse({ message: limit.message, request_id: requestId }, limit.status || 429);
     }
-    return fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
+    resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${usedModel}:generateContent?key=${gemini.apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       }
     );
-  };
-  let usedModel = requestedModel;
-  let resp = await callGemini(usedModel);
-  if (!resp.ok && resp.status === 404 && usedModel !== fallbackModel) {
-    usedModel = fallbackModel;
-    resp = await callGemini(usedModel);
+    if (resp.ok) break;
+    const error = parseGeminiError(await resp.clone().text());
+    const quotaExhausted = resp.status === 429 || error.status === "RESOURCE_EXHAUSTED";
+    // Only provider quota exhaustion can move to the next free model. Site
+    // budget failures above stop immediately; auth/input/server errors do not retry.
+    if (!quotaExhausted) break;
   }
   if (!resp.ok) {
     const errorText = await resp.text();
@@ -2124,12 +2129,13 @@ async function handleQuestionQa(request, env) {
   const outputChars = text.length;
   const parsed = parseQuestionQa(text);
   const status = parsed.status || "irrelevant";
-  await saveQuestionQa(env, {
+  const item = await saveQuestionQa(env, {
     serial,
     status,
     question: parsed.question || question,
     answer: parsed.answer || "",
-    created_by: user && user.id ? user.id : null
+    created_by: user && user.id ? user.id : null,
+    model: usedModel
   });
   await safeLogAiUsage(env, {
     mode: gemini.mode,
@@ -2151,6 +2157,10 @@ async function handleQuestionQa(request, env) {
     question: parsed.question || question,
     answer: parsed.answer || "",
     mode: gemini.mode,
+    model: usedModel,
+    preferred_model: requestedModel,
+    fallback_used: usedModel !== requestedModel,
+    item,
     request_id: requestId
   });
 }
@@ -3366,19 +3376,40 @@ async function saveQuestionQa(env, record) {
     status: record.status,
     question: record.question || "",
     answer: record.answer || "",
+    model: record.model,
     created_by: record.created_by || null,
     view_count: 0,
     like_count: 0
   };
-  await fetch(`${env.SUPABASE_URL}/rest/v1/question_qa`, {
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/question_qa`, {
     method: "POST",
     headers: {
       apikey: env.SUPABASE_SERVICE_KEY,
       Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
     },
     body: JSON.stringify(payload)
   });
+  if (!resp.ok) throw workerError(503, "回答を保存できませんでした。時間をおいて再試行してください。");
+  const rows = await resp.json().catch(() => []);
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row || !row.id) throw workerError(503, "回答の保存を確認できませんでした。");
+  // Expose only the same public fields as the history endpoint.
+  return normalizeQuestionQaRow(row);
+}
+
+function normalizeQuestionQaRow(row) {
+  return {
+    id: row.id,
+    serial: row.serial,
+    question: row.question,
+    answer: row.answer,
+    model: String(row.model || "").trim() || QUESTION_QA_LEGACY_MODEL,
+    view_count: row.view_count || 0,
+    like_count: row.like_count || 0,
+    created_at: row.created_at
+  };
 }
 
 function normalizeQuestionBeginnerQaItems(items) {
@@ -3476,7 +3507,7 @@ async function fetchQuestionBeginnerQaBatch(env, serials) {
 
 async function fetchQuestionQa(env, serial) {
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/question_qa?select=id,serial,question,answer,view_count,like_count,created_at&serial=eq.${encodeURIComponent(serial)}&status=eq.ok&order=like_count.desc&order=view_count.desc&order=created_at.desc`,
+    `${env.SUPABASE_URL}/rest/v1/question_qa?select=id,serial,question,answer,model,view_count,like_count,created_at&serial=eq.${encodeURIComponent(serial)}&status=eq.ok&order=like_count.desc&order=view_count.desc&order=created_at.desc`,
     {
       headers: {
         apikey: env.SUPABASE_ANON_KEY,
@@ -3490,7 +3521,7 @@ async function fetchQuestionQa(env, serial) {
     return jsonResponse({ message: "Supabase fetch failed", detail }, 500);
   }
   const rows = await resp.json();
-  return jsonResponse({ items: rows || [] });
+  return jsonResponse({ items: (Array.isArray(rows) ? rows : []).map(normalizeQuestionQaRow) });
 }
 
 async function fetchQuestionQaIndex(env) {

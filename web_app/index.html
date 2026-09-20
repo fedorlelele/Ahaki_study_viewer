@@ -596,9 +596,6 @@
         flex-wrap: wrap;
         gap: var(--space-3);
       }
-      .intro {
-        padding: var(--space-5) var(--space-5) var(--space-3);
-      }
       .section-title {
         margin: 0 0 var(--space-1);
         font-size: 18px;
@@ -916,6 +913,36 @@
         gap: var(--space-2);
         align-items: center;
         flex-wrap: wrap;
+      }
+      .qa-title {
+        margin: 0 0 var(--space-2);
+        font-size: 16px;
+      }
+      .qa-composer {
+        margin-bottom: var(--space-3);
+      }
+      .qa-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: var(--space-2) 0;
+      }
+      .qa-suggestions button {
+        min-height: 36px;
+      }
+      .qa-input {
+        width: 100%;
+        min-height: 88px;
+        resize: vertical;
+      }
+      .qa-model {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .action-btn.qa-main-btn {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+        color: var(--accent-soft-ink);
       }
       .deep-dive-panel {
         margin-top: var(--space-3);
@@ -1759,10 +1786,6 @@
         }
       }
       @media (max-width: 520px) {
-        .intro {
-          padding-left: var(--space-3);
-          padding-right: var(--space-3);
-        }
         .search-actions {
           flex-wrap: wrap;
         }
@@ -1774,6 +1797,7 @@
       .saved-search { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface); }
       .saved-search summary { cursor: pointer; }
       .saved-search-controls, .result-study-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+      .result-study-actions[hidden] { display: none; }
       .saved-search-controls input, .saved-search-controls select { min-width: 0; max-width: 100%; flex: 1 1 200px; min-height: 44px; font: inherit; padding: 8px 10px; border: 1px solid var(--border-control); border-radius: var(--radius-sm); color: var(--ink); background: var(--surface); }
       #savedSearchStatus:empty, #searchToolsStatus:empty { display: none; }
     </style>
@@ -2101,12 +2125,6 @@
     </header>
 
     <main id="main" tabindex="-1" aria-label="学習ビュー">
-    <div class="intro">
-      <h2 class="section-title">過去問の検索・学習</h2>
-      <div class="note">キーワードや科目で過去問を探し、その場で回答・復習できます。AIによる解説・Q&Aにも対応。</div>
-      <div class="note">AI解説には誤りが含まれることがあります。</div>
-      <div class="note" id="aiPublicNotice" hidden>AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。</div>
-    </div>
     <div class="controls" role="search" aria-label="検索と絞り込み">
       <div class="search-row">
         <div class="search-input-wrap">
@@ -2149,7 +2167,7 @@
       </details>
     </div>
 
-    <details id="savedSearchPanel" class="saved-search">
+    <details id="savedSearchPanel" class="saved-search" hidden>
       <summary>検索条件を保存・呼び出し</summary>
       <p class="note">ログイン不要。このブラウザに保存します。端末・ブラウザ間では共有されません。</p>
       <div class="saved-search-controls">
@@ -2166,13 +2184,14 @@
       </div>
       <p id="savedSearchStatus" class="note" role="status" aria-live="polite"></p>
     </details>
-    <div class="result-study-actions">
+    <div class="result-study-actions" hidden>
       <button id="studyResultBtn" type="button" disabled>この検索結果を1問ずつ解く</button>
       <button id="printResultBtn" type="button" disabled>この検索結果でプリント作成</button>
       <span class="note">全ページ分の問題と並び順を引き継ぎます。</span>
     </div>
-    <p id="searchToolsStatus" class="note" role="status" aria-live="polite"></p>
+    <p id="searchToolsStatus" class="note" role="status" aria-live="polite" hidden></p>
     <div class="toolbar main">
+      <span id="searchCopyTools" hidden>
       <label for="copyFormatSelect">コピー内容</label>
       <select id="copyFormatSelect">
         <option value="questions">問題のみ</option>
@@ -2180,6 +2199,7 @@
         <option value="explanations">解説付き</option>
       </select>
 	      <button id="copyAllBtn" class="btn-secondary" aria-label="検索結果をコピー">検索結果をコピー</button>
+      </span>
 	      <select id="sortSession" aria-label="並び替え">
 	        <option value="random" selected>ランダム</option>
 	        <option value="desc">新しい順</option>
@@ -2203,8 +2223,7 @@
         <button id="resultPageJumpBtn" class="btn-secondary" type="button">移動</button>
       </div>
     </div>
-    <p id="questionVersionInfo" class="note"></p>
-    <p class="note">回答後もページの並びは変わりません。最新の回答・進捗で絞り込むには、もう一度「検索」を押してください。</p>
+    <p id="questionDataNotice" class="note" role="status" hidden></p>
     <div class="results" id="results" role="region" aria-live="off" aria-label="検索結果"></div>
     <div class="toolbar" id="resultsMore"></div>
     </main>
@@ -2488,26 +2507,6 @@
         document.body.setAttribute("data-font-family", normalizeFontFamily(state.fontFamily));
       }
 
-      function updateAiPublicNotice() {
-        const el = document.getElementById("aiPublicNotice");
-        if (!el) return;
-        const freeOpen = Boolean(state.aiPublicGeneration);
-        const paidOpen = Boolean(state.aiPublicPaidActive);
-        const publicOpen = Boolean(freeOpen || paidOpen);
-        let text = "";
-        if (paidOpen) {
-          const remain = Number(state.aiPublicPaidRemaining || 0);
-          const limit = Number(state.aiPublicPaidLimit || 0);
-          text = `AI機能を解放中です。全ユーザー向けに従量課金キーを件数限定で公開しています（残り ${remain} / ${limit} 件）。上限に達すると自動で停止します。`;
-        } else if (freeOpen) {
-          text = "AI機能を解放中です。サイト全体で1日あたり20回程度まで生成できます。レート制限は毎日17:00にリセットされます。";
-        }
-        if (isRoleAtLeast("admin") && state.aiAdminPaidGeneration) {
-          text += (text ? " " : "") + "管理者ログイン時は従量課金キーを使用します。";
-        }
-        el.textContent = text;
-        el.hidden = !publicOpen;
-      }
 
 	      function applyTopMenuRoleVisibility() {
 		        const requiredRoleByTarget = {
@@ -3534,7 +3533,6 @@
           state.aiPublicPaidUsed = 0;
           state.aiPublicPaidRemaining = 0;
           state.ttsEnabled = false;
-          updateAiPublicNotice();
           applyTtsVisibility();
           return Promise.resolve();
         }
@@ -3562,7 +3560,6 @@
             state.aiPublicPaidUsed = Number((data && data.public_paid_used) || 0);
             state.aiPublicPaidRemaining = Number((data && data.public_paid_remaining) || 0);
             state.ttsEnabled = Boolean(data && data.tts_enabled);
-            updateAiPublicNotice();
             applyTtsVisibility();
           })
           .catch(() => {
@@ -3574,7 +3571,6 @@
             state.aiPublicPaidUsed = 0;
             state.aiPublicPaidRemaining = 0;
             state.ttsEnabled = false;
-            updateAiPublicNotice();
             applyTtsVisibility();
           });
       }
@@ -3664,7 +3660,6 @@
           publicPaidToggleEl.checked = state.aiPublicPaidGeneration;
           ttsToggleEl.checked = state.ttsEnabled;
           publicPaidLimitEl.value = state.aiPublicPaidLimit > 0 ? String(state.aiPublicPaidLimit) : "";
-          updateAiPublicNotice();
           statusEl.textContent = buildAiGenerationStatusText();
         } catch (_err) {
           statusEl.textContent = "状態の取得に失敗しました。";
@@ -3751,7 +3746,6 @@
             publicPaidToggleEl.checked = state.aiPublicPaidGeneration;
             ttsToggleEl.checked = state.ttsEnabled;
             publicPaidLimitEl.value = state.aiPublicPaidLimit > 0 ? String(state.aiPublicPaidLimit) : "";
-            updateAiPublicNotice();
             statusEl.textContent = buildAiGenerationStatusText();
             renderResults(filterQuestions());
           } catch (_err) {
@@ -3798,7 +3792,6 @@
             publicPaidToggleEl.checked = state.aiPublicPaidGeneration;
             ttsToggleEl.checked = state.ttsEnabled;
             publicPaidLimitEl.value = state.aiPublicPaidLimit > 0 ? String(state.aiPublicPaidLimit) : "";
-            updateAiPublicNotice();
             statusEl.textContent = buildAiGenerationStatusText();
             renderResults(filterQuestions());
           } catch (_err) {
@@ -6798,8 +6791,11 @@
           updateResultPageNavigator(1);
           return;
         }
-        const versionInfo = document.getElementById("questionVersionInfo");
-        if (versionInfo) versionInfo.textContent = [AhakiQuestions.manifestVersionText(state.questionManifest), state.overrideLoadWarning].filter(Boolean).join(" / ");
+        const dataNotice = document.getElementById("questionDataNotice");
+        if (dataNotice) {
+          dataNotice.textContent = state.overrideLoadWarning || "";
+          dataNotice.hidden = !state.overrideLoadWarning;
+        }
         const isTeacher = state.roleRank >= 2;
         const canTeacherEdit = isTeacher && state.editMode;
         const showAnswer = document.getElementById("toggleAnswer").checked;
@@ -6890,6 +6886,7 @@
             menuPanels.forEach((panel) => {
               if (panel !== exceptPanel) {
                 panel.hidden = true;
+                if (panel.toggleButton) panel.toggleButton.setAttribute("aria-expanded", "false");
               }
             });
           };
@@ -6899,9 +6896,11 @@
             closeCardMenu();
             if (!shouldOpen) {
               panel.hidden = true;
+              if (panel.toggleButton) panel.toggleButton.setAttribute("aria-expanded", "false");
               return;
             }
             panel.hidden = false;
+            if (panel.toggleButton) panel.toggleButton.setAttribute("aria-expanded", "true");
             if (typeof loader === "function") {
               await loader();
             }
@@ -7892,8 +7891,16 @@
 
           const qaSection = document.createElement("div");
           qaSection.className = "deep-dive-panel";
+          qaSection.id = `question-qa-${q.serial}`.replace(/[^a-zA-Z0-9_-]/g, "-");
           qaSection.hidden = true;
           menuPanels.push(qaSection);
+          const qaTitle = document.createElement("h3");
+          qaTitle.className = "qa-title";
+          qaTitle.textContent = "AIに質問";
+          qaSection.appendChild(qaTitle);
+          const qaComposer = document.createElement("div");
+          qaComposer.className = "qa-composer";
+          qaSection.appendChild(qaComposer);
           const qaHeader = document.createElement("div");
           qaHeader.className = "note";
           qaHeader.textContent = "みんなのQ&A（全ユーザーの質問と回答）";
@@ -7903,9 +7910,25 @@
           const qaActions = document.createElement("div");
           qaActions.className = "proposal-actions";
           let qaLoaded = false;
+          let qaItems = [];
+          let qaExpandedKey = "";
+          const mergeQaItems = (...groups) => {
+            const merged = [];
+            const seen = new Set();
+            groups.forEach((group) => {
+              (Array.isArray(group) ? group : []).forEach((item) => {
+                const key = item.id ? `id:${item.id}` : `qa:${item.question}|${item.answer}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                merged.push(item);
+              });
+            });
+            return merged;
+          };
           const renderQaItems = (items) => {
             qaList.textContent = "";
             const list = Array.isArray(items) ? items : [];
+            qaItems = list;
             if (!list.length) {
               qaHeader.textContent = "みんなのQ&Aはまだありません。";
               return;
@@ -7917,6 +7940,8 @@
               const qBtn = document.createElement("button");
               qBtn.className = "chip-link";
               qBtn.textContent = item.question || "質問";
+              const itemKey = `${item.question || ""}|${item.answer || ""}`;
+              qBtn.setAttribute("aria-expanded", itemKey === qaExpandedKey ? "true" : "false");
               let likeCount = item.like_count || 0;
               let viewCount = item.view_count || 0;
               const meta = document.createElement("div");
@@ -8008,15 +8033,21 @@
               });
               const viewSpan = document.createElement("span");
               viewSpan.textContent = `閲覧 ${viewCount}`;
+              const modelSpan = document.createElement("span");
+              modelSpan.className = "qa-model";
+              modelSpan.textContent = `回答モデル: ${formatQaModelName(item.model)}`;
+              meta.appendChild(modelSpan);
               meta.appendChild(copyBtn);
               if (canUseTts()) meta.appendChild(readBtn);
               meta.appendChild(likeBtn);
               meta.appendChild(viewSpan);
               const aBox = document.createElement("div");
               aBox.className = "note qa-answer";
-              aBox.hidden = true;
+              aBox.hidden = itemKey !== qaExpandedKey;
               qBtn.addEventListener("click", async () => {
                 aBox.hidden = !aBox.hidden;
+                qBtn.setAttribute("aria-expanded", aBox.hidden ? "false" : "true");
+                if (aBox.hidden) return;
                 const viewKey = getQaViewKey(q.serial, item);
                 if (!state.qaViewed.has(viewKey)) {
                   state.qaViewed.add(viewKey);
@@ -8060,20 +8091,14 @@
               if (!resp.ok) throw new Error("API error");
               const data = await resp.json();
               const items = Array.isArray(data.items) ? data.items : [];
-              const merged = [];
-              const seen = new Set();
-              [...items, ...localItems].forEach((item) => {
-                const key = item.id ? `id:${item.id}` : `qa:${item.question}|${item.answer}`;
-                if (seen.has(key)) return;
-                seen.add(key);
-                merged.push(item);
-              });
-              renderQaItems(merged);
+              // A new answer may finish while this older history request is pending.
+              renderQaItems(mergeQaItems(items, qaItems, q.qa_list, localItems));
               qaLoaded = true;
             } catch (_err) {
-              if (localItems.length) {
-                renderQaItems(localItems);
-                qaHeader.textContent = `みんなのQ&A件数: ${localItems.length}（通信失敗）`;
+              const availableItems = mergeQaItems(qaItems, q.qa_list, localItems);
+              if (availableItems.length) {
+                renderQaItems(availableItems);
+                qaHeader.textContent = `みんなのQ&A件数: ${availableItems.length}（通信失敗）`;
                 qaLoaded = true;
               } else {
                 qaHeader.textContent = "みんなのQ&Aの読み込みに失敗しました。";
@@ -8081,45 +8106,71 @@
             }
           };
           if (canUseAiGeneration()) {
+            const qaHelp = document.createElement("div");
+            qaHelp.className = "note";
+            qaHelp.textContent = "問題文や選択肢は自動で送られます。質問と回答はみんなに共有されます。";
+            qaComposer.appendChild(qaHelp);
+            const qaSuggestions = document.createElement("div");
+            qaSuggestions.className = "qa-suggestions";
+            qaSuggestions.setAttribute("aria-label", "質問の例");
             const qaInput = document.createElement("textarea");
-            qaInput.placeholder = "この問題について質問を入力";
-            qaInput.style.width = "100%";
-            qaInput.style.minHeight = "96px";
-            qaInput.hidden = true;
+            qaInput.className = "qa-input";
+            qaInput.placeholder = "例：選択肢2と3の違いを教えて";
+            qaInput.setAttribute("aria-label", "この問題についてAIへの質問");
             qaInput.value = getQaDraft(q.serial);
             qaInput.addEventListener("input", () => {
               setQaDraft(q.serial, qaInput.value);
+              qaSend.disabled = !qaInput.value.trim();
             });
-            const qaToggle = document.createElement("button");
-            qaToggle.textContent = "質問を入力";
-            qaToggle.addEventListener("click", () => {
-              qaInput.hidden = !qaInput.hidden;
-              qaSend.hidden = qaInput.hidden;
+            [
+              ["やさしく説明", "この問題のポイントを初学者にもわかるように説明してください。"],
+              ["選択肢の違い", "各選択肢の違いと、正誤を見分けるポイントを教えてください。"],
+              ["覚え方", "この問題を理解して覚えるためのコツを教えてください。"]
+            ].forEach(([label, question]) => {
+              const suggestion = document.createElement("button");
+              suggestion.type = "button";
+              suggestion.className = "chip-link";
+              suggestion.textContent = label;
+              suggestion.addEventListener("click", () => {
+                qaInput.value = question;
+                setQaDraft(q.serial, question);
+                qaSend.disabled = false;
+                qaInput.focus();
+              });
+              qaSuggestions.appendChild(suggestion);
             });
             const qaSend = document.createElement("button");
-            qaSend.textContent = "質問して回答を生成";
-            qaSend.hidden = true;
+            qaSend.textContent = "AIに質問する";
+            qaSend.disabled = !qaInput.value.trim();
+            const qaStatus = document.createElement("div");
+            qaStatus.className = "note";
+            qaStatus.setAttribute("role", "status");
+            qaStatus.setAttribute("aria-live", "polite");
             qaSend.addEventListener("click", async () => {
+              if (qaSend.disabled) return;
               const question = qaInput.value.trim();
               if (!question) return;
               if (!window.AI_API_BASE) {
-                qaHeader.textContent = "AI_API_BASE が設定されていません。";
+                qaStatus.textContent = "AI質問を現在利用できません。";
                 return;
-              }
-              let token = "";
-              if (supabaseClient) {
-                const { data } = await supabaseClient.auth.getSession();
-                const session = data && data.session ? data.session : null;
-                token = session && session.access_token ? session.access_token : "";
               }
               if (!state.aiPublicGeneration && !isRoleAtLeast("admin")) {
-                qaHeader.textContent = "管理者ログインが必要です。";
+                qaStatus.textContent = "現在、新しい質問の受付を停止しています。";
                 return;
               }
-              qaHeader.textContent = "生成中...";
+              qaStatus.textContent = "AIが回答を考えています…";
               announceStatusNow("Q&Aを生成中です");
               qaSend.disabled = true;
+              qaSend.textContent = "回答を生成中…";
+              qaInput.disabled = true;
+              qaSuggestions.querySelectorAll("button").forEach((button) => { button.disabled = true; });
               try {
+                let token = "";
+                if (supabaseClient) {
+                  const { data } = await supabaseClient.auth.getSession();
+                  const session = data && data.session ? data.session : null;
+                  token = session && session.access_token ? session.access_token : "";
+                }
                 const headers = { "Content-Type": "application/json" };
                 if (token) headers.Authorization = `Bearer ${token}`;
                 const resp = await fetch(`${window.AI_API_BASE}/ai/question_qa`, {
@@ -8132,8 +8183,7 @@
                     stem: q.stem || "",
                     choices: q.choices || [],
                     answer: formatAnswerLabel(q) || "",
-                    explanation: expText || "",
-                    model: "gemini-3-flash-preview"
+                    explanation: expText || ""
                   })
                 });
                 const payload = await resp.json();
@@ -8141,7 +8191,9 @@
                   const detail =
                     (payload && (payload.detail || payload.message || payload.error)) ||
                     `HTTP ${resp.status}`;
-                  qaHeader.textContent = `生成に失敗しました: ${String(detail).slice(0, 160)}`;
+                  qaStatus.textContent = resp.status === 429
+                    ? "無料枠の利用上限に達しました。時間をおいて、もう一度お試しください。"
+                    : `生成に失敗しました: ${String(detail).slice(0, 160)}`;
                   return;
                 }
                 trackAnalyticsEvent("ai_generate_completed", {
@@ -8155,28 +8207,44 @@
                   }
                 });
                 if (payload.status === "irrelevant") {
-                  qaHeader.textContent = "質問が問題と無関係と判定されました。";
+                  qaStatus.textContent = "この問題に関連する内容で、もう一度質問してください。";
                   announceStatusNow("質問が問題と無関係と判定されました");
                   return;
                 }
-                qaHeader.textContent = "生成完了";
+                const newItem = payload.item || {
+                  question: payload.question || question,
+                  answer: payload.answer || "",
+                  model: payload.model
+                };
+                qaExpandedKey = `${newItem.question || ""}|${newItem.answer || ""}`;
+                const updatedItems = [newItem, ...qaItems.filter((item) =>
+                  (newItem.id && item.id) ? item.id !== newItem.id : `${item.question || ""}|${item.answer || ""}` !== qaExpandedKey
+                )];
+                q.qa_list = updatedItems;
+                renderQaItems(updatedItems);
+                qaLoaded = true;
+                qaStatus.textContent = payload.fallback_used
+                  ? `${formatQaModelName(payload.model)}で回答しました（上位モデルの上限により自動切り替え）。`
+                  : `${formatQaModelName(payload.model)}で回答しました。`;
                 announceStatusNow("Q&A生成が完了しました");
                 qaInput.value = "";
                 clearQaDraft(q.serial);
-                qaLoaded = false;
-                await loadQaItems(true);
               } catch (_err) {
-                qaHeader.textContent = "生成に失敗しました。";
+                qaStatus.textContent = "生成に失敗しました。入力内容を残していますので、もう一度お試しください。";
                 announceStatusNow("Q&A生成に失敗しました");
               } finally {
-                qaSend.disabled = false;
+                qaSend.disabled = !qaInput.value.trim();
+                qaSend.textContent = "AIに質問する";
+                qaInput.disabled = false;
+                qaSuggestions.querySelectorAll("button").forEach((button) => { button.disabled = false; });
               }
             });
-            qaSection.appendChild(qaToggle);
-            qaSection.appendChild(qaInput);
+            qaComposer.appendChild(qaSuggestions);
+            qaComposer.appendChild(qaInput);
             qaActions.appendChild(qaSend);
+            qaComposer.appendChild(qaActions);
+            qaComposer.appendChild(qaStatus);
           }
-          qaSection.appendChild(qaActions);
 
           const actions = document.createElement("div");
           actions.className = "card-actions";
@@ -9396,12 +9464,16 @@
             await toggleMenuPanel(beginnerQaSection, loadBeginnerQaItems);
           });
           const qaMainBtn = document.createElement("button");
-          qaMainBtn.className = "action-btn";
-          setActionButtonLabel(qaMainBtn, "Q", "みんなのQ&A");
-          qaMainBtn.setAttribute("aria-label", "みんなのQ&Aを表示");
+          qaMainBtn.className = "action-btn qa-main-btn";
+          setActionButtonLabel(qaMainBtn, "✦", "AIに質問");
+          qaMainBtn.setAttribute("aria-label", "AIに質問・みんなのQ&Aを表示");
+          qaMainBtn.setAttribute("aria-controls", qaSection.id);
+          qaMainBtn.setAttribute("aria-expanded", "false");
+          qaSection.toggleButton = qaMainBtn;
           qaMainBtn.addEventListener("click", async () => {
             await toggleMenuPanel(qaSection, loadQaItems);
           });
+          actions.appendChild(qaMainBtn);
           const copyMenuBtn = document.createElement("button");
           copyMenuBtn.className = "action-btn";
           setActionButtonLabel(copyMenuBtn, "⧉", "問題をコピー");
@@ -9415,7 +9487,6 @@
           [
             deepDiveMainBtn,
             beginnerQaMainBtn,
-            qaMainBtn,
             practiceMainBtn,
             senryuMainBtn,
             copyMenuBtn
@@ -9588,7 +9659,6 @@
 	        loadDeepDiveRatingState();
 	        loadQaDraftState();
 	        loadTagViewedSessionState();
-	        updateAiPublicNotice();
         ensureAccessibleNames();
         decorateButtonVariants();
         renderResults([]);
@@ -11767,6 +11837,15 @@
           return `user:${state.authSession.user.id}`;
         }
         return `anon:${getAnonId()}`;
+      }
+
+      function formatQaModelName(model) {
+        const name = String(model || "").trim().replace(/^models\//, "");
+        if (!name || /^gemini[ -]?3[ -]?flash(?:-preview)?$/i.test(name)) return "Gemini 3 Flash";
+        const matched = /^gemini-(\d+(?:\.\d+)?)-(flash-lite|flash|pro)(?:-preview(?:-\d{2}-\d{2})?)?$/i.exec(name);
+        if (!matched) return name;
+        const grade = { "flash-lite": "Flash-Lite", flash: "Flash", pro: "Pro" }[matched[2].toLowerCase()];
+        return `Gemini ${matched[1]} ${grade}`;
       }
 
       function getQaDraftActorId() {

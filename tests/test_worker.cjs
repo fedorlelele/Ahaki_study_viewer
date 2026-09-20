@@ -88,7 +88,7 @@ test('a denied shared paid budget returns 429 and makes no Google request', asyn
     if (x.url.endsWith('/rpc/worker_usage_total')) return json(0);
     if (x.url.endsWith('/rpc/worker_reserve_usage')) return json({ ok: false, reason: 'public_paid' });
   } });
-  const result = await h.ctx.worker.fetch(h.request('/ai/question_qa', { serial: 'A01-001', question: 'Explain' }, false), { ...env, GEMINI_API_KEY_PAID: 'mock-paid' });
+  const result = await h.ctx.worker.fetch(h.request('/ai/tag_qa', { tag: '解剖学', question: 'Explain' }, false), { ...env, GEMINI_API_KEY_PAID: 'mock-paid' });
   assert.equal(result.status, 429);
   const reservation = JSON.parse(h.calls.find(x => x.url.endsWith('/rpc/worker_reserve_usage')).body);
   assert.equal(reservation.p_kind, 'gemini_paid');
@@ -101,7 +101,7 @@ test('fallback model requires a separate reservation before a second upstream ca
   let count = 0;
   const h = harness({ fetch: x => {
     if (x.url.endsWith('/rpc/worker_reserve_usage')) return json({ ok: ++count === 1 });
-    if (x.url.includes('generativelanguage.googleapis.com')) return json({ error: { message: 'model not found' } }, 404);
+    if (x.url.includes('generativelanguage.googleapis.com')) return json({ error: { status: 'RESOURCE_EXHAUSTED' } }, 429);
   } });
   const result = await h.run('/ai/question_qa', { serial: 'A01-001', question: 'Explain', model: 'mock-model' }, false);
   assert.equal(result.status, 429);
@@ -179,7 +179,131 @@ test('unavailable public paid usage never falls back to another generation route
     }
     if (x.url.endsWith('/rpc/worker_usage_total')) return json({}, 503);
   } });
-  const response = await h.ctx.worker.fetch(h.request('/ai/question_qa', { serial: 'A01-001', question: 'Explain' }, false), { ...env, GEMINI_API_KEY_PAID: 'mock-paid' });
+  const response = await h.ctx.worker.fetch(h.request('/ai/tag_qa', { tag: '解剖学', question: 'Explain' }, false), { ...env, GEMINI_API_KEY_PAID: 'mock-paid' });
   assert.equal(response.status, 503);
   assert.ok(!h.calls.some(x => x.url.includes('googleapis.com')));
+});
+
+const qaBody = { serial: 'A01-001', question: '選択肢の違いを説明して' };
+const qaGoogleSuccess = () => json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ status: 'ok', question: '選択肢の違いは？', answer: '学習用の回答です。' }) }] } }] });
+const qaFetchSuccess = x => {
+  if (x.url.endsWith('/rpc/worker_reserve_usage')) return json({ ok: true });
+  if (x.url.includes('generativelanguage.googleapis.com')) return qaGoogleSuccess();
+  if (x.url.endsWith('/rest/v1/question_qa') && x.method === 'POST') return json([{ ...JSON.parse(x.body), id: 'qa-id', created_at: '2026-09-20T00:00:00Z' }]);
+};
+const googleCalls = h => h.calls.filter(x => x.url.includes('generativelanguage.googleapis.com'));
+
+test('question Q&A ignores old client/env model overrides and saves the preferred free model', async () => {
+  const h = harness({ fetch: qaFetchSuccess });
+  const response = await h.ctx.worker.fetch(h.request('/ai/question_qa', { ...qaBody, model: 'gemini-3-flash-preview' }, false), {
+    ...env, GEMINI_MODEL_FREE: 'gemini-paid-only', GEMINI_MODEL: 'gemini-paid-only'
+  });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.model, 'gemini-3.8-flash');
+  assert.equal(result.preferred_model, 'gemini-3.8-flash');
+  assert.equal(result.fallback_used, false);
+  assert.equal(result.mode, 'free');
+  assert.equal(result.item.id, 'qa-id');
+  assert.equal(result.item.model, result.model);
+  assert.equal(result.item.created_by, undefined);
+  assert.match(googleCalls(h)[0].url, /models\/gemini-3\.8-flash:generateContent\?key=mock-google$/);
+  const saved = h.calls.find(x => x.url.endsWith('/rest/v1/question_qa') && x.method === 'POST');
+  assert.equal(saved.headers.Prefer, 'return=representation');
+  assert.equal(JSON.parse(saved.body).model, result.model);
+});
+
+test('question Q&A provider quota falls back one grade with distinct free reservations and actual model metadata', async () => {
+  for (const [httpStatus, errorStatus] of [[429, 'RESOURCE_EXHAUSTED'], [400, 'RESOURCE_EXHAUSTED']]) {
+    let upstream = 0;
+    const h = harness({ fetch: x => {
+      if (x.url.includes('generativelanguage.googleapis.com') && ++upstream === 1) return json({ error: { status: errorStatus } }, httpStatus);
+      return qaFetchSuccess(x);
+    } });
+    const response = await h.run('/ai/question_qa', qaBody, false);
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.model, 'gemini-3.7-flash');
+    assert.equal(result.item.model, result.model);
+    assert.equal(result.preferred_model, 'gemini-3.8-flash');
+    assert.equal(result.fallback_used, true);
+    assert.deepEqual(googleCalls(h).map(x => new URL(x.url).pathname), [
+      '/v1beta/models/gemini-3.8-flash:generateContent', '/v1beta/models/gemini-3.7-flash:generateContent'
+    ]);
+    const reservations = h.calls.filter(x => x.url.endsWith('/rpc/worker_reserve_usage')).map(x => JSON.parse(x.body));
+    assert.equal(reservations.length, 2);
+    assert.notEqual(reservations[0].p_request_id, reservations[1].p_request_id);
+    assert.ok(reservations.every(x => x.p_kind === 'gemini_free' && x.p_public_limit === 0));
+    const log = JSON.parse(h.calls.find(x => x.url.includes('/ai_usage_logs') && x.method === 'POST').body);
+    assert.equal(log.model, result.model);
+    assert.equal(log.fallback_model, result.model);
+  }
+});
+
+test('question Q&A does not retry provider input, authentication, missing model, or server errors', async () => {
+  for (const status of [400, 401, 403, 404, 500, 503]) {
+    const h = harness({ fetch: x => x.url.includes('generativelanguage.googleapis.com') ? json({ error: { status: 'OTHER_ERROR' } }, status) : qaFetchSuccess(x) });
+    assert.equal((await h.run('/ai/question_qa', qaBody, false)).status, 500);
+    assert.equal(googleCalls(h).length, 1);
+    assert.ok(!h.calls.some(x => x.url.endsWith('/rest/v1/question_qa') && x.method === 'POST'));
+  }
+});
+
+test('question Q&A stops when both free model quotas are exhausted', async () => {
+  const h = harness({ fetch: x => x.url.includes('generativelanguage.googleapis.com') ? json({ error: { status: 'RESOURCE_EXHAUSTED' } }, 429) : qaFetchSuccess(x) });
+  const response = await h.run('/ai/question_qa', qaBody, false);
+  assert.equal(response.status, 429);
+  assert.equal((await response.json()).model, 'gemini-3.7-flash');
+  assert.equal(googleCalls(h).length, 2);
+});
+
+test('question Q&A site budget or reservation failure stops before any additional model call', async () => {
+  for (const failOn of [1, 2]) {
+    for (const unavailable of [false, true]) {
+      let reservations = 0;
+      const h = harness({ fetch: x => {
+        if (x.url.endsWith('/rpc/worker_reserve_usage') && ++reservations === failOn) return unavailable ? json({}, 503) : json({ ok: false, reason: 'day' });
+        if (x.url.includes('generativelanguage.googleapis.com')) return json({ error: { status: 'RESOURCE_EXHAUSTED' } }, 429);
+        return qaFetchSuccess(x);
+      } });
+      assert.equal((await h.run('/ai/question_qa', qaBody, false)).status, unavailable ? 503 : 429);
+      assert.equal(reservations, failOn);
+      assert.equal(googleCalls(h).length, failOn - 1);
+    }
+  }
+});
+
+test('question Q&A never selects the paid key even for an admin with paid generation enabled', async () => {
+  const h = harness({ user: { id: 'admin', app_metadata: { role: 'admin' } }, fetch: x => {
+    if (x.url.includes('/app_settings?')) return json([{ setting_value: true }]);
+    return qaFetchSuccess(x);
+  } });
+  const response = await h.ctx.worker.fetch(h.request('/ai/question_qa', qaBody), { ...env, GEMINI_API_KEY_PAID: 'never-use-paid' });
+  assert.equal(response.status, 200);
+  assert.ok(googleCalls(h).every(x => new URL(x.url).searchParams.get('key') === env.GEMINI_API_KEY_FREE));
+  assert.ok(!h.calls.some(x => x.url.endsWith('/rpc/worker_usage_total')));
+});
+
+test('question Q&A with only a paid key stops before reservation and generation', async () => {
+  const h = harness({ fetch: qaFetchSuccess });
+  const response = await h.ctx.worker.fetch(h.request('/ai/question_qa', qaBody, false), { ...env, GEMINI_API_KEY_FREE: '', GEMINI_API_KEY_PAID: 'never-use-paid' });
+  assert.equal(response.status, 500);
+  assert.equal(googleCalls(h).length, 0);
+  assert.ok(!h.calls.some(x => x.url.endsWith('/rpc/worker_reserve_usage')));
+});
+
+test('question Q&A history returns model metadata and labels only missing legacy models as Gemini 3 Flash', async () => {
+  const h = harness({ fetch: x => x.url.includes('/rest/v1/question_qa?') ? json([
+    { id: 'old', model: null, answer: '旧回答' }, { id: 'new', model: 'gemini-3.7-flash', answer: '新回答' }
+  ]) : undefined });
+  const response = await h.run('/ai/question_qa?serial=A01-001', undefined, false);
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).items.map(x => x.model), ['gemini-3-flash-preview', 'gemini-3.7-flash']);
+  assert.ok(new URL(h.calls[0].url).searchParams.get('select').split(',').includes('model'));
+});
+
+test('question Q&A does not claim success when saving the actual model and answer fails', async () => {
+  const h = harness({ fetch: x => x.url.endsWith('/rest/v1/question_qa') && x.method === 'POST' ? json({}, 500) : qaFetchSuccess(x) });
+  assert.equal((await h.run('/ai/question_qa', qaBody, false)).status, 503);
+  assert.equal(googleCalls(h).length, 1);
 });
