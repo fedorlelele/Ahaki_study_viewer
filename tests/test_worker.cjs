@@ -10,7 +10,7 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 function harness(overrides = {}) {
   const calls = [];
   const user = overrides.user || { id: '00000000-0000-0000-0000-000000000001', app_metadata: { role: 'student' } };
-  const ctx = vm.createContext({ Request, Response, URL, Intl, Date, atob, crypto: require('node:crypto').webcrypto,
+  const ctx = vm.createContext({ Request, Response, URL, URLSearchParams, Intl, Date, atob, crypto: require('node:crypto').webcrypto,
     fetch: async (url, options = {}) => {
       const item = { url: String(url), ...options }; calls.push(item);
       const custom = overrides.fetch && await overrides.fetch(item);
@@ -306,4 +306,66 @@ test('question Q&A does not claim success when saving the actual model and answe
   const h = harness({ fetch: x => x.url.endsWith('/rest/v1/question_qa') && x.method === 'POST' ? json({}, 500) : qaFetchSuccess(x) });
   assert.equal((await h.run('/ai/question_qa', qaBody, false)).status, 503);
   assert.equal(googleCalls(h).length, 1);
+});
+
+test('deep dives persist and return the actual fallback model without automatic verification', async () => {
+  let saved;
+  const h = harness({ fetch: x => {
+    if (x.url.endsWith('/rpc/worker_reserve_usage')) return json({ ok: true });
+    if (x.url.includes('models/missing-model:')) return json({}, 404);
+    if (x.url.includes('generativelanguage.googleapis.com')) return json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ explanation: '本文', tags: ['タグ'] }) }] } }] });
+    if (x.url.endsWith('/rest/v1/deep_dive_explanations') && x.method === 'POST') { saved = JSON.parse(x.body); return json({}); }
+  } });
+  const result = await h.run('/ai/deep_dive', { serial: 'A01-001', prompt: '説明', model: 'missing-model' }, false);
+  assert.equal(result.status, 200);
+  const payload = await result.json();
+  assert.equal(saved.model_name, 'gemini-3-flash-preview');
+  assert.equal(saved.review_status, 'ai');
+  assert.equal(payload.model_name, saved.model_name);
+  assert.equal(payload.updated_at, saved.updated_at);
+  assert.equal(payload.review_status, 'ai');
+});
+
+test('deep-dive review is restricted to trusted teachers and admins', async () => {
+  const body = { serial: 'A01-001', review_status: 'ai_fact_checked', expected_updated_at: '2026-09-01T00:00:00Z' };
+  const guest = harness();
+  assert.equal((await guest.run('/admin/deep_dive_review', body, false)).status, 401);
+  for (const role of ['student', 'guest']) {
+    const h = harness({ user: { id: 'user', app_metadata: { role }, user_metadata: { role: 'admin' } } });
+    assert.equal((await h.run('/admin/deep_dive_review', body)).status, 403);
+    assert.ok(!h.calls.some(x => x.method === 'PATCH'));
+  }
+});
+
+test('deep-dive metadata survives a review/save/read cycle and stale updates are refused', async () => {
+  let stored = { serial: 'A01-001', explanation: '既存本文', tags: ['タグ'], updated_at: '2026-09-01T00:00:00Z', model_name: 'Gemini 3 Flash', review_status: 'ai' };
+  const h = harness({ user: { id: 'teacher', app_metadata: { role: 'teacher' } }, fetch: x => {
+    if (!x.url.includes('/rest/v1/deep_dive_explanations?')) return;
+    const params = new URL(x.url).searchParams;
+    assert.match(params.get('select'), /model_name,review_status/);
+    if (x.method === 'PATCH') {
+      if (params.get('updated_at') !== `eq.${stored.updated_at}`) return json([]);
+      const patch = JSON.parse(x.body);
+      assert.equal('model_name' in patch, false);
+      stored = { ...stored, ...patch };
+    }
+    return json([stored]);
+  } });
+  const body = { serial: stored.serial, review_status: 'ai_fact_checked', expected_updated_at: stored.updated_at, model_name: 'untrusted-model' };
+  assert.equal((await h.run('/admin/deep_dive_review', body)).status, 200);
+  const reloaded = await (await h.run('/ai/deep_dive?serial=A01-001', undefined, false)).json();
+  assert.equal(reloaded.data.model_name, 'Gemini 3 Flash');
+  assert.equal(reloaded.data.review_status, 'ai_fact_checked');
+  assert.equal(reloaded.data.explanation, '既存本文');
+  assert.equal((await h.run('/admin/deep_dive_review', body)).status, 409);
+  assert.equal((await h.run('/admin/deep_dive_review', { ...body, explanation: '編集', expected_updated_at: stored.updated_at })).status, 400);
+  assert.equal((await h.run('/admin/deep_dive_review', { ...body, review_status: 'invalid' })).status, 400);
+});
+
+test('deep-dive storage failures are returned as failures', async () => {
+  const h = harness({ user: { id: 'teacher', app_metadata: { role: 'teacher' } }, fetch: x => {
+    if (x.method === 'PATCH' || x.url.endsWith('/rest/v1/deep_dive_explanations')) return json({}, 503);
+  } });
+  assert.equal((await h.run('/admin/deep_dive_review', { serial: 'A01-001', review_status: 'ai', expected_updated_at: '2026-09-01T00:00:00Z' })).status, 503);
+  await assert.rejects(h.ctx.upsertDeepDive(env, { serial: 'A01-001', explanation: '本文', model_name: 'new-model' }), /保存できません/);
 });

@@ -146,3 +146,24 @@ test('PostgreSQL: migration, authorization, progress transactions, and usage bud
     });
   } finally { await db.close(); }
 });
+
+test('PostgreSQL: deep-dive migration preserves content, timestamps and existing review/model on repeat', async () => {
+  const { PGlite } = require(modulePath);
+  const db = new PGlite();
+  try {
+    await db.exec(`create table public.deep_dive_explanations (serial text primary key, explanation text, updated_at timestamptz);
+      insert into public.deep_dive_explanations values ('A01-001','既存本文','2026-09-01T00:00:00Z');`);
+    const migration = sql('migration_20260923_deep_dive_metadata.sql');
+    await db.exec(migration);
+    let row = (await db.query('select * from public.deep_dive_explanations')).rows[0];
+    assert.equal(row.model_name, 'Gemini 3 Flash');
+    assert.equal(row.review_status, 'ai');
+    await db.exec(`update public.deep_dive_explanations set model_name='other-model', review_status='ai_fact_checked';`);
+    await db.exec(migration);
+    row = (await db.query('select * from public.deep_dive_explanations')).rows[0];
+    assert.equal(row.model_name, 'other-model');
+    assert.equal(row.review_status, 'ai_fact_checked');
+    assert.equal(row.explanation, '既存本文');
+    assert.equal(row.updated_at.toISOString(), '2026-09-01T00:00:00.000Z');
+  } finally { await db.close(); }
+});

@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlparse, quote
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
+from scripts.deep_dive_metadata import ensure_deep_dive_metadata_schema, metadata_select_columns
 from scripts.explanation_metadata import (
     STATUS_AI_FACT_CHECKED,
     STATUS_TEACHER_APPROVED,
@@ -3930,7 +3931,7 @@ def fetch_supabase_deep_dive(since=None, limit=500):
     cfg = supabase_config()
     if not cfg:
         return None, "SUPABASE_URL と SUPABASE_SERVICE_KEY を設定してください。"
-    select = "serial,explanation,tags,updated_at,created_by"
+    select = "serial,explanation,tags,updated_at,created_by,model_name,review_status"
     offset = 0
     rows = []
     while True:
@@ -4216,17 +4217,7 @@ def sync_supabase_deep_dive(db_path, since):
     if not rows:
         return {"message": "深掘り解説の差分はありません。", "counts": {}}
     conn = sqlite3.connect(db_path)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS deep_dive_explanations (
-          serial TEXT PRIMARY KEY,
-          explanation TEXT,
-          tags_json TEXT,
-          updated_at TEXT,
-          created_by TEXT
-        )
-        """
-    )
+    ensure_deep_dive_metadata_schema(conn)
     cursor = conn.cursor()
     inserted = 0
     updated = 0
@@ -4241,15 +4232,18 @@ def sync_supabase_deep_dive(db_path, since):
         cursor.execute(
             """
             INSERT INTO deep_dive_explanations
-              (serial, explanation, tags_json, updated_at, created_by)
-            VALUES (?, ?, ?, ?, ?)
+              (serial, explanation, tags_json, updated_at, created_by, model_name, review_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(serial) DO UPDATE SET
               explanation=excluded.explanation,
               tags_json=excluded.tags_json,
               updated_at=excluded.updated_at,
-              created_by=excluded.created_by
+              created_by=excluded.created_by,
+              model_name=excluded.model_name,
+              review_status=excluded.review_status
             """,
-            (serial, explanation, tags_json, updated_at, created_by),
+            (serial, explanation, tags_json, updated_at, created_by,
+             row.get("model_name") or "", row.get("review_status") or "ai"),
         )
         if cursor.rowcount == 1:
             inserted += 1
@@ -4296,6 +4290,7 @@ def load_local_deep_dive_rows(db_path, since="", limit=0):
         select_cols = "serial, explanation, tags_json, updated_at"
         if has_created_by:
             select_cols += ", created_by"
+        select_cols += ", " + metadata_select_columns(columns)
         query = f"SELECT {select_cols} FROM deep_dive_explanations"
         params = []
         where = []
@@ -4328,6 +4323,7 @@ def load_local_deep_dive_rows(db_path, since="", limit=0):
             created_by = None
             if has_created_by and len(row) > 4:
                 created_by = normalize_uuid_or_none(row[4])
+            metadata = {name: value for name, value in zip(("model_name", "review_status"), row[-2:]) if value}
             result.append(
                 {
                     "serial": serial,
@@ -4335,6 +4331,7 @@ def load_local_deep_dive_rows(db_path, since="", limit=0):
                     "tags": tags,
                     "updated_at": updated_at,
                     "created_by": created_by,
+                    **metadata,
                 }
             )
         return result

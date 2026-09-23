@@ -12,6 +12,12 @@ from urllib import request
 from urllib.error import HTTPError, URLError
 
 
+try:
+    from scripts.deep_dive_metadata import ensure_deep_dive_metadata_schema
+except ModuleNotFoundError:
+    from deep_dive_metadata import ensure_deep_dive_metadata_schema
+
+
 def load_env(path):
     if not path.exists():
         return
@@ -123,17 +129,7 @@ def resolve_model(args, mode):
 
 
 def ensure_deep_dive_table(conn):
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS deep_dive_explanations (
-          serial TEXT PRIMARY KEY,
-          explanation TEXT,
-          tags_json TEXT,
-          updated_at TEXT,
-          created_by TEXT
-        )
-        """
-    )
+    ensure_deep_dive_metadata_schema(conn)
     columns = {row[1] for row in conn.execute("PRAGMA table_info(deep_dive_explanations)").fetchall()}
     required_columns = {
         "explanation": "TEXT",
@@ -403,7 +399,7 @@ def retry_wait_seconds(error_text, base_wait):
         return float(base_wait)
 
 
-def upsert_deep_dive(conn, serial, explanation, tags, created_by):
+def upsert_deep_dive(conn, serial, explanation, tags, created_by, model_name):
     exists = conn.execute(
         "SELECT 1 FROM deep_dive_explanations WHERE serial = ? LIMIT 1",
         (serial,),
@@ -412,13 +408,15 @@ def upsert_deep_dive(conn, serial, explanation, tags, created_by):
     conn.execute(
         """
         INSERT INTO deep_dive_explanations
-          (serial, explanation, tags_json, updated_at, created_by)
-        VALUES (?, ?, ?, ?, ?)
+          (serial, explanation, tags_json, updated_at, created_by, model_name, review_status)
+        VALUES (?, ?, ?, ?, ?, ?, 'ai')
         ON CONFLICT(serial) DO UPDATE SET
           explanation = excluded.explanation,
           tags_json = excluded.tags_json,
           updated_at = excluded.updated_at,
-          created_by = excluded.created_by
+          created_by = excluded.created_by,
+          model_name = excluded.model_name,
+          review_status = excluded.review_status
         """,
         (
             serial,
@@ -426,6 +424,7 @@ def upsert_deep_dive(conn, serial, explanation, tags, created_by):
             json.dumps(tags, ensure_ascii=False),
             now,
             created_by,
+            model_name,
         ),
     )
     return "updated" if exists else "inserted"
@@ -546,7 +545,7 @@ def main():
             print(f"  waiting {wait:.1f}s")
             time.sleep(wait)
 
-        result = upsert_deep_dive(conn, item["serial"], explanation, tags, args.created_by)
+        result = upsert_deep_dive(conn, item["serial"], explanation, tags, args.created_by, model)
         conn.commit()
         if result == "inserted":
             inserted += 1
@@ -558,6 +557,8 @@ def main():
             "explanation": explanation,
             "tags": tags,
             "model": model,
+            "model_name": model,
+            "review_status": "ai",
             "api_key_source": key_label,
             "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "raw_text": raw_text,

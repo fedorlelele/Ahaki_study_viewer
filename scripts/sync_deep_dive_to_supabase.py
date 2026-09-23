@@ -10,6 +10,12 @@ from urllib import request
 from urllib.error import HTTPError, URLError
 
 
+try:
+    from scripts.deep_dive_metadata import metadata_select_columns
+except ModuleNotFoundError:
+    from deep_dive_metadata import metadata_select_columns
+
+
 def load_env(path):
     if not path.exists():
         return
@@ -125,7 +131,7 @@ def parse_tags_json(value):
     return out
 
 
-def build_select_query(args, has_created_by):
+def build_select_query(args, has_created_by, columns=()):
     select_cols = [
         "serial",
         "explanation",
@@ -135,6 +141,7 @@ def build_select_query(args, has_created_by):
     if has_created_by:
         select_cols.append("created_by")
 
+    select_cols.append(metadata_select_columns(columns))
     where = []
     params = []
     if args.since:
@@ -165,7 +172,7 @@ def fetch_local_rows(args):
             return []
         columns = {row[1] for row in conn.execute("PRAGMA table_info(deep_dive_explanations)")}
         has_created_by = "created_by" in columns
-        query, params = build_select_query(args, has_created_by)
+        query, params = build_select_query(args, has_created_by, columns)
         rows = conn.execute(query, params).fetchall()
         payload_rows = []
         now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -183,6 +190,7 @@ def fetch_local_rows(args):
                 updated_at = now_utc
             if not serial:
                 continue
+            metadata = {name: value for name, value in zip(("model_name", "review_status"), row[-2:]) if value}
             payload_rows.append(
                 {
                     "serial": serial,
@@ -190,6 +198,7 @@ def fetch_local_rows(args):
                     "tags": tags,
                     "updated_at": updated_at,
                     "created_by": created_by,
+                    **metadata,
                 }
             )
         return payload_rows

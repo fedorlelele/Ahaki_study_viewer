@@ -6,12 +6,14 @@ import sqlite3
 from pathlib import Path
 
 try:
+    from scripts.deep_dive_metadata import metadata_select_columns, LEGACY_MODEL_NAME
     from scripts.question_contract import resolve_question_answers, parse_answer_text
     from scripts.explanation_metadata import (
         derive_explanation_metadata,
         explanation_columns,
     )
 except ModuleNotFoundError:
+    from deep_dive_metadata import metadata_select_columns, LEGACY_MODEL_NAME
     from question_contract import resolve_question_answers, parse_answer_text
     from explanation_metadata import (
         derive_explanation_metadata,
@@ -274,17 +276,18 @@ def load_explanation_update_log(conn):
 
 
 def load_deep_dive(conn):
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(deep_dive_explanations)")}
     try:
         rows = conn.execute(
-            """
-            SELECT serial, explanation, tags_json, updated_at
+            f"""
+            SELECT serial, explanation, tags_json, updated_at, {metadata_select_columns(columns)}
             FROM deep_dive_explanations
             """
         ).fetchall()
     except sqlite3.OperationalError:
         return {}
     data = {}
-    for serial, explanation, tags_json, updated_at in rows:
+    for serial, explanation, tags_json, updated_at, model_name, review_status in rows:
         tags = []
         if tags_json:
             try:
@@ -295,6 +298,8 @@ def load_deep_dive(conn):
             "explanation": explanation or "",
             "tags": tags or [],
             "updated_at": updated_at or "",
+            "model_name": model_name or LEGACY_MODEL_NAME,
+            "review_status": review_status or "ai",
         }
     return data
 

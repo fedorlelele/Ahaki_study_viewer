@@ -64,6 +64,12 @@ async function handleAdmin(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
 
+  if (path === "/admin/deep_dive_review") {
+    if (!isRoleAtLeast(role, "teacher")) return jsonResponse({ message: "Forbidden" }, 403);
+    if (request.method !== "POST") return jsonResponse({ message: "Method not allowed" }, 405);
+    return updateDeepDiveReview(env, await readJson(request));
+  }
+
   if (path === "/admin/users") {
     if (!isRoleAtLeast(role, "teacher")) {
       return jsonResponse({ message: "Forbidden" }, 403);
@@ -466,10 +472,12 @@ async function handleAi(request, env) {
     data?.candidates?.[0]?.content?.parts?.map(part => part.text).join("") || "";
   const outputChars = text.length;
   const parsed = parseDeepDive(text);
-  await upsertDeepDive(env, {
+  const updatedAt = await upsertDeepDive(env, {
     serial,
     explanation: parsed.explanation || "",
     tags: parsed.tags || [],
+    model_name: usedModel,
+    review_status: "ai",
     created_by: user && user.id ? user.id : null
   });
   await safeLogAiUsage(env, {
@@ -491,6 +499,9 @@ async function handleAi(request, env) {
     text,
     explanation: parsed.explanation,
     tags: parsed.tags,
+    model_name: usedModel,
+    review_status: "ai",
+    updated_at: updatedAt,
     mode: gemini.mode,
     request_id: requestId
   });
@@ -4640,7 +4651,7 @@ async function upsertTagDeepDive(env, record) {
 
 async function fetchDeepDive(env, serial) {
   const resp = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial,explanation,tags,updated_at&serial=eq.${encodeURIComponent(serial)}&limit=1`,
+    `${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?select=serial,explanation,tags,updated_at,model_name,review_status&serial=eq.${encodeURIComponent(serial)}&limit=1`,
     {
       headers: {
         apikey: env.SUPABASE_ANON_KEY,
@@ -4705,10 +4716,12 @@ async function upsertDeepDive(env, record) {
     serial: record.serial,
     explanation: record.explanation || "",
     tags: record.tags || [],
+    model_name: record.model_name || "",
+    review_status: record.review_status || "ai",
     updated_at: now,
     created_by: record.created_by || null
   };
-  await fetch(`${env.SUPABASE_URL}/rest/v1/deep_dive_explanations`, {
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/deep_dive_explanations`, {
     method: "POST",
     headers: {
       apikey: env.SUPABASE_SERVICE_KEY,
@@ -4718,6 +4731,46 @@ async function upsertDeepDive(env, record) {
     },
     body: JSON.stringify(payload)
   });
+  if (!resp.ok) throw workerError(503, "深掘り解説を保存できませんでした。");
+  return now;
+}
+
+async function updateDeepDiveReview(env, body) {
+  const serial = String(body.serial || "").trim();
+  const status = String(body.review_status || "");
+  const stamp = String(body.expected_updated_at || "");
+  if (!/^[AB]\d{2}-\d{3}$/.test(serial) ||
+      !["ai", "ai_fact_checked", "teacher_approved", "teacher_edited"].includes(status) ||
+      !stamp || !Number.isFinite(Date.parse(stamp))) {
+    return jsonResponse({ message: "serial, review_status, expected_updated_at are required" }, 400);
+  }
+  const patch = { review_status: status, updated_at: new Date().toISOString() };
+  if (Object.prototype.hasOwnProperty.call(body, "explanation")) {
+    if (typeof body.explanation !== "string" || !body.explanation.trim() || status !== "teacher_edited") {
+      return jsonResponse({ message: "本文の編集には教師編集済みの状態が必要です。" }, 400);
+    }
+    patch.explanation = body.explanation;
+  }
+  const query = new URLSearchParams({
+    serial: `eq.${serial}`, updated_at: `eq.${stamp}`,
+    select: "serial,explanation,tags,updated_at,model_name,review_status"
+  });
+  const resp = await fetch(`${env.SUPABASE_URL}/rest/v1/deep_dive_explanations?${query}`, {
+    method: "PATCH",
+    headers: {
+      apikey: env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify(patch)
+  });
+  if (!resp.ok) throw workerError(503, "深掘り解説の更新に失敗しました。");
+  const rows = await resp.json();
+  if (!Array.isArray(rows) || !rows.length) {
+    return jsonResponse({ message: "深掘り解説が更新されています。再読み込みしてください。" }, 409);
+  }
+  return jsonResponse({ ok: true, data: rows[0] });
 }
 
 async function listUsers(env, page, limit) {

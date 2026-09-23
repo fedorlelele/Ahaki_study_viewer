@@ -9147,6 +9147,12 @@
           };
           const deepDiveMeta = document.createElement("div");
           deepDiveMeta.className = "note inline-meta";
+          const deepDiveLabel = document.createElement("span");
+          deepDiveLabel.className = "deep-dive-label";
+          deepDiveMeta.appendChild(deepDiveLabel);
+          const deepDiveReviewControls = document.createElement("div");
+          deepDiveReviewControls.className = "inline-meta";
+          if (canTeacherEdit) deepDiveMeta.appendChild(deepDiveReviewControls);
           const deepDiveReadBtn = document.createElement("button");
           deepDiveReadBtn.className = "icon-mini-btn";
           deepDiveReadBtn.textContent = "🔊";
@@ -9264,10 +9270,27 @@
             hideMenuPanels(deepDivePanel);
             deepDivePanel.hidden = false;
           };
-	          const renderDeepDive = (explanationText, tags) => {
+	          const renderDeepDive = (explanationText, tags, metadata = {}) => {
 	            showDeepDivePanel();
 	            deepDiveStatus.textContent = "保存済みの深掘り解説";
 	            deepDiveRawText = explanationText || "";
+            deepDiveLabel.textContent = deepDiveRawText.trim() ? formatDeepDiveLabel(metadata) : "";
+            deepDiveReviewControls.textContent = "";
+            if (canTeacherEdit && deepDiveRawText.trim()) {
+              renderDeepDiveReviewControls(deepDiveReviewControls, metadata, async (patch) => {
+                deepDiveStatus.textContent = "更新中...";
+                try {
+                  const updated = await saveDeepDiveReview(q.serial, metadata.updated_at, patch);
+                  q.deep_dive = updated;
+                  renderDeepDive(updated.explanation || "", updated.tags || [], updated);
+                  deepDiveStatus.textContent = "深掘り解説を更新しました。";
+                  announceStatusNow(deepDiveStatus.textContent);
+                } catch (err) {
+                  deepDiveStatus.textContent = err.message || "更新に失敗しました。";
+                  announceStatusNow(deepDiveStatus.textContent);
+                }
+              }, deepDiveRawText);
+            }
 	            deepDiveAvailable = Boolean(String(deepDiveRawText || "").trim()) || (Array.isArray(tags) && tags.length > 0);
 	            deepDiveReadBtn.disabled = !deepDiveRawText;
 	            deepDiveCopyBtn.disabled = !deepDiveRawText;
@@ -9313,7 +9336,7 @@
 	              }
 	              if (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) {
 	                deepDiveRequestId = "";
-	                renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || []);
+	                renderDeepDive(q.deep_dive.explanation || "", q.deep_dive.tags || [], q.deep_dive);
 	                return;
 	              }
               if (!window.AI_API_BASE) {
@@ -9323,6 +9346,8 @@
               showDeepDivePanel();
               deepDiveStatus.textContent = "読み込み中...";
 	              deepDiveRawText = "";
+              deepDiveLabel.textContent = "";
+              deepDiveReviewControls.textContent = "";
 	              deepDiveAvailable = false;
 	              deepDiveReadBtn.disabled = true;
 	              deepDiveCopyBtn.disabled = true;
@@ -9341,7 +9366,7 @@
 	                    return;
 	                  }
 	                  deepDiveRequestId = payload && payload.request_id ? String(payload.request_id) : "";
-	                  renderDeepDive(payload.data?.explanation || "", payload.data?.tags || []);
+	                  renderDeepDive(payload.data?.explanation || "", payload.data?.tags || [], payload.data || {});
 	                })
 	                .catch(() => {
 	                  deepDiveStatus.textContent = "読み込みに失敗しました。";
@@ -9369,6 +9394,8 @@
               deepDiveStatus.textContent = "生成中...";
               announceStatusNow("深掘り解説を生成中です");
 	              deepDiveRawText = "";
+              deepDiveLabel.textContent = "";
+              deepDiveReviewControls.textContent = "";
 	              deepDiveRequestId = "";
 	              deepDiveAvailable = false;
 	              deepDiveReadBtn.disabled = true;
@@ -9410,7 +9437,7 @@
 	                    tag_count: Array.isArray(parsed.tags) ? parsed.tags.length : 0
 	                  }
 	                });
-	                renderDeepDive(parsed.explanation || text || "", parsed.tags || []);
+	                renderDeepDive(parsed.explanation || text || "", parsed.tags || [], payload || {});
 	                deepDiveStatus.textContent = "生成完了";
                 announceStatusNow("深掘り解説の生成が完了しました");
                 state.deepDiveSerials.add(q.serial);
@@ -10714,6 +10741,77 @@
         );
         const after = { subtopics: next };
         return applyOverrideChange(question.serial, "subtopics", before, after, { subtopics: next }, note);
+      }
+
+      function formatDeepDiveLabel(record = {}) {
+        const model = formatQaModelName(record.model_name || record.model);
+        return formatExplanationLabel("", model, record.review_status || "ai");
+      }
+
+      function renderDeepDiveReviewControls(container, record, onSave, explanationText) {
+        container.textContent = "";
+        const status = normalizeExplanationStatus(record.review_status) || "ai";
+        let saving = false;
+        const buttons = [];
+        const addButton = (label, patch, parent = container) => {
+          const button = document.createElement("button");
+          button.textContent = label;
+          button.addEventListener("click", async () => {
+            if (saving) return;
+            saving = true;
+            buttons.forEach(item => { item.disabled = true; });
+            try { await onSave(typeof patch === "function" ? patch() : patch); }
+            finally {
+              saving = false;
+              buttons.forEach(item => { item.disabled = false; });
+            }
+          });
+          buttons.push(button);
+          parent.appendChild(button);
+          return button;
+        };
+        const aiChecked = status === "ai_fact_checked";
+        const aiButton = addButton(aiChecked ? "AI検証取消" : "AI検証済みにする", {
+          review_status: aiChecked ? "ai" : "ai_fact_checked"
+        });
+        aiButton.title = aiChecked ? "AIによるファクトチェック済みの記録を取り消す" : "AIによるファクトチェックが完了した解説に付けるラベル";
+        if (status === "teacher_approved") {
+          addButton("承認取消", { review_status: "ai" });
+        } else if (status !== "teacher_edited") {
+          addButton("解説承認", { review_status: "teacher_approved" });
+        }
+        const details = document.createElement("details");
+        details.className = "inline inline-details";
+        const summary = document.createElement("summary");
+        summary.className = "inline-summary";
+        summary.textContent = "解説編集";
+        details.appendChild(summary);
+        const panel = document.createElement("div");
+        panel.className = "edit-panel";
+        const area = document.createElement("textarea");
+        area.rows = 4;
+        area.value = explanationText;
+        area.setAttribute("aria-label", "深掘り解説の編集本文");
+        panel.appendChild(area);
+        addButton("解説を反映", () => ({ review_status: "teacher_edited", explanation: area.value }), panel);
+        details.appendChild(panel);
+        container.appendChild(details);
+      }
+
+      async function saveDeepDiveReview(serial, updatedAt, patch) {
+        const base = window.ADMIN_API_BASE || window.AI_API_BASE;
+        if (!base || !supabaseClient) throw new Error("管理APIが設定されていません。");
+        const { data } = await supabaseClient.auth.getSession();
+        const token = data?.session?.access_token;
+        if (!token) throw new Error("教師ログインが必要です。");
+        const resp = await fetch(`${base}/admin/deep_dive_review`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ serial, expected_updated_at: updatedAt, ...patch })
+        });
+        const payload = await resp.json();
+        if (!resp.ok || !payload.data) throw new Error(payload.message || "更新に失敗しました。");
+        return payload.data;
       }
 
       function buildExplanationAiReviewButton(question) {

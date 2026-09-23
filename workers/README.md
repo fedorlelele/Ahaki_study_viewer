@@ -75,6 +75,14 @@
 
 先に `workers/sql/migration_20260920_question_qa_model.sql` を Supabase に適用し、その後 Worker、Pages の順に更新してください。移行は `question_qa.model` の追加と、サイト管理者が Gemini 3 Flash と確認した既存 Q&A の空モデル欄への `gemini-3-flash-preview` 補完のみを行います。問題の通常解説やそのモデル・AI検証ラベルは変更しません。移行は再実行可能で、記録済みのモデルは保持します。
 
+### 深掘り解説のモデル・検証ラベル（2026-09-23）
+
+問題の深掘り解説は通常解説と同じ `model_name` / `review_status` を保持します。表示は「モデル名」「モデル名・AI検証済み」「モデル名・教師承認済み」「モデル名・教師編集済み」です。教師以上の編集モードで検証・承認の付与と取消、本文編集ができます。`POST /admin/deep_dive_review` は教師以上の認証と `expected_updated_at` を必須とし、古い本文への更新は `409` で拒否します。本文を編集すると `teacher_edited` になります。
+
+適用順は `workers/sql/migration_20260923_deep_dive_metadata.sql` → Worker → Pages です。移行は既存分の空モデル欄を `Gemini 3 Flash` で補完し、本文・タグ・日時・記録済みのモデルと検証状態を保持します。既存分と新規生成分を自動で検証済みにはしません。新規生成では実際に応答したモデル（フォールバックを含む）を保存・返却します。
+
+ローカルDBには `python3 -B scripts/deep_dive_metadata.py --apply --backup output/backups/before_deep_dive_metadata.sqlite` を適用します。既存のバックアップ名は再使用できません。CLI生成、Web JSONへの埋め込み、ローカル管理画面とCLIのSupabase同期もメタデータを引き継ぎます。クラウドでレビューした後はクラウド→ローカルの同期を先に行ってください。
+
 主な分析API:
 
 - `POST /analytics/collect`（匿名/ログイン問わずイベント送信）
