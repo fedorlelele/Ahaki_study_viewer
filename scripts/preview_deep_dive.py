@@ -15,7 +15,7 @@ DB = ROOT / "output/ahaki.sqlite"
 class PreviewHandler(SimpleHTTPRequestHandler):
     draft = ""
     serial = "A34-029"
-    model = "GPT-6"
+    model = "GPT-6 Astra"
 
     def send_bytes(self, body, content_type="application/json; charset=utf-8", status=200):
         self.send_response(status)
@@ -107,7 +107,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8766)
     parser.add_argument("--serial", default="A34-029")
-    parser.add_argument("--model", default="GPT-6")
+    parser.add_argument("--model", default="GPT-6 Astra")
     parser.add_argument("--content", type=Path, default=ROOT / "web_app/content/deep-dives/A34-029.md")
     args = parser.parse_args()
     PreviewHandler.draft = args.content.read_text()
