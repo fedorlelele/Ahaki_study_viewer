@@ -5,6 +5,10 @@
     "test": "python3 -B scripts/run_checks.py"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.3.14"
+    "@electric-sql/pglite": "0.3.14",
+    "dompurify": "3.4.15",
+    "jsdom": "26.1.0",
+    "katex": "0.18.7",
+    "marked": "18.0.5"
   }
 }

@@ -669,6 +669,7 @@
         gap: var(--space-4);
       }
       .card {
+        min-width: 0;
         background: var(--surface);
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-lg);
@@ -964,6 +965,70 @@
         line-height: 1.9;
         word-break: break-word;
       }
+      .deep-dive-continuation {
+        display: none;
+        margin-top: var(--space-3);
+        min-width: 0;
+      }
+      .show-explanation .deep-dive-continuation { display: block; }
+      .deep-dive-continuation[hidden] { display: none; }
+      .deep-dive-entry {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        width: 100%;
+        padding: 14px 16px;
+        text-align: left;
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-sm);
+        background: var(--accent-soft);
+        color: var(--accent-soft-ink);
+        cursor: pointer;
+      }
+      .deep-dive-entry[hidden] { display: none; }
+      .deep-dive-entry:hover { border-color: var(--accent-hover); }
+      .deep-dive-entry-copy { flex: 1; }
+      .deep-dive-entry-title { display: block; font-size: 15px; font-weight: 700; }
+      .deep-dive-entry-description { display: block; margin-top: 3px; font-size: 13px; }
+      .deep-dive-entry-arrow { font-size: 20px; }
+      .deep-dive-entry[aria-expanded="true"] .deep-dive-entry-arrow { transform: rotate(180deg); }
+      .deep-dive-continuation > .deep-dive-panel {
+        padding: 18px;
+        border-top: 3px solid var(--accent);
+      }
+      .deep-dive-heading { margin: 0; font-size: 18px; }
+      .deep-dive-outline { margin-top: 16px; padding: 12px 16px; background: var(--surface-alt); border-radius: var(--radius-sm); }
+      .deep-dive-outline-label { margin: 0 0 6px; font-weight: 700; }
+      .deep-dive-outline ul { margin: 0; padding-left: 1.3em; }
+      .deep-dive-outline a { display: inline-block; padding: 3px 0; color: var(--accent); text-underline-offset: 3px; }
+      .deep-dive-continuation .deep-dive-body {
+        margin: 18px 0 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        font-size: 15px;
+      }
+      .deep-dive-continuation .deep-dive-body h2 { margin-top: 1.8em; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle); font-size: 1.2em; scroll-margin-top: 72px; }
+      .deep-dive-continuation .deep-dive-body h3 { margin-top: 1.3em; font-size: 1.05em; }
+      .deep-dive-continuation .deep-dive-body p { margin: 0.9em 0; }
+      .deep-dive-body strong { font-weight: 700; }
+      .deep-dive-back { margin-top: 20px; }
+      .markdown-body a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+      .markdown-body blockquote { margin: 1em 0; padding: 0.1em 1em; border-left: 3px solid var(--border-control); }
+      .markdown-math math { font-size: 1.05em; }
+      .markdown-math-display { display: block; max-width: 100%; overflow-x: auto; padding: 8px 0; margin: 1em 0; }
+      .markdown-table-scroll { max-width: 100%; overflow-x: auto; margin: 1em 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+      .markdown-body table { width: 100%; border-collapse: collapse; font-size: 0.95em; line-height: 1.7; }
+      .markdown-body th, .markdown-body td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border-subtle); }
+      .markdown-body th { background: var(--surface-alt); font-weight: 700; white-space: nowrap; }
+      .markdown-body tr:last-child td { border-bottom: 0; }
+      .markdown-body th + th, .markdown-body td + td { border-left: 1px solid var(--border-subtle); }
+      body[data-font-scale="large"] .deep-dive-continuation .deep-dive-body { font-size: 18px; }
+      body[data-font-scale="xlarge"] .deep-dive-continuation .deep-dive-body { font-size: 20px; }
+      @media (max-width: 600px) {
+        .deep-dive-continuation > .deep-dive-panel { padding: 12px; }
+        .deep-dive-body table { min-width: 480px; }
+      }
       .inline-meta {
         margin-top: var(--space-2);
         display: inline-flex;
@@ -1059,6 +1124,7 @@
         display: none;
       }
       .explanation {
+        scroll-margin-top: 72px;
         margin-top: var(--space-2);
         padding: var(--space-2) 10px;
         border-left: 4px solid var(--ok-border);
@@ -2231,10 +2297,12 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@18.0.5/lib/marked.umd.js" integrity="sha256-LcR2nf3in1HHrKGlOcZAfHicjqZEz4t9Ad7SipwdgAs=" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.11/dist/purify.min.js" integrity="sha256-26u1sgWjM+xJyMCef8ow72bfBSO7i8D6nqhDhB8RHb0=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.15/dist/purify.min.js" integrity="sha256-8mOwU2ngUPoXXU7LnJNY60JTYC1RApet+zHfSLLxxNU=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.18.7/dist/katex.min.js" integrity="sha256-EKkbR5zZJ0Rs62BAn7DXK10NBer0RsnlL6/WQFjIRUA=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
     <script src="./shared/study-tools.js"></script>
+    <script src="./shared/markdown.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
@@ -4589,28 +4657,8 @@
         return String(text || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       }
 
-      function markdownToHtml(text) {
-        const escaped = escapeHtmlForMarkdown(text);
-        if (window.marked && typeof window.marked.parse === "function") {
-          return window.marked.parse(escaped, {
-            gfm: true,
-            breaks: true
-          });
-        }
-        return escaped.replace(/\n/g, "<br>");
-      }
-
-      function sanitizeRenderedHtml(html) {
-        if (window.DOMPurify && typeof window.DOMPurify.sanitize === "function") {
-          return window.DOMPurify.sanitize(html);
-        }
-        return html;
-      }
-
-      function renderMarkdownToElement(target, text) {
-        if (!target) return;
-        target.classList.add("markdown-body");
-        target.innerHTML = sanitizeRenderedHtml(markdownToHtml(text));
+      function renderMarkdownToElement(target, text, options = {}) {
+        AhakiMarkdown.render(target, text, options);
       }
 
       function normalizeTtsQuality(value) {
@@ -7815,6 +7863,30 @@
           explanation.appendChild(statsEl);
           card.appendChild(explanation);
 
+          const deepDiveSection = document.createElement("section");
+          deepDiveSection.className = "deep-dive-continuation";
+          const deepDiveEntry = document.createElement("button");
+          deepDiveEntry.type = "button";
+          deepDiveEntry.className = "deep-dive-entry";
+          deepDiveEntry.setAttribute("aria-controls", `deep-dive-${q.serial}`);
+          deepDiveEntry.setAttribute("aria-expanded", "false");
+          const deepDiveEntryCopy = document.createElement("span");
+          deepDiveEntryCopy.className = "deep-dive-entry-copy";
+          const deepDiveEntryTitle = document.createElement("span");
+          deepDiveEntryTitle.className = "deep-dive-entry-title";
+          deepDiveEntryTitle.textContent = "もっと理解を深める";
+          const deepDiveEntryDescription = document.createElement("span");
+          deepDiveEntryDescription.className = "deep-dive-entry-description";
+          deepDiveEntryDescription.textContent = "仕組みや似た知識との違いを、深掘り解説で読む";
+          deepDiveEntryCopy.append(deepDiveEntryTitle, deepDiveEntryDescription);
+          const deepDiveEntryArrow = document.createElement("span");
+          deepDiveEntryArrow.className = "deep-dive-entry-arrow";
+          deepDiveEntryArrow.textContent = "⌄";
+          deepDiveEntryArrow.setAttribute("aria-hidden", "true");
+          deepDiveEntry.append(deepDiveEntryCopy, deepDiveEntryArrow);
+          deepDiveSection.appendChild(deepDiveEntry);
+          card.appendChild(deepDiveSection);
+
           const beginnerQaSection = document.createElement("div");
           beginnerQaSection.className = "deep-dive-panel";
           beginnerQaSection.hidden = true;
@@ -9034,11 +9106,23 @@
 
           const deepDivePanel = document.createElement("div");
           deepDivePanel.className = "deep-dive-panel";
+          deepDivePanel.id = `deep-dive-${q.serial}`;
+          deepDivePanel.setAttribute("role", "region");
+          deepDivePanel.setAttribute("aria-label", `深掘り解説 ${q.serial}`);
           deepDivePanel.hidden = true;
-          menuPanels.push(deepDivePanel);
+          const deepDiveHeading = document.createElement("h2");
+          deepDiveHeading.className = "deep-dive-heading";
+          deepDiveHeading.textContent = "深掘り解説";
+          deepDivePanel.appendChild(deepDiveHeading);
 	          const deepDiveStatus = document.createElement("div");
           deepDiveStatus.className = "note";
+          deepDiveStatus.setAttribute("role", "status");
           deepDivePanel.appendChild(deepDiveStatus);
+          const deepDiveOutline = document.createElement("nav");
+          deepDiveOutline.className = "deep-dive-outline";
+          deepDiveOutline.setAttribute("aria-label", "深掘り解説の目次");
+          deepDiveOutline.hidden = true;
+          deepDivePanel.appendChild(deepDiveOutline);
           const deepDiveBody = document.createElement("div");
           deepDiveBody.className = "deep-dive-body markdown-body";
           deepDivePanel.appendChild(deepDiveBody);
@@ -9229,10 +9313,17 @@
 	              props: { feature: "deep_dive", rating: "not_helpful" }
 	            });
 	          });
-	          deepDiveMeta.appendChild(deepDiveHelpfulBtn);
-	          deepDiveMeta.appendChild(deepDiveNotHelpfulBtn);
+	          const deepDiveFeedback = document.createElement("div");
+          deepDiveFeedback.className = "inline-meta";
+          deepDiveFeedback.append(deepDiveHelpfulBtn, deepDiveNotHelpfulBtn);
+          deepDivePanel.appendChild(deepDiveFeedback);
 	          updateDeepDiveRatingButtons();
-	          deepDivePanel.insertBefore(deepDiveMeta, deepDiveBody);
+	          deepDivePanel.insertBefore(deepDiveMeta, deepDiveOutline);
+	          const deepDiveBack = document.createElement("button");
+          deepDiveBack.type = "button";
+          deepDiveBack.className = "chip-link deep-dive-back";
+          deepDiveBack.textContent = "閉じて通常解説に戻る";
+          deepDivePanel.appendChild(deepDiveBack);
 	          let deepDiveRawText = "";
           deepDiveReadBtn.addEventListener("click", async () => {
             const payloadText = buildDeepDiveSpeechPayload(deepDiveRawText || deepDiveBody.textContent || "");
@@ -9268,11 +9359,23 @@
           });
           const showDeepDivePanel = () => {
             hideMenuPanels(deepDivePanel);
+            card.classList.add("show-explanation");
+            deepDiveSection.hidden = false;
             deepDivePanel.hidden = false;
+            deepDiveEntry.setAttribute("aria-expanded", "true");
           };
+          const hideDeepDivePanel = () => {
+            deepDivePanel.hidden = true;
+            deepDiveEntry.setAttribute("aria-expanded", "false");
+          };
+          deepDiveBack.addEventListener("click", () => {
+            hideDeepDivePanel();
+            deepDiveEntry.focus({ preventScroll: true });
+            explanation.scrollIntoView({ block: "start", behavior: "instant" });
+          });
 	          const renderDeepDive = (explanationText, tags, metadata = {}) => {
 	            showDeepDivePanel();
-	            deepDiveStatus.textContent = "保存済みの深掘り解説";
+	            deepDiveStatus.textContent = "";
 	            deepDiveRawText = explanationText || "";
             deepDiveLabel.textContent = deepDiveRawText.trim() ? formatDeepDiveLabel(metadata) : "";
             deepDiveReviewControls.textContent = "";
@@ -9294,7 +9397,9 @@
 	            deepDiveAvailable = Boolean(String(deepDiveRawText || "").trim()) || (Array.isArray(tags) && tags.length > 0);
 	            deepDiveReadBtn.disabled = !deepDiveRawText;
 	            deepDiveCopyBtn.disabled = !deepDiveRawText;
-	            renderMarkdownToElement(deepDiveBody, deepDiveRawText);
+	            renderMarkdownToElement(deepDiveBody, deepDiveRawText, {
+              outline: deepDiveOutline, headingPrefix: `deep-dive-${q.serial}`
+            });
 	            deepDiveTags.textContent = "";
 	            deepDiveTagDesc.hidden = true;
 	            currentDeepDiveTagDescription = "";
@@ -9328,10 +9433,10 @@
             state.deepDiveSerials.has(q.serial);
           const deepDiveMainBtn = document.createElement("button");
           deepDiveMainBtn.className = "action-btn";
-
-	          const runDeepDiveView = () => {
+          let deepDiveLoadPromise = null;
+	          const runDeepDiveView = async () => {
 	              if (!deepDivePanel.hidden) {
-	                deepDivePanel.hidden = true;
+	                hideDeepDivePanel();
 	                return;
 	              }
 	              if (q.deep_dive && (q.deep_dive.explanation || (q.deep_dive.tags || []).length)) {
@@ -9340,7 +9445,8 @@
 	                return;
 	              }
               if (!window.AI_API_BASE) {
-                alert("AI_API_BASE が設定されていません。");
+                showDeepDivePanel();
+                deepDiveStatus.textContent = "深掘り解説を読み込めません。時間をおいて再度お試しください。";
                 return;
               }
               showDeepDivePanel();
@@ -9353,27 +9459,33 @@
 	              deepDiveCopyBtn.disabled = true;
 	              updateDeepDiveRatingButtons();
 	              deepDiveBody.innerHTML = "";
+              deepDiveOutline.replaceChildren();
+              deepDiveOutline.hidden = true;
 	              deepDiveTags.textContent = "";
 	              deepDiveTagDesc.hidden = true;
               currentDeepDiveTagDescription = "";
-              fetch(`${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`)
-                .then(r => (r.ok ? r.json() : Promise.reject(r)))
-	                .then(payload => {
-	                  if (!payload.found) {
-	                    deepDiveStatus.textContent = "まだ保存された深掘り解説はありません。";
-	                    deepDiveAvailable = false;
-	                    updateDeepDiveRatingButtons();
-	                    return;
-	                  }
-	                  deepDiveRequestId = payload && payload.request_id ? String(payload.request_id) : "";
-	                  renderDeepDive(payload.data?.explanation || "", payload.data?.tags || [], payload.data || {});
-	                })
-	                .catch(() => {
-	                  deepDiveStatus.textContent = "読み込みに失敗しました。";
-	                  deepDiveAvailable = false;
-	                  updateDeepDiveRatingButtons();
-	                });
+              try {
+                if (!deepDiveLoadPromise) {
+                  deepDiveLoadPromise = fetch(`${window.AI_API_BASE}/ai/deep_dive?serial=${encodeURIComponent(q.serial)}`)
+                    .then(r => r.ok ? r.json() : Promise.reject(r))
+                    .finally(() => { deepDiveLoadPromise = null; });
+                }
+                const payload = await deepDiveLoadPromise;
+                if (payload.found && payload.data) q.deep_dive = payload.data;
+                if (deepDivePanel.hidden) return;
+                if (!payload.found) {
+                  deepDiveStatus.textContent = "まだ保存された深掘り解説はありません。";
+                  return;
+                }
+                deepDiveRequestId = payload.request_id ? String(payload.request_id) : "";
+                renderDeepDive(payload.data?.explanation || "", payload.data?.tags || [], payload.data || {});
+              } catch (_) {
+                deepDiveStatus.textContent = "読み込みに失敗しました。一度閉じて、もう一度開いてください。";
+                deepDiveAvailable = false;
+                updateDeepDiveRatingButtons();
+              }
 	          };
+          deepDiveEntry.addEventListener("click", runDeepDiveView);
 
           const runDeepDiveGenerate = async () => {
               if (!window.AI_API_BASE) {
@@ -9458,15 +9570,12 @@
           };
 
           const updateDeepDiveMainButton = () => {
+            deepDiveEntry.hidden = !hasDeepDive;
+            deepDiveSection.hidden = !hasDeepDive && deepDivePanel.hidden;
             deepDiveMainBtn.hidden = false;
             deepDiveMainBtn.disabled = false;
             if (hasDeepDive) {
-              setActionButtonLabel(deepDiveMainBtn, "◎", "深掘り解説");
-              deepDiveMainBtn.setAttribute("aria-label", "保存済みの深掘り解説を表示");
-              deepDiveMainBtn.onclick = () => {
-                closeCardMenu();
-                runDeepDiveView();
-              };
+              deepDiveMainBtn.hidden = true;
               return;
             }
             if (canUseAiGeneration()) {
@@ -9548,7 +9657,7 @@
 	          card.appendChild(qaSection);
 	          card.appendChild(practicePanel);
 	          card.appendChild(senryuPanel);
-	          card.appendChild(deepDivePanel);
+	          deepDiveSection.appendChild(deepDivePanel);
 
 	          target.appendChild(card);
 	        }
