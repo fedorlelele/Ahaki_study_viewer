@@ -21,6 +21,8 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+from oriental_source_read_proof import SourceReadProof
 DEFAULT_ARTIFACTS = ROOT / 'reviews/2026-09-24/oriental-clinical-normal-claude'
 MODELS = {'claude-opus-5-5': 'Claude Opus 5.5',
           'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'gpt-6.1-sol': 'GPT-6.1 Sol'}
@@ -70,10 +72,56 @@ def latest(c, question_id):
     return dict(row) if row else None
 def changes(a, b): return {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
 
+def same_audit_references(raw, enriched, bound):
+    """Permit only reproducible bibliographic additions, never medical changes."""
+    if raw == enriched: return True
+    if not isinstance(raw, list) or not isinstance(enriched, list) or len(raw) != len(enriched): return False
+    index_path = DEFAULT_ARTIFACTS / 'efficiency/source_index.jsonl'
+    units = {x['id']: x for x in jsonl(index_path)}
+    for original, filled in zip(raw, enriched):
+        if original == filled: continue
+        if original.get('type') != 'textbook' or original.get('source_id') not in units: return False
+        unit = units[original['source_id']]
+        expected = dict(original)
+        expected.setdefault('title', unit['book'])
+        expected.setdefault('edition', unit['edition'])
+        expected.setdefault('location', ' / '.join(unit['headings']))
+        expected['bibliographic_metadata_basis'] = 'immutable textbook source index'
+        if filled != expected: return False
+    bound[str(index_path.resolve())] = sha(index_path.read_bytes())
+    return True
+
+def validate_audit_evidence(audit, frozen_input, serial):
+    """Question input proves literal structure only, never medical correctness."""
+    references = audit.get('references', [])
+    refmap = {ref['id']: ref for ref in references}
+    need(bool(refmap) and len(refmap) == len(references) and audit.get('claim_audit'),
+         f'{serial}: absent or duplicate evidence')
+    for ref in references:
+        if ref.get('type') != 'question_input': continue
+        need(ref.get('serial') == serial and
+             ref.get('input_sha256') == frozen_input['input_sha256'] and
+             ref.get('question_sha256') == frozen_input['question_sha256'],
+             f'{serial}: question evidence does not bind frozen input')
+        need(isinstance(ref.get('passage'), str) and bool(ref['passage'].strip()),
+             f'{serial}: question evidence lacks literal description')
+    for kind, items in [('choice', audit.get('choice_audit', [])),
+                        ('claim', audit['claim_audit'])]:
+        for item in items:
+            ids = item.get('evidence_ids')
+            need(item.get('verdict') == 'ok' and ids and set(ids) <= set(refmap),
+                 f'{serial}: unsupported claim/choice')
+            question_only = all(refmap[eid].get('type') == 'question_input' for eid in ids)
+            if question_only:
+                need(kind == 'claim' and item.get('claim_kind') == 'question_structure',
+                     f'{serial}: question evidence cannot verify medical claim or choice')
+
 def validate_release(artifacts, release, inputs_path):
     inputs = keyed(jsonl(inputs_path))
     rows = keyed(jsonl(release)); need(bool(rows), 'empty release')
     bound, claude_log_evidence, codex_log_evidence = {}, {}, {}
+    source_proof = SourceReadProof(DEFAULT_ARTIFACTS / 'efficiency/source_index.jsonl',
+        [DEFAULT_ARTIFACTS / 'efficiency/efficient_tools.py', artifacts / 'source_tools.py'], bound)
     for s, r in rows.items():
         need(s in inputs, f'{s}: outside frozen inputs')
         i = inputs[s]; q = i['question']; le = i['latest_explanation']
@@ -118,6 +166,10 @@ def validate_release(artifacts, release, inputs_path):
                     if str(log) not in codex_log_evidence:
                         metadata_path, prompt_path = log.with_suffix('.run.json'), log.with_suffix('.prompt.txt')
                         meta, prompt = read(metadata_path), prompt_path.read_text()
+                        try:
+                            source_proof.validate_run_index(meta,
+                                artifacts / 'LEGACY_SOURCE_INDEX_OBSERVATIONS.json')
+                        except ValueError as error: raise SafetyError(str(error)) from error
                         events = jsonl(log); argv = meta.get('argv', [])
                         need(meta.get('returncode') == 0 and meta.get('requested_model_id') == mid and '-m' in argv and argv[argv.index('-m')+1] == mid, 'Codex run did not select requested model successfully')
                         need(meta.get('log_sha256') == h and meta.get('log_path') == p, 'Codex run metadata does not bind log')
@@ -126,29 +178,32 @@ def validate_release(artifacts, release, inputs_path):
                         messages = [x['item']['text'] for x in events if x.get('type') == 'item.completed' and x.get('item', {}).get('type') == 'agent_message']
                         need(bool(messages), 'Codex final response missing')
                         final = json.loads(re.sub(r'^```(?:json)?\s*|\s*```$', '', messages[-1].strip()))
-                        output = '\n'.join(str(x.get('item', {}).get('aggregated_output', '')) for x in events if x.get('type') == 'item.completed')
-                        codex_log_evidence[str(log)] = (meta, prompt, keyed(final['items']), output)
-                    meta, prompt, final, output = codex_log_evidence[str(log)]
+                        received_sources = source_proof.collect(events)
+                        codex_log_evidence[str(log)] = (meta, prompt, keyed(final['items']), received_sources)
+                    meta, prompt, final, received_sources = codex_log_evidence[str(log)]
                     bound[str(log.with_suffix('.run.json'))] = sha(log.with_suffix('.run.json').read_bytes())
                     bound[str(log.with_suffix('.prompt.txt'))] = sha(log.with_suffix('.prompt.txt').read_bytes())
                     need(a[f'{role}_session_ids'] == [meta['session_id']] and s in final, f'{s}: Codex session/final item differs')
                     need(i['input_sha256'] in prompt and s in prompt, f'{s}: Codex did not receive frozen input')
                     if role == 'generation':
                         need(final[s].get('explanation') == body, f'{s}: generated final response differs from published body')
+                        try: source_proof.require(final[s].get('sources', []), received_sources)
+                        except ValueError as error: raise SafetyError(f'{s}: generator {error}') from error
                     else:
                         need(body in prompt and r['body_sha256'] in prompt and final[s].get('audited_body_sha256') == r['body_sha256'], f'{s}: auditor did not receive fixed final body')
                         for field in ('verdict', 'choice_audit', 'claim_audit', 'references', 'issues'):
-                            need(final[s].get(field) == a.get(field), f'{s}: accepted audit differs from actual final response')
+                            matches = same_audit_references(final[s].get(field), a.get(field), bound) if field == 'references' else final[s].get(field) == a.get(field)
+                            need(matches, f'{s}: accepted audit differs from actual final response')
                         for ref in a.get('references', []):
                             if ref.get('type') == 'textbook':
-                                need(ref['source_id'] in output and ref['excerpt_sha256'] in output, f'{s}: actual auditor textbook read not found in command outputs')
+                                need((ref['source_id'], ref['excerpt_sha256']) in received_sources,
+                                     f'{s}: actual auditor complete textbook read not proved')
+                            elif ref.get('type') == 'question_input':
+                                need(i['question_sha256'] in prompt, f'{s}: auditor did not receive frozen question SHA')
         gs, vs = a['generation_session_ids'], a['verification_session_ids']
         need(gs and vs and not set(gs) & set(vs), f'{s}: generation and audit sessions must differ')
         need({x['number'] for x in a['choice_audit']} == set(range(1, len(i['choices']) + 1)), f'{s}: incomplete choice audit')
-        refs = {x['id'] for x in a['references']}
-        need(bool(refs) and a['claim_audit'], f'{s}: absent evidence')
-        for item in a['choice_audit'] + a['claim_audit']:
-            need(item.get('verdict') == 'ok' and item.get('evidence_ids') and set(item['evidence_ids']) <= refs, f'{s}: unsupported claim/choice')
+        validate_audit_evidence(a, i, s)
     return inputs, rows, bound
 
 def overlay_rows(overlay, inputs, selected):

@@ -1,9 +1,11 @@
 import importlib.util
+import copy
 import json
 from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 MODULE = Path(__file__).resolve().parents[1] / 'scripts/publish_oriental_clinical_normal.py'
 spec = importlib.util.spec_from_file_location('normal_publication', MODULE)
@@ -82,6 +84,84 @@ class NormalPublicationTests(unittest.TestCase):
 
     def test_path_traversal_is_rejected(self):
         with self.assertRaises(p.SafetyError): p.inside(self.directory, '../elsewhere')
+
+    def test_bibliography_enrichment_is_reproducible_and_binds_source_index(self):
+        index = self.directory/'efficiency/source_index.jsonl'
+        index.parent.mkdir()
+        index.write_text(json.dumps(dict(id='book-001', book='東洋医学臨床論',
+            edition='第2版', headings=['第3章', '六部定位脈診']), ensure_ascii=False)+'\n')
+        raw = [dict(type='textbook', source_id='book-001', excerpt_sha256='fixed-excerpt',
+            passage='固定した根拠箇所', verdict='ok')]
+        enriched = [dict(raw[0], title='東洋医学臨床論', edition='第2版',
+            location='第3章 / 六部定位脈診',
+            bibliographic_metadata_basis='immutable textbook source index')]
+        bound = {}
+        with patch.object(p, 'DEFAULT_ARTIFACTS', self.directory):
+            self.assertTrue(p.same_audit_references(raw, enriched, bound))
+        self.assertEqual(bound, {str(index.resolve()): p.sha(index.read_bytes())})
+        self.assertNotIn('title', raw[0])
+        self.plan['bound_files'] = bound
+        p.write(self.path, self.plan)
+        self.assertEqual(p.load_plan(self.path)['bound_files'], bound)
+        index.write_text(index.read_text().replace('第2版', '第3版'))
+        with self.assertRaises(p.SafetyError): p.load_plan(self.path)
+
+    def test_bibliography_enrichment_rejects_medical_or_evidence_changes(self):
+        index = self.directory/'efficiency/source_index.jsonl'
+        index.parent.mkdir()
+        index.write_text(json.dumps(dict(id='book-001', book='東洋医学臨床論',
+            edition='第2版', headings=['第3章', '六部定位脈診']), ensure_ascii=False)+'\n')
+        raw = [dict(type='textbook', source_id='book-001', excerpt_sha256='fixed-excerpt',
+            passage='固定した根拠箇所', claim='右寸口の配当', verdict='ok')]
+        expected = dict(raw[0], title='東洋医学臨床論', edition='第2版',
+            location='第3章 / 六部定位脈診',
+            bibliographic_metadata_basis='immutable textbook source index')
+        with patch.object(p, 'DEFAULT_ARTIFACTS', self.directory):
+            for field, changed in [('passage', '違う根拠'), ('claim', '別の医学的主張'),
+                    ('verdict', 'uncertain'), ('excerpt_sha256', 'different-excerpt'),
+                    ('source_id', 'other-book'), ('title', '推測した書名'),
+                    ('evidence', '追加した根拠')]:
+                with self.subTest(field=field):
+                    bound = {}
+                    self.assertFalse(p.same_audit_references(raw, [dict(expected, **{field: changed})], bound))
+                    self.assertEqual(bound, {})
+
+    def test_question_input_can_verify_only_fixed_question_structure(self):
+        frozen = dict(input_sha256='fixed-input', question_sha256='fixed-question')
+        audit = dict(references=[dict(id='Q1', type='question_input', serial='A27-140',
+            input_sha256='fixed-input', question_sha256='fixed-question',
+            passage='設問に病期の指定はない。'), dict(id='T1', type='textbook')],
+            choice_audit=[dict(number=1, verdict='ok', evidence_ids=['T1'])],
+            claim_audit=[dict(claim='設問に病期の指定はない。', claim_kind='question_structure',
+                verdict='ok', evidence_ids=['Q1'])])
+        p.validate_audit_evidence(audit, frozen, 'A27-140')
+        for field, value in [('serial', 'A27-139'), ('input_sha256', 'changed-input'),
+                ('question_sha256', 'changed-question'), ('passage', '')]:
+            altered = copy.deepcopy(audit)
+            altered['references'][0][field] = value
+            with self.subTest(field=field), self.assertRaises(p.SafetyError):
+                p.validate_audit_evidence(altered, frozen, 'A27-140')
+
+    def test_question_input_cannot_replace_medical_or_choice_evidence(self):
+        frozen = dict(input_sha256='fixed-input', question_sha256='fixed-question')
+        audit = dict(references=[dict(id='Q1', type='question_input', serial='A27-140',
+            input_sha256='fixed-input', question_sha256='fixed-question', passage='固定設問'),
+            dict(id='T1', type='textbook')],
+            choice_audit=[dict(number=1, verdict='ok', evidence_ids=['T1'])],
+            claim_audit=[dict(claim='医学的主張', verdict='ok', evidence_ids=['Q1'])])
+        with self.assertRaises(p.SafetyError):
+            p.validate_audit_evidence(audit, frozen, 'A27-140')
+        audit['claim_audit'][0]['claim_kind'] = 'medical'
+        with self.assertRaises(p.SafetyError):
+            p.validate_audit_evidence(audit, frozen, 'A27-140')
+        audit['claim_audit'][0]['evidence_ids'] = ['T1']
+        audit['choice_audit'][0]['evidence_ids'] = ['Q1']
+        with self.assertRaises(p.SafetyError):
+            p.validate_audit_evidence(audit, frozen, 'A27-140')
+        audit['choice_audit'][0]['evidence_ids'] = ['T1']
+        audit['claim_audit'][0]['evidence_ids'] = []
+        with self.assertRaises(p.SafetyError):
+            p.validate_audit_evidence(audit, frozen, 'A27-140')
 
 
 if __name__ == '__main__': unittest.main()
