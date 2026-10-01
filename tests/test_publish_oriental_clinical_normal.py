@@ -127,9 +127,9 @@ class NormalPublicationTests(unittest.TestCase):
                     self.assertEqual(bound, {})
 
     def test_question_input_can_verify_only_fixed_question_structure(self):
-        frozen = dict(input_sha256='fixed-input', question_sha256='fixed-question')
+        frozen = dict(input_sha256=p.sha('fixed-input'), question_sha256=p.sha('fixed-question'))
         audit = dict(references=[dict(id='Q1', type='question_input', serial='A27-140',
-            input_sha256='fixed-input', question_sha256='fixed-question',
+            input_sha256=frozen['input_sha256'], question_sha256=frozen['question_sha256'],
             passage='設問に病期の指定はない。'), dict(id='T1', type='textbook')],
             choice_audit=[dict(number=1, verdict='ok', evidence_ids=['T1'])],
             claim_audit=[dict(claim='設問に病期の指定はない。', claim_kind='question_structure',
@@ -143,14 +143,15 @@ class NormalPublicationTests(unittest.TestCase):
                 p.validate_audit_evidence(altered, frozen, 'A27-140')
 
     def test_question_input_cannot_replace_medical_or_choice_evidence(self):
-        frozen = dict(input_sha256='fixed-input', question_sha256='fixed-question')
+        frozen = dict(input_sha256=p.sha('fixed-input'), question_sha256=p.sha('fixed-question'))
         audit = dict(references=[dict(id='Q1', type='question_input', serial='A27-140',
-            input_sha256='fixed-input', question_sha256='fixed-question', passage='固定設問'),
+            input_sha256=frozen['input_sha256'], question_sha256=frozen['question_sha256'], passage='固定設問'),
             dict(id='T1', type='textbook')],
             choice_audit=[dict(number=1, verdict='ok', evidence_ids=['T1'])],
             claim_audit=[dict(claim='医学的主張', verdict='ok', evidence_ids=['Q1'])])
         with self.assertRaises(p.SafetyError):
             p.validate_audit_evidence(audit, frozen, 'A27-140')
+
         audit['claim_audit'][0]['claim_kind'] = 'medical'
         with self.assertRaises(p.SafetyError):
             p.validate_audit_evidence(audit, frozen, 'A27-140')
@@ -162,6 +163,12 @@ class NormalPublicationTests(unittest.TestCase):
         audit['claim_audit'][0]['evidence_ids'] = []
         with self.assertRaises(p.SafetyError):
             p.validate_audit_evidence(audit, frozen, 'A27-140')
+
+    def test_truncated_web_hash_stops_publication(self):
+        audit = {'references':[{'id':'R1', 'type':'web', 'sha256':'a'*50}],
+                 'claim_audit':[{'claim':'原典の部位', 'verdict':'ok', 'evidence_ids':['R1']}]}
+        with self.assertRaisesRegex(p.SafetyError, 'Malformed reference SHA-256'):
+            p.validate_audit_evidence(audit, {}, 'A17-138')
 
 
 if __name__ == '__main__': unittest.main()

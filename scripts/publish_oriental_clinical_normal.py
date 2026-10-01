@@ -94,6 +94,10 @@ def same_audit_references(raw, enriched, bound):
 def validate_audit_evidence(audit, frozen_input, serial):
     """Question input proves literal structure only, never medical correctness."""
     references = audit.get('references', [])
+    try:
+        SourceReadProof.validate_hash_fields(references)
+    except ValueError as error:
+        raise SafetyError(f'{serial}: {error}') from error
     refmap = {ref['id']: ref for ref in references}
     need(bool(refmap) and len(refmap) == len(references) and audit.get('claim_audit'),
          f'{serial}: absent or duplicate evidence')

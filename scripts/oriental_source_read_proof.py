@@ -6,6 +6,7 @@ its complete first JSON response exactly matches the frozen source files.
 """
 import hashlib
 import json
+import re
 from pathlib import Path
 import shlex
 
@@ -160,7 +161,22 @@ class SourceReadProof:
                         proved.add((source['id'], source['excerpt_sha256']))
         return proved
 
+    @staticmethod
+    def validate_hash_fields(value):
+        """Reject malformed claimed SHA-256 values, including web references."""
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key == 'sha256' or key.endswith('_sha256'):
+                    if not isinstance(item, str) or not re.fullmatch(r'[0-9a-fA-F]{64}', item):
+                        raise ValueError('Malformed reference SHA-256: ' + key)
+                else:
+                    SourceReadProof.validate_hash_fields(item)
+        elif isinstance(value, list):
+            for item in value:
+                SourceReadProof.validate_hash_fields(item)
+
     def require(self, references, proved):
+        self.validate_hash_fields(references)
         for ref in references:
             if ref.get('type') == 'textbook' and (ref['source_id'], ref['excerpt_sha256']) not in proved:
                 raise ValueError('Cited complete source not actually received: ' + ref['source_id'])

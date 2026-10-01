@@ -133,5 +133,19 @@ class ActualSourceReadProofTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.proof.require([self.ref], self.proof.collect([self.event(output)]))
 
+    def test_malformed_web_reference_hashes_are_rejected(self):
+        for value in ('a' * 50, 'g' * 64, None, 123):
+            for field in ('sha256', 'image_sha256'):
+                with self.subTest(value=value, field=field), self.assertRaises(ValueError):
+                    self.proof.require([dict(type='web', **{field:value})], set())
+
+    def test_nested_hashes_are_checked_without_claiming_source_receipt(self):
+        with self.assertRaises(ValueError):
+            self.proof.require([{'type':'web', 'original':{'pdf_sha256':'a'*50}}], set())
+        # A well-formed checksum alone does not prove any source was read.
+        self.proof.require([{'type':'web', 'sha256':'a'*64}], set())
+        with self.assertRaises(ValueError):
+            self.proof.require([self.ref], set())
+
 
 if __name__ == '__main__': unittest.main()
