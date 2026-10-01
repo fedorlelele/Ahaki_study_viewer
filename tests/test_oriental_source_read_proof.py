@@ -110,5 +110,28 @@ class ActualSourceReadProofTests(unittest.TestCase):
         # Failure recovery still requires a known first helper's full output.
         with self.assertRaises(ValueError):self.proof.require([self.ref],self.proof.collect([self.event(output)]))
 
+    def test_successful_complete_top_level_array_receipt(self):
+        for indent in (None, 2):
+            output = json.dumps([self.source], ensure_ascii=False, indent=indent)
+            with self.subTest(indent=indent):
+                self.proof.require([self.ref], self.proof.collect([self.event(output, exit_code=0)]))
+                self.assertEqual(len(self.proof.objects(output)), 1)
+
+    def test_array_receipt_rejects_partial_quoted_and_modified_sources(self):
+        complete = json.dumps([self.source], ensure_ascii=False, indent=2)
+        changed = copy.deepcopy(self.source)
+        changed['text'] = self.text[:8]
+        outputs = [complete[:-1], json.dumps(complete),
+                   json.dumps([changed]), json.dumps([{'sources': [self.source]}]),
+                   '{"sources": ' + complete]  # incomplete enclosing object
+        for output in outputs:
+            with self.subTest(output=output), self.assertRaises(ValueError):
+                self.proof.require([self.ref], self.proof.collect([self.event(output, exit_code=0)]))
+
+    def test_nonzero_array_does_not_expand_failure_recovery_rules(self):
+        output = json.dumps([self.source], ensure_ascii=False)
+        with self.assertRaises(ValueError):
+            self.proof.require([self.ref], self.proof.collect([self.event(output)]))
+
 
 if __name__ == '__main__': unittest.main()

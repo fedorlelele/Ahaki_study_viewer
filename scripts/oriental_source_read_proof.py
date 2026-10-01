@@ -89,16 +89,23 @@ class SourceReadProof:
             except (ValueError, TypeError):
                 return []
         objects = []
+        consumed_until = 0
         # Decode entire top-level JSON values, never a quoted JSON-looking snippet.
         for line_start in [0] + [i + 1 for i, ch in enumerate(output) if ch == '\n']:
+            if line_start < consumed_until:
+                continue
             candidate = output[line_start:].lstrip()
-            if not candidate.startswith('{'):
+            if not candidate.startswith(('{', '[', '"')):
                 continue
             try:
-                obj, _ = decoder.raw_decode(candidate)
-                objects.append(obj)
+                obj, end = decoder.raw_decode(candidate)
+                consumed_until = len(output) - len(candidate) + end
+                if isinstance(obj, (dict, list)):
+                    objects.append(obj)
             except ValueError:
-                pass
+                # An incomplete enclosing value cannot prove that an inner
+                # object was received as a complete top-level response.
+                break
         return objects
 
     def leading_read(self, command):
@@ -142,7 +149,12 @@ class SourceReadProof:
             if nonzero and allowed is None:
                 continue
             for obj in self.objects(item.get('aggregated_output', ''), first_only=nonzero):
-                sources = obj.get('sources', [obj]) if isinstance(obj, dict) else []
+                if isinstance(obj, dict):
+                    sources = obj.get('sources', [obj])
+                elif isinstance(obj, list) and not nonzero:
+                    sources = obj
+                else:
+                    sources = []
                 for source in sources:
                     if isinstance(source, dict) and (not nonzero or source.get('id') in allowed) and self.matches(source, require_origin_fields=nonzero):
                         proved.add((source['id'], source['excerpt_sha256']))
