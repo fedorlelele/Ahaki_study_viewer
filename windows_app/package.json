@@ -8,7 +8,7 @@
   "type": "module",
   "main": "main/index.mjs",
   "scripts": {
-    "data": "python ../mac_app/scripts/package_data.py resources",
+    "data": "python -X utf8 ../mac_app/scripts/package_data.py resources",
     "start": "electron .",
     "test": "node --test",
     "build": "npm run data && electron-builder --win nsis --publish never"
