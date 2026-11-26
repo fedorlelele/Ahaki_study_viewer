@@ -2,7 +2,7 @@
 
 あん摩マッサージ指圧師・はり師きゅう師国家試験の問題データを管理し、学習用WebUIとして公開するプロジェクトです。
 
-macOS 14以降向けのデスクトップアプリも開発しています。使い方とビルド手順は[Mac版のREADME](mac_app/README.md)にあります。
+デスクトップ版では、問題をオフラインで検索して解けます。インストール、読み上げ、ChatGPTへの質問、ビルドの手順は各版のREADMEにあります。[Windows版（x64・ARM64）](windows_app/README.md) ／ [Mac版（macOS 14以降）](mac_app/README.md)
 
 ## 1. システム概要
 
