@@ -1916,6 +1916,9 @@
                 <a id="analyticsMenuLink" class="btn-secondary" href="./analytics.html" target="_blank" rel="noopener noreferrer" hidden>データ分析</a>
                 <a class="btn-secondary" href="./voicepeak_csv.html" target="_blank" rel="noopener noreferrer">VOICEPEAK CSV出力</a>
               </div>
+              <details id="desktopDownloads" hidden>
+                <summary class="btn-secondary">デスクトップ版をダウンロード</summary>
+              </details>
             </details>
 	          </nav>
 	        </div>
@@ -2301,6 +2304,7 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.18.7/dist/katex.min.js" integrity="sha256-EKkbR5zZJ0Rs62BAn7DXK10NBer0RsnlL6/WQFjIRUA=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
+    <script src="./shared/desktop-downloads.js"></script>
     <script src="./shared/study-tools.js"></script>
     <script src="./shared/markdown.js"></script>
     <script>
@@ -2311,6 +2315,7 @@
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
+      window.mountDesktopDownloads(supabaseClient, getUserRole);
       const state = {
         questions: [],
         indexBySubject: {},

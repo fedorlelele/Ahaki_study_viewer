@@ -271,6 +271,9 @@
         <a href="./index.html">高機能ビューを開く</a>
         <a href="./print_export.html">プリント作成ビュー</a>
         <a id="analyticsMenuLink" href="./analytics.html" hidden>データ分析へ</a>
+        <details id="desktopDownloads" hidden>
+          <summary>デスクトップ版をダウンロード</summary>
+        </details>
       </div>
     </header>
     <main id="main" class="container" tabindex="-1">
@@ -419,6 +422,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
+    <script src="./shared/desktop-downloads.js"></script>
     <script src="./shared/study-tools.js"></script>
     <script>
       const SUPABASE_URL = window.SUPABASE_URL || "";
@@ -427,6 +431,7 @@
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
+      window.mountDesktopDownloads(supabaseClient, getUserRole);
       const SIMPLE_SESSION_KEY = "simple_session_v1";
 
 	      const state = {
