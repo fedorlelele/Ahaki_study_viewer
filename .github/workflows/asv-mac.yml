@@ -1,0 +1,31 @@
+name: ASV for Mac
+on:
+  push:
+    paths:
+      - 'mac_app/**'
+      - 'docs/output/web/questions.json'
+      - 'docs/output/web/questions_manifest.json'
+      - '.github/workflows/asv-mac.yml'
+  pull_request:
+    paths:
+      - 'mac_app/**'
+      - 'docs/output/web/questions.json'
+      - 'docs/output/web/questions_manifest.json'
+      - '.github/workflows/asv-mac.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --package-path mac_app
+      - run: python3 mac_app/scripts/build_app.py --universal
+      - run: ditto -c -k --keepParent mac_app/build/ASV.app mac_app/build/ASV.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASV-Mac
+          path: mac_app/build/ASV.zip

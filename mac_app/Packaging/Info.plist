@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>ja</string>
+    <key>CFBundleExecutable</key><string>ASVMac</string>
+    <key>CFBundleIdentifier</key><string>io.github.fedorlelele.ASV</string>
+    <key>CFBundleName</key><string>ASV</string>
+    <key>CFBundleDisplayName</key><string>ASV</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.1.0</string>
+    <key>CFBundleVersion</key><string>0.1.0</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>SUFeedURL</key><string>https://github.com/fedorlelele/Ahaki_study_viewer/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>FGgpRm1KcSgyv2jNTy8Fj0ky8hvtP9/K7gs0lwh89MA=</string>
+    <key>SUEnableAutomaticChecks</key><false/>
+    <key>SUVerifyUpdateBeforeExtraction</key><true/>
+    <key>SURequireSignedFeed</key><true/>
+</dict>
+</plist>
