@@ -43,7 +43,6 @@
 .chat-response { padding-inline: .1em; }
 .chat-response h3 { color: var(--accent); }
 .chat-markdown, .chat-markdown * { max-width: 100%; }
-.chat-markdown.chat-stream { white-space: pre-wrap; }
 .chat-markdown p, .chat-markdown ol, .chat-markdown ul, .chat-markdown blockquote, .chat-markdown pre { margin: .44em 0; }
 .chat-markdown h4, .chat-markdown h5, .chat-markdown h6 { margin: .8em 0 .25em; font-size: 1.1em; }
 .chat-markdown h5, .chat-markdown h6 { font-size: 1em; }

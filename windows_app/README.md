@@ -4,9 +4,9 @@
 
 ## インストールする
 
-Windows 11の「設定 → システム → バージョン情報」にある「システムの種類」を確認します。Intel・AMDの64ビットPCは `x64`、SnapdragonなどのARM搭載PCは `arm64` を選びます。`ASV-Windows-0.1.0-x64-Setup.exe` または `ASV-Windows-0.1.0-arm64-Setup.exe` を実行すると、そのWindowsユーザー用にインストールされます。スタートメニューの「ASV」から起動できます。ASVのアカウント登録やAPIキーの入力は不要です。
+Windows 11の「設定 → システム → バージョン情報」にある「システムの種類」を確認します。Intel・AMDの64ビットPCは `x64`、SnapdragonなどのARM搭載PCは `arm64` を選びます。`ASV-Windows-0.1.1-x64-Setup.exe` または `ASV-Windows-0.1.1-arm64-Setup.exe` を実行すると、そのWindowsユーザー用にインストールされます。スタートメニューの「ASV」から起動できます。ASVのアカウント登録やAPIキーの入力は不要です。
 
-初版のインストーラーにはWindowsの発行元署名（Authenticode）が付いていません。学校などの管理端末では実行が制限される場合があり、一般のPCでも初回にSmartScreenの警告が出ることがあります。[Microsoftの配布時の説明](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
+このインストーラーにはWindowsの発行元署名（Authenticode）が付いていません。学校などの管理端末では実行が制限される場合があり、一般のPCでも初回にSmartScreenの警告が出ることがあります。[Microsoftの配布時の説明](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
 
 ## 問題を解く
 

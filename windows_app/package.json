@@ -1,7 +1,7 @@
 {
   "name": "asv-windows",
   "productName": "ASV",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "理療科の国家試験過去問を学ぶ Ahaki Study Viewer",
   "author": "ASV Contributors",
   "private": true,

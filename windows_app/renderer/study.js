@@ -208,16 +208,23 @@ function changedProblem() {
   questionEvent('asv:problem');
   if (prefs.autoRead && selected()) readProblem(); else stopReading();
 }
-function selectPosition(next, focus = false) {
+function selectPosition(next, focusResult = false) {
   if (!Number.isInteger(next) || next < 0 || next >= results.length) return;
   const changed = next !== position;
   position = next;
   renderPage();
-  revealOption(focus);
+  revealOption(focusResult);
   if (changed) {
     renderReader();
     changedProblem();
-    if (!focus && !prefs.autoRead) announce(selected().serial + '。' + selected().stem);
+    if (!focusResult) {
+      const heading = $('stem');
+      const alreadyFocused = document.activeElement === heading;
+      heading.focus({preventScroll:true});
+      // The reading pane scrolls on desktop; at narrow widths its parent scrolls.
+      heading.scrollIntoView({block:'nearest'});
+      if (alreadyFocused && !prefs.autoRead) announce(selected().serial + '。' + selected().stem);
+    }
   }
 }
 function runSearch() {
@@ -239,6 +246,7 @@ function runSearch() {
 function answer(number) {
   const q = selected();
   if (!q || !validChoice(q, number) || validChoice(q, answers[q.serial])) return;
+  stopReading();
   answers[q.serial] = number;
   saveObject(answerKey, answers);
   renderReader();
@@ -259,6 +267,7 @@ function retry() {
 }
 function openChat() {
   if (!selected()) return;
+  stopReading();
   $('chat-panel').hidden = false;
   document.body.classList.add('chat-open');
   fitChat();

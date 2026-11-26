@@ -32,6 +32,26 @@ try {
   assert.equal(await page.locator('#serial').innerText(),'A01-001');
   const count=await page.locator('#result-count').innerText();
   assert.ok(parseInt(count.replaceAll(',',''),10)>10000,count);
+  const originalSize = await current.session.evaluate(({BrowserWindow}) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    const size = window.getContentSize();
+    window.setContentSize(700, 540);
+    return size;
+  });
+  await page.waitForFunction(() => window.innerWidth <= 780);
+  await page.locator('#next').focus();
+  assert.ok(await page.locator('#workspace').evaluate(el => el.scrollTop > 0));
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.activeElement.id === 'stem');
+  assert.notEqual(await page.locator('#serial').innerText(),'A01-001');
+  assert.ok(await page.locator('#stem').evaluate(heading => {
+    const bounds = heading.getBoundingClientRect();
+    const viewport = document.querySelector('#workspace').getBoundingClientRect();
+    return bounds.top >= viewport.top - 1 && bounds.bottom <= viewport.bottom + 1;
+  }), 'the new question heading is visible in the narrow scrolling workspace');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.choice),'1');
+  await current.session.evaluate(({BrowserWindow}, size) => BrowserWindow.getAllWindows()[0].setContentSize(...size),originalSize);
   await page.keyboard.press('Control+f');
   assert.equal(await page.evaluate(() => document.activeElement.id),'search');
   await page.locator('#search').fill('A01-001');

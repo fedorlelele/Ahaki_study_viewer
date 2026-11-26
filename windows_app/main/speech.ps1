@@ -12,9 +12,11 @@ try {
         if ($request.action -eq 'voices') {
             [Console]::WriteLine((ConvertTo-Json -InputObject $voices -Compress))
         } else {
-            $name = $request.voice
-            if (-not $name) { $name = ($voices | Where-Object language -Like 'ja*' | Select-Object -First 1).name }
-            if ($name) { $speaker.SelectVoice($name) }
+            $voice = $voices | Where-Object id -EQ $request.voice | Select-Object -First 1
+            if (-not $voice) {
+                $voice = $voices | Where-Object language -Like 'ja*' | Select-Object -First 1
+            }
+            if ($voice) { $speaker.SelectVoice($voice.name) }
             $speaker.Rate = [int]$request.rate
             $speaker.SetOutputToDefaultAudioDevice()
             [Console]::WriteLine('READY')

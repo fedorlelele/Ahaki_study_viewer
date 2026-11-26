@@ -13,6 +13,25 @@ function errorMessage(error) {
   return String(error?.message || error || '操作を完了できませんでした。').replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '')
 }
 
+// Preserve the reader's selection and focused links as new Markdown arrives.
+// A later delimiter can also change the type of an earlier node (e.g. a table header).
+function updateAnswerNodes(parent, rendered) {
+  const old = Array.from(parent.childNodes)
+  const next = Array.from(rendered.childNodes)
+  for (const [index, node] of next.entries()) {
+    const previous = old[index]
+    if (!previous) parent.append(node)
+    else if (!previous.isEqualNode(node)) {
+      if (previous.nodeType === 3 && node.nodeType === 3 && node.data.startsWith(previous.data)) {
+        previous.appendData(node.data.slice(previous.data.length))
+      } else if (previous.nodeType === 1 && previous.cloneNode(false).isEqualNode(node.cloneNode(false))) {
+        updateAnswerNodes(previous, node)
+      } else previous.replaceWith(node)
+    }
+  }
+  for (const removed of old.slice(next.length)) removed.remove()
+}
+
 // The main process owns tokens, conversations and in-flight requests. This view keeps
 // unsent text in memory and displays only the current question and registration.
 export function mountChat(window, panel, api) {
@@ -176,18 +195,7 @@ export function mountChat(window, panel, api) {
     }
     const last = view.turn
     view.turn = turn
-    if (last?.answer !== turn.answer || last?.state !== turn.state) {
-      // Keep the streaming path cheap and the user's text selection stable between deltas.
-      if (turn.state === 'receiving') {
-        let node = view.body.firstChild
-        if (node?.nodeType !== 3 || !turn.answer.startsWith(node.data)) view.body.textContent = turn.answer
-        else node.appendData(turn.answer.slice(node.data.length))
-        view.body.classList.add('chat-stream')
-      } else {
-        view.body.classList.remove('chat-stream')
-        view.body.replaceChildren(renderMarkdown(document, turn.answer))
-      }
-    }
+    if (last?.answer !== turn.answer) updateAnswerNodes(view.body, renderMarkdown(document, turn.answer))
     if (last?.state !== turn.state) {
       view.status.textContent = turn.state === 'interrupted' ? turn.error || '回答を中止しました。' : turn.state === 'receiving' && !turn.answer ? '回答を作成中…' : ''
       view.buttons.replaceChildren()

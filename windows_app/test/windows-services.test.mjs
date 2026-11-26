@@ -137,21 +137,24 @@ test('Windows標準のインストール済み音声で音声データを生成�
   if (!voices.length) { t.skip('このWindowsにSAPI音声がインストールされていません。'); return; }
   const voice = voices.find(v => v.language.startsWith('ja')) ?? voices[0];
   assert.equal(typeof voice.name, 'string');
-  // Hosted Windows can have SAPI voices without an audio output device. Render to WAV for verification.
-  const wav = join(directory, 'test.wav');
+  // Exercise the shipped speech script with a WAV sink on runners without speakers.
+  const production = await readFile(new URL('../main/speech.ps1', import.meta.url), 'utf8');
+  const audioDevice = '$speaker.SetOutputToDefaultAudioDevice()';
+  assert.ok(production.includes(audioDevice));
+  const script = production.replace(audioDevice, '$speaker.SetOutputToWaveFile($env:ASV_TEST_WAV)');
   const ps = join(process.env.SystemRoot, 'System32', 'WindowsPowerShell','v1.0','powershell.exe');
-  const script = [
-    "$ErrorActionPreference='Stop'",
-    'Add-Type -AssemblyName System.Speech',
-    '$s=New-Object System.Speech.Synthesis.SpeechSynthesizer',
-    'try { $s.SelectVoice($env:ASV_TEST_VOICE); $s.SetOutputToWaveFile($env:ASV_TEST_WAV); $s.Speak($env:ASV_TEST_TEXT) } finally { $s.Dispose() }'
-  ].join('\n');
-  await promisify(execFile)(ps, ['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')], {
-    windowsHide:true, timeout:25000, env:{...process.env, ASV_TEST_WAV:wav, ASV_TEST_VOICE:voice.id,
-      ASV_TEST_TEXT:voice.language.startsWith('ja') ? '問題を読み上げます。' : 'Study question.'}
-  });
-  const audio = await readFile(wav);
-  assert.equal(audio.toString('ascii', 0, 4), 'RIFF');
-  assert.equal(audio.toString('ascii', 8, 12), 'WAVE');
-  assert.ok(audio.length > 44);
+  for (const [index, requested] of [voice.id, 'ASV missing voice fixture'].entries()) {
+    const wav = join(directory, `voice-${index}.wav`);
+    const run = promisify(execFile)(ps, ['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')], {
+      windowsHide:true, timeout:20000, env:{...process.env, ASV_TEST_WAV:wav}
+    });
+    run.child.stdin.end(JSON.stringify({action:'speak', voice:requested, rate:0,
+      text:voice.language.startsWith('ja') ? '問題を読み上げます。' : 'Study question.'}), 'utf8');
+    const {stdout} = await run;
+    assert.match(stdout, /READY/);
+    const audio = await readFile(wav);
+    assert.equal(audio.toString('ascii', 0, 4), 'RIFF');
+    assert.equal(audio.toString('ascii', 8, 12), 'WAVE');
+    assert.ok(audio.length > 44);
+  }
 });

@@ -101,7 +101,7 @@ test('model controls, keyboard focus, account and question isolation and accessi
   assert.equal(get('turns').children.length, 0)
   incoming('A', 'A01-001', { ...turn, answer: '部', state: 'receiving' })
   incoming('A', 'A01-001', { ...turn, answer: '部分', state: 'receiving' })
-  assert.equal(get('turns').querySelector('.chat-stream').textContent, '部分')
+  assert.equal(get('turns').querySelector('.chat-markdown').textContent, '部分')
   incoming('A', 'A01-001', turn)
   assert.equal(get('turns').querySelector('strong').textContent, '理由')
   let spoken
@@ -123,6 +123,34 @@ test('model controls, keyboard focus, account and question isolation and accessi
   assert.equal(get('prompt').value, 'アカウントAの下書き')
   assert.ok(calls.some(call => call.name === 'selectEffort'))
   assert.ok(!panel.textContent.includes('アカウントAの下書き'))
+})
+
+test('受信中の回答をMarkdownで表示し、続きが届いてもリンクのフォーカスと選択範囲を保つ', async () => {
+  const { window, get, emit, problem, incoming } = setup()
+  emit('asv:chat', problem('Q'))
+  await tick()
+  const receive = (answer, state = 'receiving') =>
+    incoming('A', 'Q', { id: 'turn', question: '質問', answer, state })
+  const initial = '## 解説\n\n[資料](https://example.org)は**重要**です'
+  receive(initial)
+  const body = get('turns').querySelector('.chat-markdown')
+  assert.equal(body.querySelector('h5').textContent, '解説')
+  const link = body.querySelector('a')
+  link.focus()
+  const strong = body.querySelector('strong')
+  const selection = window.getSelection()
+  selection.selectAllChildren(strong)
+  receive(initial + '。\n\n|分類|')
+  assert.equal(window.document.activeElement, link)
+  assert.equal(selection.toString(), '重要')
+  const complete = initial + '。\n\n|分類|\n|---|\n|答え|'
+  receive(complete)
+  assert.equal(body.querySelector('th').textContent, '分類')
+  assert.equal(body.querySelector('td').textContent, '答え')
+  receive(complete, 'complete')
+  assert.equal(window.document.activeElement, link)
+  assert.equal(selection.toString(), '重要')
+  assert.equal(body.querySelectorAll('table').length, 1)
 })
 
 test('a delayed history fetch cannot overwrite new stream events or another problem', async () => {
