@@ -14,10 +14,19 @@ public final class StudyChat: ObservableObject {
     @Published private var conversations = [ThreadKey: Conversation]()
     @Published public private(set) var usageLimitReached = false
     @Published public var showPlanWelcome = false
+    @Published public private(set) var availableModels: [ChatModel] = []
+    @Published public private(set) var isLoadingModels = false
+    @Published public private(set) var modelLoadError: String?
+    @Published private var modelPreferences = ChatModelPreferences()
+
+    private var selectedModel: ChatModel? { modelPreferences.model(in: availableModels) }
+    public var selectedModelID: String? { selectedModel?.id }
+    public var selectedEffort: String? { selectedModel.flatMap { modelPreferences.effort(for: $0) } }
 
     private var vault = ChatVault()
     private var operation: Task<Void, Never>?
-    private var model: String?
+    private var modelLoad: Task<[ChatModel], Error>?
+    private var tokenRefreshes = [String: Task<String, Error>]()
 
     private let loadVault: () throws -> ChatVault
     private let saveVault: (ChatVault) throws -> Void
@@ -39,6 +48,88 @@ public final class StudyChat: ObservableObject {
     }
 
     public func cancel() { operation?.cancel() }
+
+    public func loadModels(force: Bool = false) async {
+        guard canAsk, let id = activeAccountID else { return }
+        // The shared task publishes failures for both the sidebar and a concurrent send.
+        _ = try? await catalog(for: id, force: force)
+    }
+
+    private func catalog(for id: String, force: Bool = false) async throws -> [ChatModel] {
+        try checkCatalogAccess(for: id)
+        if let modelLoad { return try await waitForSharedTask(modelLoad) }
+        if !force, !availableModels.isEmpty { return availableModels }
+        isLoadingModels = true
+        modelLoadError = nil
+        let task = Task {
+            defer {
+                if !Task.isCancelled {
+                    modelLoad = nil
+                    isLoadingModels = false
+                }
+            }
+            do {
+                try Task.checkCancellation()
+                let token = try await accessToken(id: id)
+                try Task.checkCancellation()
+                let models = try await OpenAIConnection.availableModels(token: token, session: inferenceSession)
+                try Task.checkCancellation()
+                availableModels = models
+                return models
+            } catch {
+                // Losing access clears and cancels the catalog while a send may still await it.
+                try checkCatalogAccess(for: id)
+                if !Task.isCancelled {
+                    if case ChatError.noModels = error { availableModels = [] }
+                    modelLoadError = error.localizedDescription
+                }
+                throw error
+            }
+        }
+        modelLoad = task
+        return try await waitForSharedTask(task)
+    }
+
+    private func checkCatalogAccess(for id: String) throws {
+        guard activeAccountID == id else { throw CancellationError() }
+        guard isSignedIn else { throw ChatError.expired }
+        guard canAsk else { throw ChatError.plan }
+    }
+
+    private func clearCatalog() {
+        modelLoad?.cancel()
+        modelLoad = nil
+        availableModels = []
+        isLoadingModels = false
+        modelLoadError = nil
+    }
+
+    public func selectModel(id: String) {
+        guard !isBusy, availableModels.contains(where: { $0.id == id }) else { return }
+        var preferences = modelPreferences
+        preferences.modelID = id
+        savePreferences(preferences)
+    }
+
+    public func selectEffort(_ effort: String?) {
+        guard !isBusy, let model = selectedModel else { return }
+        if let effort, !model.supportedEfforts.contains(effort) { return }
+        var preferences = modelPreferences
+        preferences.modelID = model.id
+        preferences.efforts[model.id] = effort
+        savePreferences(preferences)
+    }
+
+    private func savePreferences(_ preferences: ChatModelPreferences) {
+        guard canAsk, var profile = vault.selected else { return }
+        profile.modelPreferences = preferences
+        var next = vault
+        next.save(profile)
+        do {
+            try persist(next)
+            modelLoadError = nil
+        } catch { modelLoadError = error.localizedDescription }
+    }
 
     private func threadKey(_ problemID: String) -> ThreadKey {
         ThreadKey(registration: isSignedIn ? activeAccountID : nil, problem: problemID)
@@ -64,7 +155,6 @@ public final class StudyChat: ObservableObject {
             var next = vault
             next.activeID = id
             try persist(next)
-            model = nil
             usageLimitReached = false
             status = isSignedIn ? "アカウントを切り替えました。" : "選んだアカウントでサインインしてください。"
         } catch { status = error.localizedDescription }
@@ -136,14 +226,17 @@ public final class StudyChat: ObservableObject {
             }
             self.showPlanWelcome = firstUse
             self.usageLimitReached = false
-            self.model = nil
             self.status = self.canAsk ? "ChatGPT に接続しました。" : "サインインしました。質問するには ChatGPT プランの利用を許可してください。"
         }
     }
 
     public func signOut() async {
-        guard !isBusy, var profile = vault.selected else { return }
+        guard !isBusy, let id = activeAccountID else { return }
         await run(message: "サインアウトしています。") {
+            self.clearCatalog()
+            // Token rotation must finish before revoking the latest refresh token.
+            if let refresh = self.tokenRefreshes[id] { _ = try? await refresh.value }
+            guard var profile = self.vault.selected, profile.clientID == id else { throw ChatError.expired }
             var revoked = true
             if let refresh = profile.tokens?.refresh {
                 revoked = await OpenAIConnection.revoke(client: profile.clientID, refresh: refresh)
@@ -153,7 +246,6 @@ public final class StudyChat: ObservableObject {
             next.save(profile)
             try self.persist(next)
             self.usageLimitReached = false
-            self.model = nil
             self.status = revoked ? "サインアウトしました。" : "この Mac からサインアウトしました。サーバー側の解除は確認できませんでした。ChatGPT の設定で接続を確認してください。"
         }
     }
@@ -166,6 +258,8 @@ public final class StudyChat: ObservableObject {
         let question = thread.draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty else { return }
         let input = thread.requestInput(context: context, question: question)
+        let displayedModel = selectedModel
+        let preferences = modelPreferences
         let index = thread.turns.count
         thread.turns.append(ChatTurn(question: question))
         thread.draft = ""
@@ -182,14 +276,19 @@ public final class StudyChat: ObservableObject {
                 isBusy = false
             }
             do {
-                let access = try await accessToken(id: registration)
-                let slug: String
-                if let model { slug = model }
+                let model: ChatModel
+                if let displayedModel { model = displayedModel }
                 else {
-                    slug = try await OpenAIConnection.availableModel(token: access, session: inferenceSession)
-                    model = slug
+                    let models = try await catalog(for: registration)
+                    guard let resolved = preferences.model(in: models) else { throw ChatError.noModels }
+                    model = resolved
                 }
-                let answer = try await OpenAIConnection.answer(token: access, model: slug, input: input, session: inferenceSession) { partial in
+                try Task.checkCancellation()
+                let access = try await accessToken(id: registration)
+                try Task.checkCancellation()
+                let answer = try await OpenAIConnection.answer(token: access, model: model,
+                                                               effort: preferences.effort(for: model),
+                                                               input: input, session: inferenceSession) { partial in
                     self.conversations[key]?.turns[index].answer = partial
                 }
                 try Task.checkCancellation()
@@ -205,30 +304,58 @@ public final class StudyChat: ObservableObject {
     }
 
     private func accessToken(id: String) async throws -> String {
-        guard var profile = vault.selected, profile.clientID == id,
+        guard let profile = vault.selected, profile.clientID == id,
               let tokens = profile.tokens, tokens.scopes.contains(OpenAIConnection.sharingScope) else {
             throw ChatError.plan
         }
         if tokens.expires.timeIntervalSinceNow > 60 { return tokens.access }
+        if let existing = tokenRefreshes[id] { return try await waitForSharedTask(existing) }
         guard let refresh = tokens.refresh else {
             try endExpiredSession(profile)
             throw ChatError.expired
         }
-        do {
-            let data = try await OpenAIConnection.token([
-                "grant_type": "refresh_token", "client_id": id, "refresh_token": refresh
-            ])
-            let renewed = try OpenAIConnection.tokens(from: data, previous: tokens)
-            profile.tokens = renewed
-            var next = vault
-            next.save(profile)
-            try persist(next)
-            guard renewed.scopes.contains(OpenAIConnection.sharingScope) else { throw ChatError.plan }
-            return renewed.access
-        } catch let error as ChatError where error.isTerminalRefresh {
-            try endExpiredSession(profile)
-            throw ChatError.expired
+        let task = Task {
+            defer { tokenRefreshes[id] = nil }
+            @MainActor func currentProfile() throws -> ChatProfile {
+                guard let current = vault.profiles.first(where: { $0.clientID == id }),
+                      current.tokens?.access == tokens.access, current.tokens?.refresh == refresh else {
+                    throw ChatError.expired
+                }
+                return current
+            }
+            do {
+                let data = try await OpenAIConnection.token([
+                    "grant_type": "refresh_token", "client_id": id, "refresh_token": refresh
+                ], session: inferenceSession)
+                let renewed = try OpenAIConnection.tokens(from: data, previous: tokens)
+                var current = try currentProfile()
+                current.tokens = renewed
+                var next = vault
+                next.save(current)
+                try persist(next)
+                guard renewed.scopes.contains(OpenAIConnection.sharingScope) else { throw ChatError.plan }
+                return renewed.access
+            } catch let error as ChatError where error.isTerminalRefresh {
+                try endExpiredSession(currentProfile())
+                throw ChatError.expired
+            }
         }
+        tokenRefreshes[id] = task
+        return try await waitForSharedTask(task)
+    }
+
+    /// Cancel this wait independently of the sidebar's request or a rotating refresh token.
+    private func waitForSharedTask<Value: Sendable>(_ task: Task<Value, Error>) async throws -> Value {
+        let (results, continuation) = AsyncStream<Result<Value, Error>>.makeStream()
+        Task {
+            continuation.yield(await task.result)
+            continuation.finish()
+        }
+        for await result in results {
+            try Task.checkCancellation()
+            return try result.get()
+        }
+        throw CancellationError()
     }
 
     private func endExpiredSession(_ profile: ChatProfile) throws {
@@ -237,6 +364,7 @@ public final class StudyChat: ObservableObject {
         var next = vault
         next.save(signedOut)
         try persist(next)
+        if profile.clientID == activeAccountID { status = ChatError.expired.localizedDescription }
     }
 
     private func run(message: String, action: @escaping @MainActor () async throws -> Void) async {
@@ -276,6 +404,7 @@ public final class StudyChat: ObservableObject {
     }
 
     private func updateAccounts() {
+        let previousRegistration = canAsk ? activeAccountID : nil
         activeAccountID = vault.activeID
         accounts = vault.profiles.enumerated().map { index, profile in
             let label = "接続 \(index + 1)" + (profile.email.map { "（\($0)）" } ?? "")
@@ -283,5 +412,7 @@ public final class StudyChat: ObservableObject {
         }
         isSignedIn = vault.selected?.tokens != nil
         canAsk = vault.selected?.tokens?.scopes.contains(OpenAIConnection.sharingScope) == true
+        modelPreferences = vault.selected?.modelPreferences ?? ChatModelPreferences()
+        if previousRegistration != (canAsk ? activeAccountID : nil) { clearCatalog() }
     }
 }

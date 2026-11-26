@@ -20,6 +20,21 @@ struct ChatProfile: Codable {
     var email: String?
     var tokens: OAuthTokens?
     var welcomed = false
+    var modelPreferences: ChatModelPreferences?
+}
+
+struct ChatModelPreferences: Codable {
+    var modelID: String?
+    var efforts = [String: String]()
+
+    func model(in catalog: [ChatModel]) -> ChatModel? {
+        catalog.first { $0.id == modelID } ?? catalog.first
+    }
+
+    func effort(for model: ChatModel) -> String? {
+        guard let effort = efforts[model.id], model.supportedEfforts.contains(effort) else { return nil }
+        return effort
+    }
 }
 
 struct ChatVault: Codable {

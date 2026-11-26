@@ -48,9 +48,9 @@ enum OpenAIConnection {
         return result
     }
 
-    static func token(_ fields: [String: String]) async throws -> [String: Any] {
+    static func token(_ fields: [String: String], session: URLSession = http) async throws -> [String: Any] {
         let request = postForm(path: "/api/accounts/oauth/token", fields: fields.merging(["resource": resource]) { _, new in new })
-        return try await json(request)
+        return try await json(request, session: session)
     }
 
     static func tokens(from response: [String: Any], previous: OAuthTokens? = nil) throws -> OAuthTokens {
@@ -114,30 +114,34 @@ enum OpenAIConnection {
         return .remote(status, code ?? object?["error"] as? String ?? "")
     }
 
-    static func availableModel(token: String, session: URLSession) async throws -> String {
+    static func availableModels(token: String, session: URLSession) async throws -> [ChatModel] {
         var request = URLRequest(url: URL(string: resource + "/models")!)
         request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
         let body = try await json(request, session: session)
-        let models = body["models"] as? [[String: Any]] ?? []
-        guard let slug = models.first(where: { $0["visibility"] as? String == "list" && $0["slug"] is String })?["slug"] as? String else {
-            throw ChatError.noModels
-        }
-        return slug
+        return try ChatModel.catalog(from: body)
     }
 
-    static func answer(token: String, model: String, input: [[String: String]], session: URLSession,
-                       onPartial: @MainActor (String) -> Void) async throws -> String {
+    static func answerRequest(token: String, model: ChatModel, effort: String?, input: [[String: String]]) throws -> URLRequest {
         var request = URLRequest(url: URL(string: resource + "/responses")!)
         request.httpMethod = "POST"
         request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        let body: [String: Any] = [
-            "model": model, "input": input,
+        var body: [String: Any] = [
+            "model": model.id, "input": input,
             "instructions": "あん摩マッサージ指圧師、はり師、きゅう師の国家試験の学習を助ける講師として、日本語で質問に答えてください。問題文・選択肢と解答の根拠を確認し、読み上げで理解しやすい簡潔な文章で説明してください。",
             "store": false, "stream": true
         ]
+        if let effort, model.supportedEfforts.contains(effort) {
+            body["reasoning"] = ["effort": effort]
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return request
+    }
+
+    static func answer(token: String, model: ChatModel, effort: String?, input: [[String: String]], session: URLSession,
+                       onPartial: @MainActor (String) -> Void) async throws -> String {
+        let request = try answerRequest(token: token, model: model, effort: effort, input: input)
         let (bytes, response) = try await session.bytes(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw ChatError.malformed }
         guard (200..<300).contains(status) else {

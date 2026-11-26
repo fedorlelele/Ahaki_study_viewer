@@ -161,6 +161,7 @@ struct StudyChatSidebar: View {
             if chat.canAsk {
                 Link(settings.size > 28 ? "プラン利用中" : "ChatGPTプラン使用中", destination: usagePage)
                     .font(settings.font(-6)).accessibilityHint("利用状況を開く")
+                ChatModelControl()
             }
             ChatComposer(text: draft, problemID: problem.id,
                          accountID: chat.isSignedIn ? chat.activeAccountID : nil,
