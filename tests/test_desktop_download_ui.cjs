@@ -9,8 +9,8 @@ const script = fs.readFileSync(path.join(web, 'shared/desktop-downloads.js'), 'u
 const releases = 'https://github.com/fedorlelele/Ahaki_study_viewer/releases/download/';
 const assets = [
   'mac-v0.3.0/ASV-0.3.0.zip',
-  'windows-v0.1.1/ASV-Windows-0.1.1-x64-Setup.exe',
-  'windows-v0.1.1/ASV-Windows-0.1.1-arm64-Setup.exe'
+  'windows-v0.1.2/ASV-Windows-0.1.2-x64-Setup.exe',
+  'windows-v0.1.2/ASV-Windows-0.1.2-arm64-Setup.exe'
 ];
 const session = (id, role) => ({user:{id, app_metadata:{role}}, access_token:'test'});
 
