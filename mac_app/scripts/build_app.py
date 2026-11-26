@@ -16,10 +16,14 @@ from package_data import package
 MAC = Path(__file__).resolve().parents[1]
 INFO = MAC / "Packaging" / "Info.plist"
 SCRATCH = Path(os.environ.get("ASV_SWIFT_SCRATCH_PATH", MAC / ".build")).resolve()
+# An Intel-only Python on Apple Silicon otherwise launches Xcode tools under Rosetta.
+HAS_ARM64 = subprocess.run(["/usr/bin/arch", "-arm64", "/usr/bin/true"],
+                           capture_output=True).returncode == 0
+HOST_ARCH = "arm64" if HAS_ARM64 else "x86_64"
 
 
 def run(*args, **kwargs):
-    return subprocess.run(args, check=True, **kwargs)
+    return subprocess.run(["/usr/bin/arch", f"-{HOST_ARCH}", *args], check=True, **kwargs)
 
 
 def sparkle_root():
@@ -53,13 +57,8 @@ def build(version=None, universal=False, identity=None, destination=None):
         info.update(CFBundleVersion=version, CFBundleShortVersionString=version)
 
     products = []
-    # Intel-only Python installations on Apple Silicon can launch Swift under Rosetta.
-    has_arm64 = subprocess.run(["/usr/bin/arch", "-arm64", "/usr/bin/true"],
-                               capture_output=True).returncode == 0
-    host = "arm64" if has_arm64 else "x86_64"
-    for arch in (["arm64", "x86_64"] if universal else [host]):
-        command = ["/usr/bin/arch", f"-{host}", "/usr/bin/xcrun", "swift", "build",
-                   "--package-path", MAC, "--scratch-path", SCRATCH,
+    for arch in (["arm64", "x86_64"] if universal else [HOST_ARCH]):
+        command = ["/usr/bin/xcrun", "swift", "build", "--package-path", MAC, "--scratch-path", SCRATCH,
                    "-c", "release", "--arch", arch]
         if os.environ.get("ASV_SWIFT_CACHE_PATH"):
             command.extend(["--cache-path", os.environ["ASV_SWIFT_CACHE_PATH"]])

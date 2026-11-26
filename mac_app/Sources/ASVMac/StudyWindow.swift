@@ -146,8 +146,8 @@ struct StudyWindow: View {
                     }
                 }
                 .listStyle(.sidebar).accessibilityLabel("問題の検索結果").focused($focus, equals: .results)
-                .onChange(of: model.selectedID) { _, id in
-                    if let id { proxy.scrollTo(id) }
+                .onChange(of: model.index) { _, _ in
+                    if let id = model.selectedID { proxy.scrollTo(id) }
                 }
             }
         }
