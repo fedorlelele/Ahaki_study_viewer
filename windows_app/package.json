@@ -1,0 +1,27 @@
+{
+  "name": "asv-windows",
+  "productName": "ASV",
+  "version": "0.1.0",
+  "description": "理療科の国家試験過去問を学ぶ Ahaki Study Viewer",
+  "author": "ASV Contributors",
+  "private": true,
+  "type": "module",
+  "main": "main/index.mjs",
+  "scripts": {
+    "data": "python ../mac_app/scripts/package_data.py resources",
+    "start": "electron .",
+    "test": "node --test",
+    "build": "npm run data && electron-builder --win nsis --publish never"
+  },
+  "dependencies": {"marked": "18.0.5"},
+  "devDependencies": {"electron": "45.5.0", "electron-builder": "26.18.0", "jsdom": "26.1.0", "playwright-core": "1.65.1"},
+  "build": {
+    "appId": "io.github.fedorlelele.ASV",
+    "asar": true,
+    "files": ["main/**", "renderer/**", "package.json"],
+    "extraResources": [{"from":"resources/ASVQuestions.json", "to":"ASVQuestions.json"}],
+    "directories": {"output": "dist", "buildResources": "assets"},
+    "win": {"target": "nsis", "icon":"assets/app.ico", "executableName":"ASV", "artifactName":"ASV-Windows-${version}-${arch}-Setup.${ext}"},
+    "nsis": {"oneClick":true, "perMachine":false, "allowElevation":false, "runAfterFinish":true, "deleteAppDataOnUninstall":false}
+  }
+}

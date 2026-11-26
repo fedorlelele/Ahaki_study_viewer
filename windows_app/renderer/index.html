@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>ASV — あはき国家試験 過去問題集</title>
+  <link rel="stylesheet" href="./study.css">
+  <link rel="stylesheet" href="./chat.css">
+  <script type="module" src="./study.js"></script>
+  <script type="module" src="./chat.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#stem">問題本文へ移動</a>
+  <header id="app-bar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">ASV</span><h1>あはき国家試験<span class="brand-tail"> 過去問題集</span></h1></div>
+    <div class="tools" aria-label="表示と設定">
+      <button id="toggle-results" aria-controls="lookup" aria-expanded="true">問題一覧</button>
+      <div class="size-tools" role="group" aria-label="文字サイズ"><button id="smaller" aria-label="文字を縮小">−</button><button id="larger" aria-label="文字を拡大">＋</button></div>
+      <button id="settings-open" aria-haspopup="dialog">設定</button>
+    </div>
+  </header>
+  <div id="workspace">
+    <section id="lookup" aria-labelledby="lookup-title">
+      <div class="lookup-top">
+        <h2 id="lookup-title">問題を探す</h2>
+        <label class="visually-hidden" for="search">キーワード・問題番号・タグで検索</label>
+        <input id="search" type="search" placeholder="キーワード・問題番号" autocomplete="off">
+        <details id="filters">
+          <summary>絞り込み<span id="filter-count"></span></summary>
+          <label>試験<select id="exam"><option value="">すべての試験</option></select></label>
+          <label>科目<select id="subject"><option value="">すべての科目</option></select></label>
+          <label>回数<select id="session"><option value="">すべての回</option></select></label>
+          <button type="button" id="reset-filters">検索条件を解除</button>
+        </details>
+        <div class="search-status" id="result-count" role="status">問題を読み込み中…</div>
+      </div>
+      <ul id="results" aria-label="検索結果" role="listbox"></ul>
+      <div id="pages" hidden>
+        <button id="page-prev" aria-label="前のページ">前へ</button>
+        <span id="page-number"></span>
+        <button id="page-next" aria-label="次のページ">次へ</button>
+      </div>
+    </section>
+    <main id="reader" aria-label="問題と解説">
+      <div id="loading" role="status">問題を読み込み中…</div>
+      <article id="problem" hidden>
+        <div class="problem-inner">
+          <div class="problem-tools">
+            <p id="metadata"><strong id="serial"></strong><span id="subject-name"></span></p>
+            <div class="audio-tools"><button id="read">読み上げる</button><button id="stop">停止</button></div>
+          </div>
+          <p id="exam-info"></p>
+          <p id="case" hidden></p>
+          <h2 id="stem" tabindex="-1"></h2>
+          <div id="choices" role="group" aria-label="選択肢"></div>
+          <section id="solution" hidden aria-labelledby="feedback">
+            <h3 id="feedback" tabindex="-1"></h3>
+            <p id="key-answer"></p>
+            <p id="answer-note" hidden></p>
+            <div id="explanation-wrap"><h4>解説</h4><div id="explanation"></div></div>
+            <button id="retry">もう一度解く</button>
+          </section>
+          <button id="ask" class="ask" aria-controls="chat-panel">この問題について質問</button>
+          <nav aria-label="問題の移動" id="question-nav">
+            <button id="prev">前の問題</button><span id="position"></span><button id="next">次の問題</button>
+          </nav>
+        </div>
+      </article>
+    </main>
+    <aside id="chat-panel" hidden aria-label="ChatGPTに質問"></aside>
+  </div>
+  <div id="notice" role="status" class="visually-hidden"></div>
+  <div id="error" role="alert" hidden></div>
+
+  <dialog id="settings" aria-labelledby="settings-title">
+    <div class="dialog-header"><h2 id="settings-title">設定</h2><button id="settings-close" autofocus>閉じる</button></div>
+    <div class="settings-panels">
+      <section aria-labelledby="display-title">
+        <h3 id="display-title">表示</h3>
+        <label class="setting-line">外観<select id="theme"><option value="system">システムに従う</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
+        <label class="setting-line">フォント<select id="font"><option value="system">システム標準</option><option value="gothic">游ゴシック</option><option value="mincho">游明朝</option><option value="ud">BIZ UDゴシック</option></select></label>
+        <label class="setting-line">文字サイズ（pt）<input type="number" id="size" min="14" max="40" step="1" inputmode="numeric"></label>
+        <label class="setting-line">追加の行間（pt）<input type="number" id="spacing" min="0" max="18" step="1" inputmode="numeric"></label>
+      </section>
+      <section aria-labelledby="speech-title">
+        <h3 id="speech-title">読み上げ</h3>
+        <label class="setting-line">音声<select id="voice"><option value="">日本語の音声を自動選択</option></select></label>
+        <label class="setting-line">速度（−10〜10）<input type="number" id="rate" min="-10" max="10" step="1"></label>
+        <label class="check-line"><input type="checkbox" id="auto-read">問題の切り替えと回答時に自動で読む</label>
+        <label class="check-line"><input type="checkbox" id="dictionary-enabled">理療科用読み辞書を使う</label>
+        <button id="import-dictionary">読み辞書を読み込む…</button>
+        <p id="dictionary-state" role="status">Jukugo.usr を選択できます。</p>
+        <p id="speech-state" role="status"></p>
+      </section>
+      <section aria-labelledby="keys-title">
+        <h3 id="keys-title">キーボード</h3>
+        <label class="check-line"><input type="checkbox" id="keys-enabled">学習ショートカットを使う</label>
+        <p class="help">操作のボタンを選び、使いたいキーを同時に押します。Escで入力を取り消します。</p>
+        <div id="shortcut-list"></div>
+        <p id="key-status" role="status"></p>
+        <button id="reset-keys">キーを初期設定に戻す</button>
+      </section>
+      <section aria-labelledby="update-title">
+        <h3 id="update-title">アップデート</h3>
+        <div class="update-tools"><button id="check-update">アップデートを確認</button><button id="apply-update" hidden>更新を実施</button></div>
+        <p id="update-state" role="status"></p>
+      </section>
+    </div>
+  </dialog>
+</body>
+</html>

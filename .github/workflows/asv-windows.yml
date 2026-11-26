@@ -1,0 +1,45 @@
+name: ASV for Windows
+on:
+  push:
+    paths: ['windows_app/**', 'mac_app/scripts/package_data.py', 'docs/output/web/questions*.json', '.github/workflows/asv-windows.yml']
+  pull_request:
+    paths: ['windows_app/**', 'mac_app/scripts/package_data.py', 'docs/output/web/questions*.json', '.github/workflows/asv-windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: windows-2025, arch: x64}
+          - {runner: windows-11-arm, arch: arm64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: windows_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm, cache-dependency-path: windows_app/package-lock.json}
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build -- --${{ matrix.arch }}
+      - name: Install and exercise the packaged Windows app
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem -Path dist -Filter '*-Setup.exe' -File -ErrorAction Stop).FullName
+          $dest = Join-Path $env:RUNNER_TEMP 'ASV-installed'
+          $p = Start-Process -FilePath $setup -ArgumentList "/S /D=$dest" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer exit code $($p.ExitCode)" }
+          $app = Join-Path $dest 'ASV.exe'
+          if (!(Test-Path $app)) { throw "Installed executable missing at $app" }
+          node scripts/smoke.mjs "$app"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASV-Windows-${{ matrix.arch }}
+          path: windows_app/dist/*-Setup.exe
+          if-no-files-found: error
