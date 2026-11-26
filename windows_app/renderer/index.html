@@ -11,7 +11,7 @@
   <script type="module" src="./chat.mjs"></script>
 </head>
 <body>
-  <a class="skip" href="#stem">問題本文へ移動</a>
+  <a id="skip-to-problem" class="skip" href="#stem" hidden>問題本文へ移動</a>
   <header id="app-bar">
     <div class="brand"><span class="brand-mark" aria-hidden="true">ASV</span><h1>あはき国家試験<span class="brand-tail"> 過去問題集</span></h1></div>
     <div class="tools" aria-label="表示と設定">
@@ -51,14 +51,14 @@
             <div class="audio-tools"><button id="read">読み上げる</button><button id="stop">停止</button></div>
           </div>
           <p id="exam-info"></p>
-          <p id="case" hidden></p>
-          <h2 id="stem" tabindex="-1"></h2>
+          <textarea id="case" class="reading-text" aria-label="症例文" aria-readonly="true" rows="1" spellcheck="false" hidden></textarea>
+          <h2 aria-label="問題文"><textarea id="stem" class="reading-text" aria-label="問題文" aria-readonly="true" rows="1" spellcheck="false"></textarea></h2>
           <div id="choices" role="group" aria-label="選択肢"></div>
           <section id="solution" hidden aria-labelledby="feedback">
-            <h3 id="feedback" tabindex="-1"></h3>
-            <p id="key-answer"></p>
-            <p id="answer-note" hidden></p>
-            <div id="explanation-wrap"><h4>解説</h4><div id="explanation"></div></div>
+            <h3 id="feedback" tabindex="0"></h3>
+            <textarea id="key-answer" class="reading-text" aria-label="正答" aria-readonly="true" rows="1" spellcheck="false"></textarea>
+            <textarea id="answer-note" class="reading-text" aria-label="正答の注記" aria-readonly="true" rows="1" spellcheck="false" hidden></textarea>
+            <div id="explanation-wrap"><h4 id="explanation-title">解説</h4><textarea id="explanation" class="reading-text" aria-labelledby="explanation-title" aria-readonly="true" rows="1" spellcheck="false"></textarea></div>
             <button id="retry">もう一度解く</button>
           </section>
           <button id="ask" class="ask" aria-controls="chat-panel">この問題について質問</button>

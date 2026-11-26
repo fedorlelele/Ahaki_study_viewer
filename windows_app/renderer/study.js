@@ -73,11 +73,31 @@ function node(tag, value = '', className = '') {
   if (className) el.className = className;
   return el;
 }
-function showText(id, text) {
+function setReadingText(id, text) {
   const el = $(id);
-  el.textContent = text || '';
-  el.hidden = !text;
+  const value = (text ?? '').replace(/\r\n?/g, '\n');
+  if (el.defaultValue !== value) {
+    el.defaultValue = value;
+    el.value = value;
+    el.setSelectionRange(0, 0);
+  }
+  el.hidden = !value;
 }
+
+// Native readonly prevents caret movement in Chromium. Keep the native text
+// caret and expose aria-readonly while protecting the displayed study text.
+$('problem').addEventListener('beforeinput', e => {
+  if (e.target.matches('.reading-text')) e.preventDefault();
+});
+$('problem').addEventListener('input', e => {
+  const field = e.target;
+  if (field.matches('.reading-text') && field.value !== field.defaultValue) {
+    // Some IME and accessibility input events cannot be cancelled.
+    const caret = field.selectionStart;
+    field.value = field.defaultValue;
+    field.setSelectionRange(caret, caret);
+  }
+});
 function questionEvent(type) {
   const q = selected() ?? null;
   window.dispatchEvent(new CustomEvent(type, {detail: {
@@ -146,6 +166,7 @@ function revealOption(focus) {
 function renderReader() {
   const q = selected();
   $('problem').hidden = !q;
+  $('skip-to-problem').hidden = !q;
   $('loading').hidden = Boolean(q);
   if (!q) {
     $('loading').textContent = '一致する問題はありません。検索条件を変更してください。';
@@ -155,18 +176,18 @@ function renderReader() {
   $('serial').textContent = q.serial;
   $('subject-name').textContent = q.subject;
   $('exam-info').textContent = '第' + q.exam_session + '回　' + q.exam_type;
-  showText('case', q.case_text);
-  $('stem').textContent = q.stem;
+  setReadingText('case', q.case_text);
+  setReadingText('stem', q.stem);
+  $('skip-to-problem').hash = q.case_text ? '#case' : '#stem';
   const fragment = document.createDocumentFragment();
   q.choices.forEach((value, i) => {
     const number = i + 1;
-    const row = node(choice ? 'div' : 'button', '', 'choice');
-    if (!choice) {
-      row.type = 'button';
-      row.dataset.choice = number;
-      row.setAttribute('aria-label', '選択肢' + number + '。' + value);
-      row.title = prefs.keysEnabled ? prefs.shortcuts['choice' + number] ?? '' : '';
-    }
+    const row = node('button', '', 'choice');
+    row.type = 'button';
+    row.dataset.choice = number;
+    row.setAttribute('aria-label', '選択肢' + number + '。' + value + (number === choice ? '。あなたの回答' : ''));
+    if (choice) row.setAttribute('aria-disabled', 'true');
+    else row.title = prefs.keysEnabled ? prefs.shortcuts['choice' + number] ?? '' : '';
     const numberEl = node('span', String(number), 'choice-num');
     const label = node('span', value);
     if (number === choice) {
@@ -180,10 +201,10 @@ function renderReader() {
   $('solution').hidden = !choice;
   if (choice) {
     $('feedback').textContent = isCorrect(q, choice) ? '正解' : '不正解';
-    $('key-answer').textContent = '正答　' + answerLabel(q);
-    showText('answer-note', answerNote(q));
+    setReadingText('key-answer', '正答　' + answerLabel(q));
+    setReadingText('answer-note', answerNote(q));
     $('explanation-wrap').hidden = !q.explanation_latest;
-    $('explanation').textContent = q.explanation_latest ?? '';
+    setReadingText('explanation', q.explanation_latest);
   }
   $('position').textContent = (position + 1).toLocaleString('ja-JP') + ' / ' + results.length.toLocaleString('ja-JP');
   $('prev').disabled = position <= 0;
@@ -208,6 +229,16 @@ function changedProblem() {
   questionEvent('asv:problem');
   if (prefs.autoRead && selected()) readProblem(); else stopReading();
 }
+function focusReadingStart(notifyIfFocused = false) {
+  if (!selected()) return;
+  const field = $('case').hidden ? $('stem') : $('case');
+  const alreadyFocused = document.activeElement === field;
+  field.setSelectionRange(0, 0);
+  field.focus({preventScroll:true});
+  // Either the reader or the whole workspace scrolls, depending on window size.
+  field.scrollIntoView({block:'start'});
+  if (notifyIfFocused && alreadyFocused && !prefs.autoRead) announce(selected().serial + '。' + field.value);
+}
 function selectPosition(next, focusResult = false) {
   if (!Number.isInteger(next) || next < 0 || next >= results.length) return;
   const changed = next !== position;
@@ -217,14 +248,7 @@ function selectPosition(next, focusResult = false) {
   if (changed) {
     renderReader();
     changedProblem();
-    if (!focusResult) {
-      const heading = $('stem');
-      const alreadyFocused = document.activeElement === heading;
-      heading.focus({preventScroll:true});
-      // The reading pane scrolls on desktop; at narrow widths its parent scrolls.
-      heading.scrollIntoView({block:'nearest'});
-      if (alreadyFocused && !prefs.autoRead) announce(selected().serial + '。' + selected().stem);
-    }
+    if (!focusResult) focusReadingStart(true);
   }
 }
 function runSearch() {
@@ -289,6 +313,10 @@ $('results').onclick = e => {
   const item = e.target.closest('[role=option]');
   if (item) selectPosition(Number(item.dataset.index), true);
 };
+$('skip-to-problem').onclick = e => {
+  e.preventDefault();
+  focusReadingStart();
+};
 $('results').onkeydown = e => {
   if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.isComposing) return;
   const target = {ArrowDown: position + 1, ArrowUp: position - 1, PageDown: position + pageSize,
@@ -298,7 +326,7 @@ $('results').onkeydown = e => {
     selectPosition(Math.min(results.length - 1, Math.max(0, target[e.key])), true);
   } else if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    $('stem').focus();
+    focusReadingStart();
   }
 };
 $('page-prev').onclick = () => selectPosition((currentSearchPage - 1) * pageSize, true);

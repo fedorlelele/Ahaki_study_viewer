@@ -59,7 +59,7 @@ test('study renderer searches, grades, retries, navigates with keyboard and uses
   const spoken = [];
   let speechStops = 0;
   const revealed = [];
-  $('stem').scrollIntoView = options => revealed.push(options.block);
+  for (const id of ['case','stem']) $(id).scrollIntoView = options => revealed.push([id, options.block]);
   const update = {status:'current',message:'最新版を使用中です。'};
   w.asv = {home:async()=>dataset,speech:{speak:async x=>spoken.push(x),stop:async()=>{ speechStops++; },voices:async()=>[],
     dictionary:async()=>({count:0}),importDictionary:async()=>({count:3})},
@@ -76,10 +76,18 @@ test('study renderer searches, grades, retries, navigates with keyboard and uses
   const change = (id,value) => { $(id).value=value; $(id).dispatchEvent(new w.Event('change')); };
   assert.equal($('serial').textContent,'A01-001');
   assert.equal($('results').children.length,2);
+  const composition = new w.InputEvent('beforeinput', {bubbles:true, cancelable:true, inputType:'insertText'});
+  assert.equal($('stem').dispatchEvent(composition), false);
+  $('stem').value = '変換中の入力';
+  $('stem').dispatchEvent(new w.InputEvent('input', {bubbles:true, inputType:'insertCompositionText'}));
+  assert.equal($('stem').value, a.stem);
   $('read').click();
   key(w,'3',{ctrlKey:true});
   assert.equal(speechStops,1);
   assert.equal(d.activeElement.id,'feedback'); assert.equal($('feedback').textContent,'正解');
+  assert.equal($('key-answer').value, '正答　2・3');
+  assert.equal($('answer-note').value, '通常の注記');
+  assert.equal($('answer-note').hidden, false);
   assert.equal(JSON.parse(w.localStorage.getItem('asv.windows.answers.v1'))[a.serial],3);
   $('read').click(); assert.match(spoken.at(-1).text,/正答 2・3/);
   $('retry').click(); assert.equal(d.activeElement.dataset.choice,'1'); assert.ok($('solution').hidden);
@@ -88,10 +96,10 @@ test('study renderer searches, grades, retries, navigates with keyboard and uses
   assert.deepEqual(revealed,[]);
   key(d.activeElement,'Enter'); assert.equal(d.activeElement.id,'stem');
   $('prev').focus(); $('prev').click();
-  assert.equal($('serial').textContent,a.serial); assert.equal(d.activeElement.id,'stem');
+  assert.equal($('serial').textContent,a.serial); assert.equal(d.activeElement.id,'case');
   key(d.activeElement,']',{ctrlKey:true});
   assert.equal($('serial').textContent,b.serial); assert.equal(d.activeElement.id,'stem');
-  assert.deepEqual(revealed,['nearest','nearest']);
+  assert.deepEqual(revealed,[['stem','start'],['case','start'],['stem','start']]);
   change('subject','医療概論'); assert.equal($('serial').textContent,'A01-001');
   $('search').value = '#呼吸器'; $('session').dispatchEvent(new w.Event('change'));
   assert.ok($('problem').hidden); assert.equal($('result-count').textContent,'0 件の問題');

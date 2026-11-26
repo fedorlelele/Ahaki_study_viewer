@@ -4,7 +4,7 @@
 
 ## インストールする
 
-Windows 11の「設定 → システム → バージョン情報」にある「システムの種類」を確認します。Intel・AMDの64ビットPCは `x64`、SnapdragonなどのARM搭載PCは `arm64` を選びます。`ASV-Windows-0.1.1-x64-Setup.exe` または `ASV-Windows-0.1.1-arm64-Setup.exe` を実行すると、そのWindowsユーザー用にインストールされます。スタートメニューの「ASV」から起動できます。ASVのアカウント登録やAPIキーの入力は不要です。
+Windows 11の「設定 → システム → バージョン情報」にある「システムの種類」を確認します。Intel・AMDの64ビットPCは `x64`、SnapdragonなどのARM搭載PCは `arm64` を選びます。`ASV-Windows-0.1.2-x64-Setup.exe` または `ASV-Windows-0.1.2-arm64-Setup.exe` を実行すると、そのWindowsユーザー用にインストールされます。スタートメニューの「ASV」から起動できます。ASVのアカウント登録やAPIキーの入力は不要です。
 
 このインストーラーにはWindowsの発行元署名（Authenticode）が付いていません。学校などの管理端末では実行が制限される場合があり、一般のPCでも初回にSmartScreenの警告が出ることがあります。[Microsoftの配布時の説明](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation)
 
@@ -24,6 +24,12 @@ Windows 11の「設定 → システム → バージョン情報」にある「
 | 問題を読み上げる／停止 | Ctrl+R ／ Ctrl+Shift+R |
 | 右のチャットを開く・入力欄へ移動 | Ctrl+Shift+A |
 | 質問を送信／入力欄で改行 | Enter ／ Shift+Enter |
+
+### PC-Talkerで本文を読む
+
+検索結果でEnterを押すと、症例文がある問題は症例文の先頭に、それ以外は問題文の先頭にカーソルが移ります。Tabで次の項目、Shift+Tabで前の項目に移れます。症例文・問題文・解説文の中では、左右の矢印キーで1文字ずつ、上下の矢印キーで表示上の1行ずつたどれます。本文は読み取り専用です。
+
+選択肢でEnterを押して回答すると、正誤にフォーカスが移ります。続けてTabを押すと、正答、注記（ある場合）、解説に進みます。Shift+Tabで回答済みの選択肢も読み返せます。PC-Talkerの音声だけで読むときは、「設定 → 読み上げ」の「問題の切り替えと回答時に自動で読む」をオフにします。初期設定はオフです。
 
 ## 読み上げと理療科用辞書
 

@@ -91,6 +91,11 @@ summary { cursor: pointer; color: var(--accent); font-weight: 650; }
 #serial { font-size: .9em; font-variant-numeric: tabular-nums; color: var(--accent); }
 .audio-tools, #question-nav, #retry, .ask { font-size: max(14px,.7rem); }
 #exam-info { font-size: max(14px,.69rem); color: var(--muted); margin: .38em 0 1.4em; }
+.reading-text {
+  display: block; field-sizing: content; width: 100%; min-width: 0; min-height: 1lh;
+  margin: 0; padding: 0; resize: none; overflow: hidden; overflow-wrap: anywhere;
+  background: transparent; border: 0; border-radius: 0; font: inherit; color: inherit;
+}
 #case { white-space: pre-wrap; border-left: 3px solid var(--accent); background: var(--surface); padding: .65em .8em; margin-bottom: .7em; }
 #stem { margin-bottom: .75em; font-size: 1.16rem; line-height: calc(1.4em + var(--gap-line)); white-space: pre-wrap; }
 #choices { display: grid; gap: .36em; }
@@ -100,6 +105,7 @@ summary { cursor: pointer; color: var(--accent); font-weight: 650; }
 }
 .choice .choice-num { display: inline-grid; flex: none; place-items: center; width: 1.7em; height: 1.7em; border-radius: 4px; background: var(--surface); color: var(--accent); font-weight: 650; line-height: 1; font-size: .84em; }
 .choice.selected { border-color: var(--accent); background: var(--accent-soft); }
+.choice[aria-disabled=true] { cursor: default; }
 .choice .response-note { display: block; color: var(--accent); font-size: .78em; font-weight: 650; }
 #solution { border-top: 2px solid var(--accent); padding: .8em 0 0; margin-top: 1em; }
 #feedback { color: var(--accent); }
