@@ -100,8 +100,8 @@ enum OpenAIConnection {
         return request
     }
 
-    static func json(_ request: URLRequest) async throws -> [String: Any] {
-        let (data, response) = try await http.data(for: request)
+    static func json(_ request: URLRequest, session: URLSession = http) async throws -> [String: Any] {
+        let (data, response) = try await session.data(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw ChatError.malformed }
         let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         guard (200..<300).contains(status) else { throw remoteError(status, body) }
@@ -114,10 +114,10 @@ enum OpenAIConnection {
         return .remote(status, code ?? object?["error"] as? String ?? "")
     }
 
-    static func availableModel(token: String) async throws -> String {
+    static func availableModel(token: String, session: URLSession) async throws -> String {
         var request = URLRequest(url: URL(string: resource + "/models")!)
         request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
-        let body = try await json(request)
+        let body = try await json(request, session: session)
         let models = body["models"] as? [[String: Any]] ?? []
         guard let slug = models.first(where: { $0["visibility"] as? String == "list" && $0["slug"] is String })?["slug"] as? String else {
             throw ChatError.noModels
@@ -125,20 +125,20 @@ enum OpenAIConnection {
         return slug
     }
 
-    static func answer(token: String, model: String, context: String, question: String) async throws -> String {
+    static func answer(token: String, model: String, input: [[String: String]], session: URLSession,
+                       onPartial: @MainActor (String) -> Void) async throws -> String {
         var request = URLRequest(url: URL(string: resource + "/responses")!)
         request.httpMethod = "POST"
         request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        let input = "【表示中の国家試験問題】\n\(context)\n\n【学習者の質問】\n\(question)"
         let body: [String: Any] = [
-            "model": model, "input": [["role": "user", "content": input]],
+            "model": model, "input": input,
             "instructions": "あん摩マッサージ指圧師、はり師、きゅう師の国家試験の学習を助ける講師として、日本語で質問に答えてください。問題文・選択肢と解答の根拠を確認し、読み上げで理解しやすい簡潔な文章で説明してください。",
             "store": false, "stream": true
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (bytes, response) = try await http.bytes(for: request)
+        let (bytes, response) = try await session.bytes(for: request)
         guard let status = (response as? HTTPURLResponse)?.statusCode else { throw ChatError.malformed }
         guard (200..<300).contains(status) else {
             var data = Data()
@@ -149,16 +149,21 @@ enum OpenAIConnection {
             throw remoteError(status, (try? JSONSerialization.jsonObject(with: data)) as? [String: Any])
         }
         var stream = AnswerStream()
+        var nextDisplay = ContinuousClock.now
         for try await line in bytes.lines {
             try Task.checkCancellation()
             if let result = try stream.consume(line) { return result }
+            if !stream.text.isEmpty, ContinuousClock.now >= nextDisplay {
+                await onPartial(stream.text)
+                nextDisplay = ContinuousClock.now.advanced(by: .milliseconds(120))
+            }
         }
         throw ChatError.incomplete
     }
 }
 
 struct AnswerStream {
-    private var text = ""
+    private(set) var text = ""
 
     mutating func consume(_ line: String) throws -> String? {
         guard line.hasPrefix("data:") else { return nil }

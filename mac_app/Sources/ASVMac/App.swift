@@ -24,7 +24,7 @@ import SwiftUI
             StudyCommands(settings: settings)
         }
         Settings {
-            PreferencesView().environmentObject(settings).environmentObject(chat)
+            PreferencesView().environmentObject(settings).environmentObject(chat).environmentObject(speech)
         }
     }
 }
@@ -34,16 +34,29 @@ private struct StudyCommands: Commands {
     @FocusedValue(\.studyCommands) private var context
 
     var body: some Commands {
-        CommandMenu("学習") {
-            ForEach(StudyAction.allCases) { action in
-                if [.previous, .choice1, .retry, .read, .ask].contains(action) { Divider() }
-                let chord = settings.chord(action)
-                let button = Button(action.title) { context?.run(action) }
-                    .disabled(context?.available(action) != true)
-                if settings.shortcutsEnabled, let char = chord.key.first {
-                    button.keyboardShortcut(KeyEquivalent(char), modifiers: chord.modifier.flags)
-                } else { button }
+        CommandGroup(after: .toolbar) {
+            ForEach(StudyAction.allCases.filter(\.isTextSizeAction)) { action in
+                let larger = action == .largerText
+                command(action, enabled: settings.canResizeText(larger: larger)) {
+                    settings.resizeText(larger: larger)
+                    announce("文字サイズ \(Int(settings.size))ポイント")
+                }
             }
         }
+        CommandMenu("学習") {
+            ForEach(StudyAction.allCases.filter { !$0.isTextSizeAction }) { action in
+                if [.previous, .choice1, .retry, .read, .ask].contains(action) { Divider() }
+                command(action, enabled: context?.available(action) == true) { context?.run(action) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func command(_ action: StudyAction, enabled: Bool, perform: @escaping () -> Void) -> some View {
+        let button = Button(action.title, action: perform).disabled(!enabled)
+        let chord = settings.chord(action)
+        if settings.shortcutsEnabled, let char = chord.key.first {
+            button.keyboardShortcut(KeyEquivalent(char), modifiers: chord.modifier.flags)
+        } else { button }
     }
 }

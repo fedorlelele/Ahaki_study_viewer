@@ -13,27 +13,80 @@ func announce(_ text: String) {
 @MainActor final class Narrator: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     private let engine = AVSpeechSynthesizer()
     private var current: AVSpeechUtterance?
+    private var dictionary: ReadingDictionary?
+    private var loadTask: Task<Void, Never>?
+    private var pendingSpeech: Task<Void, Never>?
     @Published private(set) var isSpeaking = false
+    @Published private(set) var dictionaryLoading = true
+    @Published private(set) var dictionaryStatus = "読み辞書を確認中…"
+    @Published var dictionaryEnabled: Bool {
+        didSet { UserDefaults.standard.set(dictionaryEnabled, forKey: "readingDictionaryEnabled") }
+    }
 
     override init() {
+        dictionaryEnabled = UserDefaults.standard.object(forKey: "readingDictionaryEnabled") as? Bool ?? true
         super.init()
         engine.delegate = self
+        loadDictionary()
+    }
+
+    func chooseDictionary() {
+        guard !dictionaryLoading else { return }
+        let panel = NSOpenPanel()
+        panel.title = "理療科用読み辞書を選択"
+        panel.message = "Jukugo.usrを選んでください。辞書はこのMacに保存されます。"
+        panel.prompt = "読み込む"
+        guard panel.runModal() == .OK, let source = panel.url else { return }
+        loadDictionary(from: source)
+    }
+
+    private func loadDictionary(from source: URL? = nil) {
+        dictionaryLoading = true
+        dictionaryStatus = "読み辞書を確認中…"
+        loadTask = Task {
+            do {
+                dictionary = try await Task.detached(priority: .userInitiated) {
+                    if let source { return try ReadingDictionary.install(from: source) }
+                    return try ReadingDictionary.loadInstalled()
+                }.value
+                if source != nil { dictionaryEnabled = true }
+                if let dictionary {
+                    dictionaryStatus = "理療科用読み辞書　登録語数 " + dictionary.count.formatted() + "語"
+                } else {
+                    dictionaryStatus = "読み辞書は未登録です。"
+                }
+            } catch {
+                let prior = dictionary.map { "現在の辞書 " + $0.count.formatted() + "語を使います。" } ?? ""
+                dictionaryStatus = error.localizedDescription + prior
+            }
+            dictionaryLoading = false
+            if source != nil { announce(dictionaryStatus) }
+        }
     }
 
     func read(_ text: String, rate: Double) {
         stop()
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ja-JP")
-        utterance.rate = Float(rate)
-        current = utterance
         isSpeaking = true
-        engine.speak(utterance)
+        pendingSpeech = Task {
+            if dictionaryEnabled { await loadTask?.value }
+            guard !Task.isCancelled else { return }
+            let spoken = dictionaryEnabled ? dictionary?.pronunciations(in: text) ?? text : text
+            let utterance = AVSpeechUtterance(string: spoken)
+            utterance.voice = AVSpeechSynthesisVoice(language: "ja-JP")
+            utterance.rate = Float(rate)
+            current = utterance
+            engine.speak(utterance)
+        }
     }
+
     func stop() {
+        pendingSpeech?.cancel()
+        pendingSpeech = nil
         current = nil
         engine.stopSpeaking(at: .immediate)
         isSpeaking = false
     }
+
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
             if current === utterance { current = nil; isSpeaking = false }

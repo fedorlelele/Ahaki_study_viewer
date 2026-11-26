@@ -10,7 +10,8 @@ public final class StudyChat: ObservableObject {
     @Published public private(set) var canAsk = false
     @Published public private(set) var isBusy = false
     @Published public private(set) var status = ""
-    @Published public private(set) var reply = ""
+    @Published public private(set) var answeringProblemID: String?
+    @Published private var conversations = [ThreadKey: Conversation]()
     @Published public private(set) var usageLimitReached = false
     @Published public var showPlanWelcome = false
 
@@ -18,18 +19,43 @@ public final class StudyChat: ObservableObject {
     private var operation: Task<Void, Never>?
     private var model: String?
 
-    public init() {
+    private let loadVault: () throws -> ChatVault
+    private let saveVault: (ChatVault) throws -> Void
+    private let inferenceSession: URLSession
+
+    public convenience init() {
+        self.init(loadVault: ChatKeychain.load, saveVault: ChatKeychain.save, inferenceSession: OpenAIConnection.http)
+    }
+
+    init(loadVault: @escaping () throws -> ChatVault, saveVault: @escaping (ChatVault) throws -> Void,
+         inferenceSession: URLSession) {
+        self.loadVault = loadVault
+        self.saveVault = saveVault
+        self.inferenceSession = inferenceSession
         do {
-            vault = try ChatKeychain.load()
+            vault = try loadVault()
             updateAccounts()
         } catch { status = ChatError.keychain.localizedDescription }
     }
 
     public func cancel() { operation?.cancel() }
 
-    public func clearReply() {
-        reply = ""
-        usageLimitReached = false
+    private func threadKey(_ problemID: String) -> ThreadKey {
+        ThreadKey(registration: isSignedIn ? activeAccountID : nil, problem: problemID)
+    }
+
+    public func turns(for problemID: String) -> [ChatTurn] {
+        conversations[threadKey(problemID)]?.turns ?? []
+    }
+
+    public func draft(for problemID: String) -> String {
+        conversations[threadKey(problemID)]?.draft ?? ""
+    }
+
+    public func setDraft(_ value: String, for problemID: String) {
+        let key = threadKey(problemID)
+        guard conversations[key]?.draft != value else { return }
+        conversations[key, default: Conversation()].draft = value
     }
 
     public func selectAccount(id: String) {
@@ -39,7 +65,7 @@ public final class StudyChat: ObservableObject {
             next.activeID = id
             try persist(next)
             model = nil
-            clearReply()
+            usageLimitReached = false
             status = isSignedIn ? "アカウントを切り替えました。" : "選んだアカウントでサインインしてください。"
         } catch { status = error.localizedDescription }
     }
@@ -47,7 +73,7 @@ public final class StudyChat: ObservableObject {
     public func signIn(newAccount: Bool = false) async {
         await run(message: "ブラウザで ChatGPT へのサインインを完了してください。") {
             // A locked or previously inaccessible keychain must not be overwritten.
-            self.vault = try ChatKeychain.load()
+            self.vault = try self.loadVault()
             let previous = newAccount ? nil : self.vault.selected
             let existing = previous?.clientID ?? self.vault.pendingID
             let state = try OpenAIConnection.random()
@@ -98,8 +124,18 @@ public final class StudyChat: ObservableObject {
             next.activeID = clientID
             if next.pendingID == clientID { next.pendingID = nil }
             try self.persist(next)
+            if previous?.tokens == nil {
+                let drafts = self.conversations.filter { $0.key.registration == nil && !$0.value.draft.isEmpty }
+                for (key, conversation) in drafts {
+                    let target = ThreadKey(registration: clientID, problem: key.problem)
+                    if self.conversations[target]?.draft.isEmpty != false {
+                        self.conversations[target, default: Conversation()].draft = conversation.draft
+                        self.conversations.removeValue(forKey: key)
+                    }
+                }
+            }
             self.showPlanWelcome = firstUse
-            self.clearReply()
+            self.usageLimitReached = false
             self.model = nil
             self.status = self.canAsk ? "ChatGPT に接続しました。" : "サインインしました。質問するには ChatGPT プランの利用を許可してください。"
         }
@@ -116,28 +152,55 @@ public final class StudyChat: ObservableObject {
             var next = self.vault
             next.save(profile)
             try self.persist(next)
-            self.clearReply()
+            self.usageLimitReached = false
             self.model = nil
             self.status = revoked ? "サインアウトしました。" : "この Mac からサインアウトしました。サーバー側の解除は確認できませんでした。ChatGPT の設定で接続を確認してください。"
         }
     }
 
-    public func ask(context: String, question: String) async {
-        guard !isBusy, !context.isEmpty, !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        guard canAsk, let id = activeAccountID else { status = ChatError.plan.localizedDescription; return }
-        clearReply()
-        await run(message: "ChatGPT に質問しています。") {
-            let access = try await self.accessToken(id: id)
-            let slug: String
-            if let cached = self.model { slug = cached }
-            else {
-                slug = try await OpenAIConnection.availableModel(token: access)
-                self.model = slug
+    /// Capture the question, account and transcript together before starting network work.
+    public func send(problemID: String, context: String) {
+        let key = threadKey(problemID)
+        guard !isBusy, canAsk, let registration = key.registration,
+              var thread = conversations[key], !context.isEmpty else { return }
+        let question = thread.draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !question.isEmpty else { return }
+        let input = thread.requestInput(context: context, question: question)
+        let index = thread.turns.count
+        thread.turns.append(ChatTurn(question: question))
+        thread.draft = ""
+        conversations[key] = thread
+        isBusy = true
+        answeringProblemID = problemID
+        usageLimitReached = false
+        status = ""
+
+        operation = Task {
+            defer {
+                operation = nil
+                answeringProblemID = nil
+                isBusy = false
             }
-            let answer = try await OpenAIConnection.answer(token: access, model: slug, context: context, question: question)
-            try Task.checkCancellation()
-            self.reply = answer
-            self.status = "回答を受信しました。"
+            do {
+                let access = try await accessToken(id: registration)
+                let slug: String
+                if let model { slug = model }
+                else {
+                    slug = try await OpenAIConnection.availableModel(token: access, session: inferenceSession)
+                    model = slug
+                }
+                let answer = try await OpenAIConnection.answer(token: access, model: slug, input: input, session: inferenceSession) { partial in
+                    self.conversations[key]?.turns[index].answer = partial
+                }
+                try Task.checkCancellation()
+                conversations[key]?.turns[index].answer = answer
+                conversations[key]?.turns[index].state = .complete
+            } catch {
+                let message = Task.isCancelled ? "回答を中止しました。" : error.localizedDescription
+                conversations[key]?.turns[index].state = .interrupted(message)
+                usageLimitReached = (error as? ChatError)?.isUsageLimit ?? false
+                if !isSignedIn { status = message }
+            }
         }
     }
 
@@ -207,7 +270,7 @@ public final class StudyChat: ObservableObject {
     }
 
     private func persist(_ next: ChatVault) throws {
-        try ChatKeychain.save(next)
+        try saveVault(next)
         vault = next
         updateAccounts()
     }

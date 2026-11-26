@@ -25,7 +25,9 @@ struct StudyWindow: View {
     @EnvironmentObject private var settings: Preferences
     @EnvironmentObject private var speech: Narrator
     @StateObject private var model = StudySession()
-    @State private var chatting: ExamQuestion?
+    @State private var chatVisible = false
+    @State private var chatFocusRequest = 0
+    @State private var hidSearchForChat = false
     @State private var showFilters = false
     @State private var columns = NavigationSplitViewVisibility.all
     @FocusState private var focus: Focus?
@@ -33,6 +35,55 @@ struct StudyWindow: View {
     enum Focus { case search, results }
 
     var body: some View {
+        GeometryReader { geometry in
+            HSplitView {
+                studyContent
+                    .frame(minWidth: 320, maxWidth: .infinity, maxHeight: .infinity)
+                if chatVisible, let problem = model.current {
+                    StudyChatSidebar(problem: problem, focusRequest: chatFocusRequest, close: closeChat)
+                        .frame(minWidth: min(355, max(280, geometry.size.width * 0.38)), idealWidth: 380,
+                               maxWidth: max(380, geometry.size.width * 0.53),
+                               maxHeight: .infinity)
+                }
+            }
+            .onChange(of: chatVisible) { _, visible in
+                if visible { makeRoomForChat(width: geometry.size.width) }
+            }
+            .onChange(of: geometry.size.width) { old, width in
+                if chatVisible, old >= threeColumnWidth, width < threeColumnWidth { makeRoomForChat(width: width) }
+            }
+        }
+        .navigationTitle("Ahaki Study Viewer")
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    if chatVisible { closeChat() } else { perform(.ask) }
+                } label: {
+                    Label(chatVisible ? "質問サイドバーを閉じる" : "質問サイドバーを開く", systemImage: "sidebar.right")
+                }
+                .disabled(!chatVisible && model.current == nil)
+                .help(chatVisible ? "質問サイドバーを閉じる" : "ChatGPTへの質問サイドバーを開く")
+            }
+            ToolbarItem {
+                SettingsLink { Label("設定", systemImage: "slider.horizontal.3") }
+                    .help("表示・読み上げ・キーボードの設定")
+            }
+        }
+        .focusedSceneValue(\.studyCommands, StudyCommandContext(run: perform, available: available))
+        .task { settings.applyAppearance(); await model.load() }
+        .task(id: SearchFilters(query: model.query, subject: model.subject, examType: model.examType, session: model.session)) {
+            do { try await Task.sleep(for: .milliseconds(160)) } catch { return }
+            await model.search()
+            if !Task.isCancelled, model.bank != nil { announce("検索結果 \(model.results.count)問") }
+        }
+        .onChange(of: model.selectedID) { _, _ in
+            speech.stop()
+            if settings.autoRead, let problem = model.current { speech.read(problem.questionText, rate: settings.rate) }
+        }
+        .onDisappear { speech.stop() }
+    }
+
+    private var studyContent: some View {
         NavigationSplitView(columnVisibility: $columns) {
             sidebar.navigationSplitViewColumnWidth(min: 245, ideal: 310, max: 520)
         } detail: {
@@ -67,28 +118,6 @@ struct StudyWindow: View {
                 }
             }
         }
-        .navigationTitle("Ahaki Study Viewer")
-        .toolbar {
-            ToolbarItem {
-                SettingsLink { Label("設定", systemImage: "slider.horizontal.3") }
-                    .help("表示・読み上げ・キーボードの設定")
-            }
-        }
-        .focusedSceneValue(\.studyCommands, StudyCommandContext(run: perform, available: available))
-        .task { settings.applyAppearance(); await model.load() }
-        .task(id: SearchFilters(query: model.query, subject: model.subject, examType: model.examType, session: model.session)) {
-            do { try await Task.sleep(for: .milliseconds(160)) } catch { return }
-            await model.search()
-            if !Task.isCancelled, model.bank != nil { announce("検索結果 \(model.results.count)問") }
-        }
-        .onChange(of: model.selectedID) { _, _ in
-            speech.stop()
-            if settings.autoRead, let problem = model.current { speech.read(problem.questionText, rate: settings.rate) }
-        }
-        .sheet(item: $chatting, onDismiss: { headingFocused = true }) { problem in
-            StudyChatSheet(problem: problem)
-        }
-        .onDisappear { speech.stop() }
     }
 
     private var sidebar: some View {
@@ -185,8 +214,26 @@ struct StudyWindow: View {
             speech.read(current.feedback(for: number) + "。正答 " + current.solutionText, rate: settings.rate)
         }
     }
+    // Leave room for both the question and the conversation at the chosen reading size.
+    private var threeColumnWidth: CGFloat { 310 + 355 + max(410, settings.size * 18) }
+
+    private func makeRoomForChat(width: CGFloat) {
+        if width < threeColumnWidth, columns != .detailOnly {
+            columns = .detailOnly
+            hidSearchForChat = true
+        }
+    }
+
+    private func closeChat() {
+        chatVisible = false
+        if hidSearchForChat {
+            columns = .all
+            hidSearchForChat = false
+        }
+        headingFocused = true
+    }
+
     private func available(_ action: StudyAction) -> Bool {
-        guard chatting == nil else { return false }
         if let number = action.choiceNumber {
             return model.choice == nil && (model.current?.choices.indices.contains(number - 1) == true)
         }
@@ -204,6 +251,7 @@ struct StudyWindow: View {
         if let number = action.choiceNumber { answer(number); return }
         switch action {
         case .search, .results:
+            hidSearchForChat = false
             columns = .all
             Task { @MainActor in
                 await Task.yield()
@@ -217,7 +265,11 @@ struct StudyWindow: View {
                 speech.read(problem.questionText + "\n" + result, rate: settings.rate)
             }
         case .silence: speech.stop()
-        case .ask: speech.stop(); chatting = model.current
+        case .ask:
+            speech.stop()
+            focus = nil
+            chatVisible = true
+            chatFocusRequest += 1
         case .retry: speech.stop(); model.retry()
         default: break
         }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PreferencesView: View {
     @EnvironmentObject private var settings: Preferences
+    @EnvironmentObject private var speech: Narrator
     @State private var editing: StudyAction?
 
     var body: some View {
@@ -13,7 +14,7 @@ struct PreferencesView: View {
                 Picker("フォント", selection: $settings.family) {
                     ForEach(ReadingFont.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
-                Stepper("文字サイズ　\(Int(settings.size)) pt", value: $settings.size, in: 14...40, step: 1)
+                Stepper("文字サイズ　\(Int(settings.size)) pt", value: $settings.size, in: Preferences.textSizes, step: 1)
                 Stepper("行間　\(Int(settings.spacing)) pt", value: $settings.spacing, in: 0...18, step: 1)
                 Section("表示見本") {
                     Text("問題を読んで、選択肢から答えを選びます。\n回答すると、正答と解説が表示されます。")
@@ -25,7 +26,12 @@ struct PreferencesView: View {
                 Slider(value: $settings.rate, in: 0.35...0.65, step: 0.025) { Text("読み上げ速度") }
                     .accessibilityValue("\(Int((settings.rate / 0.5 * 100).rounded()))パーセント")
                 Text("読み上げ速度　\(Int((settings.rate / 0.5 * 100).rounded()))%")
-                Text("日本語の音声を使用します。学習メニューから手動で読み上げ・停止もできます。")
+                Section("理療科用読み辞書") {
+                    Toggle("理療科用読み辞書を使う", isOn: $speech.dictionaryEnabled)
+                    Text(speech.dictionaryStatus)
+                    Button("読み辞書を読み込む…") { speech.chooseDictionary() }
+                        .disabled(speech.dictionaryLoading)
+                }
             }.formStyle(.grouped).tabItem { Label("読み上げ", systemImage: "speaker.wave.2") }
             Form {
                 Toggle("学習のショートカットを使う", isOn: $settings.shortcutsEnabled)
@@ -70,7 +76,7 @@ private struct ShortcutEditor: View {
             Picker("修飾キー", selection: $modifier) {
                 ForEach(ChordModifier.allCases, id: \.self) { Text($0.spoken).tag($0) }
             }
-            TextField("キー（英数字または角括弧1文字）", text: $key)
+            TextField("キー（英数字・角括弧・＋・−の1文字）", text: $key)
             if let error { Text(error).foregroundStyle(.primary) }
             HStack {
                 Spacer()

@@ -27,10 +27,15 @@ enum ReadingFont: String, CaseIterable {
 
 enum StudyAction: String, CaseIterable, Identifiable, Codable {
     case search, results, previous, next, choice1, choice2, choice3, choice4, retry, read, silence, ask
+    case largerText, smallerText
     var id: Self { self }
+
+    var isTextSizeAction: Bool { self == .largerText || self == .smallerText }
 
     var title: String {
         switch self {
+        case .largerText: return "文字を拡大"
+        case .smallerText: return "文字を縮小"
         case .search: return "検索欄へ移動"
         case .results: return "検索結果へ移動"
         case .previous: return "前の問題"
@@ -55,6 +60,8 @@ enum StudyAction: String, CaseIterable, Identifiable, Codable {
 
     var standard: KeyChord {
         switch self {
+        case .largerText: return KeyChord("+")
+        case .smallerText: return KeyChord("-")
         case .search: return KeyChord("f")
         case .results: return KeyChord("j")
         case .previous: return KeyChord("[")
@@ -91,13 +98,13 @@ struct KeyChord: Codable, Equatable {
     let modifier: ChordModifier
 
     init(_ key: String, _ modifier: ChordModifier = .command) {
-        self.key = key.lowercased()
+        self.key = key.precomposedStringWithCompatibilityMapping.replacingOccurrences(of: "−", with: "-").lowercased()
         self.modifier = modifier
     }
     var label: String { modifier.rawValue + key.uppercased() }
     var spoken: String { modifier.spoken + " " + key.uppercased() }
     var isValid: Bool {
-        guard key.count == 1, "abcdefghijklmnopqrstuvwxyz0123456789[]".contains(key) else { return false }
+        guard key.count == 1, "abcdefghijklmnopqrstuvwxyz0123456789[]+-".contains(key) else { return false }
         let reserved: [ChordModifier: String] = [
             .command: "acghmnoqstvwxyz", .commandShift: "ghnpqstwz", .commandOption: "dfhimntvw"
         ]
@@ -106,6 +113,7 @@ struct KeyChord: Codable, Equatable {
 }
 
 @MainActor final class Preferences: ObservableObject {
+    static let textSizes: ClosedRange<Double> = 14...40
     let defaults: UserDefaults
     @Published var appearance: AppearanceMode { didSet { defaults.set(appearance.rawValue, forKey: "appearance"); applyAppearance() } }
     @Published var family: ReadingFont { didSet { defaults.set(family.rawValue, forKey: "family") } }
@@ -121,7 +129,7 @@ struct KeyChord: Codable, Equatable {
         defaults.register(defaults: ["size": 20.0, "spacing": 5.0, "rate": 0.5, "shortcutsEnabled": true])
         appearance = AppearanceMode(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
         family = ReadingFont(rawValue: defaults.string(forKey: "family") ?? "") ?? .system
-        size = min(40, max(14, defaults.double(forKey: "size")))
+        size = min(Self.textSizes.upperBound, max(Self.textSizes.lowerBound, defaults.double(forKey: "size")))
         spacing = min(18, max(0, defaults.double(forKey: "spacing")))
         rate = min(0.65, max(0.35, defaults.double(forKey: "rate")))
         autoRead = defaults.bool(forKey: "autoRead")
@@ -129,12 +137,21 @@ struct KeyChord: Codable, Equatable {
         overrides = defaults.data(forKey: "shortcuts").flatMap { try? JSONDecoder().decode([String: KeyChord].self, from: $0) } ?? [:]
     }
 
+    func canResizeText(larger: Bool) -> Bool {
+        larger ? size < Self.textSizes.upperBound : size > Self.textSizes.lowerBound
+    }
+
+    func resizeText(larger: Bool) {
+        let limit = Self.textSizes
+        size = min(limit.upperBound, max(limit.lowerBound, size + (larger ? 2 : -2)))
+    }
+
     func applyAppearance() { NSApp.appearance = appearance.appearance }
     func font(_ offset: Double = 0, bold: Bool = false) -> Font { family.font(size: max(13, size + offset), bold: bold) }
     func chord(_ action: StudyAction) -> KeyChord { overrides[action.rawValue] ?? action.standard }
 
     func assign(_ chord: KeyChord, to action: StudyAction) -> String? {
-        guard chord.isValid else { return "英数字・角括弧と、macOSの標準操作に使われていない組み合わせを選んでください。" }
+        guard chord.isValid else { return "英数字・角括弧・＋・−のいずれかと、macOSの標準操作に使われていない組み合わせを選んでください。" }
         if let other = StudyAction.allCases.first(where: { $0 != action && self.chord($0) == chord }) {
             return "このキーは「\(other.title)」に割り当てられています。"
         }
