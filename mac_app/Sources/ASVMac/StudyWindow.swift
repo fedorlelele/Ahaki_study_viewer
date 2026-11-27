@@ -24,7 +24,7 @@ private struct SearchFilters: Equatable {
 struct StudyWindow: View {
     @EnvironmentObject private var settings: Preferences
     @EnvironmentObject private var speech: Narrator
-    @StateObject private var model = StudySession()
+    @EnvironmentObject private var model: StudySession
     @State private var chatVisible = false
     @State private var chatFocusRequest = 0
     @State private var hidSearchForChat = false
@@ -70,7 +70,7 @@ struct StudyWindow: View {
             }
         }
         .focusedSceneValue(\.studyCommands, StudyCommandContext(run: perform, available: available))
-        .task { settings.applyAppearance(); await model.load() }
+        .task { settings.applyAppearance(); await model.monitor() }
         .task(id: SearchFilters(query: model.query, subject: model.subject, examType: model.examType, session: model.session)) {
             do { try await Task.sleep(for: .milliseconds(160)) } catch { return }
             await model.search()
@@ -209,7 +209,7 @@ struct StudyWindow: View {
     }
     private func answer(_ number: Int) {
         speech.stop()
-        model.respond(number)
+        guard model.respond(number) else { return }
         if settings.autoRead, let current = model.current {
             speech.read(current.feedback(for: number) + "。正答 " + current.solutionText, rate: settings.rate)
         }

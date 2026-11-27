@@ -2,6 +2,7 @@ import AppKit
 import ASVData
 import AVFoundation
 import Combine
+import Network
 
 func announce(_ text: String) {
     guard let window = NSApp.keyWindow else { return }
@@ -119,27 +120,110 @@ extension ExamQuestion {
     @Published var session: Int?
     @Published private(set) var responses: [String: Int]
     private var positions: [String: Int] = [:]
-    private let defaults: UserDefaults
+    private let catalog: QuestionSync
+    private let journalFile: URL
+    private var journal: AnswerJournal?
+    private let service: () throws -> StudyWebService
+    private var generation = 0
+    private var loading = false
+    private var online = false
+    private var flushing = false
+    private var nextAnswerAttempt = Date.distantPast
+    @Published private(set) var refreshing = false
+    @Published private(set) var catalogStatus = "このMacの問題データを使用します。"
+    @Published private(set) var pendingCount = 0
+    @Published private(set) var answerStatus = ""
 
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        responses = defaults.dictionary(forKey: "answersBySerial") as? [String: Int] ?? [:]
+    init(defaults: UserDefaults = .standard, directory: URL = ReadingDictionary.installedURL.deletingLastPathComponent()
+        .appendingPathComponent("Study", isDirectory: true),
+         service: @escaping () throws -> StudyWebService = StudyWebService.production) {
+        catalog = QuestionSync(directory: directory)
+        journalFile = directory.appendingPathComponent("answers.json")
+        self.service = service
+        let previous = defaults.dictionary(forKey: "answersBySerial") as? [String: Int] ?? [:]
+        do {
+            let local = try AnswerJournal.load(from: journalFile, migrating: previous)
+            journal = local
+            responses = local.responses
+            pendingCount = local.pending.count
+        } catch {
+            responses = previous
+            answerStatus = "保存済みの回答記録を読み込めません。" + error.localizedDescription
+        }
     }
+
     func load() async {
-        guard bank == nil else { return }
+        guard bank == nil, !loading else { return }
+        loading = true
+        defer { loading = false }
         error = nil
         do {
-            bank = try await Task.detached(priority: .userInitiated) { try QuestionBank.load() }.value
-            await search()
+            let catalog = catalog
+            let local = try await Task.detached(priority: .userInitiated) { try catalog.loadLocal() }.value
+            if bank == nil {
+                bank = local
+                await search()
+            }
         } catch { self.error = error.localizedDescription }
     }
+
+    func monitor() async {
+        await load()
+        guard !Task.isCancelled else { return }
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                guard let self else { return }
+                let connected = path.status == .satisfied
+                let reconnected = connected && !self.online
+                self.online = connected
+                if reconnected {
+                    self.nextAnswerAttempt = .distantPast
+                    Task { await self.flushAnswers() }
+                    await self.refresh()
+                }
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "ASV.study.network"))
+        defer { monitor.cancel(); online = false }
+        var minutes = 0
+        while !Task.isCancelled {
+            do { try await Task.sleep(for: .seconds(60)) } catch { return }
+            minutes += 1
+            if online {
+                Task { await flushAnswers() }
+                if minutes.isMultiple(of: 15) { await refresh() }
+            }
+        }
+    }
+
+    func refresh() async {
+        guard !refreshing else { return }
+        refreshing = true
+        defer { refreshing = false }
+        catalogStatus = "問題と解説の更新を確認しています…"
+        do {
+            if let updated = try await catalog.refresh(using: service(), current: bank) {
+                generation += 1
+                bank = updated
+                error = nil
+                await search()
+            }
+            catalogStatus = "確認日時　" + Date.now.formatted(date: .abbreviated, time: .shortened)
+        } catch {
+            catalogStatus = "更新を確認できません。このMacにある問題と解説を使用します。"
+            if bank == nil { self.error = error.localizedDescription }
+        }
+    }
+
     func search() async {
         guard let bank else { return }
+        let generation = generation
         let (query, subject, examType, session) = (self.query, self.subject, self.examType, self.session)
         let found = await Task.detached(priority: .userInitiated) {
             bank.search(query, subject: subject, examType: examType, session: session)
         }.value
-        guard !Task.isCancelled, query == self.query, subject == self.subject,
+        guard !Task.isCancelled, generation == self.generation, query == self.query, subject == self.subject,
               examType == self.examType, session == self.session else { return }
         positions = Dictionary(uniqueKeysWithValues: found.enumerated().map { ($0.element.id, $0.offset) })
         results = found
@@ -147,22 +231,58 @@ extension ExamQuestion {
     }
     var index: Int? { selectedID.flatMap { positions[$0] } }
     var current: ExamQuestion? { index.map { results[$0] } }
-    var choice: Int? { selectedID.flatMap { responses[$0] } }
+    var choice: Int? {
+        guard let current, let saved = responses[current.id], (1...current.choices.count).contains(saved) else { return nil }
+        return saved
+    }
     func canMove(_ distance: Int) -> Bool { index.map { results.indices.contains($0 + distance) } ?? false }
     func move(_ distance: Int) {
         if let index, canMove(distance) { selectedID = results[index + distance].id }
     }
-    func respond(_ number: Int) {
-        guard let current, choice == nil, current.choices.indices.contains(number - 1) else { return }
-        responses[current.id] = number
-        save()
+    @discardableResult func respond(_ number: Int) -> Bool {
+        guard let current, choice == nil, current.choices.indices.contains(number - 1) else { return false }
+        guard var next = journal else { announce(answerStatus); return false }
+        next.record(serial: current.id, choice: number, correct: current.isCorrect(number))
+        guard save(next) else { return false }
         announce("\(current.feedback(for: number))。正答は\(current.answerLabel)")
+        Task { await flushAnswers() }
+        return true
     }
     func retry() {
-        guard let selectedID else { return }
-        responses.removeValue(forKey: selectedID)
-        save()
+        guard let selectedID, var next = journal else { return }
+        next.retry(selectedID)
+        guard save(next) else { return }
         announce("もう一度、選択肢を選んでください。")
     }
-    private func save() { defaults.set(responses, forKey: "answersBySerial") }
+    private func save(_ next: AnswerJournal) -> Bool {
+        do {
+            try next.save(to: journalFile)
+            journal = next
+            responses = next.responses
+            pendingCount = next.pending.count
+            return true
+        } catch {
+            answerStatus = "回答記録を保存できません。" + error.localizedDescription
+            announce(answerStatus)
+            return false
+        }
+    }
+    func flushAnswers() async {
+        guard online, !flushing, Date.now >= nextAnswerAttempt, let local = journal, !local.pending.isEmpty else { return }
+        flushing = true
+        defer { flushing = false }
+        do {
+            let api = try service()
+            while online, let event = journal?.pending.first {
+                try await api.submit(event, anonymousID: local.anonymousID)
+                guard var latest = journal else { return }
+                latest.acknowledge(event.event)
+                guard save(latest) else { return }
+            }
+            answerStatus = ""
+        } catch {
+            nextAnswerAttempt = Date.now.addingTimeInterval(60)
+            answerStatus = "未送信の回答はこのMacに保存されています。接続時に再送します。"
+        }
+    }
 }
