@@ -17,11 +17,9 @@ window.mountDesktopDownloads = function () {
     link.textContent = label;
     item.append(link);
     if (asset.startsWith("mac-")) {
-      const note = document.createElement("p");
-      const title = document.createElement("strong");
-      title.textContent = "Mac版を初めて開くとき";
-      note.append(title);
-      item.append(note);
+      const guide = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = "Mac版を初めて開くとき";
 
       const steps = document.createElement("ol");
       for (const instruction of [
@@ -33,7 +31,8 @@ window.mountDesktopDownloads = function () {
         step.textContent = instruction;
         steps.append(step);
       }
-      item.append(steps);
+      guide.append(summary, steps);
+      item.append(guide);
     }
     list.append(item);
   }
