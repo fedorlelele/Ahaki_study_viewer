@@ -1,7 +1,7 @@
 {
   "name": "asv-windows",
   "productName": "ASV",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "理療科の国家試験過去問を学ぶ Ahaki Study Viewer",
   "author": "ASV Contributors",
   "private": true,
@@ -19,7 +19,10 @@
     "appId": "io.github.fedorlelele.ASV",
     "asar": true,
     "files": ["main/**", "renderer/**", "package.json"],
-    "extraResources": [{"from":"resources/ASVQuestions.json", "to":"ASVQuestions.json"}],
+    "extraResources": [
+      {"from":"resources/ASVQuestions.json", "to":"ASVQuestions.json"},
+      {"from":"../web_app/shared/questions.js", "to":"web-questions.cjs"}
+    ],
     "directories": {"output": "dist", "buildResources": "assets"},
     "win": {"target": "nsis", "icon":"assets/app.ico", "executableName":"ASV", "artifactName":"ASV-Windows-${version}-${arch}-Setup.${ext}"},
     "nsis": {"oneClick":true, "perMachine":false, "allowElevation":false, "runAfterFinish":true, "deleteAppDataOnUninstall":false}

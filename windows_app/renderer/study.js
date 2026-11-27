@@ -2,6 +2,7 @@ import {
   actions, defaultShortcuts, keyChord, shortcutError, validateSnapshot, searchIndex, search,
   validChoice, isCorrect, answerLabel, answerNote, questionText, solutionText
 } from './study-core.mjs';
+import {createAnswerHistory} from './answer-history.mjs';
 
 const $ = id => document.getElementById(id);
 const api = window.asv;
@@ -17,7 +18,6 @@ const fonts = {
   ud: '"BIZ UDGothic", "BIZ UD Gothic", Meiryo, sans-serif'
 };
 const prefKey = 'asv.windows.preferences.v1';
-const answerKey = 'asv.windows.answers.v1';
 let errorTimer;
 let assignment = null;
 let hasSpoken = false;
@@ -63,7 +63,19 @@ if (storedKeys && typeof storedKeys === 'object') {
   for (const id of Object.keys(actions)) if (typeof storedKeys[id] === 'string') restored[id] = storedKeys[id];
   if (Object.keys(actions).every(id => !shortcutError(id, restored[id], restored))) prefs.shortcuts = restored;
 }
-const answers = readObject(answerKey);
+function showPendingAnswers(count) {
+  $('answer-sync-state').textContent = count ? '送信待ちの回答　' + count + ' 件' : '送信待ちの回答はありません。';
+}
+const history = createAnswerHistory({
+  storage: localStorage, uuid: () => window.crypto.randomUUID(),
+  upload: (anonId, events) => api.answers.upload(anonId, events),
+  notify: showPendingAnswers, reportError
+});
+const answers = history.choices;
+showPendingAnswers(history.pendingCount);
+window.addEventListener('online', history.flush);
+window.setInterval(history.flush, 60000);
+void history.flush();
 function savePreferences() { saveObject(prefKey, prefs); }
 function announce(text) { $('notice').textContent = text; }
 function selected() { return results[position]; }
@@ -271,8 +283,7 @@ function answer(number) {
   const q = selected();
   if (!q || !validChoice(q, number) || validChoice(q, answers[q.serial])) return;
   stopReading();
-  answers[q.serial] = number;
-  saveObject(answerKey, answers);
+  history.record(q.serial, number, isCorrect(q, number));
   renderReader();
   $('feedback').focus();
   const result = $('feedback').textContent + '。正答は' + answerLabel(q);
@@ -282,8 +293,7 @@ function answer(number) {
 function retry() {
   const q = selected();
   if (!q || !validChoice(q, answers[q.serial])) return;
-  delete answers[q.serial];
-  saveObject(answerKey, answers);
+  history.retry(q.serial);
   stopReading();
   renderReader();
   $('choices').querySelector('button')?.focus();
@@ -527,20 +537,74 @@ for (const [id, key] of [['auto-read','autoRead'],['dictionary-enabled','diction
   $(id).onchange = e => { prefs[key] = e.target.checked; savePreferences(); refreshShortcutLabels(); };
 }
 
+function installSnapshot(snapshot) {
+  const rows = validateSnapshot(snapshot);
+  const oldSerial = selected()?.serial;
+  const focus = document.activeElement;
+  const caret = focus.matches('.reading-text') ? [focus.selectionStart,focus.selectionEnd,focus.selectionDirection] : null;
+  index = searchIndex(rows);
+  const values = {
+    exam:[...new Set(rows.map(q => q.exam_type))].sort((a,b) => a.localeCompare(b,'ja')),
+    subject:[...new Set(rows.map(q => q.subject))],
+    session:[...new Set(rows.map(q => q.exam_session))].sort((a,b) => b-a)
+  };
+  for (const [id,options] of Object.entries(values)) {
+    const select = $(id), previous = select.value;
+    select.options.length = 1;
+    for (const value of options) select.add(new Option(id === 'session' ? '第' + value + '回' : value, String(value)));
+    select.value = [...select.options].some(o => o.value === previous) ? previous : '';
+  }
+  runSearch();
+  if (oldSerial && oldSerial === selected()?.serial) {
+    questionEvent('asv:problem');
+    if (caret && !focus.closest('[hidden]')) focus.setSelectionRange(...caret);
+  }
+  if (focus.dataset.choice) {
+    const choice = $('choices').querySelector('[data-choice="' + focus.dataset.choice + '"]');
+    (selected() ? choice || $('stem') : $('search')).focus({preventScroll:true});
+  } else if (focus.getAttribute('role') === 'option') {
+    if (selected()) revealOption(true); else $('search').focus();
+  } else if (focus.closest('#problem') && focus.closest('[hidden]')) {
+    if (selected()) focusReadingStart(); else $('search').focus();
+  }
+}
+let syncingQuestions = false;
+let lastQuestionSync;
+function savedDataMessage() {
+  return lastQuestionSync
+    ? '最終同期 ' + new Date(lastQuestionSync).toLocaleString('ja-JP')
+    : 'アプリ同梱の教材を使用しています。';
+}
+async function syncQuestions() {
+  if (syncingQuestions) return;
+  syncingQuestions = true;
+  $('sync-questions').setAttribute('aria-disabled','true');
+  $('data-state').textContent = '問題と解説を確認しています。';
+  try {
+    const {snapshot,syncedAt} = await api.syncQuestions();
+    if (snapshot) installSnapshot(snapshot);
+    lastQuestionSync = syncedAt;
+    $('data-state').textContent = '教材は最新です。' + savedDataMessage();
+  } catch {
+    $('data-state').textContent = '同期できませんでした。端末の教材で学習を続けられます。' + savedDataMessage();
+  } finally {
+    syncingQuestions = false;
+    $('sync-questions').removeAttribute('aria-disabled');
+  }
+}
+$('sync-questions').onclick = syncQuestions;
 async function initialize() {
   applyAppearance();
   refreshShortcutLabels();
   try {
-    const rows = validateSnapshot(await api.home());
-    index = searchIndex(rows);
-    const examTypes = [...new Set(rows.map(q => q.exam_type))].sort((a,b) => a.localeCompare(b, 'ja'));
-    const subjects = [...new Set(rows.map(q => q.subject))];
-    const sessions = [...new Set(rows.map(q => q.exam_session))].sort((a,b) => b-a);
-    for (const exam of examTypes) $('exam').add(new Option(exam, exam));
-    for (const subject of subjects) $('subject').add(new Option(subject, subject));
-    for (const session of sessions) $('session').add(new Option('第' + session + '回', String(session)));
-    runSearch();
+    const snapshot = await api.home();
+    installSnapshot(snapshot);
+    lastQuestionSync = snapshot.syncedAt;
+    $('data-state').textContent = savedDataMessage();
     api.updates.subscribe(paintUpdate);
+    void syncQuestions();
+    window.addEventListener('online',syncQuestions);
+    window.setInterval(syncQuestions,60 * 60 * 1000);
   } catch (e) {
     $('loading').textContent = '問題データを開けません。' + (e?.message ?? '');
     $('result-count').textContent = '読み込みに失敗しました。';

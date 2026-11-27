@@ -101,6 +101,16 @@
         <p id="key-status" role="status"></p>
         <button id="reset-keys">キーを初期設定に戻す</button>
       </section>
+      <section aria-labelledby="answer-sync-title">
+        <h3 id="answer-sync-title">回答の記録</h3>
+        <p>問題番号、選んだ選択肢、正誤、回答日時を端末ごとの匿名IDでWeb版と同じ回答統計に送ります。オフラインでの回答は端末に保存し、接続が戻ったときに送ります。</p>
+        <p id="answer-sync-state" role="status"></p>
+      </section>
+      <section aria-labelledby="data-title">
+        <h3 id="data-title">問題と解説の同期</h3>
+        <button id="sync-questions">最新の問題と解説を取得</button>
+        <p id="data-state" role="status"></p>
+      </section>
       <section aria-labelledby="update-title">
         <h3 id="update-title">アップデート</h3>
         <div class="update-tools"><button id="check-update">アップデートを確認</button><button id="apply-update" hidden>更新を実施</button></div>

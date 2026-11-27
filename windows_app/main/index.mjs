@@ -2,9 +2,12 @@ import {app, BrowserWindow, dialog, ipcMain, Menu, protocol, safeStorage, sessio
 import {readFile} from 'node:fs/promises';
 import {join, extname} from 'node:path';
 import {spawn} from 'node:child_process';
+import {createRequire} from 'node:module';
+import {createQuestionBank} from './question-bank.mjs';
 import {createChatService} from './chat.mjs';
 import {createSpeech} from './speech.mjs';
 import {createUpdater} from './updates.mjs';
+import {uploadAnswers} from './answer-upload.mjs';
 
 const page = 'asv://local/renderer/index.html';
 protocol.registerSchemesAsPrivileged([{scheme:'asv',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
@@ -20,7 +23,7 @@ async function openLink(raw) {
 
 function start() {
   const root = app.getAppPath(), userData = app.getPath('userData');
-  const rendererFiles = new Set(['index.html','study.css','study.js','study-core.mjs','chat.mjs','chat.css','chat-markdown.mjs']);
+  const rendererFiles = new Set(['index.html','study.css','study.js','study-core.mjs','answer-history.mjs','chat.mjs','chat.css','chat-markdown.mjs']);
   const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8'};
   protocol.handle('asv', async request => {
     const url = new URL(request.url);
@@ -65,9 +68,17 @@ function start() {
       return action(...args);
     });
   }
-  handle('study:home',async () => JSON.parse(await readFile(join(
-    app.isPackaged ? process.resourcesPath : join(root,'resources'),'ASVQuestions.json'),'utf8')));
+  const contractPath = app.isPackaged ? join(process.resourcesPath,'web-questions.cjs') : join(root,'../web_app/shared/questions.js');
+  const bank = createQuestionBank({directory:userData, contract:createRequire(import.meta.url)(contractPath),
+    bundledPath:join(app.isPackaged ? process.resourcesPath : join(root,'resources'),'ASVQuestions.json')});
+  handle('study:home',bank.home);
+  handle('study:sync',() => process.env.ASV_TEST_OFFLINE === '1'
+    ? Promise.reject(new Error('オフラインです。')) : bank.sync());
   handle('link:open',openLink);
+  handle('answers:upload', (anonId, events) => {
+    if (process.env.ASV_TEST_OFFLINE === '1') throw new Error('オフラインのテスト中です。');
+    return uploadAnswers(anonId, events);
+  });
   for (const method of ['voices','speak','stop','dictionary']) handle('speech:'+method,speech[method]);
   handle('speech:import',speech.importDictionary);
   for (const method of ['status','check','apply']) handle('updates:'+method,updates[method]);

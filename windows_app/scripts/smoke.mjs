@@ -9,6 +9,7 @@ const executable = process.argv[2];
 const profile = await mkdtemp(join(tmpdir(),'asv-window-qa-'));
 async function launch() {
   const session = await _electron.launch({
+    env: {...process.env, ASV_TEST_OFFLINE: '1'},
     executablePath:executable ? resolve(executable) : electron,
     args:[...(executable ? [] : ['.']), '--user-data-dir=' + profile],
     timeout:60000

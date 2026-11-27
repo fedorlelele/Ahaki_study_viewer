@@ -8,7 +8,9 @@ function subscribe(channel, listener) {
 }
 
 contextBridge.exposeInMainWorld('asv', {
+  answers: {upload: (anonId, events) => ipcRenderer.invoke('answers:upload', anonId, events)},
   home: () => ipcRenderer.invoke('study:home'),
+  syncQuestions: () => ipcRenderer.invoke('study:sync'),
   openExternal: url => ipcRenderer.invoke('link:open',url),
   speech:{
     voices: () => ipcRenderer.invoke('speech:voices'),

@@ -61,8 +61,10 @@ test('study renderer searches, grades, retries, navigates with keyboard and uses
   const revealed = [];
   for (const id of ['case','stem']) $(id).scrollIntoView = options => revealed.push([id, options.block]);
   const update = {status:'current',message:'最新版を使用中です。'};
+  let remoteSnapshot = null;
   w.asv = {home:async()=>dataset,speech:{speak:async x=>spoken.push(x),stop:async()=>{ speechStops++; },voices:async()=>[],
     dictionary:async()=>({count:0}),importDictionary:async()=>({count:3})},
+    syncQuestions:async()=>({snapshot:remoteSnapshot,syncedAt:'2026-11-27T01:00:00Z'}),
     updates:{subscribe(){},status:async()=>({status:'idle'}),check:async()=>update}};
   const names = ['window','document','localStorage','Option','CustomEvent'];
   for(const name of names){
@@ -88,7 +90,7 @@ test('study renderer searches, grades, retries, navigates with keyboard and uses
   assert.equal($('key-answer').value, '正答　2・3');
   assert.equal($('answer-note').value, '通常の注記');
   assert.equal($('answer-note').hidden, false);
-  assert.equal(JSON.parse(w.localStorage.getItem('asv.windows.answers.v1'))[a.serial],3);
+  assert.equal(JSON.parse(w.localStorage.getItem('asv.windows.answer-history.v2')).choices[a.serial],3);
   $('read').click(); assert.match(spoken.at(-1).text,/正答 2・3/);
   $('retry').click(); assert.equal(d.activeElement.dataset.choice,'1'); assert.ok($('solution').hidden);
   key(w,'j',{ctrlKey:true}); key(d.activeElement,'ArrowDown');
@@ -118,4 +120,18 @@ test('study renderer searches, grades, retries, navigates with keyboard and uses
   $('shortcut-list').querySelector('[data-action=search]').click(); key(w,'k',{ctrlKey:true,altKey:true});
   $('settings-close').click(); key(w,'k',{ctrlKey:true,altKey:true}); assert.equal(d.activeElement.id,'search');
   assert.equal(JSON.parse(w.localStorage.getItem('asv.windows.preferences.v1')).shortcuts.search,'Ctrl+Alt+K');
+  change('subject','医療概論');
+  $('stem').focus();
+  $('stem').setSelectionRange(2,3);
+  remoteSnapshot = {...dataset,questions:[{...a,stem:'新しい問題文。'},b]};
+  w.dispatchEvent(new w.Event('online'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal($('serial').textContent,a.serial);
+  assert.equal($('subject').value,'医療概論');
+  assert.equal(d.activeElement.id,'stem');
+  assert.deepEqual([$('stem').selectionStart,$('stem').selectionEnd],[2,3]);
+  assert.equal($('stem').value,'新しい問題文。');
+  $('choices').querySelector('[data-choice="2"]').focus();
+  await $('sync-questions').onclick();
+  assert.equal(d.activeElement.dataset.choice,'2');
 });
