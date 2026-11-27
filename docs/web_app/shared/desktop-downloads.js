@@ -5,9 +5,9 @@ window.mountDesktopDownloads = function (client, getUserRole) {
 
   const releases = "https://github.com/fedorlelele/Ahaki_study_viewer/releases/download/";
   const choices = [
-    ["Mac版（Intel・Apple Silicon共通）", "mac-v0.3.0/ASV-0.3.0.zip"],
-    ["Windows版（Intel・AMD、x64）", "windows-v0.1.2/ASV-Windows-0.1.2-x64-Setup.exe"],
-    ["Windows版（Snapdragonなど、ARM64）", "windows-v0.1.2/ASV-Windows-0.1.2-arm64-Setup.exe"]
+    ["Mac版（Intel・Apple Silicon共通）", "mac-v0.4.0/ASV-0.4.0.zip"],
+    ["Windows版（Intel・AMD、x64）", "windows-v0.2.0/ASV-Windows-0.2.0-x64-Setup.exe"],
+    ["Windows版（Snapdragonなど、ARM64）", "windows-v0.2.0/ASV-Windows-0.2.0-arm64-Setup.exe"]
   ];
   const list = document.createElement("ul");
   menu.append(list);
