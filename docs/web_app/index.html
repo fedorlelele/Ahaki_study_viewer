@@ -1902,6 +1902,9 @@
                 <a class="btn-secondary" href="./print_export.html" target="_blank" rel="noopener noreferrer">プリント作成ビュー<span class="new-tab-mark" aria-hidden="true">↗</span><span class="sr-only">（新しいタブで開く）</span></a>
               </div>
             </div>
+            <details id="desktopDownloads" hidden>
+              <summary class="btn-secondary">デスクトップ版をダウンロード</summary>
+            </details>
             <details id="adminMenu" class="admin-menu" hidden>
               <summary class="btn-secondary">管理メニュー<span class="admin-menu-caret" aria-hidden="true">▾</span></summary>
               <div class="admin-menu-items" aria-label="管理メニュー項目">
@@ -1916,9 +1919,6 @@
                 <a id="analyticsMenuLink" class="btn-secondary" href="./analytics.html" target="_blank" rel="noopener noreferrer" hidden>データ分析</a>
                 <a class="btn-secondary" href="./voicepeak_csv.html" target="_blank" rel="noopener noreferrer">VOICEPEAK CSV出力</a>
               </div>
-              <details id="desktopDownloads" hidden>
-                <summary class="btn-secondary">デスクトップ版をダウンロード</summary>
-              </details>
             </details>
 	          </nav>
 	        </div>
@@ -2304,10 +2304,11 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.18.7/dist/katex.min.js" integrity="sha256-EKkbR5zZJ0Rs62BAn7DXK10NBer0RsnlL6/WQFjIRUA=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
-    <script src="./shared/desktop-downloads.js"></script>
+    <script src="./shared/desktop-downloads.js?v=2"></script>
     <script src="./shared/study-tools.js"></script>
     <script src="./shared/markdown.js"></script>
     <script>
+      window.mountDesktopDownloads();
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
       const ADMIN_API_BASE = window.ADMIN_API_BASE || window.AI_API_BASE || "";
@@ -2315,7 +2316,6 @@
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
-      window.mountDesktopDownloads(supabaseClient, getUserRole);
       const state = {
         questions: [],
         indexBySubject: {},

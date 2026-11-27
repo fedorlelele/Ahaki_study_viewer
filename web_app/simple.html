@@ -422,16 +422,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js" integrity="sha256-6MVI+htiTxo+/n5J4b2QjlkOKQoQWjglES7N1nZf0Xw=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
-    <script src="./shared/desktop-downloads.js"></script>
+    <script src="./shared/desktop-downloads.js?v=2"></script>
     <script src="./shared/study-tools.js"></script>
     <script>
+      window.mountDesktopDownloads();
       const SUPABASE_URL = window.SUPABASE_URL || "";
       const SUPABASE_KEY = window.SUPABASE_KEY || "";
       const supabaseClient =
         window.supabase && SUPABASE_URL && SUPABASE_KEY
           ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
           : null;
-      window.mountDesktopDownloads(supabaseClient, getUserRole);
       const SIMPLE_SESSION_KEY = "simple_session_v1";
 
 	      const state = {

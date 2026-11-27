@@ -12,54 +12,56 @@ const assets = [
   'windows-v0.2.0/ASV-Windows-0.2.0-x64-Setup.exe',
   'windows-v0.2.0/ASV-Windows-0.2.0-arm64-Setup.exe'
 ];
-const session = (id, role) => ({user:{id, app_metadata:{role}}, access_token:'test'});
 
 for (const page of ['index','simple','tag_study']) {
-  test(page + ' menu follows login, token refresh, role downgrade and sign-out', () => {
-    const html = fs.readFileSync(path.join(web, page+'.html'), 'utf8');
-    const dom = new JSDOM(html, {runScripts:'outside-only'});
+  test(page + ' offers the public releases without an authentication session', t => {
+    const html = fs.readFileSync(path.join(web, page + '.html'), 'utf8');
+    const dom = new JSDOM(html, {runScripts:'outside-only', url:'https://asv.example/web_app/'});
+    t.after(() => dom.window.close());
     const w = dom.window;
-    const menu = w.document.getElementById('desktopDownloads');
-    const links = () => [...menu.querySelectorAll('a[href]')];
-    assert.ok(menu.hidden);
-    assert.equal(links().length,0);
-    assert.match(menu.querySelector('summary').textContent, /デスクトップ版をダウンロード/);
-    assert.ok(w.document.querySelector('script[src="./shared/desktop-downloads.js"]'));
-    assert.match(html, /window\.mountDesktopDownloads\(supabaseClient, getUserRole\)/);
-    if (page === 'index') assert.ok(menu.closest('#adminMenu'));
-
-    let authChanged;
+    const d = w.document;
+    const shared = d.querySelector('script[src="./shared/desktop-downloads.js?v=2"]');
+    assert.ok(shared);
+    const startup = [...d.scripts].find(el => el.textContent.includes('window.mountDesktopDownloads('));
+    assert.ok(startup);
     w.eval(script);
-    w.mountDesktopDownloads(null, () => 'admin');
-    w.mountDesktopDownloads({auth:{onAuthStateChange(fn){ authChanged=fn; }}}, user => user?.app_metadata?.role);
-    for (const value of [null, session('u',''), session('s','student'), session('t','teacher'),
-      {access_token:'test', user:{id:'s',user_metadata:{role:'admin'}}}]) {
-      authChanged('INITIAL_SESSION',value);
-      assert.ok(menu.hidden);
-      assert.equal(links().length,0);
-    }
-    authChanged('SIGNED_IN',session('a','admin'));
-    assert.equal(menu.hidden,false);
-    const initial = links();
-    assert.deepEqual(initial.map(a=>a.href),assets.map(asset=>releases+asset));
-    assert.ok(initial.every(a => a.tabIndex === 0));
-    assert.match(initial[0].textContent,/Mac.*Intel.*Apple Silicon/);
-    assert.match(initial[1].textContent,/Windows.*x64/);
-    assert.match(initial[2].textContent,/Windows.*ARM64/);
-    menu.open=true;
-    authChanged('TOKEN_REFRESHED',session('a','admin'));
-    assert.ok(menu.open);
-    assert.equal(links()[0],initial[0], 'token refresh preserves link and keyboard focus');
 
-    authChanged('TOKEN_REFRESHED',session('a','teacher'));
-    assert.ok(menu.hidden);
-    assert.equal(menu.open,false);
-    assert.equal(links().length,0);
-    authChanged('SIGNED_IN',session('b','admin'));
-    assert.equal(links().length,3);
-    authChanged('SIGNED_OUT',null);
-    assert.ok(menu.hidden);
-    assert.equal(links().length,0);
-    dom.window.close();
+    // Run the real page startup, stopping when it reaches the authentication client.
+    const noAuth = new Error('Auth is unavailable');
+    w.SUPABASE_URL = 'https://asv.example';
+    w.SUPABASE_KEY = 'test';
+    w.supabase = {createClient() { throw noAuth; }};
+    assert.throws(() => w.eval(startup.textContent), error => error === noAuth);
+
+    const menu = d.getElementById('desktopDownloads');
+    assert.equal(menu.hidden, false);
+    assert.equal(menu.closest('#adminMenu'), null);
+    assert.equal(d.getElementById('analyticsMenuLink').hidden, true);
+    if (page === 'index') assert.equal(d.getElementById('adminMenu').hidden, true);
+    // The full and tag views expose the chooser through the ordinary menu button.
+    if (page !== 'simple') {
+      const panels = d.getElementById(d.getElementById('menuToggleBtn').getAttribute('aria-controls'));
+      assert.ok(panels.contains(menu));
+      panels.hidden = false;
+      if (page === 'index') d.getElementById('topMenuContent').hidden = false;
+    }
+    assert.equal(menu.closest('[hidden]'), null);
+    const summary = menu.querySelector('summary');
+    assert.match(summary.textContent, /デスクトップ版をダウンロード/);
+    summary.focus();
+    assert.equal(d.activeElement, summary);
+    summary.click();
+    assert.ok(menu.open);
+
+    const links = [...menu.querySelectorAll('a[href]')];
+    assert.deepEqual(links.map(a => a.href), assets.map(asset => releases + asset));
+    assert.match(links[0].textContent, /Mac.*Intel.*Apple Silicon/);
+    assert.match(links[1].textContent, /Windows.*x64/);
+    assert.match(links[2].textContent, /Windows.*ARM64/);
+    for (const link of links) {
+      assert.equal(link.tabIndex, 0);
+      link.focus();
+      assert.equal(d.activeElement, link);
+    }
   });
 }

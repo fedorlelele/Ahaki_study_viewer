@@ -541,13 +541,13 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.11/dist/purify.min.js" integrity="sha256-26u1sgWjM+xJyMCef8ow72bfBSO7i8D6nqhDhB8RHb0=" crossorigin="anonymous"></script>
     <script src="./config.js"></script>
     <script src="./shared/questions.js"></script>
-    <script src="./shared/desktop-downloads.js"></script>
+    <script src="./shared/desktop-downloads.js?v=2"></script>
     <script>
+      window.mountDesktopDownloads();
       const supabaseClient =
         window.supabase && window.SUPABASE_URL && window.SUPABASE_KEY
           ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY)
           : null;
-      window.mountDesktopDownloads(supabaseClient, getUserRole);
 
       const state = {
         tagCatalog: [],
