@@ -5,6 +5,7 @@ import SwiftUI
 
 @main
 @MainActor struct ASVMacApp: App {
+    @StateObject private var study = StudySession()
     @StateObject private var settings = Preferences()
     @StateObject private var speech = Narrator()
     @StateObject private var chat = StudyChat()
@@ -12,7 +13,7 @@ import SwiftUI
 
     var body: some Scene {
         Window("Ahaki Study Viewer", id: "study") {
-            StudyWindow().environmentObject(settings).environmentObject(speech).environmentObject(chat)
+            StudyWindow().environmentObject(study).environmentObject(settings).environmentObject(speech).environmentObject(chat)
                 .frame(minWidth: 680, minHeight: 440)
         }
         .defaultSize(width: 1080, height: 740)
@@ -24,7 +25,7 @@ import SwiftUI
             StudyCommands(settings: settings)
         }
         Settings {
-            PreferencesView().environmentObject(settings).environmentObject(chat).environmentObject(speech)
+            PreferencesView().environmentObject(study).environmentObject(settings).environmentObject(chat).environmentObject(speech)
         }
     }
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct PreferencesView: View {
+    @EnvironmentObject private var study: StudySession
     @EnvironmentObject private var settings: Preferences
     @EnvironmentObject private var speech: Narrator
     @State private var editing: StudyAction?
@@ -48,6 +49,18 @@ struct PreferencesView: View {
                 }
                 Button("標準の割り当てに戻す") { settings.resetShortcuts(); announce("標準の割り当てに戻しました。") }
             }.formStyle(.grouped).tabItem { Label("キーボード", systemImage: "keyboard") }
+            Form {
+                Section("問題と解説") {
+                    Text(study.catalogStatus)
+                    Button("問題と解説を今すぐ更新") { Task { await study.refresh() } }
+                        .disabled(study.refreshing)
+                }
+                Section("回答の記録") {
+                    Text("問題番号・選んだ選択肢・正誤・回答日時を、このMacの匿名IDでWeb版と同じ統計に送信します。オフラインの回答はこのMacに保存し、接続時に送信します。")
+                    Text("未送信の回答　\(study.pendingCount) 件")
+                    if !study.answerStatus.isEmpty { Text(study.answerStatus) }
+                }
+            }.formStyle(.grouped).tabItem { Label("学習データ", systemImage: "arrow.triangle.2.circlepath") }
             Form {
                 Section("ChatGPTとの接続") { AccountControls() }
             }.formStyle(.grouped).tabItem { Label("ChatGPT", systemImage: "bubble.left.and.bubble.right") }

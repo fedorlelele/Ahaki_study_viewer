@@ -6,6 +6,9 @@ public struct QuestionBank: Sendable {
     public let examTypes: [String]
     public let sessions: [Int]
     public let generatedAt: String
+    public let cloudRevision: String?
+    let baseDigest: String?
+    let baseETag: String?
 
     private let index: [SearchEntry]
 
@@ -30,7 +33,11 @@ public struct QuestionBank: Sendable {
     }
 
     public static func load(from url: URL) throws -> Self {
-        let snapshot = try JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: url, options: .mappedIfSafe))
+        try load(data: Data(contentsOf: url, options: .mappedIfSafe))
+    }
+
+    public static func load(data: Data) throws -> Self {
+        let snapshot = try JSONDecoder().decode(Snapshot.self, from: data)
         return try Self(manifest: snapshot.manifest, questions: snapshot.questions)
     }
 
@@ -41,6 +48,9 @@ public struct QuestionBank: Sendable {
         }
         self.questions = questions
         generatedAt = manifest.generatedAt
+        cloudRevision = manifest.cloudRevision
+        baseDigest = manifest.baseDigest
+        baseETag = manifest.baseETag
         // Preserve the curriculum order used in the published examinations.
         var seen = Set<String>()
         subjects = questions.map(\.subject).filter { seen.insert($0).inserted }
@@ -72,7 +82,13 @@ public struct QuestionBank: Sendable {
 private struct Manifest: Decodable {
     let generatedAt: String
     let total: Int
-    enum CodingKeys: String, CodingKey { case generatedAt = "generated_at", total }
+    let cloudRevision: String?
+    let baseDigest: String?
+    let baseETag: String?
+    enum CodingKeys: String, CodingKey {
+        case generatedAt = "generated_at", total, cloudRevision = "cloud_revision"
+        case baseDigest = "base_sha256", baseETag = "base_etag"
+    }
 }
 
 private struct Snapshot: Decodable {

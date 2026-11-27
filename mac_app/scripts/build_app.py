@@ -33,6 +33,20 @@ def sparkle_root():
     return roots[0].parent
 
 
+def package_study_service(resources):
+    public_web = MAC.parent / "docs" / "web_app"
+    config = (public_web / "config.js").read_text(encoding="utf-8")
+    fields = re.findall(r'^\s*window\.(SUPABASE_URL|SUPABASE_KEY)\s*=\s*"([^"]+)"\s*;', config, re.MULTILINE)
+    values = dict(fields)
+    if (not re.fullmatch(r"https://[a-z0-9-]+\.supabase\.co", values.get("SUPABASE_URL", ""))
+            or not re.fullmatch(r"sb_publishable_[\w-]+", values.get("SUPABASE_KEY", ""))):
+        raise ValueError("Web版の公開用Supabase設定を確認してください。")
+    public = "\n".join(f'window.{name} = "{values[name]}";' for name in ("SUPABASE_URL", "SUPABASE_KEY"))
+    (resources / "StudyWebConfig.js").write_text(public, encoding="utf-8")
+    shutil.copy(public_web / "shared" / "questions.js", resources / "StudyQuestionRules.js")
+    shutil.copy(MAC.parent / "docs/output/web/questions_manifest.json", resources / "StudyBundledManifest.json")
+
+
 def sign(app, identity):
     if identity:
         codesign = ["codesign", "--force", "--timestamp", "--options", "runtime", "--sign", identity]
@@ -91,6 +105,7 @@ def build(version=None, universal=False, identity=None, destination=None):
         shutil.copy(sparkle / "LICENSE", resources / "Sparkle-LICENSE.txt")
         shutil.copy(MAC / "Packaging/AppIcon.icns", resources / "AppIcon.icns")
         package(resources)
+        package_study_service(resources)
         sign(app, identity)
 
         with (output / ".asv-build.lock").open("a") as lock:
