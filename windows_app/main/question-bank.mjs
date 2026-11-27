@@ -94,9 +94,14 @@ export function createQuestionBank({directory, bundledPath, contract, fetcher = 
       current = saved;
       currentRevision = cached.revision;
       syncedAt = cached.syncedAt;
-    } catch {
-      current = checkedSnapshot(JSON.parse(await readFile(bundledPath,'utf8')));
+    } catch { /* A missing or interrupted cache can be rebuilt from the bundled bank. */ }
+    let bundled;
+    try { bundled = checkedSnapshot(JSON.parse(await readFile(bundledPath,'utf8'))); }
+    catch (error) { if (!current) throw error; }
+    if (bundled && (!current || Date.parse(bundled.manifest.generated_at) > Date.parse(current.manifest.generated_at))) {
+      current = bundled;
       currentRevision = revision(current);
+      syncedAt = undefined;
     }
   }
   async function home() {

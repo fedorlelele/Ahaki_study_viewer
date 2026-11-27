@@ -91,3 +91,14 @@ test('an incomplete page, invalid new export or stale manifest cannot replace th
   await writeFile(path,'{interrupted');
   assert.deepEqual((await createQuestionBank(options).home()).questions,questions);
 });
+
+test('an offline app upgrade can start from a newer bundled publication', async t => {
+  const options = await setup(t);
+  await createQuestionBank({...options,fetcher:fixture().fetcher}).sync();
+  const newer = {manifest:{...manifest,generated_at:'2026-11-01T00:00:00Z'},
+    questions:questions.map(q=>({...q,explanation_latest:'新版の解説'}))};
+  await writeFile(options.bundledPath,JSON.stringify(newer));
+  const bank = await createQuestionBank(options).home();
+  assert.equal(bank.syncedAt,undefined);
+  assert.equal(bank.questions[0].explanation_latest,'新版の解説');
+});
